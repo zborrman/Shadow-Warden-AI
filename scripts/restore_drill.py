@@ -43,6 +43,14 @@ DRILL_PG_CONTAINER = "warden-drill-postgres"
 DRILL_PG_PASSWORD = "drill-only-not-a-real-secret"
 DRILL_PG_PORT = "15433"  # host-side debug access only; internal traffic uses DRILL_NETWORK
 DRILL_NETWORK = "warden-drill-net"
+# MUST match docker-compose.yml's `postgres.image` exactly (R6 finding
+# 2026-07-26): a floating `latest-pg16` scratch target let the drill silently
+# test against a NEWER TimescaleDB extension version than the one that made the
+# real backup, hitting timescaledb_post_restore()'s "catalog version mismatch"
+# on an otherwise-good dump — a drill-only false failure that also means a real
+# floating-tag production pin is a live disaster-recovery risk. Bump this in
+# lockstep with docker-compose.yml, verified by a clean drill run before merge.
+DRILL_PG_IMAGE = "timescale/timescaledb:2.26.2-pg16"
 
 
 def _timed(label: str):
@@ -115,7 +123,7 @@ def start_scratch_postgres() -> None:
         "-e", f"POSTGRES_PASSWORD={DRILL_PG_PASSWORD}",
         "-e", "POSTGRES_DB=warden",
         "-p", f"{DRILL_PG_PORT}:5432",
-        "timescale/timescaledb:latest-pg16",
+        DRILL_PG_IMAGE,
     ])
     # The official postgres entrypoint (which the TimescaleDB image is built on)
     # boots a TEMPORARY server for initdb / docker-entrypoint-initdb.d on first
@@ -160,15 +168,15 @@ def restore_pg(snap_dir: Path) -> int:
     try:
         # pg_restore must match (or exceed) the pg_dump version that made the
         # archive — the scratch server's OWN bundled client is Postgres 16's
-        # (timescale/timescaledb:latest-pg16), but warden/Dockerfile (R1)
-        # installs Debian trixie's postgresql-client, which is v17: real
-        # backups are v17-format archives a v16 pg_restore can't read
-        # ("unsupported version in file header"). Run pg_restore from a
-        # matching postgres:17 client container instead of the server's own —
-        # this is exactly the drill catching a real version-skew risk, not a
-        # drill-only artifact. Connect via the DRILL_NETWORK + container name
-        # (Docker's embedded DNS), not host.docker.internal + the published
-        # port — see the comment in start_scratch_postgres().
+        # (DRILL_PG_IMAGE), but warden/Dockerfile (R1) installs Debian trixie's
+        # postgresql-client, which is v17: real backups are v17-format archives
+        # a v16 pg_restore can't read ("unsupported version in file header").
+        # Run pg_restore from a matching postgres:17 client container instead
+        # of the server's own — this is exactly the drill catching a real
+        # version-skew risk, not a drill-only artifact. Connect via the
+        # DRILL_NETWORK + container name (Docker's embedded DNS), not
+        # host.docker.internal + the published port — see the comment in
+        # start_scratch_postgres().
         drill_url = (
             f"postgresql://postgres:{DRILL_PG_PASSWORD}"
             f"@{DRILL_PG_CONTAINER}:5432/warden"

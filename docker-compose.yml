@@ -393,8 +393,17 @@ services:
     #   - seccomp=./docker/seccomp/chrome.json
 
   # ── POSTGRES ────────────────────────────────────────────────────────────────
+  # Pinned (not `latest-pg16`, R6 finding 2026-07-26): a floating tag lets the
+  # running TimescaleDB extension version drift out from under the offsite
+  # encrypted backups. timescaledb_post_restore() hard-fails on any catalog
+  # version mismatch between the dump and the target ("catalog version
+  # mismatch, expected X seen Y") — so a real disaster recovery onto a freshly
+  # pulled `latest-pg16` box could refuse to restore backups made from an older
+  # extension version. Pin this to the version scripts/restore_drill.py's
+  # scratch container also uses, and bump both together deliberately (verify
+  # with a restore drill before merging a bump).
   postgres:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.26.2-pg16
     container_name: warden-postgres
     restart: unless-stopped
     labels:

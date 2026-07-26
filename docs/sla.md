@@ -179,16 +179,16 @@ simulation.
 worst case up to ~24h of Postgres/SQLite state loss if the VPS is lost
 minutes before the next scheduled backup.
 
-### Finding from the drill (open, not yet fixed)
+### Finding from the 2026-07-17 drill — code fix applied
 
 The drill did **not** pass clean — 3 non-fatal `pg_restore` errors on every
 run, reproducible:
 
 1. `unrecognized configuration parameter "transaction_timeout"` — the pg_dump
    client is Postgres 17 (`warden/Dockerfile`, R1), but the actual server is
-   Postgres 16 (`timescale/timescaledb:latest-pg16`). A v17 dump's `SET
-   transaction_timeout = 0` preamble is rejected by a v16 server. Cosmetic in
-   isolation (pg_restore continues past it), but a real version-skew bug.
+   Postgres 16. A v17 dump's `SET transaction_timeout = 0` preamble is
+   rejected by a v16 server. Cosmetic in isolation (pg_restore continues past
+   it), but a real version-skew bug.
 2. `table "probe_results" is not a hypertable` / `ONLY option not supported
    on hypertable operations` — the uptime-monitor hypertable's foreign-key
    constraints fail to restore against a fresh TimescaleDB instance, even
@@ -196,20 +196,70 @@ run, reproducible:
    internal partitioning needs FK constraints reapplied in a specific order
    pg_restore's default dependency resolution doesn't get right.
 
-**Why this matters:** `warden/backup/service.py::_pg_restore_bytes()` — the
+**Why this mattered:** `warden/backup/service.py::_pg_restore_bytes()` — the
 function the *documented, real* disaster-recovery path
-(`scripts/db_snapshot.py --restore`) calls — checks `pg_restore`'s exit code
-and raises on non-zero, exactly the code this drill exercised. A real
-restore of this database today would report failure via that path even
-though the drill showed 21 of 24 tables (all non-hypertable data) restore
-completely intact. This is precisely what a restore drill is for: "we have
-backups" was true; "the documented one-command restore definitely works"
-was not, until measured. **Follow-up needed:** either make
-`_pg_restore_bytes()` tolerate pg_restore's ignored-error exit code
-(distinguishing it from a genuine hard failure) and script FK-constraint
-reapplication for hypertables, or adopt TimescaleDB-aware backup tooling.
-Tracked as a known gap, not silently patched under this pass.
+(`scripts/db_snapshot.py --restore`) calls — checked `pg_restore`'s exit code
+and raised on non-zero, exactly the code this drill exercised. A real restore
+would have reported failure via that path even though 21 of 24 tables (all
+non-hypertable data) restored completely intact. **Fixed** (see
+`fix/pg-restore-timescaledb`): `_pg_restore_bytes()` now brackets the restore
+with TimescaleDB's own `timescaledb_pre_restore()` / `timescaledb_post_restore()`
+procedure (fixes the chunk/FK-ordering issue in #2) and judges success by
+tables actually restored rather than the exit code alone (tolerates #1 as
+benign noise). `scripts/restore_drill.py` mirrors the same logic so the drill
+validates the real production code path.
+
+### Finding from the 2026-07-26 re-run — a more severe, related gap
+
+Re-running the drill (to validate the fix above) surfaced a **harder**
+failure before ever reaching the two errors above: `timescaledb_post_restore()`
+itself refused with `catalog version mismatch, expected "2.28.3" seen "2.26.2"`.
+
+Root cause: `docker-compose.yml` pinned `postgres.image` to the **floating**
+tag `timescale/timescaledb:latest-pg16`. Production's already-running
+container is on TimescaleDB **2.26.2** (confirmed live:
+`SELECT extversion FROM pg_extension WHERE extname='timescaledb'`), matching
+the offsite backup — but `latest-pg16` had since moved forward to **2.28.3**.
+A real disaster recovery — provisioning a fresh box and pulling `latest-pg16`
+fresh — would restore into a newer extension version than the one that made
+the backup, and TimescaleDB hard-refuses a cross-version restore rather than
+risk silent catalog corruption. This is strictly worse than findings #1/#2
+above: those were tolerated by the outcome-based fix; this one blocks the
+TimescaleDB-aware restore path entirely, with 0 tables restored.
+
+**Fixed:** `docker-compose.yml`'s `postgres.image` and
+`scripts/restore_drill.py`'s `DRILL_PG_IMAGE` are both pinned to
+`timescale/timescaledb:2.26.2-pg16` — confirmed via `docker inspect` to be a
+distinct build from what's live (different Postgres 16.x minor/base-image
+patch level) but the **same TimescaleDB extension version**, which is what
+restore compatibility depends on. Postgres minor-version bumps within a major
+version are binary-compatible by design, so redeploying this pin is a normal
+container restart, not a data-format change — but it **is** an actual restart
+of the production Postgres container on next deploy, not a no-op; deploy it
+deliberately, not silently bundled with unrelated changes. Bump the pin in
+both files together going forward, verified by a clean drill run before
+merging any version bump — this is exactly the class of gap a floating tag
+reintroduces.
+
+Two drill-tooling robustness fixes landed alongside this investigation
+(`scripts/restore_drill.py`), independent of the findings above:
+- The scratch-Postgres startup check polled `pg_isready`, which can report
+  ready against the postgres entrypoint's *temporary* init-phase server
+  before it shuts down and execs the real one. Now polls the actual
+  `CREATE EXTENSION` operation needed downstream instead of a fixed sleep.
+- The pg_restore client (a separate `postgres:17` container, needed for the
+  client/server version-skew reason above) reached the scratch server via
+  `host.docker.internal` + its published port — a host NAT "hairpin" path
+  that depends on host firewall/NAT state and was observed to time out after
+  a host reboot. Now both containers share a dedicated Docker network and
+  connect by container name over Docker's embedded DNS, with no host-NAT
+  dependency. A further retry wraps `pg_restore` itself for TimescaleDB's own
+  brief internal restart shortly after first `CREATE EXTENSION` activation.
+
+**Status:** code fixes for both findings are implemented and unit-tested;
+end-to-end drill re-verification with the version pin in place is the next
+step before this is marked fully closed.
 
 ---
 
-*Shadow Warden AI · sla.md · v1.1 · 2026-07-17*
+*Shadow Warden AI · sla.md · v1.2 · 2026-07-26*
