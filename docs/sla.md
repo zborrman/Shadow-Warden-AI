@@ -163,17 +163,22 @@ The following are excluded from uptime calculations and SLA credits:
 
 ## 11. Backup Restore RTO/RPO (measured, R6)
 
-Measured 2026-07-17 via `scripts/restore_drill.py`, pulling the real latest
-snapshot from the offsite S3 target (not a synthetic test file) into a
-throwaway scratch Postgres — the actual disaster-recovery path, not a
-simulation.
+Measured via `scripts/restore_drill.py`, pulling the real latest snapshot from
+the offsite S3 target (not a synthetic test file) into a throwaway scratch
+Postgres + SQLite set — the actual disaster-recovery path, not a simulation.
+Numbers below are from the first fully-clean end-to-end run (2026-07-26,
+snapshot `20260726T033000Z`): **21 Postgres tables** (all of `warden_core`,
+including the TimescaleDB uptime-monitor hypertable + its ~106 chunks) and
+**7 SQLite DBs** (auth, community, healer_metrics, marketplace, sac_wallet,
+secrets, x402) restored and integrity-checked.
 
 | Stage | Measured time |
 |---|---|
-| Fetch latest snapshot from offsite S3 | ~1.5–1.8s |
-| Start scratch Postgres 16 (TimescaleDB image) | ~2–5s |
-| `pg_restore` the encrypted dump | ~5–26s |
-| **Total measured RTO (Postgres data only)** | **~10–30s** |
+| Fetch latest snapshot from offsite S3 | ~0.6s |
+| Start scratch Postgres 16 (TimescaleDB image) | ~6.3s |
+| `pg_restore` the encrypted dump | ~9.8s |
+| Restore + integrity-check SQLite snapshots | <0.1s |
+| **Total measured RTO (data restore, verified)** | **~17s** |
 
 **RPO:** bounded by the nightly `sova_nightly_backup` cron (03:30 UTC) —
 worst case up to ~24h of Postgres/SQLite state loss if the VPS is lost
@@ -256,10 +261,33 @@ Two drill-tooling robustness fixes landed alongside this investigation
   dependency. A further retry wraps `pg_restore` itself for TimescaleDB's own
   brief internal restart shortly after first `CREATE EXTENSION` activation.
 
-**Status:** code fixes for both findings are implemented and unit-tested;
-end-to-end drill re-verification with the version pin in place is the next
-step before this is marked fully closed.
+### Finding from the 2026-07-26 clean run — final false-failure removed
+
+With the version pin in place, the drill reached the very end of the restore —
+every table, every hypertable chunk, and every FK constraint created, only the
+one benign `transaction_timeout` SET ignored (`errors ignored on restore: 1`) —
+and then **still reported FAIL with "0 tables restored."**
+
+Root cause was entirely in the drill's own sanity check, not the restore: the
+outcome query counted `information_schema.tables WHERE table_schema='public'`,
+but the application's tables live in the **`warden_core`** schema, so a
+perfectly-restored database counted 0 public tables and raised. The earlier
+live hypothesis — that something in the FK-constraint-on-hypertable-chunk phase
+was dropping the table count — was wrong; that phase succeeds completely.
+
+**Fixed:** the check now counts `BASE TABLE`s across all non-system schemas
+(excluding `pg_catalog`/`information_schema` and TimescaleDB's internal schemas,
+so the number reflects real application tables rather than the hundreds of
+hypertable chunks). The drill now passes clean end-to-end — see the measured
+RTO table above.
+
+**Status:** ✅ **Closed.** All three findings fixed; the offsite backup is
+verified genuinely restorable end-to-end (RTO ~17s, 21 Postgres tables + 7
+SQLite DBs). `warden/backup/service.py::_pg_restore_bytes()` (the real DR path)
+and `scripts/restore_drill.py` share the same TimescaleDB-aware,
+outcome-based logic, and `docker-compose.yml`/`DRILL_PG_IMAGE` are pinned in
+lockstep to the extension version the backup was made with.
 
 ---
 
-*Shadow Warden AI · sla.md · v1.2 · 2026-07-26*
+*Shadow Warden AI · sla.md · v1.3 · 2026-07-26*
