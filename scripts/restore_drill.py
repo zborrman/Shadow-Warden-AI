@@ -186,14 +186,37 @@ def restore_pg(snap_dir: Path) -> int:
         # fixes the hypertable chunk FK-ordering that used to make a good archive
         # look like a failed restore. post_restore is always run to re-enable.
         _scratch_psql("SELECT public.timescaledb_pre_restore()")
-        restore = subprocess.run([
+
+        restore_cmd = [
             "docker", "run", "--rm",
             "--network", DRILL_NETWORK,
             "-v", f"{tmp_dump}:/tmp/drill.pgdump:ro",
             "postgres:17-alpine",
             "pg_restore", "--no-password", "--dbname", drill_url,
             "--no-owner", "--no-privileges", "/tmp/drill.pgdump",
-        ], capture_output=True, text=True, check=False)
+        ]
+        # Observed live: CREATE EXTENSION timescaledb succeeding over the local
+        # docker-exec socket (start_scratch_postgres) does not guarantee the TCP
+        # listener stays up — TimescaleDB can trigger its own brief internal
+        # restart shortly after first activation, which lands right in this
+        # window ("the database system is starting up"/"shutting down" over the
+        # NETWORK path, even though the socket path just reported ready). Retry
+        # the whole pg_restore on that specific transient condition; a content-
+        # level failure (version-skew SET, hypertable ordering) won't match
+        # these strings and falls straight through to the outcome-based check
+        # below rather than being retried pointlessly.
+        for attempt in range(5):
+            restore = subprocess.run(restore_cmd, capture_output=True, text=True, check=False)
+            transient = restore.returncode != 0 and (
+                "starting up" in restore.stderr or "shutting down" in restore.stderr
+            )
+            if not transient:
+                break
+            tail = restore.stderr.strip().splitlines()[-1] if restore.stderr.strip() else ""
+            print(f"[drill] pg_restore hit a transient server-state error "
+                  f"(attempt {attempt + 1}/5), retrying in 3s: {tail}")
+            time.sleep(3)
+
         post = _scratch_psql("SELECT public.timescaledb_post_restore()")
         if post.returncode != 0:
             raise RuntimeError(f"timescaledb_post_restore failed: {post.stderr[:300]}")
