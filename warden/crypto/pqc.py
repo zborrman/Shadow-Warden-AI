@@ -59,14 +59,43 @@ log = logging.getLogger("warden.crypto.pqc")
 # ── liboqs availability ───────────────────────────────────────────────────────
 
 _OQS_AVAILABLE = False
+
+# Why the cause is recorded and not just the outcome:
+#
+# Until 2026-07-27 this block logged "liboqs-python not installed" for *every*
+# failure mode. In production the package WAS installed — what was missing was
+# the native liboqs shared library, because warden/Dockerfile ran
+# `pip install liboqs-python` (bindings only) and never built the C library.
+# The binding raises RuntimeError("No oqs shared libraries found") in that case,
+# which this handler caught and reported as "not installed". An operator who
+# checked would find liboqs-python present in `pip freeze`, conclude the message
+# was stale, and move on. PQC — a paid Enterprise feature — silently degraded to
+# classical Ed25519 for months.
+#
+# So: the two failures are distinct and are reported distinctly.
+_OQS_UNAVAILABLE_REASON: str | None = None
+
 try:
     import oqs
     _OQS_AVAILABLE = True
     log.info("pqc: liboqs available — ML-DSA-65 + ML-KEM-768 enabled")
-except (ImportError, RuntimeError, OSError, SystemExit):
+except ImportError as exc:
+    _OQS_UNAVAILABLE_REASON = f"bindings-missing: {exc}"
     log.warning(
-        "pqc: liboqs-python not installed — PQC features unavailable. "
+        "pqc: liboqs-python is not installed — PQC features unavailable. "
         "Install with: pip install liboqs-python"
+    )
+except (RuntimeError, OSError, SystemExit) as exc:
+    # Bindings present, native library absent or unloadable. This is a broken
+    # deployment, not an optional feature being switched off — say so loudly.
+    _OQS_UNAVAILABLE_REASON = f"native-library-missing: {exc}"
+    log.error(
+        "pqc: liboqs-python IS installed but its native library could not be "
+        "loaded (%s). PQC is NOT active and hybrid operations will fall back to "
+        "classical crypto. The bindings do not build the C library: build liboqs "
+        "and point OQS_INSTALL_PATH at it (warden/Dockerfile does this in its "
+        "builder stage).",
+        exc,
     )
 
 
@@ -494,4 +523,30 @@ def pqc_status() -> dict:
             status["ml_dsa_65_available"]   = _SIG_ALGO in enabled_sigs
         except Exception:
             pass
+    else:
+        status["unavailable_reason"] = _OQS_UNAVAILABLE_REASON
     return status
+
+
+def pqc_selfcheck() -> tuple[bool, str]:
+    """
+    Verify PQC is genuinely usable, not merely importable.
+
+    ``is_pqc_available()`` only says the ``oqs`` module loaded. A liboqs built
+    without the algorithms this codebase uses would still import cleanly and
+    then fail at the first sign/encapsulate call, so the check that matters is
+    whether the configured mechanisms are actually enabled.
+
+    Returns ``(ok, detail)``. Never raises — it is called from startup and
+    health paths, which must not be able to take the gateway down.
+    """
+    if not _OQS_AVAILABLE:
+        return False, _OQS_UNAVAILABLE_REASON or "liboqs unavailable"
+    try:
+        if _SIG_ALGO not in oqs.get_enabled_sig_mechanisms():
+            return False, f"signature algorithm {_SIG_ALGO} not enabled in this liboqs build"
+        if _KEM_ALGO not in oqs.get_enabled_kem_mechanisms():
+            return False, f"KEM algorithm {_KEM_ALGO} not enabled in this liboqs build"
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"liboqs query failed: {type(exc).__name__}: {exc}"
+    return True, f"liboqs OK — {_SIG_ALGO} + {_KEM_ALGO}"

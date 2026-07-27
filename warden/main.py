@@ -460,6 +460,33 @@ async def lifespan(app: FastAPI):
     except ImportError as _cfg_err:
         log.warning("config validation skipped: %r", _cfg_err)
 
+    # ── P-3a: PQC self-check — a paid feature must not be silently absent ───
+    # PQC (ML-DSA-65 / ML-KEM-768) is an Enterprise-tier feature. It was
+    # non-functional in every deployed image from v4.7 until 2026-07-27: the
+    # Dockerfile installed the liboqs *bindings* and never built the native C
+    # library, and the failure was swallowed by a `|| echo` in the build and a
+    # log.warning at import. Nothing ever asserted it, so nothing ever noticed.
+    #
+    # Advisory by design: this logs ERROR, it does not refuse to boot. Air-gapped
+    # and non-Enterprise deployments legitimately run without liboqs, and taking
+    # the whole security gateway down over an optional crypto backend would trade
+    # a silent degradation for a loud outage. `GET /health/pipeline` reports the
+    # same state, so it is alertable.
+    try:
+        from warden.crypto.pqc import pqc_selfcheck
+        _pqc_ok, _pqc_detail = pqc_selfcheck()
+        if _pqc_ok:
+            log.info("pqc: self-check passed — %s", _pqc_detail)
+        else:
+            log.error(
+                "pqc: SELF-CHECK FAILED — %s. Post-quantum signing/KEM is NOT "
+                "active; hybrid operations degrade to classical Ed25519/X25519. "
+                "Enterprise tenants with pqc_enabled are not getting PQC.",
+                _pqc_detail,
+            )
+    except Exception as _pqc_err:  # never let the check itself break boot
+        log.error("pqc: self-check could not run: %r", _pqc_err)
+
     strict = os.getenv("STRICT_MODE", "false").lower() == "true"
 
     # ── #11: Fail-closed auth check ───────────────────────────────────────
@@ -1613,10 +1640,26 @@ async def health_pipeline(deep: bool = False) -> dict:
         except Exception as _cn_err:  # noqa: BLE001
             log.debug("health canary errored: %r", _cn_err)
 
+    # P-3a: PQC reported as its own key, deliberately NOT folded into
+    # `degraded_stages`. PQC is an optional Enterprise crypto backend, and
+    # air-gapped / lower-tier deployments run without liboqs by design — making
+    # it flip the load-balancer verdict would take healthy gateways out of
+    # rotation. It is surfaced here so that a deployment which is *supposed* to
+    # have PQC can alert on `pqc.ok == false`, which is exactly what nobody
+    # could do while it was silently broken from v4.7 to 2026-07-27.
+    pqc: dict = {"ok": False, "detail": "self-check unavailable"}
+    try:
+        from warden.crypto.pqc import pqc_selfcheck
+        _ok, _detail = pqc_selfcheck()
+        pqc = {"ok": _ok, "detail": _detail}
+    except Exception as _pqc_err:
+        log.debug("pqc self-check unavailable in health: %r", _pqc_err)
+
     result = {
         "status":          "degraded" if degraded else "ok",
         "stages":          stages,
         "turso":           turso,
+        "pqc":             pqc,
         "degraded_stages": degraded,
     }
     if canary is not None:

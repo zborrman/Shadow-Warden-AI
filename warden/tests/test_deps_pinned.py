@@ -232,6 +232,71 @@ def test_dockerfile_installs_are_version_decided(dockerfile: Path):
     )
 
 
+def test_warden_image_keeps_torch_cpu_only():
+    """
+    P-3a: the CPU-only-torch invariant, guarded in text as well as at build time.
+
+    The multi-stage refactor initially staged installs with `pip install
+    --prefix=/install`. That keeps /install off sys.path, so the step installing
+    requirements.txt could not see the CPU torch installed a step earlier;
+    sentence-transformers depends on torch, pip re-resolved it from the default
+    index, and the image gained 2.7 GB of nvidia-* wheels plus 691 MB of triton
+    — a CUDA build, shipped to a CPU-only host.
+
+    The Dockerfile now asserts this at build time. This test guards the
+    assertion itself, so deleting it fails CI in seconds instead of silently
+    reopening the hole.
+    """
+    body = (_REPO / "warden" / "Dockerfile").read_text(encoding="utf-8")
+    # The comment block explains *why* `--prefix` is wrong, so the ban has to be
+    # checked against instructions only — not against the prose describing it.
+    instructions = "\n".join(
+        ln for ln in body.splitlines() if not ln.lstrip().startswith("#")
+    )
+
+    assert "download.pytorch.org/whl/cpu" in instructions, (
+        "torch must come from the PyTorch CPU index; the default index serves the "
+        "CUDA build and this product targets CPU-only hosts"
+    )
+    assert "--prefix=/install" not in instructions, (
+        "`pip install --prefix=...` hides earlier installs from later resolution "
+        "steps, which is how the CUDA torch got pulled in. Install into the "
+        "builder's real site-packages and COPY that."
+    )
+    for needle, why in (
+        ("+cpu", "assert the resolved torch is the +cpu local version"),
+        ("find_spec('nvidia')", "assert no nvidia-* CUDA wheels were pulled in"),
+        ("find_spec('triton')", "assert the GPU compiler was not pulled in"),
+    ):
+        assert needle in body, f"warden/Dockerfile lost its build-time check to {why}"
+
+
+def test_warden_runtime_stage_ships_no_compiler():
+    """
+    P-3a: a C/C++ toolchain in the running gateway turns a file-write primitive
+    into code execution. The build stage may have one; the runtime stage may not.
+    """
+    body = (_REPO / "warden" / "Dockerfile").read_text(encoding="utf-8")
+    stages = re.split(r"^FROM\s+", body, flags=re.M)[1:]
+    assert len(stages) >= 2, (
+        "warden/Dockerfile is expected to be multi-stage (builder + runtime); "
+        "a single stage necessarily ships its own build toolchain"
+    )
+
+    runtime = stages[-1]
+    apt_lines = [ln for ln in runtime.splitlines() if "apt-get install" in ln or (
+        ln.strip().startswith(("gcc", "g++", "cmake", "ninja", "astyle", "libssl-dev"))
+    )]
+    banned = {"gcc", "g++", "cmake", "ninja-build", "astyle", "libssl-dev"}
+    # Only look at the package list, not at prose in comments.
+    pkg_text = " ".join(ln.split("#", 1)[0] for ln in apt_lines)
+    present = sorted(p for p in banned if re.search(rf"(?<![\w-]){re.escape(p)}(?![\w-])", pkg_text))
+    assert not present, (
+        f"the runtime stage installs build tooling: {present}. Build it in the "
+        "builder stage and COPY the artefacts."
+    )
+
+
 def test_warden_image_uses_the_lockfile():
     """The specific regression that caused the 2026-07-26 outage."""
     body = (_REPO / "warden" / "Dockerfile").read_text(encoding="utf-8")
