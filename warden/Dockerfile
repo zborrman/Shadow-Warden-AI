@@ -32,22 +32,41 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python deps (three-step: liboqs → torch CPU-only → everything else) ─────
-COPY requirements.txt .
+#
+#  DETERMINISM (P-0): requirements.txt states *intent* (floors, `>=`), while
+#  constraints.txt is the lockfile that decides the actual resolved version of
+#  every package. CI has installed with `-c constraints.txt` for a while; this
+#  image did not, so the two drifted — on 2026-07-26 that drift put
+#  prometheus-fastapi-instrumentator 8.1.0 into production while CI had tested
+#  8.0.2, and its changed `_get_route_name` arity 502'd the whole API. A
+#  measurement taken the next day found 48 packages differing between the
+#  CI-tested set and the running production image.
+#
+#  Rule: every pip install on this image's critical path is version-decided —
+#  either an explicit `==` here, or via `-c constraints.txt`. Enforced by
+#  warden/tests/test_deps_pinned.py.
+COPY requirements.txt constraints.txt ./
 
 # Step 1 — liboqs-python (Post-Quantum Cryptography — NIST FIPS 203/204).
 #   Builds liboqs C library from source via cmake (~60s first time, cached after).
-#   Fail-open: || true so the build continues even if liboqs is unavailable.
+#   Fail-open: the build continues even if liboqs is unavailable (classical
+#   crypto still works) — but the *version* is pinned, so a successful build is
+#   always the same build. Not in constraints.txt: it is a source build outside
+#   the PyPI resolution done in step 3.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install liboqs-python || \
+    pip install "liboqs-python==0.16.0" || \
     echo "⚠ liboqs-python build failed — PQC disabled (classical crypto still active)"
 
 # Step 2 — torch from the CPU-only wheel index (~800 MB wheel, cached after first pull).
+#   Pinned explicitly rather than via constraints.txt: the `+cpu` local version
+#   only exists on the PyTorch CPU index, so it cannot be resolved from PyPI and
+#   is deliberately excluded from the constraints file (see its header).
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install torch --index-url https://download.pytorch.org/whl/cpu
+    pip install "torch==2.13.0+cpu" --index-url https://download.pytorch.org/whl/cpu
 
-# Step 3 — everything else from PyPI.
+# Step 3 — everything else from PyPI, version-decided by the lockfile.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip install -r requirements.txt -c constraints.txt
 
 # ── Non-root runtime user ─────────────────────────────────────────────────────
 RUN addgroup --system --gid 10001 warden \

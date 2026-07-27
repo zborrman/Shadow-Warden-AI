@@ -1,18 +1,35 @@
-# warden/constraints.txt — pip constraints lockfile (Stage 1)
+# warden/constraints.txt — pip constraints lockfile
 # Generated from the pip-freeze-3.11 artifact of green CI run 28727030343
 # (branch fix/route-inventory-env-tolerant, commit 28249f61, 2026-07-05).
 #
-# Usage (CI does this automatically):
+# THIS FILE DECIDES EVERY VERSION THAT SHIPS.
+# requirements.txt states intent (floors, `>=`); this file states the answer.
+# It is the single lockfile for the project — there is no second one.
+#
+# Usage (CI, the Docker image and pip-audit all do this):
 #   pip install -r warden/requirements.txt -c warden/constraints.txt
 # Constraints only pin versions of packages being installed — they never
 # force-install anything, so Linux-only entries are harmless on Windows.
 #
-# torch is EXCLUDED: it is installed by a dedicated CPU-index step
-#   (pip install torch --index-url https://download.pytorch.org/whl/cpu)
-# and its +cpu local version cannot be resolved from PyPI via constraints.
+# Why it also governs the image (P-0, 2026-07-27): until now only CI passed
+# `-c`, while warden/Dockerfile installed requirements.txt bare. The two sets
+# drifted apart — a measurement on 2026-07-27 found *48* packages differing
+# between the CI-tested set and the running production image. One of them,
+# prometheus-fastapi-instrumentator (CI 8.0.2 / prod 8.1.0), changed the arity
+# of `_get_route_name` and 502'd the entire API on 2026-07-26. The other 47
+# were the same accident waiting for a rebuild. The Dockerfile now passes `-c`.
 #
-# Regenerate: download pip-freeze-3.11 artifact from a green CI run,
-# strip torch, replace this file below the header.
+# EXCLUDED, pinned explicitly in warden/Dockerfile instead:
+#   torch          — the `+cpu` local version only exists on the PyTorch CPU
+#                    index and cannot be resolved from PyPI via constraints.
+#   liboqs-python  — source build (cmake), installed fail-open before step 3.
+#
+# Regenerate: download the pip-freeze-3.11 artifact from a green CI run, strip
+# torch, replace everything below the header. Then redeploy — do not hand-edit
+# individual versions to match production; production is the thing being
+# corrected, not the reference.
+#
+# Enforced by warden/tests/test_deps_pinned.py.
 
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.1
@@ -47,6 +64,7 @@ cffi==2.0.0
 charset-normalizer==3.4.7
 ckzg==2.1.7
 click==8.4.2
+clickhouse-connect==1.6.0
 coverage==7.15.0
 cryptography==49.0.0
 ctranslate2==4.8.1
@@ -205,6 +223,7 @@ scikit-learn==1.9.0
 scipy==1.17.1
 sentence-transformers==5.6.0
 setproctitle==1.3.7
+setuptools==83.0.0
 shellingham==1.5.4
 six==1.17.0
 slowapi==0.1.10
@@ -251,6 +270,7 @@ watchfiles==1.2.0
 web3==7.16.0
 webauthn==3.0.0
 websockets==15.0.1
+wheel==0.47.0
 wrapt==2.2.2
 xmlsec==1.3.17
 yarl==1.24.2
