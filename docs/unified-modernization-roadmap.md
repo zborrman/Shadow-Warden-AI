@@ -11,6 +11,7 @@ Two plans have been running in parallel, each numbering its work "Phase 1…7/8"
 | **A — Security Remediation** | `MODERNIZATION_PLAN.md` | Audit findings: auth, SSRF, IDOR, GDPR, invariants, DB-layer, CI hardening | `SR-*` |
 | **B — Deep-Eng / Math** | `docs/modernization-plan-v8.md` | TDA, MAESTRO/reputation, Causal calibration, GSAM, embeddings, data-layer, runtime isolation | `DE-*` |
 | **C — FinOps / Monetization** | `docs/fintech-development-plan.md` | Billing math (wallet unification), real-time cost rating, margin-aware routing, capacity/SLO math, reliability-as-revenue, growth accounting | `FM-*` |
+| **P — Platform Hardening** | `docs/deep-analysis-2026-07-27.md` | Build determinism, packaging/image split, config seam, code shape, API-surface reduction, doc coherence, debt burn-down | `P-*` |
 
 > **Rule:** commit messages and PR titles carry the track prefix (`SR-1.4`, `DE-5`), never a bare "Phase N".
 
@@ -88,6 +89,40 @@ structure in `docs/fintech-architecture.md`. FT owns **money semantics**
 Related non-FT items scheduled in the kickoff plan: MI-1/MI-2 (GSAM taps +
 quarantine gate in marketplace — Track B), NF-5 mediator (Track B, DE-4),
 MI-5 tunnel enforcement v1 (Track B, coordinate `net_guard` with Track A).
+
+---
+
+## Track P — Platform Hardening (from `docs/deep-analysis-2026-07-27.md`)
+
+Registered 2026-07-27 after a whole-repo assessment scored the project 68/100 —
+security engineering ~85, software industrialization ~50. Track P owns the
+industrialization half: build determinism, packaging, the configuration seam,
+code shape, documentation coherence and the debt burn-down schedule.
+
+**Track P changes shape, never semantics.** Where it touches a file owned by
+another track it must run that track's tests and reference it in the PR. It may
+not weaken a fail-closed gate to simplify a refactor — `agentic_gate()`,
+`resolve_key()`, STAFF-01/02 and the x402 fail-open posture are out of scope by
+construction.
+
+| ID | Item | Status | PR |
+|---|---|---|---|
+| P-0 | Deterministic builds — image installs via the lockfile | ✅ done — `warden/Dockerfile` now installs `-r requirements.txt -c constraints.txt` (it previously did not, while CI always did: a 2026-07-27 measurement found **48** packages differing between the CI-tested set and the running production image, one of which — `prometheus-fastapi-instrumentator` 8.0.2→8.1.0 — caused the 2026-07-26 full-API outage). torch/liboqs pinned explicitly (outside PyPI resolution by design); `constraints.txt` gained `clickhouse-connect`/`setuptools`/`wheel`; `pip-audit` now audits the locked set instead of newest-of-everything; `analytics/Dockerfile`'s unquoted `pip install fastapi>=…` shell-redirect bug fixed; orphaned `warden/requirements-lock.txt` deleted (closes conflict C-B). Ratchet `warden/tests/test_deps_pinned.py` (9 hermetic tests, verified to fail when `-c` is removed). Dependabot triage still open | — |
+| P-1 | Single version of record (`pyproject` 5.3.0 vs docs 7.7 vs code 7.8) | ⬜ next | — |
+| P-2 | Finish dissolving `main.py` (3,680 lines, 23 inline routes) | ⬜ | — |
+| P-3 | Split the 4.4 GB mega-image into gateway + tools | ⬜ | — |
+| P-4 | Close the configuration seam (545 `os.getenv` outside `Settings`) | ⬜ | — |
+| P-5 | Debt burn-down: make the frozen baselines decrement | ⬜ continuous | — |
+| P-6 | Deadlines for the half-migrations (FT-6 Phase C/D, FT-2 read-cutover, 5 default-OFF gates) | ⬜ needs Track F | — |
+| P-7 | Documentation consolidation (71 files, 5 duplicate basenames) | ⬜ | — |
+| P-8 | API-surface reduction (769 routes / 108 modules) | ⬜ | — |
+| P-9 | Capacity truth (20.4 GB of declared limits, unverified) + HA decision | ⬜ | — |
+| P-10 | CI workflow decomposition (58 KB `ci.yml`, 18 jobs) | ⬜ | — |
+
+Track P shared-file notes: `warden/Dockerfile` and `warden/constraints.txt` are
+supply-chain surfaces co-owned with Track A (SR-7); `warden/config.py` (P-4) is
+read by every track; P-6 sets deadlines but Track F owns the money semantics
+behind them.
 
 ---
 
