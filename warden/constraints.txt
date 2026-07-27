@@ -93,7 +93,14 @@ flatbuffers==25.12.19
 frozenlist==1.8.0
 fsspec==2026.4.0
 gitdb==4.0.12
-GitPython==3.1.50
+# 3.1.50 carried 8 fixable HIGH advisories (command injection via unguarded git
+# options in Repo.archive()/git.ls_remote(); arbitrary file overwrite via
+# `git diff --output` argument injection; env-var exfiltration through
+# Repo.clone_from()/create_remote() URLs). Reaches this image as a streamlit
+# dependency. Found the moment the image started installing the lock — while the
+# image resolved floating versions it silently got the patched release, so the
+# *lockfile* was the vulnerable artifact and nothing was checking it.
+GitPython==3.1.55
 googleapis-common-protos==1.75.0
 greenlet==3.5.3
 grpcio==1.81.1
@@ -183,7 +190,9 @@ py-multibase==2.0.0
 py-multicodec==1.0.0
 py-multihash==3.0.0
 pyarrow==24.0.0
-pyasn1==0.6.3
+# 0.6.3: DoS via crafted ASN.1 OBJECT IDENTIFIER / REAL values (CVE-2026-59885,
+# CVE-2026-59886). Production was already on 0.6.4 by accident of floating pins.
+pyasn1==0.6.4
 pyasn1_modules==0.4.2
 pycparser==3.0
 pycryptodome==3.23.0
