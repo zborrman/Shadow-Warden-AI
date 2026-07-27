@@ -125,6 +125,54 @@ documents SAC as v7.8. The packaged artefact therefore reports a version two
 majors behind the product. Any customer-facing SBOM, support ticket or CVE
 correlation keyed on the package version is wrong today.
 
+**F-13 · A paid Enterprise feature has never worked in any deployed image.**
+
+> Found on 2026-07-27 while investigating F-4's apt layer, not by looking for it.
+
+Post-quantum cryptography (ML-DSA-65 / ML-KEM-768) is sold on the Enterprise
+tier ($249/mo, "PQC + Sovereign") and gated by `pqc_enabled` in `TIER_LIMITS`.
+It has been non-functional since `967303cd` (v4.7), when it was introduced.
+
+Verified against the **running production container**:
+
+```
+find / -name 'liboqs.so*'   ->  (nothing)
+pqc_status()                ->  {'available': False, ...}
+```
+
+Three independent failures had to line up, and all three are the same mistake —
+a fail-open with nobody reading the output:
+
+1. `warden/Dockerfile` ran `pip install liboqs-python`, with a comment claiming
+   it "builds liboqs C library from source via cmake". It does not — that
+   package is **Python bindings only**. The native library is a separate CMake
+   build that was never run. The 466 MB apt toolchain in F-4 was installed
+   specifically for a build that does not exist.
+2. The step ended in `|| echo "⚠ liboqs-python build failed …"`, so the image
+   build always succeeded regardless.
+3. At import, `oqs` raises `RuntimeError: No oqs shared libraries found`.
+   `warden/crypto/pqc.py` caught that in the same handler as `ImportError` and
+   logged **"liboqs-python not installed"**. An operator who checked would find
+   liboqs-python present in `pip freeze`, conclude the message was stale, and
+   move on. *That one inaccurate log line is why this survived for months.*
+
+`warden/crypto/pqc.py` then fail-opens: `PQCUnavailableError` on the explicit
+paths, and `hybrid_verify()` "falls back to Ed25519-only if liboqs unavailable".
+So hybrid signatures silently degraded to classical crypto, and
+`CommunityKeypair.is_hybrid` could never be true.
+
+**Status: fixed in P-3a** — the builder stage now compiles liboqs 0.16.0 for
+real, the image **fails to build** if `ML-DSA-65`/`ML-KEM-768` are not loadable,
+`pqc.py` reports bindings-missing and native-library-missing as different
+problems, and `pqc_selfcheck()` (startup ERROR log + a `pqc` key on
+`GET /health/pipeline`) makes the state alertable.
+
+**Generalise the lesson:** this codebase uses fail-open deliberately and
+correctly in the request path. But a fail-open on a *build* or *capability*
+step, with no counter and no assertion, is indistinguishable from success. The
+FAILOPEN-01 ratchet counts fail-opens in the request path only. Nothing was
+watching the Dockerfile.
+
 ### P1 — fix this quarter
 
 **F-3 · `main.py` was never finished being dissolved.**
