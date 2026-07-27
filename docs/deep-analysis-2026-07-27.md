@@ -133,16 +133,38 @@ The route-inventory guard was built specifically to make "dissolving
 lines with 23 inline routes. The safety net exists and is unused for its
 stated purpose.
 
-**F-4 · One image carries five unrelated runtimes — 4.4 GB.**
-The gateway image (`docker images` → 4.4 GB) installs `torch`, `playwright`,
-`opencv-python-headless`, `faster-whisper`, `web3`, `streamlit`, `onnxruntime`,
-`sentence-transformers` and `psycopg2-binary` together. The base is already
-`python:3.11-slim` and the Chromium binaries are deliberately *not* installed
-(`BROWSER_ENABLED=false`), so the weight is the Python dependency graph itself,
-not the browser. Consequences: slow cold start, a `deploy.limits` of 8 GB for a
-request filter, and a CVE surface where an audio-decoder or blockchain-client
-CVE becomes a finding against the *security gateway*. `warden` and `arq-worker`
-are the same 4.4 GB image, but only `arq-worker` needs the heavy half.
+**F-4 · One image carries five unrelated runtimes — 4.75 GB, and ships a compiler.**
+Measured on the production host (`docker history shadow-warden-warden:latest`):
+
+| Layer | Size | What it is |
+|---|---:|---|
+| `pip install -r requirements.txt` | **2.09 GB** | transformers, opencv, streamlit, web3, whisper, onnxruntime, … |
+| `pip install torch` (CPU wheel) | **911 MB** | used only for the ONNX export path |
+| `apt-get install` | **466 MB** | gcc, g++, cmake, ninja-build, libssl-dev, astyle, git, postgresql-client |
+| base `python:3.11-slim` | ~140 MB | |
+| liboqs-python | 12.7 MB | |
+| application code | 8 MB | the actual product |
+
+Two separable problems:
+
+1. **No multi-stage build.** 466 MB of *build* toolchain — a full C/C++ compiler,
+   cmake and ninja — is present in the running gateway container. It is needed
+   only to build `liboqs` and a few sdists. Shipping a compiler inside a security
+   gateway is both weight and attack surface: it turns a file-write primitive
+   into a code-execution primitive. A builder stage that discards the toolchain
+   is a contained, high-value change.
+2. **One image for two jobs.** `warden` and `arq-worker` run the *same* 4.75 GB
+   image, but only `arq-worker` needs torch, whisper, opencv and the browser
+   stack. The gateway's `deploy.limits` is 8 GB for what is a request filter.
+
+The base is already `python:3.11-slim` and Chromium is deliberately not installed
+(`BROWSER_ENABLED=false`), so neither is the cause. The weight is the Python
+dependency graph plus the un-discarded build toolchain.
+
+> Note on measuring: `docker image inspect --format '{{.Size}}'` reported
+> 1.07 GB for a locally-built copy of this same image. That is a multi-manifest
+> artifact, not a real size — the layer sums are the honest number. Do not size
+> the image that way when checking P-3's result.
 
 **F-5 · The money layer is built but inert.**
 `LEDGER_DUAL_WRITE`, `KYB_ENFORCEMENT_ENABLED`, `SANCTIONS_SCREENING_ENABLED`,
@@ -263,13 +285,22 @@ built for). Target ≤ 800 lines: lifespan, middleware, factory wiring only.
 **Acceptance:** route inventory diff empty; `main.py` ≤ 800 lines; `/health/pipeline` unchanged.
 
 ### P-3 — Split the mega-image · **P1 · ~1 week**
-Two images from a shared base:
-- `warden-api` — fastapi, onnxruntime, redis, crypto. **No** torch, playwright,
-  opencv, whisper, web3, streamlit.
-- `warden-tools` (for `arq-worker`) — the heavy ML/browser/audio/chain stack.
+Do it in two independent steps, cheapest first:
 
-**Acceptance:** gateway image shrinks measurably; `/filter` p99 unchanged; the
-gateway's Trivy CVE count drops; the 8 GB limit becomes justifiable.
+**P-3a — multi-stage build (~half a day, no architectural risk).** Move
+`gcc/g++/cmake/ninja-build/libssl-dev/astyle` and the liboqs/sdist compilation
+into a builder stage; copy only the resulting site-packages into the runtime
+stage. Removes ~466 MB *and* takes the compiler out of the running container.
+
+**P-3b — two images from a shared base.**
+- `warden-api` — fastapi, onnxruntime, redis, crypto. **No** torch, opencv,
+  whisper, web3, streamlit.
+- `warden-tools` (for `arq-worker`) — the heavy ML/audio/chain stack.
+
+**Acceptance:** gateway layer sums drop below 1.5 GB (measure with
+`docker history`, not `image inspect` — see F-4); no compiler in the runtime
+image; `/filter` p99 unchanged; the gateway's Trivy CVE count drops; the 8 GB
+`deploy.limits` becomes justifiable.
 **Coordinate:** Track B (ONNX export path), Track A (Dockerfile is a supply-chain surface).
 
 ### P-4 — Close the configuration seam · **P1 · ~3 days**
