@@ -1173,9 +1173,15 @@ try:
     import prometheus_fastapi_instrumentator.routing as _pfi_routing
     _orig_get_route_name = _pfi_routing._get_route_name
 
-    def _patched_get_route_name(scope, routes, route_name=None):
+    def _patched_get_route_name(scope, routes, *args, **kwargs):
+        # Signature-agnostic passthrough: v8.0.x's _get_route_name took
+        # (scope, routes, route_name); v8.1.0 dropped the third arg to
+        # (scope, routes). Forwarding *args/**kwargs keeps this patch working
+        # across both instead of hard-coding a positional arg count (an unbounded
+        # `>=8.0.0` pin let 8.1.0 in and the old 3-arg call TypeError'd on every
+        # instrumented request — a full gateway outage).
         safe_routes = [r for r in routes if hasattr(r, "path") and hasattr(r, "matches")]
-        return _orig_get_route_name(scope, safe_routes, route_name)
+        return _orig_get_route_name(scope, safe_routes, *args, **kwargs)
 
     _pfi_routing._get_route_name = _patched_get_route_name
 except Exception as _exc:  # noqa: BLE001
