@@ -144,6 +144,17 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Python site-packages + console scripts, built above. Both stages derive from
 # the same python:3.11-slim, so /usr/local/bin is identical apart from the
 # entry points the installs added.
+#
+# The base image's own site-packages is cleared first, because Docker COPY
+# MERGES a directory — it never deletes. The base ships wheel 0.45.1; the
+# builder's pip upgraded that in place to the pinned 0.47.0, which removes
+# `wheel-0.45.1.dist-info` *in the builder*. Copying over an untouched runtime
+# left the base's stale 0.45.1 dist-info sitting next to the new 0.47.0 one, and
+# Trivy correctly reported the image as vulnerable to CVE-2026-24049 (privilege
+# escalation via a malicious wheel file) even though the actual installed
+# package was patched. Stale metadata is not a cosmetic problem: an SBOM built
+# from this image would have claimed a package that is not there.
+RUN rm -rf /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
