@@ -519,8 +519,11 @@ jobs:
       - name: Install CPU-only PyTorch (required to resolve full dep graph)
         run: pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 
-      - name: Install warden requirements
-        run: pip install -r warden/requirements.txt --quiet
+      # P-0: audit the versions that actually ship. Without `-c`, pip-audit
+      # resolved the newest release of every floating requirement, so its
+      # verdict described a dependency set that neither CI nor production ran.
+      - name: Install warden requirements (locked)
+        run: pip install -r warden/requirements.txt -c warden/constraints.txt --quiet
 
       - name: Run pip-audit (full report — informational)
         run: |
