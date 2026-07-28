@@ -36,7 +36,9 @@ import json
 import logging
 import os
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.api.ws_events")
 
@@ -57,6 +59,11 @@ def _register() -> asyncio.Queue:
 def _unregister(q: asyncio.Queue) -> None:
     with contextlib.suppress(ValueError):
         _subscribers.remove(q)
+
+
+def subscriber_count() -> int:
+    """Live WebSocket listener count — surfaced by GET /health as ws_clients."""
+    return len(_subscribers)
 
 
 async def broadcast_event(payload: dict) -> None:
@@ -96,9 +103,38 @@ async def ws_events(websocket: WebSocket) -> None:
     """
     Real-time HIGH/BLOCK event stream.
 
-    Connect with any WebSocket client, optionally send a subscribe message
-    to filter by verdict types.  Events are pushed as JSON.
+    Connect:  ws://host/ws/events?key=<api_key>
+
+    Optionally send ``{"subscribe": ["HIGH","BLOCK"]}`` to filter by verdict.
+    Events are pushed as JSON.
+
+    Authentication is REQUIRED. This stream carries cross-tenant security
+    metadata (tenant_id, verdicts, detection flags, secret *kinds*), so an
+    anonymous listener would both leak tenant activity and gain a live oracle
+    for tuning filter bypasses against their own probes.
     """
+    # ── Auth first: never accept() an unauthenticated socket ─────────────────
+    #
+    # This mirrors the handler that used to live in warden/main.py. When OB-26
+    # extracted this endpoint into a router, the API-key check was dropped and
+    # the inline handler was left behind — where it was silently shadowed,
+    # because main.py mounts this router (line ~1363) BEFORE defining its own
+    # @app.websocket("/ws/events"), and Starlette resolves in registration
+    # order. The endpoint therefore ran unauthenticated in production.
+    api_key = websocket.query_params.get("key", "") or None
+    try:
+        require_api_key(api_key)
+    except HTTPException as exc:
+        # Accept, explain, then close 1008 — a bare reject gives the client no
+        # way to distinguish "bad key" from "endpoint missing".
+        await websocket.accept()
+        with contextlib.suppress(Exception):
+            await websocket.send_text(
+                json.dumps({"type": "error", "code": exc.status_code, "detail": exc.detail})
+            )
+        await websocket.close(code=1008)
+        return
+
     await websocket.accept()
     log.info("ws_events: client connected %s", websocket.client)
 
