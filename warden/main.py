@@ -74,6 +74,7 @@ import warden.circuit_breaker as _cb
 from warden import entity_risk as _ers
 from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
+from warden.api.masking import router as _masking_router
 from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import (
@@ -99,7 +100,6 @@ from warden.obfuscation import decode as decode_obfuscation
 from warden.observability import Reason, record_failopen
 from warden.offline import is_offline as _is_offline
 from warden.onboarding import OnboardingEngine
-from warden.output_sanitizer import get_sanitizer as _get_output_sanitizer
 from warden.review_queue import ReviewQueue
 from warden.rule_ledger import RuleLedger
 from warden.schemas import (
@@ -108,11 +108,6 @@ from warden.schemas import (
     FlagType,
     MaskedEntityInfo,
     MaskingReport,
-    MaskRequest,
-    MaskResponse,
-    OutputFindingSchema,
-    OutputScanRequest,
-    OutputScanResponse,
     RiskLevel,
     SemanticFlag,
     UnmaskRequest,
@@ -4020,74 +4015,8 @@ async def ws_filter_stream(websocket: WebSocket):
 #   MASKING_MODE=auto    — proxy auto-masks user messages when PII detected
 
 
-@app.post(
-    "/mask",
-    response_model=MaskResponse,
-    tags=["masking"],
-    summary="Yellow Zone — replace PII entities with reversible tokens",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit(_tenant_limit)
-async def mask_text(
-    payload: MaskRequest,
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> MaskResponse:
-    """
-    Scan the input text for PII entities (names, money amounts, dates,
-    organisations, emails, phones, reference IDs) and replace each with a
-    short reversible token such as [PERSON_1] or [MONEY_2].
-
-    The returned ``session_id`` must be passed to ``POST /unmask`` to restore
-    the original values in the LLM response.
-
-    Supported entity types: PERSON, MONEY, DATE, ORG, EMAIL, PHONE, ID
-    """
-    engine = _get_masking_engine()
-    loop   = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, lambda: engine.mask(payload.text, payload.session_id)
-    )
-
-    entity_map: dict[str, int] = result.summary()
-    entities = [
-        MaskedEntityInfo(entity_type=k, token=f"[{k}_N]", count=v)
-        for k, v in entity_map.items()
-    ]
-
-    return MaskResponse(
-        masked       = result.masked,
-        session_id   = result.session_id,
-        entity_count = result.entity_count,
-        entities     = entities,
-    )
-
-
-@app.post(
-    "/unmask",
-    response_model=UnmaskResponse,
-    tags=["masking"],
-    summary="Yellow Zone — restore original PII values in a masked text",
-    status_code=status.HTTP_200_OK,
-)
-@_limiter.limit(_tenant_limit)
-async def unmask_text(
-    payload: UnmaskRequest,
-    request: Request,
-    auth:    AuthResult = Depends(require_api_key),
-) -> UnmaskResponse:
-    """
-    Replace all [TYPE_N] tokens in the text with the original values from the
-    vault session created by a previous call to ``POST /mask``.
-
-    The session vault expires 2 hours after creation.
-    """
-    engine = _get_masking_engine()
-    loop   = asyncio.get_running_loop()
-    unmasked = await loop.run_in_executor(
-        None, lambda: engine.unmask(payload.text, payload.session_id)
-    )
-    return UnmaskResponse(unmasked=unmasked, session_id=payload.session_id)
+# Extracted to warden/api/masking.py (P-2). No main state was involved —
+# every collaborator was already a plain import. Included via include_router.
 
 
 # ── Lemon Squeezy subscription endpoints ─────────────────────────────────────
@@ -4104,78 +4033,7 @@ async def unmask_text(
 #   LLM08 — Excessive Agency: shell/SQL/SSRF/path-traversal in AI-generated content
 
 
-@app.post(
-    "/filter/output",
-    response_model=OutputScanResponse,
-    tags=["Filter"],
-    summary="Scan AI output for OWASP LLM02 / LLM06 / LLM08 risks",
-)
-@_limiter.limit(_tenant_limit)
-async def filter_output(
-    request:   Request,
-    payload:   OutputScanRequest,
-    auth:      AuthResult = Depends(require_api_key),
-) -> OutputScanResponse:
-    """
-    Scan AI-generated text **before it reaches the browser or downstream system**.
-
-    Unlike ``POST /filter`` (which scans *input* prompts), this endpoint scans
-    the AI model's *output* — catching content that is harmless as a prompt but
-    dangerous once rendered.
-
-    **OWASP LLM Top 10 coverage:**
-
-    | Category | Risks detected |
-    |----------|---------------|
-    | LLM02 — Insecure Output Handling | XSS (`<script>`, `onerror=`, `javascript:`), HTML injection (`<iframe>`, `<object>`), Markdown link injection |
-    | LLM06 — Sensitive Information Disclosure | System prompt leakage, CoT scratchpad echo, internal tool name disclosure |
-    | LLM08 — Excessive Agency | Shell command injection, SQL injection, SSRF (internal IP / metadata endpoints), path traversal |
-
-    **Response:**
-    - `safe`: `true` when no risks detected.
-    - `sanitized`: the output with dangerous patterns stripped/escaped — safe to render.
-    - `findings`: list of detected risks with OWASP category labels.
-    """
-    t0 = time.perf_counter()
-
-    sanitizer = _get_output_sanitizer()
-    result    = sanitizer.scan(payload.output)
-
-    elapsed_ms = (time.perf_counter() - t0) * 1000
-
-    findings = [
-        OutputFindingSchema(risk=f.risk.value, snippet=f.snippet, owasp=f.owasp)
-        for f in result.findings
-    ]
-
-    if result.risky:
-        log.warning(
-            json.dumps({
-                "event":           "output_risk_detected",
-                "tenant_id":       payload.tenant_id,
-                "risk_categories": result.risk_categories,
-                "owasp":           result.owasp_categories,
-                "finding_count":   len(result.findings),
-            })
-        )
-
-    _out_flags = [str(f.risk) for f in result.findings]
-    _out_explanation = _xai_explain(
-        risk_level       = "high" if result.risky else "low",
-        flags            = _out_flags,
-        reason           = ", ".join(result.owasp_categories),
-        owasp_categories = result.owasp_categories,
-    )
-
-    return OutputScanResponse(
-        safe             = not result.risky,
-        findings         = findings,
-        sanitized        = result.sanitized,
-        risk_categories  = result.risk_categories,
-        owasp_categories = result.owasp_categories,
-        processing_ms    = round(elapsed_ms, 2),
-        explanation      = _out_explanation,
-    )
+# POST /filter/output extracted to warden/api/masking.py (P-2).
 
 
 # ── Webhook management endpoints ──────────────────────────────────────────────
@@ -4264,6 +4122,15 @@ app.include_router(_ers_router)
 from warden.api.rules import router as _rules_router  # noqa: E402
 
 app.include_router(_rules_router)
+
+# PII masking (/mask, /unmask) + OWASP LLM output scanning (/filter/output)
+# extracted to warden/api/masking.py (P-2). Needs no runtime slot, and unlike the
+# Phase 3 extractions it needs no bottom-of-file E402-suppressed import either —
+# every one of its dependencies (auth_guard, limiter, masking.engine,
+# output_sanitizer, schemas, xai.explainer) is a leaf that main already imports
+# at the top, so there is no cycle to dodge. Imported with the other top-level
+# imports; only the include_router call has to live here, after `app` exists.
+app.include_router(_masking_router)
 
 # Admin weekly-report endpoint extracted to warden/api/admin_reports.py (Phase 3).
 from warden.api.admin_reports import router as _admin_reports_router  # noqa: E402
