@@ -75,6 +75,8 @@ from warden import entity_risk as _ers
 from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
 from warden.api.masking import router as _masking_router
+from warden.api.ws_events import broadcast_event as _ws_broadcast_event
+from warden.api.ws_events import subscriber_count as _ws_subscriber_count
 from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import (
@@ -1559,7 +1561,7 @@ async def health():
         "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
         "fail_strategy":    _FAIL_STRATEGY,
         "cache":            redis_health,
-        "ws_clients":       _event_bus.client_count,
+        "ws_clients":       _ws_subscriber_count(),
         "bypass_rate_1m":   bypass_rate,
         "bypasses_1m":      bypasses_1m,
         "filter_rps_1m":    round(filter_1m / 60, 2),
@@ -2601,8 +2603,15 @@ async def _run_filter_pipeline(
             background_tasks.add_task(event_logger.append, entry)
         else:
             event_logger.append(entry)
-        # Broadcast to all connected /ws/events dashboard clients
-        asyncio.create_task(_event_bus.broadcast({
+        # Broadcast to all connected /ws/events dashboard clients.
+        #
+        # This used to feed a main.py-local _EventBus whose only consumer was
+        # main.py's own @app.websocket("/ws/events") — shadowed by the OB-26
+        # router mounted earlier, so the bus had no reachable subscribers while
+        # the live endpoint had no producer. The stream was broken at BOTH ends.
+        # Now feeds the router's fan-out, which also republishes to Redis for
+        # multi-instance deployments.
+        asyncio.create_task(_ws_broadcast_event({
             "type":        "event",
             "request_id":  rid,
             "ts":          entry.get("ts", ""),
@@ -3437,99 +3446,13 @@ async def filter_multimodal(
 # (Distinct from warden/billing/router.py — tier catalog + add-on checkout.)
 
 
-# ── Live Event Bus — broadcast security events to monitoring dashboards ───────
-
-class _EventBus:
-    """
-    Pub/sub bus for real-time security event streaming.
-
-    All connected /ws/events clients receive every security event within ~1ms.
-    Thread-safe via asyncio; no external deps (Redis-free).
-    """
-
-    def __init__(self) -> None:
-        self._clients: set[WebSocket] = set()
-
-    async def connect(self, ws: WebSocket) -> None:
-        await ws.accept()
-        self._clients.add(ws)
-        log.info("ws_events: client connected (total=%d)", len(self._clients))
-
-    def disconnect(self, ws: WebSocket) -> None:
-        self._clients.discard(ws)
-        log.info("ws_events: client disconnected (total=%d)", len(self._clients))
-
-    async def broadcast(self, data: dict) -> None:
-        if not self._clients:
-            return
-        payload = json.dumps(data, ensure_ascii=False, default=str)
-        dead: list[WebSocket] = []
-        for ws in list(self._clients):
-            try:
-                await ws.send_text(payload)
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            self._clients.discard(ws)
-
-    @property
-    def client_count(self) -> int:
-        return len(self._clients)
-
-
-_event_bus = _EventBus()
-
-
-@app.websocket("/ws/events")
-async def ws_events(websocket: WebSocket):
-    """
-    Real-time security event feed for the monitoring dashboard.
-
-    Connect:  ws://host/ws/events?key=<api_key>
-
-    Server pushes one JSON object per security event:
-        {
-          "type":        "event",
-          "request_id":  str,
-          "ts":          ISO-8601,
-          "risk":        "low" | "medium" | "high" | "block",
-          "allowed":     bool,
-          "flags":       [str],
-          "secrets":     [str],
-          "payload_len": int,
-          "elapsed_ms":  float,
-          "tenant_id":   str,
-          "session_id":  str | null
-        }
-
-    On connect, server sends one welcome frame:
-        {"type": "connected", "clients": int}
-    """
-    api_key = websocket.query_params.get("key", "") or None
-    try:
-        require_api_key(api_key)
-    except HTTPException as exc:
-        await websocket.accept()
-        await websocket.send_text(
-            json.dumps({"type": "error", "code": exc.status_code, "detail": exc.detail})
-        )
-        await websocket.close(code=1008)
-        return
-
-    await _event_bus.connect(websocket)
-    try:
-        await websocket.send_text(
-            json.dumps({"type": "connected", "clients": _event_bus.client_count})
-        )
-        while True:
-            try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-            except TimeoutError:
-                await websocket.send_text(json.dumps({"type": "ping"}))
-    except (WebSocketDisconnect, Exception):
-        pass
-    finally:
-        _event_bus.disconnect(websocket)
+# ── Live security event stream ───────────────────────────────────────────────
+#
+# The /ws/events endpoint lives in warden/api/ws_events.py (OB-26), mounted
+# above. main.py previously ALSO defined @app.websocket("/ws/events") plus a
+# local _EventBus; because the router is registered first and Starlette matches
+# in registration order, that inline handler never ran. Removed here — see the
+# broadcast call in the filter pipeline, which now feeds the router directly.
 
 
 # ── WebSocket /ws/stream ─────────────────────────────────────────────────────
