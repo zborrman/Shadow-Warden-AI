@@ -33,6 +33,7 @@ import os
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 from warden.secret_keys import resolve_key
 
@@ -255,10 +256,19 @@ def _push_to_peer(peer_url: str, fv: FederatedVerdict) -> bool:
 
 # ── FastAPI router ────────────────────────────────────────────────────────────
 
-from fastapi import APIRouter  # noqa: E402
+from fastapi import APIRouter, Depends  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-router = APIRouter(prefix="/sep/federation", tags=["Federation"])
+# Ingested verdicts are not inert records: `get_score_boost()` adds _BOOST to the
+# live filter score on a match, and `check_agent_deny_list()` reports an agent DID
+# as blocked from them. An anonymous POST /ingest was therefore a detection-
+# poisoning primitive — push a HIGH verdict for any hash to block a competitor's
+# agent, or flood benign verdicts. Peers already have API keys; require one.
+router = APIRouter(
+    prefix="/sep/federation",
+    tags=["Federation"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 class IngestPayload(BaseModel):

@@ -7,10 +7,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
+
 router = APIRouter(prefix="/auth/fido", tags=["FIDO2 Auth"])
+
+# Enrolment and credential management take `tenant_id` from the request body or
+# query string, so without a key any caller could register a passkey against any
+# tenant, or list and delete another tenant's credentials. Authentication itself
+# stays open — a caller proving possession of a passkey has no key yet, which is
+# the point of the flow.
+_ENROL = [Depends(require_api_key)]
 
 
 class RegistrationBeginRequest(BaseModel):
@@ -32,7 +41,7 @@ class AuthCompleteRequest(BaseModel):
     assertion: dict[str, Any]
 
 
-@router.post("/register/begin", summary="Start Passkey registration")
+@router.post("/register/begin", summary="Start Passkey registration", dependencies=_ENROL)
 async def register_begin(body: RegistrationBeginRequest) -> dict:
     from warden.auth.fido import FIDOProvider
     return FIDOProvider().generate_registration_options(
@@ -40,7 +49,7 @@ async def register_begin(body: RegistrationBeginRequest) -> dict:
     )
 
 
-@router.post("/register/complete", summary="Complete Passkey registration")
+@router.post("/register/complete", summary="Complete Passkey registration", dependencies=_ENROL)
 async def register_complete(body: RegistrationCompleteRequest) -> dict:
     from warden.auth.fido import FIDOProvider
     result = FIDOProvider().verify_registration(body.tenant_id, body.credential)
@@ -64,14 +73,14 @@ async def authenticate_complete(body: AuthCompleteRequest) -> dict:
     return {"verified": True, "tenant_id": body.tenant_id}
 
 
-@router.get("/credentials", summary="List registered Passkeys")
+@router.get("/credentials", summary="List registered Passkeys", dependencies=_ENROL)
 async def list_credentials(tenant_id: str) -> dict:
     from warden.auth.fido import FIDOProvider
     creds = FIDOProvider().list_credentials(tenant_id)
     return {"credentials": creds, "count": len(creds)}
 
 
-@router.delete("/credentials/{credential_id}", summary="Remove a Passkey")
+@router.delete("/credentials/{credential_id}", summary="Remove a Passkey", dependencies=_ENROL)
 async def delete_credential(credential_id: str, tenant_id: str) -> dict:
     from warden.auth.fido import FIDOProvider
     ok = FIDOProvider().delete_credential(tenant_id, credential_id)

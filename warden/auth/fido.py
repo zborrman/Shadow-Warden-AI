@@ -51,6 +51,22 @@ _FIDO_DDL = """
 register("fido", "fido", _FIDO_DDL)
 
 
+def _stub_allowed() -> bool:
+    """
+    Whether the scaffolding path may report a credential as verified.
+
+    This is an authentication primitive, so it fails CLOSED: without py_webauthn
+    the verifiers now refuse rather than accept. The stub is opt-in for local
+    scaffolding only and is never honoured in production, whatever the env says.
+
+    Read per call — an import-time snapshot would capture the value before the
+    process environment is populated.
+    """
+    if settings.is_prod:
+        return False
+    return os.getenv("FIDO_ALLOW_STUB", "").strip().lower() == "true"
+
+
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
     with open_db("fido", _DB_PATH, module_default_path=_DB_PATH) as con:
@@ -154,7 +170,12 @@ class FIDOProvider:
             self._store_credential(tenant_id, cred_id, pub_key, result.sign_count)
             return {"verified": True, "credential_id": cred_id}
         except ImportError:
-            # Stub: accept any credential for scaffolding (webauthn not installed or fake cred)
+            # Reached when py_webauthn is missing OR the credential does not parse
+            # as a real WebAuthn response. Accepting here enrolled an unverified
+            # credential against an arbitrary tenant, so it now fails closed.
+            if not _stub_allowed():
+                log.warning("fido: registration refused — webauthn verification unavailable")
+                return {"verified": False, "reason": "webauthn_unavailable"}
             cred_id = credential.get("id", str(uuid.uuid4()))
             self._store_credential(tenant_id, cred_id, "stub-key", 0)
             return {"verified": True, "credential_id": cred_id, "_stub": True}
@@ -202,8 +223,11 @@ class FIDOProvider:
         if not row:
             return {"verified": False, "reason": "no_challenge"}
         if not cred_row:
-            # Stub accept for scaffolding when py_webauthn not available
-            return {"verified": True, "tenant_id": tenant_id, "_stub": True}
+            # An assertion naming a credential this tenant never registered is
+            # never a successful authentication. This previously returned
+            # verified=True, so any tenant_id authenticated with any assertion
+            # and no enrolment at all.
+            return {"verified": False, "reason": "unknown_credential"}
 
         try:
             from webauthn import verify_authentication_response as _verify
@@ -223,6 +247,9 @@ class FIDOProvider:
                 )
             return {"verified": True, "tenant_id": tenant_id}
         except ImportError:
+            if not _stub_allowed():
+                log.warning("fido: authentication refused — webauthn verification unavailable")
+                return {"verified": False, "reason": "webauthn_unavailable"}
             return {"verified": True, "tenant_id": tenant_id, "_stub": True}
         except Exception as exc:
             return {"verified": False, "reason": str(exc)}
