@@ -60,7 +60,19 @@ Both verified 401 in production after deploy.
 
 ## The 19 open routes, triaged
 
-### A. Needs a decision — plausibly sensitive
+### A. Tenant-scoped state — **RESOLVED, gated in #242**
+
+Closed by adding the router-level `dependencies=[Depends(require_api_key)]`
+pattern to `warden/voice/api.py`, `warden/tokenomics/api.py`,
+`warden/api/usage_budgets.py`, `warden/api/whitelabel.py` and
+`warden/api/community_notifications.py`.
+
+The blocker recorded below — that structure alone could not separate an
+oversight from a deliberately public surface — was resolved with evidence, not
+a judgement call: **no shipped client calls any of them.** Grepping `portal/`,
+`dashboard/` and `site/` returns exactly one reference, a comment in
+`site/src/pages/settings.astro` reading *"Simulated fetch — replace with
+GET /marketplace/x402/balance when live"*.
 
 These return live response structures for arbitrary ids. Whether they are
 exploitable depends on whether ids are enumerable, which has **not** been
@@ -88,7 +100,7 @@ unauthenticated agents; gating them could break agent discovery.
 `/sep/federation/{id}/verdicts` · `/compliance/frameworks/{id}` ·
 `/streams/state/{id}`
 
-## Why group A was not simply gated
+## Why group A was not gated *immediately* (resolved — see above)
 
 The four owning modules have **zero** auth dependencies across *every* route,
 not only the probed ones:
@@ -108,10 +120,17 @@ had positive evidence that gating was safe — the SOC dashboard's community pag
 was already returning 401 on its v1-served calls, and the webhook endpoint list
 was empty.
 
-**Decision needed:** which of group B is public by design. Group A can then be
-gated with the same router-level `dependencies=[Depends(require_api_key)]`
-pattern used in #239/#240, deriving tenant from `AuthResult.tenant_id` rather
-than any caller-supplied header.
+**Decision taken (#242):** group A gated; group B kept public. Unauthenticated
+agent-to-agent lookup is the premise of the agentic marketplace — gating trust
+and readiness would break discovery to close what is reputation data by design.
+
+`warden/tests/test_anonymous_route_audit.py` pins **both** halves: group A must
+401, and group B must **not**, so a later reflexive gating of marketplace
+discovery fails loudly instead of silently breaking agent lookup. It also
+asserts all seven now-gated modules keep their router-level dependency — with no
+global middleware, nothing else catches a dropped one.
+
+Final state: 19 anonymous GETs → **8 closed, 11 public by decision**.
 
 ## Not covered
 
