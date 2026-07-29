@@ -33,6 +33,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -283,7 +284,6 @@ def get_lifecycle_manager() -> DataLifecycleManager:
 
 from fastapi import APIRouter, Depends  # noqa: E402
 
-from warden.auth_guard import require_api_key  # noqa: E402
 from warden.marketplace.rate_limit import marketplace_rate_limit  # noqa: E402
 
 # A rate limit is not authentication. This router mounts /admin/* and
