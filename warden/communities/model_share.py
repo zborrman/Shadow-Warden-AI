@@ -48,6 +48,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -294,10 +295,18 @@ def _pqc_sign_bundle(payload: str, community_id: str) -> str:
 
 # ── FastAPI router ────────────────────────────────────────────────────────────
 
-from fastapi import APIRouter, HTTPException  # noqa: E402
+from fastapi import APIRouter, Depends, HTTPException  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 router = APIRouter(prefix="/sep/model-bundles", tags=["Model Sharing"])
+
+# /import authenticates in-body: import_bundle() verifies an HMAC over the
+# bundle with a resolve_key()-derived key, so a forged bundle is rejected.
+# /activate did not. It takes only a ueciid and calls EvolutionEngine.
+# add_examples(), hot-loading that bundle's rules into the live detection
+# corpus. The docstring says 'called after human-in-the-loop approval', but
+# nothing enforced either the approval or a caller identity, so any anonymous
+# caller could promote a PENDING_APPROVAL bundle into the corpus.
 
 
 class ImportBundleRequest(BaseModel):
@@ -323,7 +332,11 @@ async def import_model_bundle(body: ImportBundleRequest):
     return import_bundle(body.bundle, body.importing_community)
 
 
-@router.post("/{ueciid}/activate", summary="Activate an imported bundle post-approval")
+@router.post(
+    "/{ueciid}/activate",
+    summary="Activate an imported bundle post-approval",
+    dependencies=[Depends(require_api_key)],
+)
 async def activate_model_bundle(ueciid: str):
     count = activate_bundle(ueciid)
     if count == 0:

@@ -7,9 +7,17 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.integrations.obsidian.note_scanner import scan_note as _scan
 
 router = APIRouter(tags=["obsidian"])
+
+# /share publishes a note into a caller-named community_id and registers a
+# UECIID for it, so it needs a real caller identity: `_get_tenant` below is a
+# plain query parameter defaulting to 'default', which authenticates nothing.
+# The scanning endpoints (/scan, /ai-filter, /scan-attachment) stay open —
+# they are the plugin's main surface and the API key in its settings tab is
+# documented as optional. See docs/anonymous-route-audit-2026-07-29.md.
 
 _RISK_ORDER = ("ALLOW", "LOW", "MEDIUM", "HIGH", "BLOCK")
 
@@ -95,7 +103,7 @@ async def scan_note(
     }
 
 
-@router.post("/share")
+@router.post("/share", dependencies=[Depends(require_api_key)])
 async def share_note(
     body: ShareNoteRequest,
     background_tasks: BackgroundTasks,

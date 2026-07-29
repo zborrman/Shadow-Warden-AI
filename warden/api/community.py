@@ -22,9 +22,10 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.community_models import (
     Comment,
     Member,
@@ -41,6 +42,12 @@ from warden.community_models import (
 )
 
 router = APIRouter(prefix="/community", tags=["community"])
+
+# `_tenant()` below reads an X-Tenant-ID header and defaults to 'default'. It
+# identifies nothing — the caller chooses the value — so posting, commenting,
+# adding members and DELETING another tenant's posts were all open. Reads stay
+# public; a community feed is meant to be browsable.
+_WRITE = [Depends(require_api_key)]
 
 # Ensure tables exist on import
 init_db()
@@ -96,7 +103,7 @@ class ObsidianPostRequest(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/posts", status_code=202)
+@router.post("/posts", status_code=202, dependencies=_WRITE)
 async def create_community_post(
     req: CreatePostRequest,
     background_tasks: BackgroundTasks,
@@ -116,7 +123,7 @@ async def create_community_post(
     return {"id": post.id, "status": "pending", "message": "Post queued for moderation"}
 
 
-@router.post("/posts/from-obsidian", status_code=202)
+@router.post("/posts/from-obsidian", status_code=202, dependencies=_WRITE)
 async def post_from_obsidian(
     req: ObsidianPostRequest,
     background_tasks: BackgroundTasks,
@@ -192,7 +199,7 @@ def get_community_post(post_id: str, tenant_id: str = "default"):
     }
 
 
-@router.post("/posts/{post_id}/comment", status_code=201)
+@router.post("/posts/{post_id}/comment", status_code=201, dependencies=_WRITE)
 def add_comment(post_id: str, req: CommentRequest, tenant_id: str = "default"):
     post = get_post(post_id)
     if not post or post.tenant_id != tenant_id:
@@ -210,7 +217,7 @@ def add_comment(post_id: str, req: CommentRequest, tenant_id: str = "default"):
     return {"id": comment.id, "created_at": comment.created_at}
 
 
-@router.delete("/posts/{post_id}", status_code=200)
+@router.delete("/posts/{post_id}", status_code=200, dependencies=_WRITE)
 def admin_block_post(
     post_id: str,
     tenant_id: str = "default",
@@ -241,7 +248,7 @@ def list_members(tenant_id: str = "default"):
     }
 
 
-@router.post("/members", status_code=201)
+@router.post("/members", status_code=201, dependencies=_WRITE)
 def join_community(req: MemberRequest, tenant_id: str = "default"):
     member = Member(
         id=str(uuid.uuid4()),

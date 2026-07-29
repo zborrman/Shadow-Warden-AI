@@ -1,10 +1,18 @@
 """warden/api/framework_builder.py  (ENT-03) — /compliance/frameworks/* REST endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
+
 router = APIRouter(prefix="/compliance/frameworks", tags=["Compliance Framework Builder"])
+
+# tenant_id is a PATH parameter with nothing binding it to the caller, so every
+# write here was cross-tenant CRUD on another customer's compliance frameworks.
+# Reads stay open — docs/anonymous-route-audit-2026-07-29.md kept
+# GET /compliance/frameworks/{id} public by decision in #242.
+_WRITE = [Depends(require_api_key)]
 
 
 class ControlIn(BaseModel):
@@ -27,7 +35,7 @@ class ControlStatusUpdate(BaseModel):
     status: str
 
 
-@router.post("/{tenant_id}", status_code=201)
+@router.post("/{tenant_id}", status_code=201, dependencies=_WRITE)
 async def create_framework(tenant_id: str, body: FrameworkIn):
     from dataclasses import asdict  # noqa: PLC0415
 
@@ -60,7 +68,7 @@ async def get_framework(tenant_id: str, framework_id: str):
     return {**asdict(fw), "score": fw.score()}
 
 
-@router.put("/{tenant_id}/{framework_id}")
+@router.put("/{tenant_id}/{framework_id}", dependencies=_WRITE)
 async def update_framework(tenant_id: str, framework_id: str, body: FrameworkIn):
     from dataclasses import asdict  # noqa: PLC0415
 
@@ -75,7 +83,7 @@ async def update_framework(tenant_id: str, framework_id: str, body: FrameworkIn)
     return {**asdict(fw), "score": fw.score()}
 
 
-@router.delete("/{tenant_id}/{framework_id}")
+@router.delete("/{tenant_id}/{framework_id}", dependencies=_WRITE)
 async def delete_framework(tenant_id: str, framework_id: str):
     from warden.compliance.framework_builder import delete_framework  # noqa: PLC0415
     ok = delete_framework(framework_id, tenant_id)
@@ -84,7 +92,7 @@ async def delete_framework(tenant_id: str, framework_id: str):
     return {"deleted": framework_id}
 
 
-@router.patch("/{tenant_id}/{framework_id}/controls/{control_id}")
+@router.patch("/{tenant_id}/{framework_id}/controls/{control_id}", dependencies=_WRITE)
 async def update_control(tenant_id: str, framework_id: str, control_id: str, body: ControlStatusUpdate):
     from warden.compliance.framework_builder import update_control_status  # noqa: PLC0415
     ok = update_control_status(framework_id, tenant_id, control_id, body.status)
