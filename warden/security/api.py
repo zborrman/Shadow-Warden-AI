@@ -16,11 +16,19 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.security.certificate_authority import get_ca
 
 log = logging.getLogger("warden.security.api")
 router = APIRouter(prefix="/marketplace", tags=["ANS Certificates"], dependencies=[Depends(marketplace_rate_limit)])
+
+# Issuing and revoking are identity operations on an arbitrary {agent_id}: without
+# a key any caller could mint an ANS X.509 certificate for an agent, or revoke a
+# live one — a denial-of-service against that agent's ability to transact.
+# /certificates/verify stays open; it only checks a PEM the caller already holds,
+# which is the same discovery surface the audit kept public.
+_WRITE = [Depends(require_api_key)]
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -36,7 +44,7 @@ class CertVerifyRequest(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.post("/agents/{agent_id}/certificate", status_code=201)
+@router.post("/agents/{agent_id}/certificate", status_code=201, dependencies=_WRITE)
 def issue_certificate(agent_id: str, body: CertIssueRequest):
     """Issue an ANS X.509 certificate for an agent."""
     try:
@@ -50,7 +58,7 @@ def issue_certificate(agent_id: str, body: CertIssueRequest):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.delete("/agents/{agent_id}/certificate")
+@router.delete("/agents/{agent_id}/certificate", dependencies=_WRITE)
 def revoke_certificate(agent_id: str):
     """Revoke the active certificate for an agent."""
     revoked = get_ca().revoke_certificate(agent_id)

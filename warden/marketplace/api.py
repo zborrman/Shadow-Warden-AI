@@ -373,7 +373,7 @@ def _report_search_usage(tenant_id: str) -> None:
         log.debug("_report_search_usage fail-open: %s", exc)
 
 
-@router.post("/action")
+@router.post("/action", dependencies=[Depends(require_api_key)])
 async def dispatch_action(
     body: MarketAction,
     request: Request,
@@ -632,9 +632,14 @@ class ClearRequest(BaseModel):
     buyer_agent_id:        str
 
 
-@router.post("/clear")
+@router.post("/clear", dependencies=[Depends(require_api_key)])
 async def market_clear(body: ClearRequest) -> dict:
     """Stage 4: execute final market clearing.
+
+    Authenticated. Clearing auto-rejects every other pending negotiation for the
+    named buyer, so an anonymous caller could cancel a competitor's in-flight
+    deals by clearing on their behalf. site/business-community/m2m-store.astro
+    already documents this endpoint as auth: API Key.
 
     Accepts the winning negotiation, auto-rejects all other pending
     negotiations for the same buyer, and dual-writes the clearing record
