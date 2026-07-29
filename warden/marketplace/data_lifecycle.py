@@ -33,6 +33,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -285,10 +286,14 @@ from fastapi import APIRouter, Depends  # noqa: E402
 
 from warden.marketplace.rate_limit import marketplace_rate_limit  # noqa: E402
 
+# A rate limit is not authentication. This router mounts /admin/* and
+# POST /admin/data-lifecycle/purge executed for an ANONYMOUS caller in the
+# 2026-07-29 write-method audit — rate-limited, but unauthenticated, and it
+# purges data. require_api_key added alongside the existing limiter.
 router = APIRouter(
     prefix="/admin",
     tags=["Data Lifecycle"],
-    dependencies=[Depends(marketplace_rate_limit)],
+    dependencies=[Depends(marketplace_rate_limit), Depends(require_api_key)],
 )
 
 

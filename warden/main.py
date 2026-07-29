@@ -1752,8 +1752,16 @@ class _ConfigUpdate(BaseModel):
     uncertainty_lower_threshold: float | None = None
 
 
+# Live-tunable settings are ADMIN surface: this endpoint writes
+# SEMANTIC_THRESHOLD, STRICT_MODE, the default rate limit and the uncertainty
+# band straight into the running gateway. It had NO authentication, and
+# `POST /api/config {}` returned {"ok":true} to an anonymous caller in
+# production on 2026-07-29. An attacker could raise semantic_threshold toward
+# 1.0 so the ML jailbreak detector stops flagging, switch strict_mode off, and
+# lift the rate limit — a remote kill switch on the product's own protection.
+# No client calls it (grep of dashboard/, portal/, site/ finds nothing).
 @app.get("/api/config", tags=["ops"], summary="Current live configuration")
-async def api_config():
+async def api_config(auth: AuthResult = Depends(require_api_key)):
     return {
         "semantic_threshold":   settings.semantic_threshold,
         "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
@@ -1775,7 +1783,8 @@ async def api_config():
 
 
 @app.post("/api/config", tags=["ops"], summary="Update live-tunable settings")
-async def update_config(update: _ConfigUpdate):
+async def update_config(update: _ConfigUpdate,
+                        auth: AuthResult = Depends(require_api_key)):
     if update.semantic_threshold is not None:
         val = max(0.1, min(1.0, update.semantic_threshold))
         os.environ["SEMANTIC_THRESHOLD"] = str(val)
