@@ -15,14 +15,25 @@ from __future__ import annotations
 import logging
 import os
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.tokenomics.agent_token import get_agent_token
 from warden.tokenomics.outcome_pricing import OutcomePricingService
 
 log = logging.getLogger("warden.tokenomics.api")
-router = APIRouter(prefix="/tokenomics", tags=["Tokenomics"])
+# Router-level authentication (anonymous-route audit, 2026-07-29).
+#
+# Every route in this module was reachable without credentials in production.
+# There is no global auth middleware in warden/main.py — only attach_request_id
+# and security_headers — so an absent dependency means genuinely no auth.
+#
+# Marketplace reputation endpoints (agent trust / readiness / protocol schema)
+# are deliberately left open: unauthenticated discovery is the premise of the
+# agentic marketplace. These are not that — they return tenant- and
+# agent-scoped state. See docs/anonymous-route-audit-2026-07-29.md.
+router = APIRouter(prefix="/tokenomics", tags=["Tokenomics"], dependencies=[Depends(require_api_key)])
 
 _ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 _svc = OutcomePricingService()

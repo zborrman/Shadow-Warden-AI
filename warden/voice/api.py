@@ -24,12 +24,24 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.voice.api")
 
-router = APIRouter(prefix="/voice", tags=["voice-commerce"])
+# Router-level authentication (anonymous-route audit, 2026-07-29).
+#
+# Every route in this module was reachable without credentials in production.
+# There is no global auth middleware in warden/main.py — only attach_request_id
+# and security_headers — so an absent dependency means genuinely no auth.
+#
+# Marketplace reputation endpoints (agent trust / readiness / protocol schema)
+# are deliberately left open: unauthenticated discovery is the premise of the
+# agentic marketplace. These are not that — they return tenant- and
+# agent-scoped state. See docs/anonymous-route-audit-2026-07-29.md.
+router = APIRouter(prefix="/voice", tags=["voice-commerce"], dependencies=[Depends(require_api_key)])
 
 _FEATURE_GATE = os.getenv("VOICE_COMMERCE_ENABLED", "true").lower() != "false"
 _TTS_ENABLED  = os.getenv("VOICE_TTS_ENABLED", "false").lower() == "true"
