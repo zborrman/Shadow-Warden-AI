@@ -33,26 +33,40 @@ import pytest
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 
-def _flatten(routes):
-    """Yield leaf routes. FastAPI keeps included routers as a single
-    `_IncludedRouter` entry rather than flattening into `app.routes`, so a naive
-    scan of `app.routes` misses every routed endpoint."""
+def _flatten(routes, prefix: str = ""):
+    """
+    Yield ``(effective_path, route)`` for every leaf route.
+
+    Two things make this non-obvious, and getting either wrong produces a
+    confidently wrong answer:
+
+    1. FastAPI keeps an included router as a single `_IncludedRouter` entry
+       rather than flattening into `app.routes`, so a naive scan of `app.routes`
+       misses every routed endpoint.
+    2. The routes hanging off `_IncludedRouter.original_router` carry their
+       path **as declared**, WITHOUT the prefix passed to `include_router()`.
+       Reading `.path` directly reports `warden.portal_router.login` as
+       `/auth/login` when it is really served at `/portal/auth/login` — which
+       manufactures phantom "duplicates" against the real `/auth/login`.
+       The prefix lives on `_IncludedRouter.include_context.prefix`.
+    """
     for r in routes:
         original = getattr(r, "original_router", None)
         if original is not None:
-            yield from _flatten(original.routes)
+            ctx = getattr(r, "include_context", None)
+            yield from _flatten(original.routes, prefix + (getattr(ctx, "prefix", "") or ""))
             continue
         sub = getattr(r, "routes", None)
         if sub:
-            yield from _flatten(sub)
+            yield from _flatten(sub, prefix + (getattr(r, "path", "") or ""))
             continue
-        yield r
+        yield prefix + (getattr(r, "path", "") or ""), r
 
 
 def _handlers_for(app, path: str) -> list[str]:
     out = []
-    for r in _flatten(app.routes):
-        if getattr(r, "path", None) == path:
+    for full, r in _flatten(app.routes):
+        if full == path:
             ep = getattr(r, "endpoint", None)
             out.append(f"{getattr(ep, '__module__', '?')}.{getattr(ep, '__name__', '?')}")
     return out
@@ -173,28 +187,57 @@ def test_health_reports_live_subscriber_count():
 
 # ── app-wide shadowing ratchet ───────────────────────────────────────────────
 #
-# 12 shadowed (verb, path) pairs / 13 dead handlers exist today — including two
-# different POST /auth/login implementations and a fully-dead communities_v2
-# API. They are pre-existing and out of scope for the /ws/events fix, but the
-# count must not grow: every one is a handler someone believes is running.
+# SEVEN shadowed (verb, path) pairs exist today:
+#
+#   GET  /.well-known/agent.json                      live marketplace.api.agent_discovery_alias
+#                                                     DEAD protocols.a2a.api.agent_card
+#   GET/POST/DELETE /communities[/...]  (6 routes)    live communities.router.*
+#                                                     DEAD api.communities_v2.*
+#
+# i.e. the whole communities_v2 API is unreachable, plus one A2A agent-card
+# handler. Pre-existing and out of scope for the /ws/events fix, but the count
+# must not grow: every one is a handler someone believes is running.
+#
+# NOTE: the first version of this ratchet reported TWELVE, and named
+# `POST /auth/login` (warden.auth.router vs warden.portal_router) as the
+# headline case. That was wrong. `_flatten` was reading `.path` off the
+# included router's own routes, which omits the `include_router(prefix=...)`
+# value — so `/portal/auth/login`, `/portal/auth/logout` and three `/stats`
+# variants were compared as if they were mounted at the root. Applying the
+# prefix (see `_flatten`) removes all five phantoms. Any future change here
+# must keep the prefix accumulation, or the baseline becomes meaningless.
 
-_SHADOWED_BASELINE = 12
+_SHADOWED_BASELINE = 7
 
 
 def _shadowed_pairs(app) -> dict[tuple[str, str], list[str]]:
     seen: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
-    for r in _flatten(app.routes):
-        path = getattr(r, "path", None)
-        if not path:
+    for full_path, r in _flatten(app.routes):
+        if not full_path:
             continue
         for verb in sorted(getattr(r, "methods", None) or ["WEBSOCKET"]):
             if verb in ("HEAD", "OPTIONS"):
                 continue
             ep = getattr(r, "endpoint", None)
-            seen[(verb, path)].append(
+            seen[(verb, full_path)].append(
                 f"{getattr(ep, '__module__', '?')}.{getattr(ep, '__name__', '?')}"
             )
     return {k: v for k, v in seen.items() if len(v) > 1}
+
+
+def test_prefixed_routes_are_not_reported_as_duplicates():
+    """
+    Regression guard for the bug this ratchet itself shipped with.
+
+    `warden/portal_router.py` declares `@router.post("/auth/login")` on a
+    prefix-less APIRouter and is included with `prefix="/portal"`. It must
+    resolve to `/portal/auth/login` and must NOT collide with
+    `warden/auth/router.py`'s real `/auth/login`.
+    """
+    import warden.main as m
+
+    assert _handlers_for(m.app, "/portal/auth/login") == ["warden.portal_router.login"]
+    assert _handlers_for(m.app, "/auth/login") == ["warden.auth.router.login"]
 
 
 def test_no_new_shadowed_routes():
