@@ -283,12 +283,17 @@ def get_lifecycle_manager() -> DataLifecycleManager:
 
 from fastapi import APIRouter, Depends  # noqa: E402
 
+from warden.auth_guard import require_api_key  # noqa: E402
 from warden.marketplace.rate_limit import marketplace_rate_limit  # noqa: E402
 
+# A rate limit is not authentication. This router mounts /admin/* and
+# POST /admin/data-lifecycle/purge executed for an ANONYMOUS caller in the
+# 2026-07-29 write-method audit — rate-limited, but unauthenticated, and it
+# purges data. require_api_key added alongside the existing limiter.
 router = APIRouter(
     prefix="/admin",
     tags=["Data Lifecycle"],
-    dependencies=[Depends(marketplace_rate_limit)],
+    dependencies=[Depends(marketplace_rate_limit), Depends(require_api_key)],
 )
 
 

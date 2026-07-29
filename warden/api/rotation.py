@@ -29,11 +29,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.rotation")
 
-router = APIRouter(prefix="/admin/rotation", tags=["rotation"])
+# Router-level auth (write-method audit, 2026-07-29). Every route here
+# executed for an anonymous caller; these delete or re-key tenant data.
+router = APIRouter(prefix="/admin/rotation", tags=["rotation"], dependencies=[Depends(require_api_key)])
 
 _WARNING_DAYS = settings.key_rotation_warning_days
 _MAX_DAYS     = settings.key_rotation_max_days

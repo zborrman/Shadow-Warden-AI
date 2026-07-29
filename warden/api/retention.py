@@ -34,13 +34,16 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.retention")
 
-router = APIRouter(prefix="/retention", tags=["retention"])
+# Router-level auth (write-method audit, 2026-07-29). Every route here
+# executed for an anonymous caller; these delete or re-key tenant data.
+router = APIRouter(prefix="/retention", tags=["retention"], dependencies=[Depends(require_api_key)])
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 
