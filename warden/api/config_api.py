@@ -30,9 +30,10 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 from warden.site.approval import (
     TIER1_KEYS,
@@ -44,7 +45,17 @@ from warden.site.approval import (
 
 log = logging.getLogger("warden.api.config_api")
 
-router = APIRouter(prefix="/api/settings", tags=["settings"])
+# Every route here reads or writes live gateway configuration. `semantic_threshold`
+# is applied to the running SemanticGuard instance, so an anonymous POST could
+# switch the ML jailbreak detector off — the same class of hole closed on
+# /api/config in PR #244. Auth is enforced at the router, not per route, so a new
+# endpoint cannot be added without it. /approve and /snapshot keep their
+# additional X-Admin-Key check on top.
+router = APIRouter(
+    prefix="/api/settings",
+    tags=["settings"],
+    dependencies=[Depends(require_api_key)],
+)
 
 _SNAPSHOT_PATH = Path(os.getenv("CONFIG_SNAPSHOT_PATH", "data/config_snapshot.json"))
 

@@ -5,6 +5,7 @@ FIDO2/WebAuthn Passkey authentication.
 from __future__ import annotations
 
 import os
+import uuid
 
 import pytest
 
@@ -40,10 +41,37 @@ class TestFIDOProvider:
         assert result["verified"] is False
         assert result["reason"] == "no_challenge"
 
-    def test_stub_registration_roundtrip(self):
+    def test_unverifiable_credential_is_refused_by_default(self):
+        """
+        This used to assert verified is True: without py_webauthn — or with a
+        credential that does not parse as a WebAuthn response — the scaffolding
+        path accepted anything and stored it as a real passkey. That is a
+        fail-open in an authentication primitive, so the default is now refusal.
+        """
+        # A unique tenant per run: warden/auth/fido.py snapshots _DB_PATH at
+        # import, so setting FIDO_DB_PATH in a fixture does not actually
+        # repoint the database and rows survive between runs.
+        tenant = f"refuse-{uuid.uuid4().hex[:8]}"
         fido = self._fido()
-        fido.generate_registration_options("tenant2", "T2")
-        result = fido.verify_registration("tenant2", {"id": "cred-stub-123"})
+        fido.generate_registration_options(tenant, "T2")
+        result = fido.verify_registration(tenant, {"id": "cred-stub-123"})
+        assert result["verified"] is False
+        assert result["reason"] == "webauthn_unavailable"
+        assert fido.list_credentials(tenant) == []
+
+    def test_stub_roundtrip_when_explicitly_enabled(self, monkeypatch):
+        """The scaffolding path still works for local work, but only opt-in."""
+        from warden.auth import fido as fido_mod
+
+        monkeypatch.setenv("FIDO_ALLOW_STUB", "true")
+        monkeypatch.setattr(
+            type(fido_mod.settings), "is_prod", property(lambda self: False)
+        )
+
+        tenant = f"stub-{uuid.uuid4().hex[:8]}"
+        fido = self._fido()
+        fido.generate_registration_options(tenant, "T2")
+        result = fido.verify_registration(tenant, {"id": f"cred-{tenant}"})
         assert result["verified"] is True
 
     def test_list_credentials_empty(self):

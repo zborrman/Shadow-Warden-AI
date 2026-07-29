@@ -1313,21 +1313,29 @@ async def set_autonomy_policy(
     agent_id: str,
     body: AutonomyPolicyRequest,
     request: Request,
+    auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """Register or update an autonomy policy for an agent.
 
     L1 = Shadow (all actions require approval)
     L2 = Supervised (low-value actions auto-approved)
     L3 = Autonomous (hard spend cap, no human in loop)
+
+    Authenticated: this policy is what `payments/authorize.py::authorize_payment()`
+    consults through `autonomy.check_action()`. Writing it anonymously would let a
+    caller set any agent to L3 with an arbitrary spend cap — i.e. switch off the
+    approval gate on money movement from outside.
     """
     from warden.marketplace.autonomy import AutonomyPolicy, set_policy  # noqa: PLC0415
 
+    # `created_by` is attribution on a security policy, so it comes from the
+    # verified key. The previous X-Tenant-ID header fallback was caller-supplied
+    # and could be set to any value.
+    tenant_id = getattr(auth, "tenant_id", None) or "unknown"
     state = getattr(request, "state", None)
     tenant_obj = getattr(state, "tenant", None)
-    if isinstance(tenant_obj, dict):
+    if tenant_id == "unknown" and isinstance(tenant_obj, dict):
         tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
-    else:
-        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
 
     policy = AutonomyPolicy(
         agent_id=agent_id,
@@ -1358,8 +1366,15 @@ async def get_autonomy_policy(agent_id: str) -> dict:
 
 
 @router.delete("/autonomy/{agent_id}", status_code=200)
-async def delete_autonomy_policy(agent_id: str) -> dict:
-    """Remove autonomy policy; agent reverts to L1 default."""
+async def delete_autonomy_policy(
+    agent_id: str,
+    _: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Remove autonomy policy; agent reverts to L1 default.
+
+    Authenticated: deletion is a downgrade to L1 (everything needs approval), so
+    it fails safe — but it is still a remote edit of a security policy.
+    """
     from warden.marketplace.autonomy import delete_policy  # noqa: PLC0415
     deleted = delete_policy(agent_id)
     return {"agent_id": agent_id, "deleted": deleted, "fallback": "L1 default"}
