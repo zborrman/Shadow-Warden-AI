@@ -8,11 +8,52 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from fastapi import APIRouter, Body, File, Form, HTTPException, Path, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Path, Query, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-router = APIRouter(prefix="/communities", tags=["Community Hub"])
+from warden.auth_guard import require_api_key
+
+# ── Authentication ───────────────────────────────────────────────────────────
+#
+# Router-level dependency: EVERY route here requires a valid API key.
+#
+# This module previously declared zero dependencies across 34 routes. 28 of them
+# are live (the other 6 are shadowed by warden/communities/router.py, which is
+# mounted first and does carry tier + auth gating), and all 28 were reachable
+# anonymously in production — verified 2026-07-29:
+#
+#   GET /communities/networks/list                 -> 200 with no credentials
+#   GET /communities/{id}/analytics                -> 200
+#   GET /communities/{id}/compliance               -> 200
+#   GET /communities/{id}/data                     -> 200
+#   GET /communities/{id}/peers                    -> 200
+#   GET /communities/{id}/evolution/bundles        -> 200
+#   GET /communities/member/{tenant_id}/memberships-> 200
+#
+# The write surface on the same router is the more serious half: DELETE a
+# community, PUT its settings, PATCH it, change a member's role, upload/delete
+# files, and approve/import evolution bundles.
+#
+# There is no global auth middleware in warden/main.py — the only two http
+# middlewares attach a request id and set security headers — so an absent
+# per-route dependency means genuinely no authentication, not a gap in a
+# blanket rule.
+#
+# NOTE: this closes anonymous access. It does NOT yet scope a caller to their
+# own community: an authenticated tenant can still address another tenant's
+# {community_id}. That is a separate IDOR fix — see the module TODO below.
+router = APIRouter(
+    prefix="/communities",
+    tags=["Community Hub"],
+    dependencies=[Depends(require_api_key)],
+)
+
+# TODO(security): per-route tenant scoping. warden/communities/router.py derives
+# the caller's tenant via _get_tenant(request) and enforces _require_tier before
+# touching a community; the routes here take {community_id} from the path and
+# trust it. Requires threading AuthResult.tenant_id into each handler and
+# checking membership before read or write.
 
 
 # ── Pydantic models ────────────────────────────────────────────
