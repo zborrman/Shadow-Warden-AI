@@ -16,9 +16,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.communities.notifications import (
     VALID_CHANNELS,
     VALID_EVENTS,
@@ -31,7 +32,17 @@ from warden.communities.notifications import (
 
 log = logging.getLogger("warden.api.community_notifications")
 
-router = APIRouter(prefix="/communities", tags=["Community Notifications"])
+# Router-level authentication (anonymous-route audit, 2026-07-29).
+#
+# Every route in this module was reachable without credentials in production.
+# There is no global auth middleware in warden/main.py — only attach_request_id
+# and security_headers — so an absent dependency means genuinely no auth.
+#
+# Marketplace reputation endpoints (agent trust / readiness / protocol schema)
+# are deliberately left open: unauthenticated discovery is the premise of the
+# agentic marketplace. These are not that — they return tenant- and
+# agent-scoped state. See docs/anonymous-route-audit-2026-07-29.md.
+router = APIRouter(prefix="/communities", tags=["Community Notifications"], dependencies=[Depends(require_api_key)])
 
 
 class SubscribeRequest(BaseModel):

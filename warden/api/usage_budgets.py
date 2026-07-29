@@ -1,10 +1,22 @@
 """warden/api/usage_budgets.py  (ENT-04) — /billing/usage-budgets/* REST endpoints."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/billing/usage-budgets", tags=["AI Usage Budgets"])
+from warden.auth_guard import require_api_key
+
+# Router-level authentication (anonymous-route audit, 2026-07-29).
+#
+# Every route in this module was reachable without credentials in production.
+# There is no global auth middleware in warden/main.py — only attach_request_id
+# and security_headers — so an absent dependency means genuinely no auth.
+#
+# Marketplace reputation endpoints (agent trust / readiness / protocol schema)
+# are deliberately left open: unauthenticated discovery is the premise of the
+# agentic marketplace. These are not that — they return tenant- and
+# agent-scoped state. See docs/anonymous-route-audit-2026-07-29.md.
+router = APIRouter(prefix="/billing/usage-budgets", tags=["AI Usage Budgets"], dependencies=[Depends(require_api_key)])
 
 
 class BudgetIn(BaseModel):
