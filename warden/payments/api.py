@@ -11,13 +11,20 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.payments.usdc import get_usdc_service
 
 log = logging.getLogger("warden.payments.api")
 router = APIRouter(prefix="/payments", tags=["Payments"])
+
+# The intent names merchant_wallet and amount in the body, so an unauthenticated
+# POST created a USDC payment intent paying an address of the caller's choosing.
+# The status read stays open — it discloses only an intent the caller must already
+# know the id of.
+_WRITE = [Depends(require_api_key)]
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -30,7 +37,7 @@ class IntentRequest(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.post("/usdc/intent", status_code=201)
+@router.post("/usdc/intent", status_code=201, dependencies=_WRITE)
 def create_usdc_intent(body: IntentRequest):
     """Create a USDC payment intent for a marketplace transaction."""
     try:

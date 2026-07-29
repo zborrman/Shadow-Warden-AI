@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_escrow")
@@ -15,6 +16,15 @@ with contextlib.suppress(Exception):
     from warden.metrics import MARKETPLACE_ESCROW_ACTIVE
 
 router = APIRouter(tags=["Marketplace Escrow"], dependencies=[Depends(marketplace_rate_limit)])
+
+# Reads stay open — unauthenticated agent-to-agent lookup is the premise of the
+# marketplace, and docs/anonymous-route-audit-2026-07-29.md kept discovery public
+# by decision. Writes are a different question: create/fund/deliver/confirm/
+# dispute/resolve all name the buyer and seller in the body, so without a key any
+# caller could open or advance an escrow between agents it does not control.
+# A rate limit was the only router dependency here; it throttles an anonymous
+# caller, it does not authenticate one.
+_WRITE = [Depends(require_api_key)]
 
 
 class EscrowCreateRequest(BaseModel):
@@ -34,7 +44,7 @@ class DisputeRequest(BaseModel):
     reason: str
 
 
-@router.post("/escrow", status_code=201)
+@router.post("/escrow", status_code=201, dependencies=_WRITE)
 async def create_escrow(body: EscrowCreateRequest) -> dict:
     from warden.marketplace.escrow import EscrowDeploymentError, EscrowService
     try:
@@ -64,7 +74,7 @@ def _require_escrow(svc, escrow_id: str):  # noqa: ANN001, ANN202
     return esc
 
 
-@router.post("/escrow/{escrow_id}/fund")
+@router.post("/escrow/{escrow_id}/fund", dependencies=_WRITE)
 async def fund_escrow(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
@@ -75,7 +85,7 @@ async def fund_escrow(escrow_id: str) -> dict:
     return {"funded": True, "escrow_id": escrow_id}
 
 
-@router.post("/escrow/{escrow_id}/deliver")
+@router.post("/escrow/{escrow_id}/deliver", dependencies=_WRITE)
 async def deliver_asset(escrow_id: str, body: DeliverRequest) -> dict:
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
@@ -86,7 +96,7 @@ async def deliver_asset(escrow_id: str, body: DeliverRequest) -> dict:
     return {"delivered": True, "asset_hash": body.asset_hash}
 
 
-@router.post("/escrow/{escrow_id}/confirm")
+@router.post("/escrow/{escrow_id}/confirm", dependencies=_WRITE)
 async def confirm_receipt(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
@@ -99,7 +109,7 @@ async def confirm_receipt(escrow_id: str) -> dict:
     return {"confirmed": True, "escrow_id": escrow_id}
 
 
-@router.post("/escrow/{escrow_id}/dispute")
+@router.post("/escrow/{escrow_id}/dispute", dependencies=_WRITE)
 async def raise_dispute(escrow_id: str, body: DisputeRequest) -> dict:
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
@@ -110,7 +120,7 @@ async def raise_dispute(escrow_id: str, body: DisputeRequest) -> dict:
     return {"disputed": True, "reason": body.reason}
 
 
-@router.post("/escrow/{escrow_id}/resolve")
+@router.post("/escrow/{escrow_id}/resolve", dependencies=_WRITE)
 async def resolve_dispute(escrow_id: str, body: dict) -> dict:
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()

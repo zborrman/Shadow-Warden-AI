@@ -9,6 +9,7 @@ import time
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -24,6 +25,13 @@ with contextlib.suppress(Exception):
     )
 
 router = APIRouter(tags=["Marketplace Listings"], dependencies=[Depends(marketplace_rate_limit)])
+
+# Browsing stays open (see docs/anonymous-route-audit-2026-07-29.md). Publishing
+# does not: create_listing takes seller_agent_id and tenant_id straight from the
+# body, so an anonymous caller could publish under any tenant — and the Sybil gate
+# checks the *claimed* seller id, which naming an unflagged agent defeats.
+# portal/src/app/sdk/page.tsx already documents these as auth: true.
+_WRITE = [Depends(require_api_key)]
 
 
 class ListingCreateRequest(BaseModel):
@@ -42,7 +50,7 @@ class PurchaseRequest(BaseModel):
     buyer_agent_id: str
 
 
-@router.post("/listings", status_code=201)
+@router.post("/listings", status_code=201, dependencies=_WRITE)
 async def create_listing(body: ListingCreateRequest) -> dict:
     from warden.marketplace.listing import publish_listing
     # Sybil gate — flagged agents may not create new listings
@@ -117,7 +125,7 @@ async def search_listings(
     return [lst.to_dict() for lst in listings]
 
 
-@router.post("/listings/{listing_id}/purchase", status_code=201)
+@router.post("/listings/{listing_id}/purchase", status_code=201, dependencies=_WRITE)
 async def buy_listing(
     listing_id: str, body: PurchaseRequest,
     idempotency_key: str = Header(default="", alias="Idempotency-Key"),
@@ -162,7 +170,7 @@ class SponsorRequest(BaseModel):
     days: int = 30
 
 
-@router.post("/listings/{listing_id}/sponsor", status_code=200)
+@router.post("/listings/{listing_id}/sponsor", status_code=200, dependencies=_WRITE)
 async def sponsor_listing(
     listing_id: str,
     body: SponsorRequest,
