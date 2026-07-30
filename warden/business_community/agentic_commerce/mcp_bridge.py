@@ -9,6 +9,7 @@ the human-in-the-loop approval flow via Slack.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
@@ -90,8 +91,12 @@ class MCPBridge:
     ) -> dict[str, Any]:
         """
         Execute a commerce intent, routing to human approval if required.
-        Returns {approved, workflow_id, message} synchronously; actual
-        purchase happens after approval callback resolves.
+
+        Returns {approved, workflow_id, message} synchronously. NOTE: approving
+        the resulting workflow records the decision — it does not yet execute the
+        purchase. Nothing consumes a resolved workflow, so the execution half of
+        this flow is unimplemented. This docstring previously claimed "actual
+        purchase happens after approval callback resolves", which was never true.
         """
         if intent.requires_approval:
             workflow_id = await self._request_approval(intent, tenant_id)
@@ -112,9 +117,23 @@ class MCPBridge:
         }
 
     async def _request_approval(self, intent: MCPIntent, tenant_id: str) -> str:
-        """Send human-in-the-loop approval request via Slack alerting."""
+        """
+        Open a human-in-the-loop approval request and announce it on Slack.
+
+        The workflow is recorded before the alert goes out. Without that record
+        the id was unverifiable: /approve/{workflow_id} accepted any string at
+        all and reported it resolved, so the approval gate confirmed decisions
+        about workflows that had never existed.
+        """
         import uuid as _uuid
         workflow_id = f"mcp-approval-{_uuid.uuid4().hex[:12]}"
+        store_pending_workflow(workflow_id, {
+            "tenant_id":  tenant_id,
+            "max_amount": intent.max_amount,
+            "currency":   intent.currency,
+            "intent":     intent.raw[:200],
+            "status":     "PENDING",
+        })
 
         try:
             from warden.alerting import send_alert as send_slack_alert
@@ -155,3 +174,69 @@ class MCPBridge:
                      "need", "want", "find", "i", "for", "to", "of", "and", "or"}
         words = re.findall(r"[a-zA-Z]{3,}", text.lower())
         return [w for w in words if w not in stopwords][:10]
+
+# ── Pending approval workflows ───────────────────────────────────────────────
+#
+# Redis-backed with an in-process fallback, mirroring warden/agent/master.py's
+# approval store. Both lookups fail CLOSED: an id that cannot be found is not
+# approvable, so losing the store denies rather than waves things through.
+
+_PENDING_TTL_S = 3600
+_pending_local: dict[str, dict[str, Any]] = {}
+
+
+def _redis_client():
+    import redis as _redis
+
+    from warden.config import settings
+    return _redis.from_url(settings.redis_url, decode_responses=True)
+
+
+def store_pending_workflow(workflow_id: str, record: dict[str, Any]) -> None:
+    """Record a workflow awaiting human approval."""
+    import json
+    import time
+    record = {**record, "created_at": int(time.time())}
+    try:
+        _redis_client().setex(
+            f"commerce:approval:{workflow_id}", _PENDING_TTL_S, json.dumps(record)
+        )
+    except Exception as exc:
+        log.warning("commerce: Redis unavailable for approval storage: %s", exc)
+    _pending_local[workflow_id] = record
+
+
+def get_pending_workflow(workflow_id: str) -> dict[str, Any] | None:
+    """Return the pending record, or None if unknown, expired or resolved."""
+    import json
+    with contextlib.suppress(Exception):
+        raw = _redis_client().get(f"commerce:approval:{workflow_id}")
+        if raw:
+            return json.loads(raw)  # type: ignore[arg-type]
+    return _pending_local.get(workflow_id)
+
+
+def resolve_workflow(
+    workflow_id: str, tenant_id: str, approved: bool
+) -> dict[str, Any] | None:
+    """
+    Consume a pending workflow and record the decision.
+
+    Returns the updated record, or None when the id is unknown, already resolved,
+    or belongs to a different tenant — the caller turns that into a 404 rather
+    than confirming a decision about a workflow that does not exist.
+    """
+    import json
+    record = get_pending_workflow(workflow_id)
+    if not record or record.get("status") != "PENDING":
+        return None
+    if record.get("tenant_id") != tenant_id:
+        return None
+
+    record = {**record, "status": "APPROVED" if approved else "REJECTED"}
+    with contextlib.suppress(Exception):
+        _redis_client().setex(
+            f"commerce:approval:{workflow_id}", _PENDING_TTL_S, json.dumps(record)
+        )
+    _pending_local[workflow_id] = record
+    return record

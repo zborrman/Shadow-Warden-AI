@@ -160,7 +160,16 @@ async def submit_mcp_intent(body: MCPIntentRequest) -> dict:
 
 @router.post("/webhooks/ap2", summary="AP2 payment status callback")
 async def ap2_webhook(body: WebhookAP2Request) -> dict:
-    # AP2 webhook does not require tenant auth — validated by transaction signature
+    # This endpoint is unauthenticated and DOES NOT verify anything. The comment
+    # here used to read "validated by transaction signature"; no signature is
+    # checked, and AP2 does not currently send one to check. It is safe only
+    # because the handler is inert — it logs the callback and changes no state,
+    # so a forged call achieves nothing beyond a log line.
+    #
+    # Before this webhook is allowed to settle an order, mark it paid, or release
+    # escrow, it needs a real signature check: verify with a key from
+    # warden.secret_keys.resolve_key(..., purpose=...) and reject unconditionally
+    # when the key will not resolve. Do not restore the old comment instead.
     import logging as _log
     _log.getLogger("warden.commerce.webhook").info(
         "AP2 webhook: txn=%s status=%s order=%s",
@@ -173,13 +182,36 @@ async def ap2_webhook(body: WebhookAP2Request) -> dict:
 
 @router.post("/approve/{workflow_id}", summary="Approve a pending MCP purchase intent", dependencies=[_Gate])
 async def approve_workflow(workflow_id: str, tenant_id: str, action: str = "approve") -> dict:
+    """
+    Record a human decision on a pending commerce approval.
+
+    This used to accept any `workflow_id` at all, store nothing, and answer
+    `resolved: true` — so it confirmed decisions about workflows that had never
+    existed, and a real approval was indistinguishable from a typo. The id is now
+    looked up and bound to the tenant that raised it.
+
+    `executed` is deliberately reported as false: approving records the decision,
+    but nothing downstream consumes a resolved workflow yet, so no purchase is
+    made. Saying so is better than implying a completion that does not happen.
+    """
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    from warden.business_community.agentic_commerce.mcp_bridge import resolve_workflow
+
+    record = resolve_workflow(workflow_id, tenant_id, action == "approve")
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Unknown, expired, or already-resolved workflow for this tenant.",
+        )
     return {
         "workflow_id": workflow_id,
-        "action": action,
-        "resolved": True,
-        "message": f"Workflow {workflow_id} {action}d.",
+        "action":      action,
+        "resolved":    True,
+        "executed":    False,
+        "status":      record["status"],
+        "message":     f"Workflow {workflow_id} {action}d. Purchase execution is not wired up.",
     }
 
 
