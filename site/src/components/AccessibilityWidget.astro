@@ -178,7 +178,7 @@
     right: 20px !important;
     z-index: 9999 !important;
     display: flex !important;
-    background: linear-gradient(145deg,#4f46e5 0%,#7c3aed 100%) !important;
+    background: linear-gradient(145deg, #80b4fd 0%, #38bdf8 100%) !important;
     color: #fff !important;
     border: 2px solid #fff !important;
     box-shadow: 0 4px 20px rgba(0,0,0,.8) !important;
@@ -257,27 +257,27 @@
     height: 52px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.15);
-    background: linear-gradient(145deg, #4f46e5 0%, #7c3aed 100%);
-    color: #fff;
+    background: linear-gradient(145deg, #80b4fd 0%, #38bdf8 100%);
+    color: #070910;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 20px rgba(79,70,229,0.5), 0 0 0 0 rgba(79,70,229,0);
+    box-shadow: 0 4px 20px rgba(128,180,253,0.5), 0 0 0 0 rgba(128,180,253,0);
     transition: transform 0.18s ease, box-shadow 0.18s ease;
     /* Ensure sufficient touch target (WCAG 2.5.5) */
     padding: 0;
   }
   #a11y-trigger:hover {
     transform: scale(1.08);
-    box-shadow: 0 6px 28px rgba(79,70,229,0.65);
+    box-shadow: 0 6px 28px rgba(128,180,253,0.65);
   }
   #a11y-trigger:focus-visible {
     outline: 3px solid #ffbf00;
     outline-offset: 3px;
   }
   #a11y-trigger[aria-expanded="true"] {
-    background: linear-gradient(145deg, #6d28d9 0%, #4f46e5 100%);
+    background: linear-gradient(145deg, #9dc5fe 0%, #5ccbfa 100%);
   }
 
   /* ── Backdrop ── */
@@ -304,7 +304,7 @@
     overflow-y: auto;
     border-radius: 20px;
     background: #0f0f1e;
-    border: 1px solid rgba(99,102,241,0.3);
+    border: 1px solid rgba(128,180,253,0.3);
     box-shadow:
       0 32px 80px rgba(0,0,0,0.75),
       0 0 0 1px rgba(255,255,255,0.04) inset,
@@ -328,7 +328,7 @@
     gap: 12px;
     padding: 18px 16px 14px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
-    background: rgba(99,102,241,0.06);
+    background: rgba(128,180,253,0.06);
   }
   .a11y-title {
     font-size: 14px;
@@ -424,9 +424,9 @@
     font-family: system-ui, -apple-system, sans-serif;
   }
   .a11y-font-btn:hover {
-    background: rgba(99,102,241,0.18);
-    border-color: rgba(99,102,241,0.5);
-    color: #a78bfa;
+    background: rgba(128,180,253,0.18);
+    border-color: rgba(128,180,253,0.5);
+    color: #80b4fd;
   }
   .a11y-font-btn:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
   .a11y-font-bar {
@@ -438,10 +438,15 @@
   }
   .a11y-font-bar-fill {
     height: 100%;
-    width: 50%;
+    width: 100%;
+    transform: scaleX(0.5);
+    transform-origin: left center;
     border-radius: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
-    transition: width 0.2s ease;
+    background: linear-gradient(90deg, #80b4fd, #38bdf8);
+    transition: transform 0.2s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .a11y-font-bar-fill { transition: none; }
   }
   .a11y-font-val {
     font-size: 11px;
@@ -492,7 +497,7 @@
   }
   .a11y-switch[aria-checked="true"] {
     background: #5a5fcf;
-    border-color: #6366f1;
+    border-color: #80b4fd;
   }
   .a11y-switch:focus-visible { outline: 2px solid #ffbf00; outline-offset: 2px; }
   .a11y-knob {
@@ -593,7 +598,7 @@
     const pct = FONT_STEPS[st.fontStep] ?? 100;
     const fill = document.getElementById('a11y-font-fill') as HTMLElement | null;
     const val  = document.getElementById('a11y-font-val') as HTMLElement | null;
-    if (fill) fill.style.width = ((st.fontStep / (FONT_STEPS.length - 1)) * 100) + '%';
+    if (fill) fill.style.transform = 'scaleX(' + (st.fontStep / (FONT_STEPS.length - 1)) + ')';
     if (val)  val.textContent = pct + '%';
 
     KEYS.forEach(k => {

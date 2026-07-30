@@ -109,6 +109,10 @@
   --cat-docs-glow: rgba(251,191,36,.18);
   --cat-price:     var(--sw-orange);
   --cat-price-glow:rgba(251,146,60,.22);
+  --cat-tunnel:    var(--sw-cyan);
+  --cat-tunnel-glow: rgba(56,189,248,.22);
+  --cat-agentic:   #7dd3fc;            /* lighter step of Pipeline Cyan — a step, not a new hue */
+  --cat-agentic-glow: rgba(125,211,252,.22);
 }
 
 /* ── Global base ─────────────────────────────────────── */
