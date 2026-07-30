@@ -71,9 +71,9 @@ def test_lookup_fails_closed_when_storage_is_gone(monkeypatch):
 
 
 def test_approval_endpoint_rejects_an_invented_workflow():
-    import warden.auth_guard as ag
     from fastapi.testclient import TestClient
 
+    import warden.auth_guard as ag
     import warden.main as m
 
     prev = ag._VALID_KEY
