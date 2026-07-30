@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-29T00:00:00.000Z",
+  "title": "Design System: Shadow Warden AI",
+  "extensions": {
+    "colorMeta": {
+      "sentinel-blue": {
+        "role": "primary",
+        "displayName": "Sentinel Blue",
+        "canonical": "#80b4fd",
+        "tonalRamp": ["#0a1c33", "#123055", "#1a4680", "#2560ab", "#3b7ed6", "#5b9bf0", "#80b4fd", "#b9d5fe"]
+      },
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#4d9cfc",
+        "tonalRamp": ["#04162e", "#08234b", "#0d3573", "#134a9e", "#1e66c9", "#3080ec", "#4d9cfc", "#96c5fe"]
+      },
+      "command-blue-deep": {
+        "role": "primary",
+        "displayName": "Deep Command Blue",
+        "canonical": "#0051c3",
+        "tonalRamp": ["#000d20", "#001536", "#002c78", "#003a8c", "#0047ab", "#0051c3", "#1a6ee0", "#5fa0f2"]
+      },
+      "pipeline-cyan": {
+        "role": "secondary",
+        "displayName": "Pipeline Cyan",
+        "canonical": "#38bdf8",
+        "tonalRamp": ["#04212f", "#073445", "#0a4d69", "#0e6d94", "#1490c4", "#22a7e0", "#38bdf8", "#8ad8fb"]
+      },
+      "app-primary": {
+        "role": "primary",
+        "displayName": "App Primary Blue (DS-01)",
+        "canonical": "#2563eb",
+        "tonalRamp": ["#06122e", "#0a1e4d", "#102c73", "#17399b", "#1f4bc2", "#2563eb", "#558af1", "#9dbdf8"]
+      },
+      "void-navy": {
+        "role": "neutral",
+        "displayName": "Void Navy",
+        "canonical": "#070910",
+        "tonalRamp": ["#030409", "#070910", "#0c1020", "#111827", "#1a2236", "#2a3550", "#40507a", "#6b7c96"]
+      },
+      "bunker-navy": {
+        "role": "neutral",
+        "displayName": "Bunker Navy",
+        "canonical": "#0c1020",
+        "tonalRamp": ["#030409", "#070910", "#0c1020", "#111827", "#1a2236", "#2a3550", "#40507a", "#6b7c96"]
+      },
+      "console-slate": {
+        "role": "neutral",
+        "displayName": "Console Slate",
+        "canonical": "#111827",
+        "tonalRamp": ["#070910", "#0c1020", "#111827", "#1a2236", "#26314a", "#3a4864", "#5a6a89", "#8b9ab5"]
+      },
+      "raised-slate": {
+        "role": "neutral",
+        "displayName": "Raised Slate",
+        "canonical": "#1a2236",
+        "tonalRamp": ["#070910", "#0c1020", "#111827", "#1a2236", "#26314a", "#3a4864", "#5a6a89", "#8b9ab5"]
+      },
+      "screen-white": {
+        "role": "neutral",
+        "displayName": "Screen White",
+        "canonical": "#f0f4fc",
+        "tonalRamp": ["#404e66", "#556380", "#6b7c96", "#8b9ab5", "#a8b8d0", "#c6d2e4", "#dee6f4", "#f0f4fc"]
+      },
+      "muted-steel": {
+        "role": "neutral",
+        "displayName": "Muted Steel",
+        "canonical": "#a8b8d0",
+        "tonalRamp": ["#242c3c", "#33405a", "#404e66", "#556380", "#6b7c96", "#8b9ab5", "#a8b8d0", "#d2dcea"]
+      },
+      "dim-steel": {
+        "role": "neutral",
+        "displayName": "Dim Steel",
+        "canonical": "#6b7c96",
+        "tonalRamp": ["#181e2a", "#242c3c", "#333d52", "#404e66", "#55647f", "#6b7c96", "#95a3ba", "#c3cddd"]
+      },
+      "ghost-steel": {
+        "role": "neutral",
+        "displayName": "Ghost Steel",
+        "canonical": "#404e66",
+        "tonalRamp": ["#0c1020", "#141a2a", "#1e2739", "#2a3550", "#404e66", "#55647f", "#6b7c96", "#95a3ba"]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "rgba(128,180,253,0.09)",
+        "tonalRamp": ["rgba(128,180,253,0.04)", "rgba(128,180,253,0.06)", "rgba(128,180,253,0.09)", "rgba(128,180,253,0.14)", "rgba(128,180,253,0.20)", "rgba(128,180,253,0.28)", "rgba(128,180,253,0.32)", "rgba(128,180,253,0.45)"]
+      },
+      "verdict-clear": {
+        "role": "tertiary",
+        "displayName": "Verdict Clear",
+        "canonical": "#34d399",
+        "tonalRamp": ["#04251a", "#073c2a", "#0a5840", "#0e7757", "#159971", "#22b98a", "#34d399", "#86e9c4"]
+      },
+      "verdict-caution": {
+        "role": "tertiary",
+        "displayName": "Caution Amber",
+        "canonical": "#fbbf24",
+        "tonalRamp": ["#2b1f02", "#452f04", "#674607", "#8d600a", "#b57d0e", "#dc9c15", "#fbbf24", "#fdd97a"]
+      },
+      "verdict-escalate": {
+        "role": "tertiary",
+        "displayName": "Escalation Orange",
+        "canonical": "#fb923c",
+        "tonalRamp": ["#2b1503", "#452205", "#673308", "#8d470c", "#b55e11", "#dc7818", "#fb923c", "#fdc088"]
+      },
+      "verdict-alert": {
+        "role": "tertiary",
+        "displayName": "Alert Red",
+        "canonical": "#f87171",
+        "tonalRamp": ["#2e0d0d", "#4a1616", "#6d2020", "#942c2c", "#bc3b3b", "#dc5252", "#f87171", "#fbaeae"]
+      },
+      "verdict-block": {
+        "role": "tertiary",
+        "displayName": "Block Red",
+        "canonical": "#ef4444",
+        "tonalRamp": ["#2e0808", "#4a0d0d", "#6d1414", "#941c1c", "#bc2626", "#dc3333", "#ef4444", "#f79191"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (Mono)",
+        "purpose": "Flagship page headlines in JetBrains Mono 700. The machine speaking in its own voice — never used for descriptive prose."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings and console page titles. Inter 600 at 24px, tightened to -0.025em."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and panel headers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "The default reading size on every surface, marketing included. 14px, measure capped at 65-75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Badges, tier chips, and table column heads. 11px/600 with slight positive tracking."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "Inline identifiers, endpoints, and values. Sentinel Blue on Console Slate with a hairline border."
+      }
+    },
+    "shadows": [
+      { "name": "ambient-sm", "value": "0 1px 2px rgba(0,0,0,.35)", "purpose": "Resting separation for a raised row or chip." },
+      { "name": "ambient-md", "value": "0 2px 8px rgba(0,0,0,.40)", "purpose": "Dropdowns and hover cards." },
+      { "name": "ambient-lg", "value": "0 4px 20px rgba(0,0,0,.50)", "purpose": "Modals and overlay panels." },
+      { "name": "nav-dropdown", "value": "0 16px 40px rgba(0,0,0,0.5)", "purpose": "The site header's category dropdown panel." },
+      { "name": "focus-glow", "value": "0 0 0 2px rgba(128,180,253,.10)", "purpose": "The only blue shadow — a focus companion to the ring, never idle decoration." },
+      { "name": "cta-inset", "value": "color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset, color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px, color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px", "purpose": "The single deliberate exception: gives the primary CTA a convex face in wide-gamut displays. Belongs to that one component." }
+    ],
+    "motion": [
+      { "name": "ease-out-strong", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "Anything entering the viewport or responding to a press." },
+      { "name": "ease-in-out-strong", "value": "cubic-bezier(0.77, 0, 0.175, 1)", "purpose": "Reversible transitions such as sheet open/close." },
+      { "name": "duration-color", "value": "150ms", "purpose": "Color and background state changes." },
+      { "name": "duration-border", "value": "180ms", "purpose": "Card border-color hover — the only card hover effect permitted." },
+      { "name": "duration-enter", "value": "350ms", "purpose": "Staggered grid entrance, 40ms per child, capped at the 10th." },
+      { "name": "duration-reveal", "value": "520ms", "purpose": "Scroll-reveal fade-up of a section." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "container", "value": "1280px (max-w-7xl, 16px gutters -> 32px at lg)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The brightest object on the screen. Dark text on Sentinel Blue, no border, convex display-p3 inset.",
+      "html": "<button class=\"ds-btn-primary\">Deploy gateway</button>",
+      "css": ".ds-btn-primary { background: #80b4fd; color: #070910; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 600; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; box-shadow: color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset, color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px, color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px; transition: background 150ms ease, box-shadow 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:hover { background: #9dc5fe; box-shadow: color(display-p3 0.50 0.72 1.0 / 0.30) 0px -5px 12px 0px inset, color(display-p3 0.50 0.72 1.0 / 0.20) 0px 3px 6px 0px, color(display-p3 0.50 0.72 1.0 / 0.12) 0px 1px 2px 0px; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #070910, 0 0 0 4px #80b4fd; } .ds-btn-primary:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The default secondary action. An engraved surface — 4% wash, 14% border, 6% inset top highlight.",
+      "html": "<button class=\"ds-btn-ghost\">View docs</button>",
+      "css": ".ds-btn-ghost { background: rgba(128,180,253,0.04); border: 1px solid rgba(128,180,253,0.14); box-shadow: inset 0 1px 0 rgba(128,180,253,0.06); color: #a8b8d0; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 500; border-radius: 8px; padding: 10px 20px; cursor: pointer; transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-ghost:hover { background: rgba(128,180,253,0.09); border-color: rgba(128,180,253,0.28); box-shadow: inset 0 1px 0 rgba(128,180,253,0.10); color: #f0f4fc; } .ds-btn-ghost:focus-visible { outline: none; border-color: #80b4fd; box-shadow: 0 0 0 2px rgba(128,180,253,.10); } .ds-btn-ghost:active { transform: scale(0.97); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Bunker Navy surface with a 1px tinted hairline. Never lifts — hover strengthens the border only.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Topological Gatekeeper</div><p class=\"ds-card-body\">n-gram point cloud reduced to B0/B1 Betti numbers. Rejects structurally anomalous prompts in under 2ms.</p></div>",
+      "css": ".ds-card { background: #0c1020; border: 1px solid rgba(128,180,253,0.09); border-radius: 8px; padding: 24px; transition: border-color 180ms ease; } .ds-card:hover { border-color: rgba(128,180,253,0.20); } .ds-card-title { font-family: 'Inter', system-ui, sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: #f0f4fc; margin: 0 0 8px; } .ds-card-body { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; color: #a8b8d0; margin: 0; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Verdict chip: state color as text on an 8-10% tint of itself, bordered at 18-20%. Never a solid fill.",
+      "html": "<span class=\"ds-badge ds-badge-clear\"><span class=\"ds-badge-dot\"></span>ALLOWED</span> <span class=\"ds-badge ds-badge-caution\"><span class=\"ds-badge-dot\"></span>FLAGGED</span> <span class=\"ds-badge ds-badge-block\"><span class=\"ds-badge-dot\"></span>BLOCKED</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 100px; border: 1px solid transparent; white-space: nowrap; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 100px; background: currentColor; flex-shrink: 0; } .ds-badge-clear { color: #34d399; background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.18); } .ds-badge-caution { color: #fbbf24; background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.18); } .ds-badge-block { color: #ef4444; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.20); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "36px field on the page floor. Focus is a 1px Sentinel Blue ring — no glow, no border-width shift.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-api-key\">API key</label><input class=\"ds-input\" id=\"ds-api-key\" type=\"text\" placeholder=\"sw_live_...\" /><p class=\"ds-field-helper\">Scoped per tenant. Rotated on a 90-day schedule.</p></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; max-width: 320px; } .ds-field-label { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 500; color: #f0f4fc; } .ds-input { height: 36px; width: 100%; background: #070910; border: 1px solid rgba(128,180,253,0.20); border-radius: 8px; padding: 4px 12px; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; color: #f0f4fc; transition: border-color 150ms ease, box-shadow 150ms ease; } .ds-input::placeholder { color: #6b7c96; } .ds-input:focus-visible { outline: none; border-color: #80b4fd; box-shadow: 0 0 0 1px #80b4fd; } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; } .ds-field-helper { font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #6b7c96; margin: 0; }"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "13px nav item on the blurred fixed bar. Rest is Dim Steel; hover and active take the section's category color.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link ds-nav-link-active\" href=\"#\">Dashboard</a><a class=\"ds-nav-link\" href=\"#\">Security</a><a class=\"ds-nav-link\" href=\"#\">Docs<svg width=\"12\" height=\"12\" viewBox=\"0 0 12 12\" fill=\"none\" style=\"opacity:.5\"><path d=\"M3 4.5L6 7.5L9 4.5\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"/></svg></a></nav>",
+      "css": ".ds-nav { display: flex; align-items: center; gap: 4px; height: 56px; padding: 0 16px; background: rgba(10,10,15,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.06); } .ds-nav-link { display: inline-flex; align-items: center; gap: 4px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 500; color: #94a3b8; text-decoration: none; padding: 8px 12px; border-radius: 8px; transition: color 150ms ease, background 150ms ease; } .ds-nav-link:hover { color: #80b4fd; background: rgba(255,255,255,0.05); } .ds-nav-link:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(128,180,253,.35); } .ds-nav-link-active { color: #80b4fd; background: rgba(255,255,255,0.06); }"
+    },
+    {
+      "name": "Inline Code",
+      "kind": "custom",
+      "refersTo": "code",
+      "description": "Machine voice inside prose: Sentinel Blue on Console Slate with a hairline border and a 3px radius.",
+      "html": "<p class=\"ds-prose\">Every verdict is emitted by <code class=\"ds-code\">POST /filter</code> in under 50ms at P99.</p>",
+      "css": ".ds-prose { font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; color: #a8b8d0; margin: 0; } .ds-code { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 0.8em; color: #80b4fd; background: #111827; border: 1px solid rgba(128,180,253,0.09); padding: 1px 5px; border-radius: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Watch Console",
+    "overview": "This is an instrument, not a website. The surfaces are near-black navy because the product is read in the dark — SOC walls, terminal sessions, an incident at 02:00 — and every value on screen was measured by the system rather than composed by a designer. Structure is carried entirely by hairlines and tonal layering: four surface steps from Void Navy (#070910) up to Raised Slate (#1a2236), separated by blue-tinted borders at 9% opacity. Nothing floats. Nothing lifts on hover. Depth exists, but it is stacked, not thrown.\n\nColor is a verdict, not decoration. Sentinel Blue is the only brand voice, and the green/amber/orange/red family belongs exclusively to states the pipeline actually reported. Because the palette is otherwise monochrome, a single amber badge in a table reads instantly from across a room — which is the entire operational point. Radii are deliberately tight (3-10px, never the soft 16px+ of consumer SaaS), body text sits at 14px, and density is treated as respect for an expert reader rather than a compromise.\n\nThe type pairing carries the product's argument: Inter for everything the user reads, JetBrains Mono for everything the system says. Headlines on the flagship pages are set in mono at 700 weight — a machine speaking in its own voice — while body copy stays in Inter so long-form technical prose remains comfortable. This system explicitly rejects the friendly-SaaS vocabulary (soft gradients, pastel accents, rounded pill cards, illustrated mascots) and the theatrical hacker aesthetic (neon green, matrix rain, alarm red as ambience) in equal measure.",
+    "keyCharacteristics": [
+      "Dark-first, four-step tonal surface ramp; light mode is a derived state, never the design target",
+      "Hairline borders as the primary structural device — 1px, blue-tinted, 9% opacity at rest",
+      "One brand hue (Sentinel Blue), one status family, nothing else",
+      "Tight radii (3-10px) and a 4px spacing base",
+      "14px body text; information density over whitespace drama",
+      "Mono for machine voice, Inter for human reading",
+      "Motion is short (150-350ms), directional, and fully suppressed under prefers-reduced-motion"
+    ],
+    "rules": [
+      { "name": "The Earned Color Rule", "body": "Saturated color covers <=10% of any screen. If a color is not reporting a verdict, an active state, or the single primary action, it is not allowed to be there. When everything glows, nothing alerts.", "section": "colors" },
+      { "name": "The Verdict Reservation Rule", "body": "Green, amber, orange, and red are owned by the detection pipeline. They may never be borrowed for decoration, category coding, or chart series — a red chart line will be read as a BLOCK by this audience, and that misread is a product failure, not a style quibble.", "section": "colors" },
+      { "name": "The Tinted Hairline Rule", "body": "Borders are blue-tinted alpha (rgba(128,180,253,.)), never neutral gray and never a solid hex. On a navy floor, gray edges read as dirt.", "section": "colors" },
+      { "name": "The 14px Rule", "body": "Body is 14px everywhere — landing page included. This product is read by people who keep four panes open; a 18px marketing body size would announce that the marketing site is a different product than the console.", "section": "typography" },
+      { "name": "The Machine Voice Rule", "body": "Monospace is reserved for what the system produced or the user must type verbatim: verdicts, metrics, IDs, endpoints, code, and flagship display headlines. Never set descriptive prose in mono to look technical.", "section": "typography" },
+      { "name": "The No-Lift Rule", "body": "Cards never translate, scale, or shadow on hover. Hover changes the border color only, over 180ms. Buttons are the sole exception: they scale to 0.97 on :active as a press confirmation, and that is suppressed under reduced motion.", "section": "elevation" },
+      { "name": "The Right-Angle Bias Rule", "body": "When a radius is uncertain, choose the smaller step. Softness reads as consumer software to this audience, and this audience is buying infrastructure.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do build structure from the four-step surface ramp and 1px tinted hairlines before reaching for any other device.",
+      "Do keep body copy at 14px and let density do the work — this audience reads dashboards for a living.",
+      "Do set machine output (verdicts, latencies, IDs, endpoints, code) in JetBrains Mono, and human prose in Inter.",
+      "Do give every interactive element a visible focus-visible ring; the product is sold to buyers who audit for it.",
+      "Do express status as tinted-text-plus-border chips, never as solid saturated fills.",
+      "Do gate every animation behind prefers-reduced-motion and keep durations under 550ms.",
+      "Do hold >=4.5:1 on body text in both themes — Ghost Steel (#404e66) is structural only and must never carry prose."
+    ],
+    "donts": [
+      "Don't lift, scale, or shadow a card on hover. Change the border color and nothing else.",
+      "Don't use gradient text. .text-gradient deliberately resolves to solid Sentinel Blue; the only surviving gradients are the hero radial wash and the two-stop brand mark.",
+      "Don't spend a verdict color on decoration, category fills, or chart series. Red means blocked.",
+      "Don't exceed 12px radius on anything that is not a pill or an avatar.",
+      "Don't introduce a second brand hue. Indigo/violet (#6366f1, #7c3aed, #7B5CF0) are legacy residue, not part of this palette.",
+      "Don't add neutral-gray borders, colored drop shadows, glass panels, or animated background orbs.",
+      "Don't invent a new token because a value is missing — extend site/src/styles/tokens.css, which is the source of truth, and let the other surfaces mirror it."
+    ]
+  }
+}

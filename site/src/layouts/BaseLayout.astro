@@ -19,50 +19,50 @@ const categories = [
   {
     label: 'Business Community',
     href: '/business-community',
-    color: '#8b5cf6',
+    color: '#4d9cfc',
     sub: [...new Set(roadmap.filter(r => r.category === 'Business Community').map(r => r.subcategory))],
   },
   {
     label: 'Cyber Security',
     href: '/cyber-security',
-    color: '#ef4444',
+    color: '#f87171',
     sub: [...new Set(roadmap.filter(r => r.category === 'Cyber Security').map(r => r.subcategory))],
     links: [{ label: 'Trust Center', href: '/trust' }],
   },
   {
     label: 'Tunnel',
     href: '/tunnel',
-    color: '#06b6d4',
+    color: '#38bdf8',
     sub: [...new Set(roadmap.filter(r => r.category === 'Tunnel').map(r => r.subcategory))],
   },
   {
     label: 'Dashboard',
     href: '/dashboard',
-    color: '#6366f1',
+    color: '#80b4fd',
     sub: [...new Set(roadmap.filter(r => r.category === 'Dashboard').map(r => r.subcategory))],
   },
   {
     label: 'Settings',
     href: '/settings',
-    color: '#30D158',
+    color: '#34d399',
     sub: [],
   },
   {
     label: 'Doc',
     href: '/doc',
-    color: '#f59e0b',
+    color: '#fbbf24',
     sub: ['Quick Start', 'API Reference', 'Compliance', 'Changelog'],
   },
   {
     label: 'Price',
     href: '/price',
-    color: '#f97316',
+    color: '#fb923c',
     sub: [],
   },
   {
     label: 'Agentic Marketplace',
     href: '/agentic',
-    color: '#10b981',
+    color: '#7dd3fc',
     sub: [],
   },
 ];
@@ -109,26 +109,21 @@ const isSettingsActive = isActive('/settings');
 
 <body>
   <!-- Top announcement banner -->
-  <div id="top-banner" style="background:linear-gradient(90deg,#6366f1 0%,#8b5cf6 50%,#6366f1 100%);background-size:200% 100%;animation:banner-shimmer 4s linear infinite;position:fixed;top:0;left:0;right:0;z-index:60;height:36px">
+  <div id="top-banner" style="background:#0c1020;border-bottom:1px solid rgba(128,180,253,0.14);position:fixed;top:0;left:0;right:0;z-index:60;height:36px">
     <a href="/doc/api-reference"
-       class="flex items-center justify-center gap-2 px-4 py-2 text-white transition-opacity hover:opacity-90"
-       style="text-decoration:none">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.85"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">Shadow Warden AI — Gateway <span style="opacity:0.75;font-weight:400">v7.7</span> — Explore the API Reference</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:0.75"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+       class="flex items-center justify-center gap-2 px-4 py-2 transition-colors"
+       style="text-decoration:none;color:#a8b8d0"
+       onmouseover="this.style.color='#f0f4fc'" onmouseout="this.style.color='#a8b8d0'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">Shadow Warden AI — Gateway <span style="color:#6b7c96;font-weight:400;font-family:var(--sw-font-mono)">v7.7</span> — Explore the API Reference</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
     <button id="banner-close" aria-label="Dismiss" type="button"
-            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:rgba(255,255,255,0.6);cursor:pointer;padding:4px;line-height:1"
-            onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.6)'">
+            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#6b7c96;cursor:pointer;padding:4px;line-height:1"
+            onmouseover="this.style.color='#f0f4fc'" onmouseout="this.style.color='#6b7c96'">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
     </button>
   </div>
-  <style>
-    @keyframes banner-shimmer {
-      0%   { background-position: 0% 0 }
-      100% { background-position: 200% 0 }
-    }
-  </style>
 
   <!-- Navbar -->
   <header id="navbar" class="fixed left-0 right-0 z-50 transition-all duration-300"
@@ -139,7 +134,7 @@ const isSettingsActive = isActive('/settings');
       <a href="/" class="flex items-center gap-2.5 shrink-0">
         <img src="/logo.png" alt="Shadow Warden AI"
              style="height:52px;width:auto;display:block" />
-        <span class="hidden md:block text-[13px] font-black tracking-tight leading-none whitespace-nowrap" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#6366f1">Warden</span>-AI</span>
+        <span class="hidden md:block text-[13px] font-black tracking-tight leading-none whitespace-nowrap" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#80b4fd">Warden</span>-AI</span>
       </a>
 
       <!-- Desktop nav -->
@@ -273,7 +268,7 @@ const isSettingsActive = isActive('/settings');
                     onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
               <div id="nav-avatar-initials"
                    class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                   style="background:linear-gradient(135deg,#6366f1 0%,#06b6d4 100%);color:#fff">?</div>
+                   style="background:linear-gradient(135deg,#80b4fd 0%,#38bdf8 100%);color:#070910">?</div>
               <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" class="opacity-40">
                 <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
@@ -390,8 +385,8 @@ const isSettingsActive = isActive('/settings');
           Sign Out
         </button>
         <a href="https://portal.shadow-warden-ai.com"
-           class="block mt-2 px-4 py-3 rounded-xl text-[13px] font-semibold text-center text-white"
-           style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+           class="block mt-2 px-4 py-3 rounded-xl text-[13px] font-semibold text-center"
+           style="background:#80b4fd;color:#070910;box-shadow:color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px">
           Get Started Free
         </a>
       </div>

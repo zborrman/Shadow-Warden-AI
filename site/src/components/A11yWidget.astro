@@ -6,11 +6,11 @@
   <!-- Floating button -->
   <button id="a11y-btn" aria-label="Accessibility options" aria-expanded="false" aria-controls="a11y-panel">
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="4" r="2.4" fill="white"/>
-      <line x1="12" y1="7" x2="12" y2="15" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
-      <line x1="5"  y1="10" x2="19" y2="10" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
-      <line x1="12" y1="15" x2="8"  y2="21" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
-      <line x1="12" y1="15" x2="16" y2="21" stroke="white" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="12" cy="4" r="2.4" fill="#070910"/>
+      <line x1="12" y1="7" x2="12" y2="15" stroke="#070910" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="5"  y1="10" x2="19" y2="10" stroke="#070910" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="12" y1="15" x2="8"  y2="21" stroke="#070910" stroke-width="2.4" stroke-linecap="round"/>
+      <line x1="12" y1="15" x2="16" y2="21" stroke="#070910" stroke-width="2.4" stroke-linecap="round"/>
     </svg>
   </button>
 
@@ -119,16 +119,16 @@
     border-radius: 50%;
     border: none;
     cursor: pointer;
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    box-shadow: 0 4px 24px rgba(99,102,241,0.45);
+    background: linear-gradient(135deg, #80b4fd 0%, #38bdf8 100%);
+    box-shadow: 0 4px 24px rgba(128,180,253,0.45);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: transform 0.18s ease, box-shadow 0.18s ease;
     outline: none;
   }
-  #a11y-btn:hover  { transform: scale(1.1); box-shadow: 0 6px 32px rgba(99,102,241,0.6); }
-  #a11y-btn:focus-visible { outline: 2px solid #a78bfa; outline-offset: 3px; }
+  #a11y-btn:hover  { transform: scale(1.1); box-shadow: 0 6px 32px rgba(128,180,253,0.6); }
+  #a11y-btn:focus-visible { outline: 2px solid #80b4fd; outline-offset: 3px; }
 
   /* ── Panel ── */
   #a11y-panel {
@@ -139,7 +139,7 @@
     width: 288px;
     border-radius: 18px;
     background: #0e0e1c;
-    border: 1px solid rgba(99,102,241,0.28);
+    border: 1px solid rgba(128,180,253,0.28);
     box-shadow: 0 24px 64px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.06);
     overflow: hidden;
     /* hidden by default */
@@ -161,7 +161,7 @@
     justify-content: space-between;
     padding: 15px 16px 13px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
-    background: rgba(99,102,241,0.05);
+    background: rgba(128,180,253,0.05);
   }
   .ap-title {
     font-size: 14px;
@@ -242,11 +242,11 @@
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
   .ap-font:hover, .ap-font.active {
-    background: rgba(99,102,241,0.18);
-    border-color: rgba(99,102,241,0.5);
-    color: #a78bfa;
+    background: rgba(128,180,253,0.18);
+    border-color: rgba(128,180,253,0.5);
+    color: #80b4fd;
   }
-  .ap-font:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+  .ap-font:focus-visible { outline: 2px solid #80b4fd; outline-offset: 2px; }
 
   /* ── Toggle switch ── */
   .ap-switch {
@@ -263,9 +263,9 @@
   }
   .ap-switch[aria-checked="true"] {
     background: #5a5fcf;
-    border-color: #6366f1;
+    border-color: #80b4fd;
   }
-  .ap-switch:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+  .ap-switch:focus-visible { outline: 2px solid #80b4fd; outline-offset: 2px; }
   .ap-knob {
     position: absolute;
     top: 3px;
@@ -303,7 +303,7 @@
     border-color: rgba(255,255,255,0.16);
     background: rgba(255,255,255,0.05);
   }
-  #ap-reset:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+  #ap-reset:focus-visible { outline: 2px solid #80b4fd; outline-offset: 2px; }
 
   /* ── Footer ── */
   .ap-foot {

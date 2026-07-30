@@ -17,12 +17,12 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
   .idx-live-dot { width:6px;height:6px;border-radius:50%;background:#10b981;animation:idxpulse 2s infinite; }
   @keyframes idxpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
   .idx-h1 { font-family:var(--font-mono);font-size:clamp(28px,3.8vw,50px);font-weight:700;line-height:1.1;color:#f0f4fc;margin:0 0 8px; }
-  .idx-h1 .idx-hl { color:#10b981; }
-  .idx-tag { font-family:var(--font-mono);font-size:clamp(12px,1.3vw,15px);color:#7B5CF0;margin-bottom:18px; }
+  .idx-h1 .idx-hl { color:#80b4fd; }
+  .idx-tag { font-family:var(--font-mono);font-size:clamp(12px,1.3vw,15px);color:#6b7c96;margin-bottom:18px; }
   .idx-sub { font-size:15px;line-height:1.75;color:#94a3b8;max-width:440px;margin:0 0 30px; }
   .idx-btns { display:flex;gap:11px;flex-wrap:wrap; }
-  .idx-btn-p { display:inline-flex;align-items:center;gap:7px;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;color:#070910;background:#10b981;box-shadow:0 0 0 1px rgba(16,185,129,.4),0 6px 20px rgba(16,185,129,.2);transition:box-shadow .2s; }
-  .idx-btn-p:hover{box-shadow:0 0 0 1px rgba(16,185,129,.6),0 10px 28px rgba(16,185,129,.28);}
+  .idx-btn-p { display:inline-flex;align-items:center;gap:7px;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;color:#070910;background:#80b4fd;box-shadow:color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px,color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px;transition:background 150ms ease,box-shadow 150ms ease; }
+  .idx-btn-p:hover{background:#9dc5fe;box-shadow:color(display-p3 0.50 0.72 1.0 / 0.30) 0px -5px 12px 0px inset,color(display-p3 0.50 0.72 1.0 / 0.20) 0px 3px 6px 0px,color(display-p3 0.50 0.72 1.0 / 0.12) 0px 1px 2px 0px;}
   .idx-btn-g { display:inline-flex;align-items:center;gap:7px;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;color:#a8b8d0;border:1px solid rgba(255,255,255,.1);transition:border-color .2s,color .2s; }
   .idx-btn-g:hover{border-color:rgba(255,255,255,.22);color:#f0f4fc;}
   .idx-term { background:#0d1017;border:1px solid #1F2937;border-radius:10px;overflow:hidden; }
@@ -31,7 +31,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
   .idx-term-body { padding:16px 18px;min-height:280px;max-height:320px;overflow-y:auto;font-family:var(--font-mono);font-size:12px;line-height:1.9;white-space:pre-wrap;word-break:break-all; }
   .idx-term-body::-webkit-scrollbar{width:3px;}
   .idx-term-body::-webkit-scrollbar-thumb{background:#1F2937;border-radius:2px;}
-  .it-hi{color:#F1F5F9}.it-dim{color:#475569}.it-cyn{color:#0ECFFF}.it-grn{color:#10b981}.it-amb{color:#F59E0B}.it-red{color:#EF4444}.it-vio{color:#7B5CF0}
+  .it-hi{color:#f0f4fc}.it-dim{color:#6b7c96}.it-cyn{color:#38bdf8}.it-grn{color:#34d399}.it-amb{color:#fbbf24}.it-red{color:#f87171}.it-vio{color:#80b4fd}
   .itcur{display:inline-block;width:6px;height:12px;background:#0ECFFF;vertical-align:text-bottom;animation:itblink 1s step-end infinite}
   @keyframes itblink{50%{opacity:0}}
   .idx-stats { display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid rgba(128,180,253,.08);border-bottom:1px solid rgba(128,180,253,.08);background:#0c1020; }
@@ -294,16 +294,16 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
         </code>
       </div>
 
-      <div class="rounded-xl p-6 border" style="background:rgba(139,92,246,0.04);border-color:rgba(139,92,246,0.15)">
+      <div class="rounded-xl p-6 border" style="background:rgba(128,180,253,0.04);border-color:rgba(128,180,253,0.15)">
         <div class="flex items-center gap-3 mb-3">
           <span class="w-8 h-8 rounded-lg flex items-center justify-center text-[16px] flex-shrink-0"
-                style="background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25)">🤖</span>
+                style="background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">🤖</span>
           <span class="text-[13px] font-bold" style="color:#f0f4fc">SOVA Threat Analyst</span>
         </div>
         <p class="text-[12px] leading-relaxed mb-3" style="color:#6b7c96">
           Autonomous SOC operator running 24/7. Monitors agent collusion, goal misalignment, and model poisoning via the MAESTRO detector suite.
         </p>
-        <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#8b5cf6;background:rgba(139,92,246,0.08)">
+        <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#80b4fd;background:rgba(128,180,253,0.08)">
           SOVA · MAESTRO · WardenHealer
         </code>
       </div>
@@ -401,11 +401,11 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
         <circle cx="705" cy="76" r="2.5" fill="#4d9cfc" opacity="0.6"/>
         <line x1="750" y1="50" x2="769" y2="50" stroke="#404e66" stroke-width="1.5" marker-end="url(#arr)"/>
 
-        <rect x="772" y="16" width="86" height="68" rx="3" fill="#0c1020" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.6"/>
-        <text x="815" y="32" text-anchor="middle" fill="#a78bfa" font-family="monospace" font-size="9" opacity="0.7">08</text>
+        <rect x="772" y="16" width="86" height="68" rx="3" fill="#0c1020" stroke="#80b4fd" stroke-width="1" stroke-opacity="0.6"/>
+        <text x="815" y="32" text-anchor="middle" fill="#80b4fd" font-family="monospace" font-size="9" opacity="0.7">08</text>
         <text x="815" y="53" text-anchor="middle" fill="#f0f4fc" font-family="system-ui,sans-serif" font-size="9.5" font-weight="600">ERS</text>
         <text x="815" y="66" text-anchor="middle" fill="#6b7c96" font-family="system-ui,sans-serif" font-size="8">Shadow Ban</text>
-        <circle cx="815" cy="76" r="2.5" fill="#a78bfa" opacity="0.6"/>
+        <circle cx="815" cy="76" r="2.5" fill="#80b4fd" opacity="0.6"/>
         <line x1="860" y1="50" x2="879" y2="50" stroke="#404e66" stroke-width="1.5" marker-end="url(#arr)"/>
 
         <rect x="882" y="16" width="86" height="68" rx="3" fill="#0c1020" stroke="#34d399" stroke-width="1.5" stroke-opacity="0.9"/>
@@ -815,7 +815,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
           icon: `<path stroke-linecap="round" stroke-linejoin="round" d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>`,
         },
         {
-          color: '#a78bfa', bg: 'rgba(167,139,250,0.10)', border: 'rgba(167,139,250,0.22)',
+          color: '#80b4fd', bg: 'rgba(128,180,253,0.10)', border: 'rgba(128,180,253,0.22)',
           title: 'Open Python SDK',
           desc: 'pip install shadow-warden-sdk. ShadowWardenClient + SecureAgent mixin. Any AI agent gets mandate controls and spend reporting in under 10 lines of code.',
           icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>`,
