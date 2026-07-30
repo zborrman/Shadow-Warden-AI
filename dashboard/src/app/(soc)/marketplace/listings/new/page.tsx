@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, ChevronLeft, Check, Upload, Tag, Globe, Layers } from "lucide-react";
+import { WARDEN_PROXY } from "@/lib/api";
 
 const STEPS = [
   { id: 1, label: "Asset Type" },
@@ -76,7 +77,7 @@ export default function NewListingPage() {
     setSub(true);
     setError(null);
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+      const API = WARDEN_PROXY;
       const resp = await fetch(`${API}/marketplace/listings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

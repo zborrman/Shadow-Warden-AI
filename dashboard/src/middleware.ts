@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PREFIXES = ["/login", "/api/auth", "/_next", "/favicon.ico"];
+// `/api/warden` is exempt here because it enforces the session itself, and it
+// does so fail-CLOSED (see that route handler). Letting the middleware handle it
+// would answer XHR calls with a 307 to the HTML login page, which the data layer
+// then tries to parse as JSON; the handler returns a plain 401 instead.
+const PUBLIC_PREFIXES = ["/login", "/api/auth", "/api/warden", "/_next", "/favicon.ico"];
 
 export function middleware(req: NextRequest) {
   const key = process.env.DASHBOARD_API_KEY;

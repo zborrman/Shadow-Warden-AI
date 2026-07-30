@@ -5,9 +5,9 @@ import {
   ShieldAlert, CheckCircle, XCircle, AlertTriangle,
   Clock, Scale, Link2, RefreshCw, Search,
 } from "lucide-react";
-import { api, type MktEscrow } from "@/lib/api";
+import { api, type MktEscrow, WARDEN_PROXY } from "@/lib/api";
 
-const WARDEN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const WARDEN = WARDEN_PROXY;
 
 function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse bg-white/5 rounded-lg ${className}`} />;
@@ -81,9 +81,7 @@ export default function ModerationPage() {
   const { data: auditChain = [] } = useQuery<AuditEntry[]>({
     queryKey: ["mod-audit-chain"],
     queryFn:  async () => {
-      const r = await fetch(`${WARDEN}/sep/audit-chain?limit=50`, {
-        headers: { "X-API-Key": "" },
-      });
+      const r = await fetch(`${WARDEN}/sep/audit-chain?limit=50`);
       if (!r.ok) return [];
       const d = await r.json();
       return d.entries ?? d ?? [];

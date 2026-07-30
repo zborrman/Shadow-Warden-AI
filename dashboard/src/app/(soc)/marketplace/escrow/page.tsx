@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Clock, CheckCircle, AlertTriangle, XCircle, ArrowRight } from "lucide-react";
-import { api, type MktEscrow } from "@/lib/api";
+import { api, type MktEscrow, WARDEN_PROXY } from "@/lib/api";
 
 function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse bg-white/5 rounded-lg ${className}`} />;
@@ -98,7 +98,7 @@ export default function EscrowPage() {
     setVoting(true);
     setVoteResult(null);
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+      const API = WARDEN_PROXY;
       const resp = await fetch(`${API}/marketplace/escrow/${selected}/dispute/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

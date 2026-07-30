@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { CommunityDefenseWidget } from "@/components/ui/community-defense-widget";
-import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse, type DocScanStats } from "@/lib/api";
+import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse, type DocScanStats, WARDEN_PROXY } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
 const MOCK_STATS: StatsResponse = {
@@ -242,7 +242,7 @@ function M2MWidget() {
   const { data } = useQuery({
     queryKey: ["mkt-stats-soc"],
     queryFn: async () => {
-      const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+      const API = WARDEN_PROXY;
       const r = await fetch(`${API}/marketplace/stats`);
       if (!r.ok) return null;
       return r.json() as Promise<{ agents: number; active_listings: number; completed_trades: number; total_volume_usd: number }>;

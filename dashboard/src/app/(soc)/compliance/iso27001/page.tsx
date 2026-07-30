@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Shield, ExternalLink, CheckCircle, AlertTriangle, GitMerge, RefreshCw, Search } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { api, type Iso27001Control, type Iso27001Response } from "@/lib/api";
+import { api, type Iso27001Control, type Iso27001Response, WARDEN_PROXY } from "@/lib/api";
 import { cn, fmtNum } from "@/lib/utils";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export default function Iso27001Page() {
   const [themeFlt,    setThemeFlt]    = useState<string[]>([...THEMES]);
   const [activeTheme, setActiveTheme] = useState<Theme | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+  const API_URL = WARDEN_PROXY;
 
   const { data, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey:        ["iso27001", days],
