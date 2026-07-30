@@ -76,20 +76,52 @@ router = APIRouter(prefix="/communities", tags=["Communities"])
 
 def _get_tenant(request: Request) -> dict:
     """
-    Extract tenant context from request state (set by portal auth middleware).
-    Falls back to X-Tenant-ID header for backwards compatibility.
+    Resolve the caller's tenant context for every /communities route.
+
+    IDENTITY IS TRUST-ANCHORED TO THE API KEY, never to a client-supplied
+    ``X-Tenant-ID`` header — the same rule ``billing/quota_middleware.py`` and
+    ``billing/feature_gate.py`` already enforce. This helper previously read
+    ``X-Tenant-ID`` unconditionally, so any caller could name any tenant and act
+    as them across all 19 call sites here (membership, clearance, break-glass,
+    rotation). The header is honoured only when auth is not enforced at all,
+    i.e. dev / air-gapped / test, via ``tier_header_trusted()``.
+
+    Note ``request.state.tenant`` is checked first for forward compatibility,
+    but no middleware populates it today — see the note in
+    ``quota_middleware._get_tenant_id_from_scope``.
 
     Returns dict with at least {tenant_id, tier}.
     """
-    # portal_auth middleware sets request.state.tenant when present
+    from warden.auth_guard import resolve_tenant_id, tier_header_trusted
+
+    # 1. Trusted upstream auth state, when something populates it.
     if hasattr(request.state, "tenant") and request.state.tenant:
         return request.state.tenant
 
-    tenant_id = request.headers.get("X-Tenant-ID", "")
-    tier       = request.headers.get("X-Tenant-Tier", "individual")
-    if not tenant_id:
-        raise HTTPException(status_code=401, detail="Missing tenant authentication.")
-    return {"tenant_id": tenant_id, "tier": tier}
+    header_tenant = request.headers.get("X-Tenant-ID", "")
+    header_tier   = request.headers.get("X-Tenant-Tier", "") or "individual"
+
+    # 2. Production: derive the tenant from the presented key.
+    api_key = request.headers.get("x-api-key") or ""
+    if not api_key:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header[:7].lower() == "bearer ":
+            api_key = auth_header[7:]
+
+    resolved = resolve_tenant_id(api_key)
+    if resolved:
+        try:
+            from warden.billing.feature_gate import _get_tenant_tier
+            tier = _get_tenant_tier(request)
+        except Exception:
+            tier = header_tier if tier_header_trusted() else "individual"
+        return {"tenant_id": resolved, "tier": tier}
+
+    # 3. Dev / air-gapped / test only: fall back to the header.
+    if tier_header_trusted() and header_tenant:
+        return {"tenant_id": header_tenant, "tier": header_tier}
+
+    raise HTTPException(status_code=401, detail="Missing tenant authentication.")
 
 
 def _require_tier(tier: str, minimum: str) -> None:
