@@ -207,7 +207,22 @@ def test_health_reports_live_subscriber_count():
 # prefix (see `_flatten`) removes all five phantoms. Any future change here
 # must keep the prefix accumulation, or the baseline becomes meaningless.
 
-_SHADOWED_BASELINE = 7
+# Shadowed (verb, path) pairs still present. Ratchet: may only ever drop.
+#   12 at #237 (the /ws/events fix)
+#    7 after subsequent cleanups
+#    1 after #254 removed six unreachable /communities handlers from
+#      warden/api/communities_v2.py, which carried weaker auth than the versions
+#      that actually answer.
+#
+# The one that remains is GET /.well-known/agent.json:
+#   warden.marketplace.api.agent_discovery_alias  serves
+#   warden.protocols.a2a.api.agent_card           unreachable
+# Production returns the marketplace protocol manifest, so A2A v1.0 agent
+# discovery is broken despite the startup log announcing "Agent Card:
+# /.well-known/agent.json". It is left alone deliberately: the site advertises
+# that URL via <link rel="agent-protocol"> and external agents already consume
+# the marketplace shape, so changing the payload is a protocol decision.
+_SHADOWED_BASELINE = 1
 
 
 def _shadowed_pairs(app) -> dict[tuple[str, str], list[str]]:
