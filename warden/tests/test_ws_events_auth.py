@@ -209,20 +209,17 @@ def test_health_reports_live_subscriber_count():
 
 # Shadowed (verb, path) pairs still present. Ratchet: may only ever drop.
 #   12 at #237 (the /ws/events fix)
-#    7 after subsequent cleanups
-#    1 after #254 removed six unreachable /communities handlers from
-#      warden/api/communities_v2.py, which carried weaker auth than the versions
-#      that actually answer.
+#    7 after later cleanups
+#    1 after #254 removed six unreachable /communities handlers, which carried
+#      weaker auth than the versions that actually answer
+#    0 once /.well-known/agent.json stopped being a contest: it now returns the
+#      A2A card and the marketplace manifest merged, and the A2A route moved to
+#      /a2a/agent-card.json. See test_agent_discovery.py.
 #
-# The one that remains is GET /.well-known/agent.json:
-#   warden.marketplace.api.agent_discovery_alias  serves
-#   warden.protocols.a2a.api.agent_card           unreachable
-# Production returns the marketplace protocol manifest, so A2A v1.0 agent
-# discovery is broken despite the startup log announcing "Agent Card:
-# /.well-known/agent.json". It is left alone deliberately: the site advertises
-# that URL via <link rel="agent-protocol"> and external agents already consume
-# the marketplace shape, so changing the payload is a protocol decision.
-_SHADOWED_BASELINE = 1
+# At zero, any new duplicate is a regression. A path registered twice means the
+# second handler never runs — and its own tests keep passing, because they
+# import it directly instead of routing to it.
+_SHADOWED_BASELINE = 0
 
 
 def _shadowed_pairs(app) -> dict[tuple[str, str], list[str]]:

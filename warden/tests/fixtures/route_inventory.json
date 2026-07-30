@@ -83,24 +83,19 @@
   "warden.api.communities_v2": [
     "DELETE /communities/{community_id}",
     "DELETE /communities/{community_id}/data/{file_id}",
-    "DELETE /communities/{community_id}/members/{member_id}",
-    "GET /communities",
     "GET /communities/member/{tenant_id}/memberships",
     "GET /communities/networks/list",
     "GET /communities/networks/{network_id}",
     "GET /communities/networks/{network_id}/communities",
     "GET /communities/stats",
-    "GET /communities/{community_id}",
     "GET /communities/{community_id}/analytics",
     "GET /communities/{community_id}/compliance",
     "GET /communities/{community_id}/data",
     "GET /communities/{community_id}/data/{file_id}",
     "GET /communities/{community_id}/evolution/bundles",
     "GET /communities/{community_id}/evolution/stats",
-    "GET /communities/{community_id}/members",
     "GET /communities/{community_id}/peers",
     "PATCH /communities/{community_id}",
-    "POST /communities",
     "POST /communities/networks/create",
     "POST /communities/networks/{network_id}/join",
     "POST /communities/{community_id}/compliance/export",
@@ -111,7 +106,6 @@
     "POST /communities/{community_id}/evolution/bundles/{bundle_id}/reject",
     "POST /communities/{community_id}/evolution/share",
     "POST /communities/{community_id}/join",
-    "POST /communities/{community_id}/members",
     "POST /communities/{community_id}/peer",
     "PUT /communities/{community_id}/members/{member_id}",
     "PUT /communities/{community_id}/settings"
@@ -283,6 +277,11 @@
     "POST /kya/revoke/{did}",
     "POST /kya/trust/{did}/adjust",
     "POST /kya/verify/{did}"
+  ],
+  "warden.api.masking": [
+    "POST /filter/output",
+    "POST /mask",
+    "POST /unmask"
   ],
   "warden.api.misp": [
     "GET /misp/stats",
@@ -772,10 +771,6 @@
     "POST /filter",
     "POST /filter/batch",
     "POST /filter/multimodal",
-    "POST /filter/output",
-    "POST /mask",
-    "POST /unmask",
-    "WS /ws/events",
     "WS /ws/filter",
     "WS /ws/monitor/{monitor_id}",
     "WS /ws/stream"
@@ -906,7 +901,7 @@
   ],
   "warden.protocols.a2a.api": [
     "DELETE /a2a/tasks/{task_id}",
-    "GET /.well-known/agent.json",
+    "GET /a2a/agent-card.json",
     "GET /a2a/task-types",
     "GET /a2a/tasks",
     "GET /a2a/tasks/{task_id}",
