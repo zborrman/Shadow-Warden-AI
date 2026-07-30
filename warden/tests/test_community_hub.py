@@ -317,25 +317,27 @@ def client(monkeypatch):
     return TestClient(app)
 
 
-def test_api_create_and_get_community(client):
-    tid = _tid()
-    r = client.post("/communities", json={
-        "name": "API Test", "description": "d", "creator_tenant_id": tid,
-    })
-    assert r.status_code == 201
-    cid = r.json()["community_id"]
-    assert len(cid) == 32
-    g = client.get(f"/communities/{cid}")
-    assert g.status_code == 200
-    assert g.json()["name"] == "API Test"
+def _make_community(name: str, tid: str) -> str:
+    """
+    Create a community for a test that needs one to exist.
+
+    This used to POST /communities against this router. That handler was
+    unreachable in the real app — `warden/communities/router.py` is mounted first
+    and claims the same path — so the request never ran in production and the
+    handler has since been deleted. The tests below are about this router's own
+    live endpoints (compliance, evolution, analytics), so their setup goes
+    straight to the factory rather than through a route another module owns.
+    """
+    from warden.communities.community_factory import create_community
+    return create_community(
+        name=name, description="", creator_tenant_id=tid,
+        visibility="private", join_policy="invite",
+    ).community_id
 
 
 def test_api_compliance_endpoint(client):
     tid = _tid()
-    r = client.post("/communities", json={
-        "name": "Compliance C", "description": "", "creator_tenant_id": tid,
-    })
-    cid = r.json()["community_id"]
+    cid = _make_community("Compliance C", tid)
     c = client.get(f"/communities/{cid}/compliance")
     assert c.status_code == 200
     assert "score" in c.json()
@@ -343,10 +345,7 @@ def test_api_compliance_endpoint(client):
 
 def test_api_evolution_share_and_approve(client):
     tid = _tid()
-    r = client.post("/communities", json={
-        "name": "Evo C", "description": "", "creator_tenant_id": tid,
-    })
-    cid = r.json()["community_id"]
+    cid = _make_community("Evo C", tid)
     s = client.post(f"/communities/{cid}/evolution/share", json={
         "publisher_tenant_id": tid,
         "rule_type": "jailbreak_signature",
@@ -358,3 +357,79 @@ def test_api_evolution_share_and_approve(client):
                     json={"reviewer_tenant_id": tid})
     assert a.status_code == 200
     assert a.json()["status"] == "approved"
+
+
+def _endpoint_for(method: str, path: str) -> str:
+    """Resolve which module.function FastAPI bound to a METHOD + path."""
+    import warden.main as m
+
+    def walk(routes, prefix=""):
+        for r in routes:
+            if type(r).__name__ == "_IncludedRouter":
+                ctx = getattr(r, "include_context", None)
+                orig = getattr(r, "original_router", None)
+                if orig is not None:
+                    yield from walk(orig.routes, prefix + (getattr(ctx, "prefix", "") or ""))
+                continue
+            ep = getattr(r, "endpoint", None)
+            rp = getattr(r, "path", None)
+            if ep is None and getattr(r, "routes", None):
+                yield from walk(r.routes, prefix)
+            elif (
+                rp
+                and method in (getattr(r, "methods", None) or set())
+                and prefix + rp == path
+            ):
+                yield f"{ep.__module__}.{ep.__name__}"
+
+    hits = list(walk(m.app.routes))
+    assert hits, f"no route bound to {method} {path}"
+    return hits[0]
+
+
+def test_shadowed_paths_are_served_by_the_gated_router():
+    """
+    Replaces the old test_api_create_and_get_community, which POSTed
+    /communities against warden/api/communities_v2 in an app containing only that
+    router — a composition that does not exist in production. In the real app
+    warden/communities/router.py is mounted first and claims that path, so the
+    handler under test never ran.
+
+    What matters is which implementation answers, because the two disagree on
+    authentication: the one that serves derives the tenant from the API key and
+    enforces a tier, while the communities_v2 version took the tenant from the
+    request body. Assert the gated one is reached.
+    """
+    from fastapi.testclient import TestClient
+
+    import warden.auth_guard as ag
+    import warden.main as m
+    from warden.config import settings
+
+    prev_key, prev_path = ag._VALID_KEY, ag._KEYS_PATH
+    prev_anon = settings.allow_unauthenticated
+    ag._VALID_KEY, ag._KEYS_PATH = "hub-key", ""
+    settings.allow_unauthenticated = False
+    try:
+        client = TestClient(m.app, raise_server_exceptions=False)
+
+        # A body shaped for the communities_v2 handler. It is rejected at
+        # validation (422), never created (201) — the schema that answers this
+        # path belongs to the other router, which is the point.
+        v2_body = {"name": "X", "description": "", "creator_tenant_id": "someone-else"}
+        for headers in ({}, {"X-API-Key": "hub-key"}):
+            resp = client.post("/communities", json=v2_body, headers=headers)
+            assert resp.status_code != 201, (
+                "communities_v2's create handler answered; it is supposed to be "
+                "shadowed by the gated router in warden/communities/router.py"
+            )
+
+    finally:
+        ag._VALID_KEY, ag._KEYS_PATH = prev_key, prev_path
+        settings.allow_unauthenticated = prev_anon
+
+    # And directly: the endpoint bound to POST /communities is the gated one.
+    owner = _endpoint_for("POST", "/communities")
+    assert owner.startswith("warden.communities.router."), (
+        f"POST /communities is served by {owner}, not the gated router"
+    )
