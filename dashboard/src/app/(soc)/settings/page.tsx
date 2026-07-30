@@ -9,6 +9,7 @@ import {
   TriangleAlert, Check, Bell, Clock, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WARDEN_PROXY } from "@/lib/api";
 
 // ─── Design tokens (match sw-* from design system) ──────────────────
 const sw = {
@@ -235,7 +236,7 @@ function SettingRow({
 
 // ─── Settings monitoring panel ────────────────────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+const API_BASE = WARDEN_PROXY;
 
 interface SettingsSummary {
   api_keys:      { total: number; active: number };
@@ -845,7 +846,7 @@ export default function SettingsPage() {
   const checkHealth = useCallback(async () => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com"}/health`,
+        `${WARDEN_PROXY}/health`,
         { cache: "no-store", signal: AbortSignal.timeout(3000) }
       );
       setHealth(res.ok ? "ok" : "warn");
@@ -863,23 +864,14 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     saveSettings(settings);
-    // Attempt to PATCH live config if endpoint exists
-    try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com"}/config`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "X-API-Key": "" },
-          body: JSON.stringify({
-            semantic_threshold: settings.sensitivity === "strict" ? 0.60 : settings.sensitivity === "balanced" ? 0.72 : 0.85,
-            rate_limit_per_key: settings.rateLimit,
-            gdpr_strict: settings.gdprStrict,
-            evolution_enabled: settings.evolutionEngine,
-          }),
-          signal: AbortSignal.timeout(3000),
-        }
-      );
-    } catch { /* fail-open — settings already persisted to localStorage */ }
+    // These preferences are local to this browser. This handler used to also
+    // PATCH /config with a `semantic_threshold`, which is the live detection
+    // sensitivity for the whole gateway — the same control that was an
+    // unauthenticated kill switch until #244. It sent `X-API-Key: ""`, so it has
+    // always failed and the failure was swallowed. It is deliberately not routed
+    // through the API proxy: retuning the detector is not something a shared
+    // dashboard password should be able to do, and there is no UI here to show
+    // the operator what the running value actually is.
     setSaving(false);
     setSaved(true);
     setLastSaved(new Date().toLocaleTimeString());

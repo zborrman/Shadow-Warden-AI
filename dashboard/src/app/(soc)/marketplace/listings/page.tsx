@@ -8,9 +8,9 @@ import {
   Tag, Filter, ShoppingCart, TrendingUp, Package,
   CheckCircle, AlertTriangle, Search, ExternalLink,
 } from "lucide-react";
-import { api, type MktListing, type MktAnalyticsSummary } from "@/lib/api";
+import { api, type MktListing, type MktAnalyticsSummary, WARDEN_PROXY } from "@/lib/api";
 
-const WARDEN = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+const WARDEN = WARDEN_PROXY;
 
 function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse bg-white/5 rounded-lg ${className}`} />;

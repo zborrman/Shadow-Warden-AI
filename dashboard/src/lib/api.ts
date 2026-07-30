@@ -1,10 +1,20 @@
-const ANALYTICS = process.env.NEXT_PUBLIC_ANALYTICS_URL ?? "http://localhost:8002";
-const API       = process.env.NEXT_PUBLIC_API_URL       ?? "https://api.shadow-warden-ai.com";
+// Every request goes through the same-origin proxy in
+// `src/app/api/warden/[...path]/route.ts`, which attaches the gateway API key
+// server-side. This file runs in the browser — a `NEXT_PUBLIC_*` key would be
+// inlined into the bundle and served to every visitor, so the credential can
+// never live here. The proxy also reaches the analytics service over the Docker
+// network, which a browser cannot resolve.
+//
+// The two names are kept distinct because the proxy routes `/api/v1/*` to the
+// analytics service and everything else to the gateway.
+export const WARDEN_PROXY = "/api/warden";
+
+const ANALYTICS = WARDEN_PROXY;
+const API       = WARDEN_PROXY;
 
 async function get<T>(base: string, path: string, params?: Record<string, string>, headers?: Record<string, string>): Promise<T> {
-  const url = new URL(`${base}${path}`);
-  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { next: { revalidate: 0 }, ...(headers ? { headers } : {}) });
+  const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+  const res = await fetch(`${base}${path}${qs}`, { next: { revalidate: 0 }, ...(headers ? { headers } : {}) });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json() as Promise<T>;
 }
@@ -357,7 +367,7 @@ export type MktAgentTrust  = {
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": "" },
+    headers: { "Content-Type": "application/json" },
     body:    JSON.stringify(body),
     next:    { revalidate: 0 },
   });
@@ -379,7 +389,7 @@ export const api = {
   filter:     (body: { content: string; tenant_id?: string }) =>
     fetch(`${API}/filter`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": "" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then(r => r.json()),
   communityFeed:   (q: string, limit = 5) =>

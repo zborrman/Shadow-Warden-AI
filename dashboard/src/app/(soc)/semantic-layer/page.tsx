@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 
-const WARDEN_URL = process.env.NEXT_PUBLIC_WARDEN_URL ?? "http://localhost:8001";
-const API_KEY    = process.env.NEXT_PUBLIC_WARDEN_API_KEY ?? "";
+import { WARDEN_PROXY } from "@/lib/api";
+
+// `NEXT_PUBLIC_WARDEN_API_KEY` used to supply the gateway key here. Next.js
+// inlines every NEXT_PUBLIC_* value into the JavaScript bundle, so setting it
+// would have published the gateway credential to every visitor. The key now
+// stays server-side behind the proxy.
+const WARDEN_URL = WARDEN_PROXY;
 
 interface SemanticModelSummary {
   id: string;
@@ -24,7 +29,6 @@ interface QueryResult {
 
 async function fetchModels(): Promise<SemanticModelSummary[]> {
   const res = await fetch(`${WARDEN_URL}/semantic-layer/models`, {
-    headers: { "X-API-Key": API_KEY },
     cache: "no-store",
   });
   if (!res.ok) return [];
@@ -61,7 +65,7 @@ export default function SemanticLayerPage() {
     try {
       const res = await fetch(`${WARDEN_URL}/semantic-layer/query/intent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-API-Key": API_KEY },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model_id: selectedModel, intent, limit: 1000 }),
       });
       if (res.status === 503) {

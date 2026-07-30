@@ -832,6 +832,12 @@ services:
       - NEXT_PUBLIC_GRAFANA_URL=http://grafana:3000
       - NEXT_PUBLIC_JAEGER_URL=http://jaeger:16686
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-}
+      # Server-side only — read by src/app/api/warden/[...path]/route.ts, never
+      # inlined into the browser bundle. The dashboard is client-rendered, so a
+      # NEXT_PUBLIC_* key would be served to every visitor.
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      - WARDEN_API_URL=http://warden:8001
+      - WARDEN_ANALYTICS_URL=http://analytics:8002
     depends_on:
       warden:
         condition: service_started

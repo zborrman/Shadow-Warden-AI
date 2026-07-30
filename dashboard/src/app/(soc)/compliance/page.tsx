@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { Shield, Download, ExternalLink, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { api, type PostureResponse, type PostureStandard, type ComplianceHistoryResponse } from "@/lib/api";
+import { api, type PostureResponse, type PostureStandard, type ComplianceHistoryResponse, WARDEN_PROXY } from "@/lib/api";
 import { cn, fmtNum } from "@/lib/utils";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export default function CompliancePage() {
   const [days, setDays] = useState(7);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
+  const API_URL = WARDEN_PROXY;
 
   const { data: posture, isFetching, dataUpdatedAt } = useQuery({
     queryKey:        ["posture", days],
