@@ -75,6 +75,32 @@ claude --print "Review warden/staff/boundaries.py for HMAC usage and fail-open c
 claude --print "$(cat workflows/autonomous-security-loop.md)"
 ```
 
+## Skills (canonical: `.claude/skills/README.md`)
+
+Four project skills are tracked in `.claude/skills/` and travel with a checkout:
+`run-warden` (verify a change against the live gateway), `site-health-check`
+(frontend audit of `site/`), `design-recon` + `shadow-warden-design` (design
+system). Everything else is machine-scoped — plugins and built-ins that must be
+installed per machine.
+
+Reach for these by area, before writing code:
+
+| Area | Skill |
+|------|-------|
+| `warden/agent/*`, `warden/staff/*`, model routing/pricing | `claude-api` |
+| `worker/`, `cloudflare/*-worker/`, `workers/*` (KV-only, no DO) | `wrangler`, `workers-best-practices` |
+| Edge posture, Tunnel/Access | `cloudflare`, `cloudflare-one` |
+| `infra/terraform/` | `terraform` (MCP) — confirm before `apply_run` |
+| `warden/stripe_billing.py` vs `warden/lemon_billing.py` | `stripe-*` — two providers, confirm the path first |
+| `warden/mcp/gateway.py`, `.mcp.json` | `mcp-server-dev:build-mcp-server` |
+| Any chart / stat tile / dashboard layout | `dataviz` (read before the first line of chart code) |
+| UI work in `site/`, `dashboard/`, `portal/` | `impeccable`, `ui-ux-pro-max` + `shadow-warden-design` |
+| Pre-PR | `security-review`, `coderabbit:code-review`, `simplify` |
+
+The README also records what is deliberately **not** used (`durable-objects`,
+`supabase`, `prisma`, `figma`, the wiki cluster, most `slack:*`) so it does not
+get re-litigated each session.
+
 ---
 
 ## Project Overview
