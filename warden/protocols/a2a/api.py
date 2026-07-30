@@ -58,9 +58,22 @@ class MessageAppend(BaseModel):
 
 # ── Agent Card ────────────────────────────────────────────────────────────────
 
-@router.get("/.well-known/agent.json", include_in_schema=False)
+@router.get("/a2a/agent-card.json", include_in_schema=False)
 async def agent_card():
-    """A2A Agent Card discovery — no authentication required."""
+    """
+    A2A Agent Card — no authentication required.
+
+    The spec-mandated discovery path is /.well-known/agent.json, and this route
+    used to claim it. It never served: warden/marketplace/api.py registers the
+    same path first for its protocol manifest, so this handler was unreachable
+    and A2A discovery returned a document with no `schema_version` at all —
+    while the startup banner announced "Agent Card: /.well-known/agent.json".
+
+    /.well-known/agent.json now returns both documents merged (the two field
+    sets are disjoint, pinned by test_agent_discovery_is_merged), so spec-
+    compliant A2A discovery works there. This path stays as a direct,
+    unambiguous way to fetch just the card.
+    """
     return build_agent_card()
 
 

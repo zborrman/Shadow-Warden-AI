@@ -123,9 +123,31 @@ async def get_market_protocol(response: Response) -> dict:
 
 @router.get("/agent.json", include_in_schema=False)
 async def agent_discovery_alias(response: Response) -> dict:
-    """IETF /.well-known/agent.json alias — mounted at root by main.py."""
+    """
+    /.well-known/agent.json — the one discovery document, serving two protocols.
+
+    Two specs want this path: the A2A v1.0 Agent Card and this marketplace
+    protocol manifest. This handler is registered first, so for a long time it
+    won outright and warden/protocols/a2a/api.py's card was unreachable — A2A
+    agents doing spec discovery got a document with no `schema_version`, and the
+    startup banner's "Agent Card: /.well-known/agent.json" was simply false.
+
+    Rather than pick a winner and break one set of agents, both documents are
+    returned merged. Their field sets are disjoint today and
+    `test_agent_discovery_is_merged` fails if that ever stops being true, so a
+    new field cannot silently shadow the other protocol's. On a collision the
+    marketplace value wins, because those consumers exist in production now.
+    """
     response.headers["Cache-Control"] = "public, max-age=3600"
-    return await get_market_protocol(response)
+    manifest = await get_market_protocol(response)
+    try:
+        from warden.protocols.a2a.agent_card import build_agent_card
+        card = build_agent_card()
+    except Exception:
+        # Discovery must not fail because an optional subsystem is unavailable;
+        # the marketplace half is what production has always returned.
+        return manifest
+    return {**card, **manifest}
 
 
 class RegisterRequest(BaseModel):
