@@ -128,23 +128,25 @@ const isSettingsActive = isActive('/settings');
   <!-- Navbar -->
   <header id="navbar" class="fixed left-0 right-0 z-50 transition-all duration-300"
           style="top:36px;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
-    <div class="mx-auto max-w-7xl px-4 lg:px-8 h-14 flex items-center gap-6">
+    <!-- Header spans wider than the 1280px content cap: eight nav categories plus the
+         action cluster need ~1390px and can never fit inside max-w-7xl. -->
+    <div class="mx-auto max-w-[1560px] px-4 lg:px-6 2xl:px-8 h-14 flex items-center gap-2 2xl:gap-6">
 
       <!-- Logo -->
       <a href="/" class="flex items-center gap-2.5 shrink-0">
         <img src="/logo.png" alt="Shadow Warden AI"
              style="height:52px;width:auto;display:block" />
-        <span class="hidden md:block text-[13px] font-black tracking-tight leading-none whitespace-nowrap" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#80b4fd">Warden</span>-AI</span>
+        <span class="hidden md:block xl:hidden 2xl:block text-[13px] font-black tracking-tight leading-none whitespace-nowrap" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#80b4fd">Warden</span>-AI</span>
       </a>
 
       <!-- Desktop nav -->
-      <nav class="hidden lg:flex items-center gap-1 flex-1">
+      <nav class="hidden xl:flex items-center gap-0.5 2xl:gap-1">
         {categories.map(cat => {
           const active = isActive(cat.href);
           return (
           <div class="relative group">
             <a href={cat.href}
-               class="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150"
+               class="flex items-center gap-1 px-2 2xl:px-2.5 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
                style={active
                  ? `color:${cat.color};background:rgba(255,255,255,0.06)`
                  : 'color:#94a3b8'}
@@ -191,10 +193,10 @@ const isSettingsActive = isActive('/settings');
       </nav>
 
       <!-- Right actions -->
-      <div class="ml-auto flex items-center gap-2">
+      <div class="ml-auto flex items-center gap-2 shrink-0">
 
         <!-- Live badge -->
-        <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+        <div class="hidden sm:flex xl:hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
              style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2)">
           <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#10b981"></span>
           Live
@@ -202,14 +204,14 @@ const isSettingsActive = isActive('/settings');
 
         <!-- GitHub -->
         <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener"
-           class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+           class="hidden sm:flex items-center gap-1.5 px-3 xl:px-2 2xl:px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
            style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
            onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.color='#f1f5f9'"
            onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
-          GitHub
+          <span class="hidden sm:inline xl:hidden 2xl:inline">GitHub</span>
         </a>
 
         <!-- Theme toggle (DS-01) -->
@@ -232,7 +234,7 @@ const isSettingsActive = isActive('/settings');
         <button id="a11y-nav-btn" type="button" aria-label="Accessibility settings"
                 class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
-                onmouseover="this.style.borderColor='rgba(99,102,241,0.4)';this.style.color='#818cf8';this.style.background='rgba(99,102,241,0.08)'"
+                onmouseover="this.style.borderColor='rgba(128,180,253,0.4)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.08)'"
                 onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
           <!-- Universal accessibility person icon (stroke-based, renders cleanly at 16px) -->
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -247,7 +249,7 @@ const isSettingsActive = isActive('/settings');
         <a id="nav-signin" href="/login"
            class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150"
            style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);text-decoration:none"
-           onmouseover="this.style.borderColor='rgba(99,102,241,0.5)';this.style.color='#818cf8';this.style.background='rgba(99,102,241,0.06)'"
+           onmouseover="this.style.borderColor='rgba(128,180,253,0.5)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.06)'"
            onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="8" r="4"/>
@@ -320,7 +322,7 @@ const isSettingsActive = isActive('/settings');
         </a>
 
         <!-- Mobile hamburger / close -->
-        <button id="mobile-btn" class="lg:hidden p-2 rounded-lg transition-colors" aria-label="Toggle menu"
+        <button id="mobile-btn" class="xl:hidden p-2 rounded-lg transition-colors" aria-label="Toggle menu"
                 style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
           <svg id="icon-menu" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
@@ -334,7 +336,7 @@ const isSettingsActive = isActive('/settings');
   </header>
 
   <!-- Mobile menu — z-50 so it sits above content but below navbar (which is also z-50 and renders later) -->
-  <div id="mobile-menu" class="hidden fixed inset-0 z-50 lg:hidden flex-col pt-14"
+  <div id="mobile-menu" class="hidden fixed inset-0 z-50 xl:hidden flex-col pt-14"
        style="background:rgba(10,10,15,0.98);backdrop-filter:blur(24px)">
     <div class="flex-1 overflow-y-auto px-4 py-6 space-y-1">
       {categories.map(cat => (
