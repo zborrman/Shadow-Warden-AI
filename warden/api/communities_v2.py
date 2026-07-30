@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Path, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
@@ -19,8 +19,8 @@ from warden.auth_guard import require_api_key
 # Router-level dependency: EVERY route here requires a valid API key.
 #
 # This module previously declared zero dependencies across 34 routes. 28 of them
-# are live (the other 6 are shadowed by warden/communities/router.py, which is
-# mounted first and does carry tier + auth gating), and all 28 were reachable
+# were live (the other 6 were shadowed by warden/communities/router.py and have
+# since been deleted — see the note below), and all 28 were reachable
 # anonymously in production — verified 2026-07-29:
 #
 #   GET /communities/networks/list                 -> 200 with no credentials
@@ -54,17 +54,19 @@ router = APIRouter(
 # touching a community; the routes here take {community_id} from the path and
 # trust it. Requires threading AuthResult.tenant_id into each handler and
 # checking membership before read or write.
+#
+# TWO ROUTERS SHARE THE /communities PREFIX. `warden/communities/router.py` is
+# registered first, so for any path both define, its handler serves and the one
+# here never runs. Six such handlers used to live in this file — create/list
+# community, get community, list/add/remove member — and they were unreachable
+# dead code with weaker auth than the versions that actually answer (no tier
+# gate, and identity taken from the request body rather than the API key). They
+# were removed rather than left as a trap for the next reader, or as a latent
+# downgrade if the mount order ever changed. Add a route here only after
+# checking it is not already claimed there.
 
 
 # ── Pydantic models ────────────────────────────────────────────
-
-class CreateCommunityIn(BaseModel):
-    name: str = Field(..., min_length=2, max_length=80)
-    description: str = Field(default="", max_length=600)
-    creator_tenant_id: str
-    visibility: str = "private"   # private / public
-    join_policy: str = "invite"   # invite / open / approval
-
 
 class PatchCommunityIn(BaseModel):
     name: str | None = Field(default=None, max_length=80)
@@ -79,12 +81,6 @@ class UpdateSettingsIn(BaseModel):
 
 class JoinIn(BaseModel):
     tenant_id: str
-    display_name: str = ""
-
-
-class AddMemberIn(BaseModel):
-    tenant_id: str
-    role: str = "member"
     display_name: str = ""
 
 
@@ -128,59 +124,10 @@ def _dc(obj: Any) -> dict:
 # 1. Community CRUD
 # ══════════════════════════════════════════════════════════════
 
-@router.post("", status_code=201, summary="Create community")
-def create_community(req: CreateCommunityIn):
-    from warden.communities.community_factory import create_community as _c
-    comm = _c(
-        name=req.name,
-        description=req.description,
-        creator_tenant_id=req.creator_tenant_id,
-        visibility=req.visibility,
-        join_policy=req.join_policy,
-    )
-    # Auto-register creator as owner member
-    try:
-        from warden.communities.membership import add_member
-        add_member(comm.community_id, req.creator_tenant_id, role="owner")
-    except Exception:
-        pass
-    return _dc(comm)
-
-
-@router.get("", summary="List communities")
-def list_communities(
-    tenant_id: str | None = Query(None),
-    visibility: str | None = Query(None),
-    status: str = Query("active"),
-):
-    from warden.communities.community_factory import list_communities as _l
-    return [_dc(c) for c in _l(creator_tenant_id=tenant_id, visibility=visibility, status=status)]
-
-
 @router.get("/stats", summary="Global community stats")
 def community_stats():
     from warden.communities.community_factory import get_community_stats
     return get_community_stats()
-
-
-@router.get("/{community_id}", summary="Get community details")
-def get_community(community_id: str = Path(...)):
-    from warden.communities.community_factory import get_community as _g
-    c = _g(community_id)
-    if not c:
-        _404()
-    result = _dc(c)
-    try:
-        from warden.communities.membership import get_member_count
-        result["member_count"] = get_member_count(community_id)
-    except Exception:
-        result["member_count"] = 0
-    try:
-        from warden.communities.community_data import get_data_stats
-        result["data_stats"] = get_data_stats(community_id)
-    except Exception:
-        result["data_stats"] = {}
-    return result
 
 
 @router.patch("/{community_id}", summary="Patch community name / description")
@@ -231,33 +178,12 @@ def join_community(community_id: str, req: JoinIn):
     return _dc(m)
 
 
-@router.get("/{community_id}/members", summary="List members")
-def list_members(community_id: str):
-    from warden.communities.membership import list_members as _lm
-    return [_dc(m) for m in _lm(community_id)]
-
-
-@router.post("/{community_id}/members", status_code=201, summary="Admin: add member")
-def add_member_admin(community_id: str, req: AddMemberIn):
-    from warden.communities.membership import add_member
-    m = add_member(community_id, req.tenant_id, role=req.role, display_name=req.display_name)
-    return _dc(m)
-
-
 @router.put("/{community_id}/members/{member_id}", summary="Update member role")
 def update_member_role(community_id: str, member_id: str, req: UpdateRoleIn):
     from warden.communities.membership import update_member_role as _ur
     if not _ur(community_id, member_id, req.role):
         raise HTTPException(status_code=400, detail="Invalid role or member not found")
     return {"status": "updated", "member_id": member_id, "role": req.role}
-
-
-@router.delete("/{community_id}/members/{member_id}", summary="Remove member")
-def remove_member(community_id: str, member_id: str):
-    from warden.communities.membership import remove_member as _rm
-    if not _rm(community_id, member_id):
-        _404("Member")
-    return {"status": "removed", "member_id": member_id}
 
 
 @router.get("/member/{tenant_id}/memberships", summary="Get tenant's communities")
