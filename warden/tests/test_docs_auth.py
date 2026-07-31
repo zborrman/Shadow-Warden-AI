@@ -6,6 +6,15 @@ Tests for HTTP Basic Auth protection of /docs, /redoc, /openapi.json.
 Three modes:
   • Dev (DOCS_PASSWORD="")  — all three routes open, no credentials needed
   • Prod (DOCS_PASSWORD set) — correct credentials → 200, wrong → 401, none → 401
+
+The handlers and the auth dependency live in warden/api/docs_router.py (P-2) —
+patch that module's constants, not warden.main's.
+
+/openapi-public.json is deliberately excluded from both classes above: it is
+never gated by DOCS_PASSWORD, in any mode, by design (see its docstring in
+docs_router.py — docs.shadow-warden-ai.com fetches it cross-origin without
+credentials). test_openapi_public_is_always_open pins that on its own, so a
+future change to _docs_auth cannot silently start gating it, or silently stop.
 """
 from __future__ import annotations
 
@@ -32,10 +41,10 @@ class TestDocsDevMode:
     @pytest.fixture(autouse=True)
     def _client(self):
         # conftest already sets DOCS_PASSWORD="" via os.environ.setdefault —
-        # patch main module variables to be sure.
+        # patch the docs_router module variables to be sure.
         with (
-            patch("warden.main._DOCS_PASSWORD", ""),
-            patch("warden.main._DOCS_USERNAME", "warden"),
+            patch("warden.api.docs_router._DOCS_PASSWORD", ""),
+            patch("warden.api.docs_router._DOCS_USERNAME", "warden"),
         ):
             self.client = TestClient(app, raise_server_exceptions=True)
             yield  # keep patch active during the test
@@ -73,8 +82,8 @@ class TestDocsProductionMode:
     @pytest.fixture(autouse=True)
     def _client(self):
         with (
-            patch("warden.main._DOCS_PASSWORD", "s3cr3tP@ssw0rd"),
-            patch("warden.main._DOCS_USERNAME", "warden"),
+            patch("warden.api.docs_router._DOCS_PASSWORD", "s3cr3tP@ssw0rd"),
+            patch("warden.api.docs_router._DOCS_USERNAME", "warden"),
         ):
             self.client = TestClient(app, raise_server_exceptions=True)
             yield  # keep patch active during the test
@@ -143,3 +152,36 @@ class TestDocsProductionMode:
         """Non-doc routes must not be affected by docs auth."""
         resp = self.client.get("/health")
         assert resp.status_code == 200
+
+
+# ── /openapi-public.json ──────────────────────────────────────────────────────
+
+
+def test_openapi_public_is_always_open() -> None:
+    """
+    Unlike the other three, this route ignores DOCS_PASSWORD entirely — pinned
+    directly against warden.main.app rather than the patched-password fixtures
+    above, since the point is that no patch changes this one's behavior.
+    """
+    with (
+        patch("warden.api.docs_router._DOCS_PASSWORD", "s3cr3tP@ssw0rd"),
+        patch("warden.api.docs_router._DOCS_USERNAME", "warden"),
+    ):
+        client = TestClient(app, raise_server_exceptions=True)
+        resp = client.get("/openapi-public.json")
+        assert resp.status_code == 200
+        assert "paths" in resp.json()
+
+
+def test_openapi_public_serves_the_same_schema_as_the_gated_one() -> None:
+    """
+    Both routes call app.openapi() with no filtering — this pins that the two
+    stay identical rather than silently diverging, and documents (via the
+    module docstring, not this test) that DOCS_PASSWORD therefore does not
+    actually stop schema/route enumeration while this endpoint exists.
+    """
+    with patch("warden.api.docs_router._DOCS_PASSWORD", ""):
+        client = TestClient(app, raise_server_exceptions=True)
+        gated = client.get("/openapi.json").json()
+        public = client.get("/openapi-public.json").json()
+        assert gated == public

@@ -42,7 +42,6 @@ import logging
 import logging.handlers
 import os
 import re
-import secrets
 import time
 import uuid
 from collections import Counter, defaultdict, deque
@@ -62,9 +61,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import JSONResponse, Response
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -72,8 +69,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 import warden.circuit_breaker as _cb
 from warden import entity_risk as _ers
+from warden import runtime as _runtime_module
 from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
+from warden.api.docs_router import router as _docs_router
 from warden.api.masking import router as _masking_router
 from warden.api.ws_events import broadcast_event as _ws_broadcast_event
 from warden.api.ws_events import subscriber_count as _ws_subscriber_count
@@ -168,39 +167,8 @@ except ImportError:
     _PROMETHEUS_ENABLED = False
     log.warning("prometheus-fastapi-instrumentator not installed — /metrics disabled.")
 
-# ── API Docs auth (HTTP Basic) ────────────────────────────────────────────────
-# DOCS_PASSWORD="" (default) → docs served without auth (dev / CI only).
-# DOCS_PASSWORD set          → /docs, /redoc, /openapi.json require HTTP Basic.
-# Never set DOCS_PASSWORD="" on a public-facing server.
-
-_DOCS_USERNAME: str = os.getenv("DOCS_USERNAME", "warden")
-_DOCS_PASSWORD: str = os.getenv("DOCS_PASSWORD", "")
-_http_basic = HTTPBasic(auto_error=False)
-
-
-async def _docs_auth(
-    credentials: HTTPBasicCredentials | None = Depends(_http_basic),
-) -> None:
-    """Dependency: pass-through in dev, HTTP Basic in production."""
-    if not _DOCS_PASSWORD:
-        return  # dev mode — no password configured → open access
-    if credentials is None:
-        raise HTTPException(
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Shadow Warden API Docs"'},
-        )
-    ok_user = secrets.compare_digest(
-        credentials.username.encode(), _DOCS_USERNAME.encode()
-    )
-    ok_pass = secrets.compare_digest(
-        credentials.password.encode(), _DOCS_PASSWORD.encode()
-    )
-    if not (ok_user and ok_pass):
-        raise HTTPException(
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="Shadow Warden API Docs"'},
-        )
-
+# API docs auth (_docs_auth, DOCS_USERNAME/DOCS_PASSWORD) moved to
+# warden/api/docs_router.py (P-2) with the four routes that used it.
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 # Hoisted to warden/limiter.py (Phase 3b) so extracted routers can share the same
@@ -1054,6 +1022,12 @@ app = FastAPI(
 app.state.limiter = _limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
+# Published immediately (not in lifespan, unlike the singletons below) — the
+# app object itself exists as soon as this line runs, and warden.api.docs_router
+# needs it to call app.openapi(). The no-upward-import layer rule forbids that
+# module from doing `from warden import main`, so it reads runtime.app instead.
+_runtime_module.publish(app=app)
+
 _DEFAULT_CORS = ",".join([
     "http://localhost:3000",
     "http://localhost:3001",
@@ -1214,35 +1188,10 @@ except Exception as _exc:  # noqa: BLE001
 if _PROMETHEUS_ENABLED:
     _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
-# ── Protected API documentation ───────────────────────────────────────────────
-# Served only when DOCS_PASSWORD is set (production) or openly in dev mode.
-# The actual OpenAPI schema is also gated so attackers cannot enumerate routes.
-
-@app.get("/openapi.json", include_in_schema=False)
-async def _openapi_schema(_: None = Depends(_docs_auth)):
-    return JSONResponse(app.openapi())
-
-
-@app.get("/openapi-public.json", include_in_schema=False)
-async def _openapi_public():
-    """Always-public OpenAPI schema — served to docs.shadow-warden-ai.com (Redoc)."""
-    return JSONResponse(app.openapi())
-
-
-@app.get("/docs", include_in_schema=False)
-async def _swagger_ui(_: None = Depends(_docs_auth)):
-    return get_swagger_ui_html(
-        openapi_url="/openapi.json",
-        title="Shadow Warden AI — API Docs",
-    )
-
-
-@app.get("/redoc", include_in_schema=False)
-async def _redoc_ui(_: None = Depends(_docs_auth)):
-    return get_redoc_html(
-        openapi_url="/openapi.json",
-        title="Shadow Warden AI — API Docs",
-    )
+# /openapi.json, /openapi-public.json, /docs, /redoc extracted to
+# warden/api/docs_router.py (P-2). _docs_auth and its DOCS_USERNAME/
+# DOCS_PASSWORD constants moved with them — nothing else here used them.
+app.include_router(_docs_router)
 
 
 # ── Include sub-routers ───────────────────────────────────────────────────────

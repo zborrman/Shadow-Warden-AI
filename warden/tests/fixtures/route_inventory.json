@@ -200,6 +200,12 @@
     "POST /doc-converter/convert",
     "POST /doc-converter/to-prompt"
   ],
+  "warden.api.docs_router": [
+    "GET /docs",
+    "GET /openapi-public.json",
+    "GET /openapi.json",
+    "GET /redoc"
+  ],
   "warden.api.email_guard": [
     "POST /scan/email"
   ],
@@ -757,13 +763,9 @@
     "GET /.well-known/acp.json",
     "GET /api/config",
     "GET /api/stats",
-    "GET /docs",
     "GET /ext/health",
     "GET /health",
     "GET /health/pipeline",
-    "GET /openapi-public.json",
-    "GET /openapi.json",
-    "GET /redoc",
     "POST /api/config",
     "POST /demo/filter",
     "POST /ext/filter",
