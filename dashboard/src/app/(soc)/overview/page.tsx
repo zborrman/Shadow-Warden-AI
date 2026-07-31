@@ -89,7 +89,7 @@ export default function OverviewPage() {
                 </defs>
                 <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: "#0c1020", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }} />
                 <Area type="monotone" dataKey="allow" stroke="#10b981" fill="url(#gAllow)" strokeWidth={2} name="Allow" />
                 <Area type="monotone" dataKey="block" stroke="#ef4444" fill="url(#gBlock)" strokeWidth={2} name="Block" />
               </AreaChart>
@@ -104,7 +104,7 @@ export default function OverviewPage() {
                 <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={65} strokeWidth={0}>
                   {pieData.map((e, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }}
+                <Tooltip contentStyle={{ background: "#0c1020", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }}
                   formatter={(v: number) => [`${v}%`]} />
               </PieChart>
             </ResponsiveContainer>

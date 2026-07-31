@@ -184,7 +184,7 @@ function TierCard({
       )}
     >
       {tier.highlight && (
-        <span className="absolute -top-2.5 left-4 text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-blue text-white uppercase tracking-wide">
+        <span className="absolute -top-2.5 left-4 text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-blue text-[#070910] uppercase tracking-wide">
           Most popular
         </span>
       )}

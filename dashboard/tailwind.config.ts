@@ -6,15 +6,15 @@ const config: Config = {
     extend: {
       colors: {
         surface: {
-          0: "#050810",
-          1: "#0a0e1a",
-          2: "#0d1220",
-          3: "#111828",
+          0: "#070910",
+          1: "#0c1020",
+          2: "#0c1020",
+          3: "#111827",
           4: "#1a2236",
         },
         accent: {
           purple: "#7c3aed",
-          blue:   "#2563eb",
+          blue:   "#80b4fd",
           cyan:   "#06b6d4",
           green:  "#10b981",
           yellow: "#f59e0b",
