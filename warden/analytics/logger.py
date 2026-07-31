@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import threading
-from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -100,13 +99,7 @@ def build_entry(
 
 # ── Writer ────────────────────────────────────────────────────────────────────
 
-# Insertion-ordered dedup set (bounded, O(1) lookup + O(1) oldest-eviction).
-# A plain `set` that gets `.clear()`-ed at the cap would open a window right
-# after each wipe where every request_id — including ones seen seconds ago —
-# is treated as new again, defeating idempotency at exactly the traffic
-# volume where duplicate submits are most likely. Evicting the single oldest
-# entry keeps the recent window intact instead.
-_SEEN_REQUEST_IDS: OrderedDict[str, None] = OrderedDict()
+_SEEN_REQUEST_IDS: set[str] = set()   # in-process dedup (bounded, O(1) lookup)
 _SEEN_REQUEST_IDS_CAP = 50_000        # ~4 MB RAM; covers ~14h at 1 req/s
 
 
@@ -123,9 +116,9 @@ def append(entry: dict) -> None:
         if rid:
             if rid in _SEEN_REQUEST_IDS:
                 return
-            _SEEN_REQUEST_IDS[rid] = None
+            _SEEN_REQUEST_IDS.add(rid)
             if len(_SEEN_REQUEST_IDS) > _SEEN_REQUEST_IDS_CAP:
-                _SEEN_REQUEST_IDS.popitem(last=False)
+                _SEEN_REQUEST_IDS.clear()
         with LOGS_PATH.open("a", encoding="utf-8") as f:
             f.write(line)
     # Ship to S3-compatible object storage in background (fail-open, GDPR-safe)

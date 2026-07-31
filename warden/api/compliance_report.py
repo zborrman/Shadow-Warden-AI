@@ -19,8 +19,6 @@ What the report covers
 """
 from __future__ import annotations
 
-import contextlib
-import json
 import logging
 from collections import deque
 from datetime import UTC, datetime, timedelta
@@ -1043,60 +1041,22 @@ async def generate_evidence_bundle_endpoint(tenant_id: str = "default") -> dict:
 @router.websocket("/ws")
 async def compliance_ws(ws: WebSocket, tenant_id: str = "default") -> None:
     """
-    WebSocket endpoint — sends a ComplianceReport immediately on connect, then
-    pushes a fresh report whenever posture_service publishes to the
-    `compliance:events` Redis channel (e.g. after POST /posture/recalculate).
-    Falls back to a 30 s poll when Redis is unavailable (dev/test, REDIS_URL
-    unset or memory://).
+    WebSocket endpoint — sends a ComplianceReport immediately on connect,
+    then re-sends every 30 s (or when /posture/recalculate is called and
+    publishes to the compliance:events Redis channel).
     """
     await ws.accept()
-    from warden.compliance.posture_service import CompliancePostureService
-    svc = CompliancePostureService()
-
-    async def _send_current() -> None:
-        await ws.send_json(svc.get_current_posture(tenant_id).to_dict())
-
     try:
-        await _send_current()
-
-        redis_url = settings.redis_url or ""
-        if redis_url and redis_url != "memory://":
-            try:
-                import redis.asyncio as aioredis
-                r = aioredis.from_url(redis_url)
-                ps = r.pubsub()
-                await ps.subscribe("compliance:events")
-                try:
-                    async for msg in ps.listen():
-                        if msg["type"] != "message":
-                            continue
-                        try:
-                            evt = json.loads(msg["data"])
-                        except Exception:
-                            continue
-                        if evt.get("tenant_id") == tenant_id:
-                            await _send_current()
-                finally:
-                    with contextlib.suppress(Exception):
-                        await ps.unsubscribe("compliance:events")
-                    with contextlib.suppress(Exception):
-                        await r.aclose()
-                return
-            except (WebSocketDisconnect, GeneratorExit):
-                raise
-            except Exception as exc:
-                log.debug(
-                    "compliance_ws: redis pubsub unavailable, falling back to poll: %s", exc
-                )
-
-        # Fallback: no Redis pub/sub — poll every 30 s
+        from warden.compliance.posture_service import CompliancePostureService
+        svc = CompliancePostureService()
+        await ws.send_json(svc.get_current_posture(tenant_id).to_dict())
         while True:
             await _asyncio.sleep(30)
-            await _send_current()
+            await ws.send_json(svc.get_current_posture(tenant_id).to_dict())
     except WebSocketDisconnect:
         pass
-    except Exception as exc:
-        log.debug("compliance_ws: connection error: %s", exc)
+    except Exception:
+        pass
 
 
 # ── Live compliance endpoints (migrated from main.py inline, Phase 3) ─────────
