@@ -4,8 +4,30 @@ title = "Shadow Warden AI — gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Known false positives: DDL registry module-name string literals (not secrets)"
+description = "Known false positives — each verified individually, not a blanket suppression"
 regexTarget = "line"
 regexes = [
+  # DDL registry module-name string literals (not secrets)
   '''register\("key_rotation", "warden\.web3\.key_rotation", _SCHEMA\)''',
+
+  # Documentation / portal-UI curl samples. These are literal placeholder strings
+  # shown to users, not credentials. Verified 2026-07-30 across browser-extension/
+  # INSTALL.md, docs/api.md, docs/deployment-guide.md, docs/guides/quickstart.md,
+  # portal/src/app/api-keys/page.tsx and portal/src/app/sdk/page.tsx.
+  # Deliberately matches only these four exact placeholders — a real key on an
+  # X-API-Key line still fails the scan.
+  '''X-API-Key:\s*(your-api-key|YOUR_API_KEY|your-secret-key|acme-prod-key)''',
+
+  # Truncated illustrative token in Skill.md (ends in "..." — not a usable value).
+  '''"approval_token":\s*"a3f9b2c1d4e5f6\.\.\."''',
+
+  # Test-only Fernet key, set via os.environ.setdefault() in warden/tests/ so the
+  # suite can import warden modules that validate VAULT_MASTER_KEY at import time.
+  # It appears ONLY in warden/tests/{conftest,test_bot_entity,test_community_registry,
+  # test_multisig,test_voice_security}.py — never in application code, compose files,
+  # or deployment config (verified: `git grep -l` returns test files only).
+  # Production supplies its own key via /opt/shadow-warden/.env; setdefault() cannot
+  # override it. NEVER reuse this value for a real deployment — it wraps community
+  # keypairs, data-pod secrets, encrypted backups, and every resolve_key() subkey.
+  '''VAULT_MASTER_KEY",?\s*"i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA="''',
 ]
