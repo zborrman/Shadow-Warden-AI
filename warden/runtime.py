@@ -43,6 +43,8 @@ class Runtime:
 
     # Known shared singletons. Add a name here when a new one needs sharing.
     _KNOWN = (
+        "app",               # the FastAPI instance itself — published immediately
+                              # after construction, not in lifespan like the rest
         "brain_guard",       # BrainSemanticGuard — default-tenant ML guard
         "evolve",            # EvolutionEngine
         "semantic_engine",   # semantic-layer engine singleton
