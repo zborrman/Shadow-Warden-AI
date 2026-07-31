@@ -19,6 +19,19 @@
 # of `_get_route_name` and 502'd the entire API on 2026-07-26. The other 47
 # were the same accident waiting for a rebuild. The Dockerfile now passes `-c`.
 #
+# THIRD-PARTY SCANNERS CANNOT SEE THIS FILE. `constraints.txt` is not a name any
+# SCA tool globs for, so anything scanning this repo from the outside reads the
+# `>=` floors in requirements.txt and reports a dependency set that has never
+# shipped. CodeRabbit's OSV Scanner did exactly that on 2026-07-30 — 12 phantom
+# Critical/High findings, most on packages (aiohttp, ecdsa, pyarrow, torch) that
+# have never been in requirements.txt at all, with versions chosen by string sort
+# rather than PEP 440: aiohttp 3.9.5 "over" 3.14.1, pyarrow 9.0.0 "over" 24.0.0.
+# It is disabled in .coderabbit.yaml for that reason.
+#
+# Before believing any external dependency dashboard, audit THIS file:
+#   pip install -r warden/requirements.txt -c warden/constraints.txt && pip-audit
+# which is what the gating `pip-audit (SCA)` CI job already does.
+#
 # EXCLUDED, pinned explicitly in warden/Dockerfile instead:
 #   torch          — the `+cpu` local version only exists on the PyTorch CPU
 #                    index and cannot be resolved from PyPI via constraints.

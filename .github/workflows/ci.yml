@@ -864,11 +864,32 @@ jobs:
           upload-artifact: true
           artifact-name: shadow-warden-sbom-${{ github.sha }}
 
-      - name: Attach SBOM to image
+      # `cosign attach sbom` uploads the SBOM UNSIGNED. Upstream deprecated it with
+      # removal planned "soon after 2024-02-22" — an unsigned attachment can be
+      # swapped by anyone with registry write access, and a consumer has no way to
+      # verify it came from this build. That undercut the cosign sign + SLSA
+      # provenance above: the image was attested, its bill of materials was not.
+      #
+      # `cosign attest` wraps the same Syft SPDX document in a signed in-toto
+      # attestation, keyless via the same OIDC token used for the image signature.
+      - name: Attest SBOM to image (signed in-toto attestation)
         run: |
-          cosign attach sbom \
-            --sbom sbom.spdx.json \
+          cosign attest --yes \
+            --type spdxjson \
+            --predicate sbom.spdx.json \
             ghcr.io/${{ github.repository_owner }}/shadow-warden@${{ steps.build.outputs.digest }}
+
+      # Prove the attestation verifies before the job goes green — otherwise a
+      # silently-broken attest step would leave main publishing unattested images.
+      - name: Verify SBOM attestation
+        run: |
+          cosign verify-attestation \
+            --type spdxjson \
+            --certificate-identity-regexp '^https://github\.com/${{ github.repository }}/\.github/workflows/' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ghcr.io/${{ github.repository_owner }}/shadow-warden@${{ steps.build.outputs.digest }} \
+            > /dev/null
+          echo "SBOM attestation verified"
 
   # ── SLSA Provenance (main branch only) ────────────────────────────────────────
   #

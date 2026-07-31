@@ -153,6 +153,25 @@ reviews:
       enabled: false
     gitleaks:
       enabled: true
+    # Disabled: it reads warden/requirements.txt without warden/constraints.txt,
+    # so it reports a dependency set that neither CI nor production has ever run.
+    # It also compares versions as strings rather than PEP 440, picking the
+    # lexicographic maximum: aiohttp 3.9.5 over the shipped 3.14.1, ecdsa 0.9.0
+    # over 0.19.2, pyarrow 9.0.0 over 24.0.0, torch 2.9.1 over the Dockerfile's
+    # 2.13.0+cpu. That produced 12 phantom Critical/High findings on packages
+    # that have never appeared in requirements.txt at all.
+    #
+    # This is the same defect P-0 fixed for pip-audit by passing `-c` (see the
+    # warden/constraints.txt header); osv-scanner has no `-c` equivalent and
+    # cannot see the lockfile, whose non-standard filename is invisible to it.
+    #
+    # SCA coverage is unaffected — it is already handled correctly, against the
+    # locked versions, by the `pip-audit (SCA)` job in .github/workflows/ci.yml
+    # (installs with `-c`, then gates on fixable CVEs) plus Trivy, SBOM and SLSA.
+    # npm lockfiles are excluded from review by path_filters above, so this
+    # scanner had no other input here.
+    osvScanner:
+      enabled: false
 
   finishing_touches:
     docstrings:
