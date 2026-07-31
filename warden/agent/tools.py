@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -764,8 +765,6 @@ async def community_moderation_report(tenant_id: str = "default", **_) -> dict:
             s = p.get("source") or "manual"
             nim_verdicts[v] = nim_verdicts.get(v, 0) + 1
             sources[s]      = sources.get(s, 0) + 1
-
-        from datetime import UTC, datetime  # noqa: PLC0415
 
         return {
             "tenant_id":     tenant_id,

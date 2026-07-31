@@ -1062,7 +1062,7 @@ async def compliance_ws(ws: WebSocket, tenant_id: str = "default") -> None:
         redis_url = settings.redis_url or ""
         if redis_url and redis_url != "memory://":
             try:
-                import redis.asyncio as aioredis  # noqa: PLC0415
+                import redis.asyncio as aioredis
                 r = aioredis.from_url(redis_url)
                 ps = r.pubsub()
                 await ps.subscribe("compliance:events")
