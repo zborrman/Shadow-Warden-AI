@@ -181,7 +181,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     .axis-row { display:flex; align-items:center; gap:10px; }
     .axis-name { font-size:11px; color:#64748b; width:120px; flex-shrink:0; }
     .axis-track { flex:1; height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
-    .axis-fill { height:100%; border-radius:3px; transition:width .6s cubic-bezier(.23,1,.32,1); }
+    .axis-fill { height:100%; width:100%; border-radius:3px; transform-origin:left center; transition:transform .6s cubic-bezier(.23,1,.32,1); }
+    @media (prefers-reduced-motion: reduce) { .axis-fill { transition:none; } }
     .axis-val { font-size:11px; font-weight:700; width:32px; text-align:right; flex-shrink:0; }
 
     /* policy enforcement table */
@@ -517,17 +518,17 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <div class="ars-axes">
               <div class="axis-row">
                 <span class="axis-name">Attack Surface</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-surface" style="background:#ef4444;width:0%"></div></div>
+                <div class="axis-track"><div class="axis-fill" id="ax-surface" style="background:#ef4444;transform:scaleX(0)"></div></div>
                 <span class="axis-val" id="ax-surface-v" style="color:#ef4444">0</span>
               </div>
               <div class="axis-row">
                 <span class="axis-name">Blast Radius</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-blast" style="background:#f97316;width:0%"></div></div>
+                <div class="axis-track"><div class="axis-fill" id="ax-blast" style="background:#f97316;transform:scaleX(0)"></div></div>
                 <span class="axis-val" id="ax-blast-v" style="color:#f97316">0</span>
               </div>
               <div class="axis-row">
                 <span class="axis-name">Defensive Controls</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-defense" style="background:#10b981;width:0%"></div></div>
+                <div class="axis-track"><div class="axis-fill" id="ax-defense" style="background:#10b981;transform:scaleX(0)"></div></div>
                 <span class="axis-val" id="ax-defense-v" style="color:#10b981">−0</span>
               </div>
             </div>
@@ -864,7 +865,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const vis = radio('visibility');
       (document.getElementById('rv-vis') as HTMLElement).innerHTML =
         vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
-                         : '<span class="review-badge" style="background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.2)">🔒 Private</span>';
+                         : '<span class="review-badge" style="background:rgba(128,180,253,0.1);color:#80b4fd;border:1px solid rgba(128,180,253,0.2)">🔒 Private</span>';
 
       const typeMap: Record<string,string> = { security:'🛡️ Security', research:'🔬 Research', enterprise:'🏢 Enterprise', marketplace:'🛒 Marketplace' };
       (document.getElementById('rv-type') as HTMLElement).textContent = typeMap[radio('comm-type')] || '—';

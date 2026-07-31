@@ -26,7 +26,7 @@ const dashboards = [
         </div>
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
-               style="background:rgba(99,102,241,.15);color:#6366f1">▣</div>
+               style="background:rgba(128,180,253,.15);color:#80b4fd">▣</div>
           <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Dashboard</h1>
         </div>
         <p class="text-[15px] max-w-2xl leading-relaxed" style="color:#94a3b8">
@@ -44,7 +44,7 @@ const dashboards = [
           <a href={d.url} target="_blank" rel="noopener"
              class="group block rounded-xl p-5 transition-all duration-200 no-underline"
              style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
-             onmouseover={`this.style.borderColor='${d.subdomain ? '#0A84FF40' : '#6366f140'}';this.style.transform='translateY(-1px)'`}
+             onmouseover={`this.style.borderColor='${d.subdomain ? '#0A84FF40' : '#80b4fd40'}';this.style.transform='translateY(-1px)'`}
              onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
             <div class="flex items-start justify-between mb-3">
               <div class="text-[22px]">{d.icon}</div>
@@ -61,7 +61,7 @@ const dashboards = [
               <div class="text-[10px] font-mono mb-1.5" style="color:#475569">{d.subdomain}</div>
             )}
             <div class="text-[12px] leading-relaxed mb-3" style="color:#64748b">{d.desc}</div>
-            <div class="flex items-center gap-1 text-[11px] font-semibold" style={`color:${d.subdomain ? '#0A84FF' : '#6366f1'}`}>
+            <div class="flex items-center gap-1 text-[11px] font-semibold" style={`color:${d.subdomain ? '#0A84FF' : '#80b4fd'}`}>
               Open <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="group-hover:translate-x-0.5 transition-transform"><path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
             </div>
           </a>
@@ -76,7 +76,7 @@ const dashboards = [
             <a href={`/dashboard/${slugify(sub)}`}
                class="group block rounded-xl p-5 transition-all duration-200 no-underline"
                style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
-               onmouseover="this.style.borderColor='#6366f140';this.style.transform='translateY(-1px)'"
+               onmouseover="this.style.borderColor='#80b4fd40';this.style.transform='translateY(-1px)'"
                onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
               <div class="flex items-start justify-between">
                 <div class="text-[14px] font-semibold" style="color:#f1f5f9">{sub}</div>

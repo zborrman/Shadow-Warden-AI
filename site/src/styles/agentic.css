@@ -1,5 +1,5 @@
 /* ── layout ── */
-.mk { --grn:#10b981; --cyn:#0ECFFF; --vio:#7B5CF0; --amb:#F59E0B; --red:#EF4444; --pr:#80b4fd; }
+.mk { --grn:#10b981; --cyn:#0ECFFF; --vio:#80b4fd; --amb:#F59E0B; --red:#EF4444; --pr:#80b4fd; }
 .sec { padding: 72px 0; }
 .sec-alt { background: #0c1020; }
 .inner { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
@@ -20,7 +20,7 @@
 }
 .mk-h1 { font-family: var(--font-mono); font-size: clamp(30px, 4vw, 52px); font-weight: 700; line-height: 1.1; color: #f0f4fc; margin: 0 0 10px; }
 .mk-h1 .hl { color: var(--grn); }
-.mk-tagline { font-family: var(--font-mono); font-size: clamp(13px, 1.4vw, 16px); color: #7B5CF0; margin-bottom: 18px; }
+.mk-tagline { font-family: var(--font-mono); font-size: clamp(13px, 1.4vw, 16px); color: #80b4fd; margin-bottom: 18px; }
 .mk-sub { font-size: 15px; line-height: 1.75; color: #94a3b8; max-width: 460px; margin: 0 0 32px; }
 .mk-btns { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn-grn { display: inline-flex; align-items: center; gap: 7px; padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; text-decoration: none; color: #070910; background: var(--grn); box-shadow: 0 0 0 1px rgba(16,185,129,.4), 0 6px 24px rgba(16,185,129,.22); transition: box-shadow .2s; }
@@ -36,7 +36,7 @@
 .mk-term-body { padding: 16px 18px; min-height: 300px; max-height: 340px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.85; white-space: pre-wrap; word-break: break-all; }
 .mk-term-body::-webkit-scrollbar { width: 3px; }
 .mk-term-body::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 2px; }
-.t-hi{color:#F1F5F9}.t-dim{color:#475569}.t-cyn{color:#0ECFFF}.t-grn{color:#10b981}.t-amb{color:#F59E0B}.t-red{color:#EF4444}.t-vio{color:#7B5CF0}
+.t-hi{color:#F1F5F9}.t-dim{color:#475569}.t-cyn{color:#0ECFFF}.t-grn{color:#10b981}.t-amb{color:#F59E0B}.t-red{color:#EF4444}.t-vio{color:#80b4fd}
 .tcur{display:inline-block;width:6px;height:12px;background:#0ECFFF;vertical-align:text-bottom;animation:blink 1s step-end infinite}
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -72,11 +72,11 @@ tbody tr:hover td { background: rgba(14,207,255,.02); }
 .badge-verified { background: rgba(16,185,129,.1); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
 .badge-pending  { background: rgba(245,158,11,.1);  color: #F59E0B; border: 1px solid rgba(245,158,11,.25); }
 .badge-flagged  { background: rgba(239,68,68,.1);   color: #EF4444; border: 1px solid rgba(239,68,68,.25); }
-.badge-l1 { background: rgba(123,92,240,.1); color: #7B5CF0; border: 1px solid rgba(123,92,240,.25); }
+.badge-l1 { background: rgba(128,180,253,.1); color: #80b4fd; border: 1px solid rgba(128,180,253,.25); }
 .badge-l2 { background: rgba(14,207,255,.1); color: #0ECFFF; border: 1px solid rgba(14,207,255,.25); }
 .badge-l3 { background: rgba(16,185,129,.1); color: #10b981; border: 1px solid rgba(16,185,129,.25); }
 .badge-l402 { background: rgba(245,158,11,.08); color: #F59E0B; border: 1px solid rgba(245,158,11,.2); }
-.badge-x402 { background: rgba(123,92,240,.08); color: #7B5CF0; border: 1px solid rgba(123,92,240,.2); }
+.badge-x402 { background: rgba(128,180,253,.08); color: #80b4fd; border: 1px solid rgba(128,180,253,.2); }
 .badge-flex { background: rgba(14,207,255,.08);  color: #0ECFFF; border: 1px solid rgba(14,207,255,.2); }
 .badge-nlp  { background: rgba(128,180,253,.08); color: #80b4fd; }
 .badge-security  { background: rgba(239,68,68,.08); color: #EF4444; }
@@ -84,8 +84,9 @@ tbody tr:hover td { background: rgba(14,207,255,.02); }
 
 /* ── trust bar ── */
 .trust-row { display: flex; align-items: center; gap: 6px; }
-.trust-fill { height: 5px; background: var(--grn); border-radius: 3px; transition: width .4s; }
+.trust-fill { height: 5px; width: 100%; background: var(--grn); border-radius: 3px; transform-origin: left center; transition: transform .4s; }
 .trust-bg   { height: 5px; background: rgba(16,185,129,.12); border-radius: 3px; flex: 1; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .trust-fill { transition: none; } }
 
 /* ── auction cards ── */
 .auction-card { background: #0d1017; border: 1px solid rgba(128,180,253,.09); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: border-color .2s; }

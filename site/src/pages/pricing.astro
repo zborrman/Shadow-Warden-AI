@@ -73,8 +73,8 @@ const tiers = [
     id: 'community',
     name: 'Community Biz',
     price: 19,
-    color: '#8b5cf6',
-    tint: 'rgba(139,92,246,0.08)',
+    color: '#38bdf8',
+    tint: 'rgba(128,180,253,0.08)',
     tag: 'Teams',
     highlight: false,
     cta: 'Start Free Trial',
@@ -105,8 +105,8 @@ const tiers = [
     id: 'pro',
     name: 'Pro',
     price: 69,
-    color: '#6366f1',
-    tint: 'rgba(99,102,241,0.10)',
+    color: '#80b4fd',
+    tint: 'rgba(128,180,253,0.10)',
     tag: 'Most Popular',
     highlight: true,
     cta: 'Start Free Trial',
@@ -195,10 +195,10 @@ const addons = roadmapData
     <!-- Hero -->
     <section class="py-16 text-center relative overflow-hidden">
       <div class="absolute inset-0 pointer-events-none"
-           style="background:radial-gradient(ellipse 800px 400px at 50% 0%,rgba(99,102,241,0.07) 0%,transparent 70%)"></div>
+           style="background:radial-gradient(ellipse 800px 400px at 50% 0%,rgba(128,180,253,0.07) 0%,transparent 70%)"></div>
       <div class="relative z-10 mx-auto max-w-3xl px-4">
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#6366f1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
+             style="color:#80b4fd;background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.2)">
           ◇ Tier Comparison + Calculator
         </div>
         <h1 class="text-[clamp(28px,5vw,52px)] font-black leading-tight tracking-tight mb-4" style="color:#f1f5f9">
@@ -326,10 +326,10 @@ const addons = roadmapData
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                   {a.status !== 'planned' && (
                     <input type="checkbox"
-                           class="addon-checkbox w-3.5 h-3.5 rounded accent-indigo-500 shrink-0"
+                           class="addon-checkbox w-3.5 h-3.5 rounded accent-[#80b4fd] shrink-0"
                            data-price={a.price}
                            disabled={a.status === 'planned'}
-                           style="accent-color:#6366f1" />
+                           style="accent-color:#80b4fd" />
                   )}
                   <span class="text-[13px] font-semibold" style="color:#f1f5f9">{a.name}</span>
                   {a.status === 'planned' && (
@@ -357,14 +357,14 @@ const addons = roadmapData
     </section>
 
     <!-- Calculator -->
-    <section class="pb-20 border-t" style="border-color:rgba(99,102,241,0.2);background:rgba(99,102,241,0.02)">
+    <section class="pb-20 border-t" style="border-color:rgba(128,180,253,0.2);background:rgba(128,180,253,0.02)">
       <div class="mx-auto max-w-3xl px-4 pt-14">
         <div class="text-center mb-8">
           <h2 class="text-[20px] font-bold mb-1" style="color:#f1f5f9">Cost Calculator</h2>
           <p class="text-[13px]" style="color:#64748b">Select a tier above or use the dropdown — totals update instantly.</p>
         </div>
 
-        <div class="rounded-2xl p-6 space-y-5" style="background:#111118;border:1px solid rgba(99,102,241,0.2)">
+        <div class="rounded-2xl p-6 space-y-5" style="background:#111118;border:1px solid rgba(128,180,253,0.2)">
 
           <!-- Tier selector -->
           <div>
@@ -373,7 +373,7 @@ const addons = roadmapData
             </label>
             <select id="calc-tier-select"
                     class="w-full rounded-xl px-4 py-3 text-[13px] font-medium appearance-none cursor-pointer"
-                    style="background:#0a0a14;border:1px solid rgba(99,102,241,0.25);color:#f1f5f9;outline:none">
+                    style="background:#0a0a14;border:1px solid rgba(128,180,253,0.25);color:#f1f5f9;outline:none">
               {tiers.map(t => (
                 <option value={t.id} data-price={t.price}>
                   {t.name} — {t.price === 0 ? 'Free' : `$${t.price}/mo`} · {t.requests}
@@ -391,13 +391,13 @@ const addons = roadmapData
               {addons.filter(a => a.status === 'shipped').map(a => (
                 <label class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors"
                        style="border:1px solid rgba(255,255,255,0.07)"
-                       onmouseover="this.style.borderColor='rgba(99,102,241,0.3)'"
+                       onmouseover="this.style.borderColor='rgba(128,180,253,0.3)'"
                        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
                   <div class="flex items-center gap-2.5">
                     <input type="checkbox"
                            class="calc-addon-check w-3.5 h-3.5 rounded"
                            data-price={a.price}
-                           style="accent-color:#6366f1" />
+                           style="accent-color:#80b4fd" />
                     <span class="text-[12px]" style="color:#cbd5e1">{a.name}</span>
                     <span class="text-[10px] px-1.5 py-0.5 rounded" style="color:#f97316;background:rgba(249,115,22,0.08)">{a.tier}</span>
                   </div>
@@ -408,7 +408,7 @@ const addons = roadmapData
           </div>
 
           <!-- Result -->
-          <div class="rounded-xl p-5" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2)">
+          <div class="rounded-xl p-5" style="background:rgba(128,180,253,0.06);border:1px solid rgba(128,180,253,0.2)">
             <div class="flex items-end justify-between gap-4 mb-3">
               <div>
                 <div class="text-[11px] font-semibold tracking-widest uppercase mb-1" style="color:#475569">
@@ -435,8 +435,8 @@ const addons = roadmapData
 
             <a id="calc-cta"
                href="https://portal.shadow-warden-ai.com"
-               class="mt-4 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold text-white transition-all"
-               style="background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 20px rgba(99,102,241,0.3)">
+               class="mt-4 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold transition-all"
+               style="background:#80b4fd;color:#070910;box-shadow:0 4px 20px rgba(128,180,253,0.3)">
               Get started →
             </a>
           </div>
@@ -450,9 +450,9 @@ const addons = roadmapData
 <style>
   .billing-btn { color: #64748b; background: transparent; border: none; cursor: pointer; }
   .billing-btn.active { color: #f1f5f9; background: rgba(255,255,255,0.08); box-shadow: 0 1px 4px rgba(0,0,0,0.3); border-radius: 0.5rem; }
-  .tier-card.highlight { box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 16px 48px rgba(99,102,241,0.12); }
+  .tier-card.highlight { box-shadow: 0 0 0 1px rgba(128,180,253,0.4), 0 16px 48px rgba(128,180,253,0.12); }
   .addon-card.planned-addon { opacity: 0.6; cursor: default; }
-  .addon-card:not(.planned-addon):hover { border-color: rgba(99,102,241,0.3) !important; }
+  .addon-card:not(.planned-addon):hover { border-color: rgba(128,180,253,0.3) !important; }
 </style>
 
 <script>

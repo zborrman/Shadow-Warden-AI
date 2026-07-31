@@ -12,7 +12,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <!-- Header -->
       <div class="mb-14">
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#6366f1;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
+             style="color:#80b4fd;background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.2)">
           ◇ Get In Touch
         </div>
         <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-3" style="color:#f1f5f9">
@@ -31,7 +31,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             title: 'Sales & Pricing',
             desc: 'Enterprise plans, custom contracts, volume pricing, and partnership opportunities.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#6366f1',
+            color: '#80b4fd',
           },
           {
             icon: '🛠️',
@@ -52,7 +52,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             title: 'Press & Media',
             desc: 'Press kit, analyst briefings, media inquiries, and partnership announcements.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#8b5cf6',
+            color: '#38bdf8',
           },
         ].map(({ icon, title, desc, email, color }) => (
           <div class="rounded-2xl p-5"
@@ -92,7 +92,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
              rel={href.startsWith('http') ? 'noopener' : undefined}
              class="flex flex-col gap-2 rounded-2xl p-4 transition-colors"
              style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)"
-             onmouseover="this.style.borderColor='rgba(99,102,241,0.3)'"
+             onmouseover="this.style.borderColor='rgba(128,180,253,0.3)'"
              onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
             <div class="text-[20px]">{icon}</div>
             <div class="text-[13px] font-semibold" style="color:#f1f5f9">{label}</div>
