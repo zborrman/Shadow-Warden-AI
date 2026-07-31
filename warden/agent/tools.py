@@ -765,13 +765,15 @@ async def community_moderation_report(tenant_id: str = "default", **_) -> dict:
             nim_verdicts[v] = nim_verdicts.get(v, 0) + 1
             sources[s]      = sources.get(s, 0) + 1
 
+        from datetime import UTC, datetime  # noqa: PLC0415
+
         return {
             "tenant_id":     tenant_id,
             "total_approved": feed_data.get("count", len(posts)),
             "total_members":  members,
             "nim_verdicts":   nim_verdicts,
             "sources":        sources,
-            "generated_at":   __import__("datetime").datetime.utcnow().isoformat(),
+            "generated_at":   datetime.now(UTC).isoformat(),
         }
     except Exception as exc:
         log.warning("community_moderation_report error: %s", exc)
