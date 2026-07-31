@@ -532,7 +532,7 @@ async def lifespan(app: FastAPI):
         _poison_guard = DataPoisoningGuard(_brain_guard)
         await _poison_guard.initialise_async()
         _monitor = CorpusHealthMonitor(_poison_guard)
-        asyncio.create_task(_monitor.run())
+        _spawn_task(_monitor.run())
         log.info("DataPoisoningGuard active — corpus health monitor started.")
     except Exception as _pe:
         log.warning("DataPoisoningGuard unavailable (non-fatal): %s", _pe)
@@ -748,7 +748,7 @@ async def lifespan(app: FastAPI):
             from warden.workers.probe_worker import (
                 probe_scheduler as _probe_scheduler,
             )
-            asyncio.create_task(_probe_scheduler())
+            _spawn_task(_probe_scheduler())
             log.info("Uptime probe scheduler started.")
         except Exception as _probe_err:
             log.warning("probe_scheduler failed to start: %s", _probe_err)
@@ -978,6 +978,28 @@ async def lifespan(app: FastAPI):
 
     _lifespan_active = False
     log.info("Warden gateway shutting down.")
+
+
+# ── Background task tracking ──────────────────────────────────────────────────
+# asyncio.create_task() does not keep the returned Task alive on its own — if
+# nothing holds a reference, the event loop is free to garbage-collect it
+# mid-execution and any exception it raised is silently dropped. Fire-and-
+# forget dispatches (bypass shipping, webhook delivery, WS broadcast) route
+# through this helper so a strong reference is held until completion.
+_live_background_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_task(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _live_background_tasks.add(task)
+
+    def _on_done(t: asyncio.Task) -> None:
+        _live_background_tasks.discard(t)
+        if not t.cancelled() and (exc := t.exception()) is not None:
+            log.warning("background task failed: %r", exc)
+
+    task.add_done_callback(_on_done)
+    return task
 
 
 # ── App factory ───────────────────────────────────────────────────────────────
@@ -1468,12 +1490,22 @@ async def security_headers(request: Request, call_next):
 # ── Health ────────────────────────────────────────────────────────────────────
 
 def _check_redis_health() -> dict:
-    """Probe Redis and return degradation info."""
+    """Probe Redis and return degradation info.
+
+    ``cache._get_client()`` returns None both when Redis is intentionally
+    disabled (REDIS_URL unset or memory://) and when it's configured but
+    unreachable — a real outage. Those two cases must not collapse into the
+    same "unavailable" status, or a genuine outage gets reported "ok" by
+    /health (Redis is optional-by-design for the content-hash cache, so only
+    the disabled case should count as healthy).
+    """
+    from warden.cache import _REDIS_URL, _get_client
+    if not _REDIS_URL or _REDIS_URL == "memory://":
+        return {"status": "unavailable", "latency_ms": None}
     try:
-        from warden.cache import _get_client
         client = _get_client()
         if client is None:
-            return {"status": "unavailable", "latency_ms": None}
+            return {"status": "degraded: redis configured but unreachable", "latency_ms": None}
         t0 = time.perf_counter()
         client.ping()
         lat = round((time.perf_counter() - t0) * 1000, 2)
@@ -1485,7 +1517,7 @@ def _check_redis_health() -> dict:
 @app.get("/health", tags=["ops"], summary="Liveness probe")
 async def health():
     redis_health = _check_redis_health()
-    overall = "ok" if redis_health["status"] == "ok" or redis_health["status"] == "unavailable" else "degraded"
+    overall = "ok" if redis_health["status"] in ("ok", "unavailable") else "degraded"
 
     # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)
     now = time.perf_counter()
@@ -1799,9 +1831,9 @@ async def _run_filter_pipeline(
             "payload_len": len(payload.content) if payload.content else 0,
             "elapsed_ms": 0,
         }
-        asyncio.create_task(_ship_bypass(background_tasks, _cb_entry))
+        _spawn_task(_ship_bypass(background_tasks, _cb_entry))
         if _webhook_store is not None:
-            asyncio.create_task(_dispatch_bypass_webhook(
+            _spawn_task(_dispatch_bypass_webhook(
                 tenant_id     = tenant_id,
                 reason        = "circuit_breaker:open",
                 content       = payload.content or "",
@@ -2569,7 +2601,7 @@ async def _run_filter_pipeline(
         # the live endpoint had no producer. The stream was broken at BOTH ends.
         # Now feeds the router's fan-out, which also republishes to Redis for
         # multi-instance deployments.
-        asyncio.create_task(_ws_broadcast_event({
+        _spawn_task(_ws_broadcast_event({
             "type":        "event",
             "request_id":  rid,
             "ts":          entry.get("ts", ""),
@@ -2949,9 +2981,9 @@ async def filter_content(
                 "payload_len": len(payload.content) if payload.content else 0,
                 "elapsed_ms": _PIPELINE_TIMEOUT_MS,
             }
-            asyncio.create_task(_ship_bypass(background_tasks, _to_entry))
+            _spawn_task(_ship_bypass(background_tasks, _to_entry))
             if _webhook_store is not None:
-                asyncio.create_task(_dispatch_bypass_webhook(
+                _spawn_task(_dispatch_bypass_webhook(
                     tenant_id     = _tid,
                     reason        = "emergency_bypass:timeout",
                     content       = payload.content or "",
