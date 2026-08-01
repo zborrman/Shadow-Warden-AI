@@ -30,15 +30,21 @@ with Track C, detection math with Track B.
 
 ### Scoring — current vs. target
 
-| Dimension | Now | Target | Owner item |
+| Dimension | Before | After | Owner item |
 |---|---|---|---|
-| Structure / decomposition | 8 | 9 | — (already good) |
-| Authn / authz on request path | **2** | 9 | MP-1, MP-8 |
-| Doc ↔ code fidelity | **3** | 10 | MP-0, MP-3, MP-7 |
-| Test coverage of live gates | 6 | 9 | MP-4 |
-| Data-model coherence | 5 | 7 | MP-5 (+ Track F FT-6 Phase C) |
-| Payment-posture clarity | 4 | 8 | MP-6 (Track F owns the flip) |
-| **Composite** | **≈5** | **≈9** | |
+| Structure / decomposition | 8 | 8 | — (untouched; Track M changed no structure) |
+| Authn / authz on request path | **2** | 8 | MP-1, MP-8 — 25 write routes bound to an identity, offers cryptographically attributed. Not 9: no global auth middleware yet (Track A) |
+| Doc ↔ code fidelity | **3** | 9 | MP-0, MP-3, MP-7 — all four false invariants resolved; manifest reports real mode |
+| Test coverage of live gates | 6 | 8 | MP-4 — the gate, not just the detector |
+| Data-model coherence | 5 | 7 | MP-5 — dead projection removed; FT-6 Phase C still owns the order-model merge |
+| Payment-posture clarity | 4 | 7 | MP-6 — posture now measurable; the flip itself is Track F's |
+| **Composite** | **≈5** | **≈8** | |
+
+Not 10, and deliberately so. What remains is owned elsewhere or needs production
+data: a global auth middleware (Track A), the `AUTHORIZE_PAYMENT_ENFORCED` flip
+(Track F / P-6), `MARKETPLACE_REQUIRE_SIGNED_OFFERS` going true after a bake
+period (D-3), FT-6 Phase C, and the pre-existing cross-file test pollution in
+`test_hub_marketplace_flow.py`.
 
 ---
 
@@ -547,9 +553,9 @@ before): `test_route_inventory.py`, `test_no_new_counterless_failopen.py`,
 | MP-1b | Offer signature verification 🔴 | **Opus 5** | ✅ done — `_assert_actor` before any state change; envelope gained `negotiation_id` (signatures were portable across negotiations); `build_offer_canonical` exported; skew window; fail-CLOSED under `MARKETPLACE_REQUIRE_SIGNED_OFFERS` (default off + metric for the bake). Original exploit re-run end-to-end: 400, negotiation stays open, real seller still settles (`43210365`) |
 | MP-1c | Empty-secret admin bypass | **Opus 5** | ✅ done — `admin_guard.require_admin_key`, 503 when unconfigured, constant-time, read per call (`f752e8fe`). ⚠️ Same shape found and **not** fixed (out of cluster): `api/rotation.py:134`, `streams/api.py:55`, `tokenomics/api.py:69` |
 | MP-2 | Single injection guard | Sonnet 5 | ✅ done — `_scan_injection` delegates to `injection_guard`; private lists deleted; `send_message`/`send_proposal` had **no** screening at all and now return 422 (`29097654`) |
-| MP-3 | Escrow-on-accept: implement or retract | Opus 5 (memo) | ⬜ needs D-1 |
+| MP-3 | Escrow-on-accept: implement or retract | Opus 5 (memo) | ✅ done — **D-1 resolved: retract.** Accepting an offer is a price agreement; escrow stays owned by `purchase_listing()`, which holds the FT-3c idempotency key. Rule #5 rewritten to say so and to forbid a second escrow-creating path (`d1a80d09`) |
 | MP-4 | Coverage for live gates | Sonnet 5 | ✅ done — covered the **gate at the request boundary** (403 path), which no test reached. ⚠️ Audit's "0%" was a measurement artifact: `test_sybil_guard.py` (14 tests, 74%) exists but doesn't match the `test_marketplace_*` glob used. Combined now 79% (`d51ccf47`) |
-| MP-5 | Resolve dead `mp_*` projection | Opus 5 → Sonnet 5 | ⬜ needs D-2 |
+| MP-5 | Resolve dead `mp_*` projection | Opus 5 → Sonnet 5 | ✅ done — **D-2 resolved: re-point + delete.** 8 models moved onto real `marketplace_*` tables and **executed** against a live DB (16 queries, 0 errors — SQL-text assertions cannot catch a bad column). `marketplace_reputation` + `marketplace_cross_chain` deleted: nothing persists TrustRank, no cross-chain table exists. Projector deleted (`d1a80d09`) |
 | MP-6 | Authorization-posture metric + documented default | Sonnet 5 | ✅ done — `warden_payment_authorization_total{verdict,enforced}` separates allowed-because-checked from allowed-because-off; marketplace rule #23 states the default. Flip stays Track F's call (`7851d900`) |
 | MP-7 | Manifest/health honesty about simulation mode | Sonnet 5 | ✅ done — `negotiation.signature_enforced` + `escrow.settlement_mode`; derived from config, never by probing (`_check_rpc_with_retry` backs off 2/4/8s) (`7851d900`) |
 | MP-8 | ACP + agentic-commerce write auth | **Opus 5** | ✅ done — 13 routes bound to the authenticated tenant. ⚠️ **Audit overstated this**: they were *not* anonymously reachable (403 on main); the real defect was body-supplied `tenant_id` ⇒ cross-tenant. `webhooks/ap2` deliberately left open (inert; an API key is the wrong control for a provider callback) (`1fc5e216`) |
