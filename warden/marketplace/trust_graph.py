@@ -24,6 +24,7 @@ from warden.db.connect import open_db_readonly
 log = logging.getLogger("warden.marketplace.trust_graph")
 
 _DB_PATH          = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
 
 def _db_path() -> str:
     """Resolve the DB path on every call.
@@ -38,6 +39,13 @@ def _db_path() -> str:
 
     ``_DB_PATH`` is kept for callers that still reference it directly.
     """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
     return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 
 _DAMPING          = 0.85
