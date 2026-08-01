@@ -1,19 +1,21 @@
 """
 SR-7 — XXE hardening (found by turning semgrep on: 6 blocking findings).
 
-Every XML document these modules parse is attacker-influenced — a SAML assertion posted
-to the ACS endpoint, or an external threat/ArXiv feed. stdlib `xml.etree` resolves
-external entities, so those parsers were vulnerable to XXE: local-file exfiltration
-(`file:///etc/passwd`), SSRF via entity URLs, and billion-laughs DoS.
+Every XML document these modules parse is attacker-influenced — an external
+threat/ArXiv feed. stdlib `xml.etree` resolves external entities, so those
+parsers were vulnerable to XXE: local-file exfiltration (`file:///etc/passwd`),
+SSRF via entity URLs, and billion-laughs DoS.
 
-All four call sites now use defusedxml, which refuses entity declarations outright.
+Both remaining call sites now use defusedxml, which refuses entity
+declarations outright. (A third call site, `warden/auth/saml.py`, was removed
+2026-08-01 — dead code superseded by `auth/saml_provider.py`, which does its
+own XML parsing via python3-saml, not this module's defusedxml wrapper.)
 """
 from __future__ import annotations
 
 import pytest
 from defusedxml.common import EntitiesForbidden
 
-from warden.auth.saml import _xml_fromstring as saml_parse
 from warden.brain.threat_feed import _xml_fromstring as feed_parse
 from warden.threat_intel.sources import _xml_fromstring as intel_parse
 
@@ -30,7 +32,6 @@ _BILLION_LAUGHS = """<?xml version="1.0"?>
 <lolz>&lol3;</lolz>"""
 
 _PARSERS = [
-    pytest.param(saml_parse,  id="saml"),        # attacker posts the assertion
     pytest.param(feed_parse,  id="threat_feed"), # external feed
     pytest.param(intel_parse, id="threat_intel"),# external Atom/ArXiv feed
 ]
