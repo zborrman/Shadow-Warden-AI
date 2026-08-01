@@ -110,3 +110,38 @@ def test_emit_fail_open(monkeypatch, _enforce_private):
     # Emission raising must NOT propagate — screening still returns a verdict.
     verdict = g.screen_and_emit("sova", "t1", "get_health", {"tenant_id": "t1"})
     assert verdict.verdict == g.CLEAN
+
+
+def test_iter_strings_walks_nested_list_and_tuple():
+    # _iter_strings must flatten strings out of list/tuple containers, not
+    # just dict values — otherwise a secret path buried in a list is invisible.
+    v = g.screen_tool_call(
+        "sova", "t1", "read_files",
+        {"paths": ["/home/u/.ssh/id_rsa", ("nested", "/etc/passwd")]},
+    )
+    assert v.verdict == g.WARNING
+    assert any(f == "secret_path:.ssh" for f in v.flags)
+    assert any(f == "secret_path:/etc/passwd" for f in v.flags)
+
+
+def test_screen_tool_call_never_raises_on_iter_strings_failure(monkeypatch):
+    # _iter_strings failing must degrade to a clean default verdict, not
+    # propagate — screening is documented as "never raises".
+    monkeypatch.setattr(
+        g, "_iter_strings", lambda value: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    v = g.screen_tool_call("sova", "t1", "any_tool", {"url": "https://example.com"})
+    assert v == g.GuardVerdict()
+
+
+def test_url_sensitive_bare_host_key_screened(_enforce_private):
+    # A bare (scheme-less) value under a known URL key is only screened when
+    # url_sensitive=True — this exercises the "https://" prefixing branch.
+    v = g.screen_tool_call(
+        "sova", "t1", "visual_assert_page",
+        {"target_url": "169.254.169.254"},
+        url_sensitive=True,
+    )
+    assert v.blocked is True
+    assert v.verdict == g.COMPROMISED
+    assert "169.254.169.254" in v.resolved_domains

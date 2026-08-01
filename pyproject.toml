@@ -187,6 +187,12 @@ omit = [
     "warden/image_redactor.py",
     "warden/image_synth.py",
     "warden/multimodal.py",
+    # Dead code, found during SR-7.2: superseded by auth/saml_provider.py (the
+    # module main.py actually mounts at /auth/saml/*). Nothing imports this
+    # except test_xxe_hardening.py, which only needs its _xml_fromstring
+    # regression coverage. Flagged for the owner to delete outright rather
+    # than have coverage work paper over it — see SR-7.2 PR description.
+    "warden/auth/saml.py",
 ]
 
 [tool.coverage.report]
@@ -200,7 +206,7 @@ exclude_lines = [
 
 [tool.pytest.ini_options]
 testpaths    = ["warden/tests", "warden/m2m_store/tests", "warden/business_intelligence/tests"]
-addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing --cov-fail-under=79"
+addopts      = "-v --tb=short --strict-markers --cov=warden --cov-report=term-missing --cov-fail-under=83"
 markers      = [
     "adversarial: adversarial corpus tests (may be slow)",
     "slow: tests that load the ML model",
