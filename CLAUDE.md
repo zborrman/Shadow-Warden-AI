@@ -77,10 +77,12 @@ claude --print "$(cat workflows/autonomous-security-loop.md)"
 
 ## Skills (canonical: `.claude/skills/README.md`)
 
-Four project skills are tracked in `.claude/skills/` and travel with a checkout:
+Five project skills are tracked in `.claude/skills/` and travel with a checkout:
 `run-warden` (verify a change against the live gateway), `site-health-check`
 (frontend audit of `site/`), `design-recon` + `shadow-warden-design` (design
-system). Everything else is machine-scoped — plugins and built-ins that must be
+system), `ui-ux-pro-max` (vendored design-intelligence database — styles,
+palettes, font pairings, per-stack rules; queried via `scripts/search.py`,
+offline). Everything else is machine-scoped — plugins and built-ins that must be
 installed per machine.
 
 Reach for these by area, before writing code:

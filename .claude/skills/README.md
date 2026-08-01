@@ -12,7 +12,7 @@ Skills come from three places:
 | plugins (`cloudflare:`, `stripe:`, `figma:`, …) | machine | no — installed per machine |
 | built-ins (`security-review`, `dataviz`, …) | machine | no — ship with Claude Code |
 
-Only the four in this directory travel with a checkout. Everything else has to
+Only the five in this directory travel with a checkout. Everything else has to
 be installed on whatever machine is running the session.
 
 ---
@@ -25,6 +25,7 @@ be installed on whatever machine is running the session.
 | `site-health-check` | Frontend audit of `site/` — Playwright smoke, WebMCP attributes, Lighthouse Agentic Browsing, `llms.txt` + `agent.json` reachability. |
 | `design-recon` | Extracting a design system (color/type/spacing/motion) from a reference site or Figma file and adapting it to our tokens. |
 | `shadow-warden-design` | Writing any UI — the canonical dark/indigo token set and component patterns. Read before hand-rolling CSS. |
+| `ui-ux-pro-max` | Designing or reworking a page/component so it reads as professional rather than templated — styles, palettes, font pairings, UX rules, per-stack guidelines. Vendored from [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (v2.11.0, MIT); `scripts/search.py` queries the local CSV database, no network. Pair with `shadow-warden-design` so the tokens stay ours. |
 
 ## Core toolkit
 
