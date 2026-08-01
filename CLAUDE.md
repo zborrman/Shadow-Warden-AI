@@ -369,7 +369,7 @@ pip install -r warden/requirements.txt
 pytest warden/tests/ -v --tb=short -m "not adversarial and not slow"
 
 # Full coverage gate
-pytest warden/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=75
+pytest warden/tests/ --tb=short -m "not adversarial" --cov=warden --cov-fail-under=83
 
 # Lint (ruff + mypy — must pass before merge)
 ruff check warden/ analytics/ --ignore E501
@@ -541,7 +541,7 @@ NEXT_PUBLIC_JAEGER_URL=http://127.0.0.1:16686
 
 Three jobs: `test` (matrix 3.11/3.12), `lint`, `docker-build`.
 
-- **Coverage gate**: ≥75% (`--cov-fail-under=75`), currently ~74% (post-security-fix additions)
+- **Coverage gate**: ≥83% (`--cov-fail-under=83`, raised from 79% under SR-7.2 — 2026-08-01); security paths (`auth_guard.py`, `net_guard.py`, `secret_keys.py`, `payments/authorize.py`, `gsam/jit_lease.py`, `staff/boundaries.py`, `staff/dispatcher.py`, `sac/guard.py`, `auth/router.py`, `auth/saml_provider.py`) at 100%. 85% target still open — remaining gaps are non-security (main.py, marketplace/communities/syndicates routers)
 - **Adversarial tests**: informational (`|| true`), don't block merges
 - **Mutation testing**: mutmut on `secret_redactor.py` + `semantic_guard.py`, threshold 20 surviving mutants
 - **Docker smoke**: Phase 1 (import test, no model) + Phase 2 (runtime /health check with model cache)

@@ -199,12 +199,6 @@ def _decode(token: str) -> dict[str, Any] | None:
         return None
 
 
-def _set_session_cookie(resp: JSONResponse) -> None:
-    """Attach the sw_session HttpOnly cookie to a response."""
-    # value already embedded in resp; cookie is set by caller after _issue()
-    pass
-
-
 def _sweep_rate_store(now: float) -> None:
     """Drop aged-out buckets. Caller must hold ``_rate_lock``.
 

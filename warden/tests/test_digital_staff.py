@@ -122,6 +122,104 @@ class TestBoundaryRegistry:
         with pytest.raises(BoundaryViolationError, match="No boundary"):
             reg.check_and_dispatch("ghost_agent", "any_tool")
 
+    def test_restore_nonexistent_returns_false(self, reg):
+        assert reg.restore("nobody") is False
+
+
+# ── BoundaryRegistry Redis-backed paths ────────────────────────────────────────
+
+class TestBoundaryRegistryRedis:
+    """Redis is best-effort: a hit short-circuits the local dict, and any
+    Redis error falls back to it silently (fail-open on the read/write of
+    the boundary cache itself — the boundary check it protects stays
+    fail-closed via BoundaryViolationError)."""
+
+    def test_get_redis_hit_returns_boundary(self):
+        b = AuthorizationBoundary(
+            agent_id="cached", role=AgentRole.BDR, allowed_tools=frozenset({"t"}),
+        )
+        redis = MagicMock()
+        redis.get.return_value = b.to_redis()
+        reg = BoundaryRegistry(redis=redis)
+        got = reg.get("cached")
+        assert got is not None
+        assert got.agent_id == "cached"
+        redis.get.assert_called_once_with("staff:boundary:cached")
+
+    def test_get_redis_error_falls_back_to_local(self):
+        redis = MagicMock()
+        redis.get.side_effect = RuntimeError("redis down")
+        reg = BoundaryRegistry(redis=redis)
+        b = reg.get("bdr")
+        assert b is not None
+        assert b.agent_id == "bdr"
+
+    def test_get_redis_returns_falsy_falls_back_to_local(self):
+        redis = MagicMock()
+        redis.get.return_value = None
+        reg = BoundaryRegistry(redis=redis)
+        b = reg.get("bdr")
+        assert b is not None
+        assert b.agent_id == "bdr"
+
+    def test_put_writes_through_to_redis_without_ttl(self):
+        redis = MagicMock()
+        reg = BoundaryRegistry(redis=redis)
+        b = AuthorizationBoundary(
+            agent_id="new_agent", role=AgentRole.QA, allowed_tools=frozenset({"t"}),
+        )
+        reg.put(b)
+        redis.set.assert_called_once()
+        redis.setex.assert_not_called()
+
+    def test_put_writes_through_to_redis_with_ttl(self):
+        redis = MagicMock()
+        reg = BoundaryRegistry(redis=redis)
+        b = AuthorizationBoundary(
+            agent_id="ttl_agent", role=AgentRole.QA, allowed_tools=frozenset({"t"}),
+        )
+        reg.put(b, ttl_s=60)
+        redis.setex.assert_called_once()
+        redis.set.assert_not_called()
+
+    def test_put_redis_error_still_updates_local(self):
+        redis = MagicMock()
+        redis.set.side_effect = RuntimeError("redis down")
+        reg = BoundaryRegistry(redis=redis)
+        b = AuthorizationBoundary(
+            agent_id="local_only", role=AgentRole.QA, allowed_tools=frozenset({"t"}),
+        )
+        reg.put(b)  # must not raise
+        assert reg._local["local_only"].agent_id == "local_only"
+
+    def test_list_all_merges_redis_keys(self):
+        redis = MagicMock()
+        redis.keys.return_value = [b"staff:boundary:remote_agent"]
+        remote = AuthorizationBoundary(
+            agent_id="remote_agent", role=AgentRole.QA, allowed_tools=frozenset({"t"}),
+        )
+
+        def _get(key: str):
+            # Only the remote-only agent_id resolves via Redis; local defaults
+            # (bdr, growth, ...) fall through to the in-process dict.
+            if key == "staff:boundary:remote_agent":
+                return remote.to_redis()
+            return None
+
+        redis.get.side_effect = _get
+        reg = BoundaryRegistry(redis=redis)
+        ids = {x["agent_id"] for x in reg.list_all()}
+        assert "remote_agent" in ids
+        assert "bdr" in ids  # local defaults still present
+
+    def test_list_all_redis_keys_error_falls_back_to_local_only(self):
+        redis = MagicMock()
+        redis.keys.side_effect = RuntimeError("redis down")
+        redis.get.return_value = None
+        reg = BoundaryRegistry(redis=redis)
+        ids = {x["agent_id"] for x in reg.list_all()}
+        assert {"bdr", "growth", "compliance", "qa", "support"}.issubset(ids)
+
 
 # ── Refund intent (Rec-3) ─────────────────────────────────────────────────────
 
