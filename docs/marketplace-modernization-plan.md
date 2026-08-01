@@ -541,7 +541,7 @@ before): `test_route_inventory.py`, `test_no_new_counterless_failopen.py`,
 |---|---|---|---|
 | D-1 | Escrow on `accept_offer()`: implement or retract? | MP-3 | **Retract** — avoid a second escrow-creating path |
 | D-2 | `mp_*`: wire the projector or re-point the models? | MP-5 | **Re-point + delete** — FT-6 is reducing order-shaped models |
-| D-3 | When does `MARKETPLACE_REQUIRE_SIGNED_OFFERS` flip to true? | MP-1b close-out | after the unsigned counter reads zero over a real bake period |
+| D-3 | When does `MARKETPLACE_REQUIRE_SIGNED_OFFERS` flip to true? | MP-1b close-out | ✅ **resolved 2026-08-01: flipped now.** The bake period had nothing to bake — production has never used the marketplace (0 agents, 0 credits, listings/negotiations/purchases/escrow tables do not exist), so the `absent` counter would read zero indefinitely regardless. Waiting bought no information; flipping closed MP-1b's remaining half at zero risk. Required a `docker-compose.yml` passthrough, not just `.env` |
 | D-4 | Does `AUTHORIZE_PAYMENT_ENFORCED` stay false in prod? | MP-6 / P-6 | Track F's call; MP-6 only makes it visible |
 
 ## 12. Status
