@@ -23,7 +23,7 @@ import time
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from warden.auth_guard import AuthResult, require_api_key
@@ -298,6 +298,27 @@ _PROPOSALS_DDL = """
 register("marketplace", "warden.marketplace.api.proposals", _PROPOSALS_DDL)
 
 
+def _reject_if_injection(message: str) -> None:
+    """Reject agent-authored free text carrying a prompt-injection attempt.
+
+    HTTP 422, matching ``injection_guard``'s documented contract. Deliberately
+    fail-CLOSED on the scan itself: if the guard cannot run we do not have a
+    clean message, and this text is destined for an LLM agent with spend
+    authority. That is the opposite posture from MAESTRO/KYA (rules #6/#18),
+    which stay permissive on error because they are advisory scoring rather than
+    content admission.
+    """
+    if not message:
+        return
+    from warden.marketplace.injection_guard import scan_negotiation_message
+    if scan_negotiation_message(message):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "prompt_injection_detected",
+                    "message": "Message blocked: prompt injection detected."},
+        )
+
+
 async def _action_send_message(
     negotiation_id: str = "",
     from_agent_id: str = "",
@@ -305,6 +326,11 @@ async def _action_send_message(
     **_: Any,
 ) -> dict:
     """Stage 3: send a text message within an active negotiation channel."""
+    # MP-2: this free text is authored by a counterparty agent and later read by
+    # LLM-backed buyer/seller agents that hold spend authority. It was persisted
+    # with no screening at all, while rule #1 claimed every offer body was
+    # scanned. Same guard as send_offer, one implementation.
+    _reject_if_injection(message)
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     msg_id = str(uuid.uuid4())[:12]
     with open_db(
@@ -328,6 +354,7 @@ async def _action_send_proposal(
     **_: Any,
 ) -> dict:
     """Stage 3: send a structured order proposal (quantity + SLA + max price)."""
+    _reject_if_injection(message)
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     proposal_id = str(uuid.uuid4())[:16]
     with open_db(
@@ -1240,7 +1267,7 @@ async def revoke_agent_kya(agent_id: str, body: KYARevokeRequest, request: Reque
     could revoke any agent's KYA status. It now fails closed (503 when no key is
     configured) and compares in constant time.
     """
-    from warden.marketplace.admin_guard import require_admin_key  # noqa: PLC0415
+    from warden.marketplace.admin_guard import require_admin_key
     require_admin_key(request.headers.get("X-Admin-Key"))
     from warden.marketplace.kya import revoke_agent  # noqa: PLC0415
     revoke_agent(agent_id, reason=body.reason)

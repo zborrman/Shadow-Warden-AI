@@ -39,6 +39,7 @@ from datetime import UTC, datetime
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.negotiation")
 
@@ -48,40 +49,24 @@ _MAX_ROUNDS = int(os.getenv("MARKETPLACE_MAX_NEGOTIATION_ROUNDS", "5"))
 
 # ── Prompt-injection guard ─────────────────────────────────────────────────────
 
-_INJECTION_PHRASES = [
-    "ignore previous instructions",
-    "ignore all previous",
-    "system prompt override",
-    "do not follow",
-    "new instructions:",
-    "disregard previous",
-    "forget all previous",
-    "override previous",
-    "you are now",
-    "act as if",
-    "pretend you are",
-    "your new role",
-]
-
-_DELIMITER_PATTERNS = [
-    "---\n",
-    "===\n",
-    "```system",
-    "<|system|>",
-    "<<sys>>",
-    "[inst]",
-    "<|im_start|>",
-    "### instruction",
-]
-
-
 def _scan_injection(text: str) -> bool:
-    """Return True if *text* contains known prompt-injection or delimiter-attack patterns."""
-    lower = text.lower()
-    return (
-        any(phrase in lower for phrase in _INJECTION_PHRASES)
-        or any(delim in lower for delim in _DELIMITER_PATTERNS)
-    )
+    """Return True if *text* contains a prompt-injection or delimiter attack.
+
+    MP-2: this used to be a private substring matcher living here, while
+    ``marketplace/injection_guard.py`` — the module rule #1 names, and the
+    stronger of the two — sat dead at 0% coverage with no production caller.
+    Two divergent implementations of the same guard means the one that is
+    actually reached is whichever the code happened to import, and here that was
+    the weaker one: plain ``in`` tests against a fixed phrase list, so
+    "Ignore  all  previous instructions" (extra spaces) or "ignore prior
+    instructions" walked straight past it.
+
+    Now a thin delegate to the single implementation. Kept as a function rather
+    than deleted outright because it is the seam ``send_offer`` calls and the
+    name carries the fail-closed intent; the patterns live in one place.
+    """
+    from warden.marketplace.injection_guard import scan_negotiation_message
+    return scan_negotiation_message(text)
 
 
 # ── Schema ────────────────────────────────────────────────────────────────────
@@ -281,7 +266,7 @@ def _max_skew_seconds() -> int:
 def _record_signature_outcome(result: str) -> None:
     """Count a verification outcome. Never raises — telemetry must not break a trade."""
     try:
-        from warden.metrics import MARKETPLACE_OFFER_SIGNATURE_TOTAL  # noqa: PLC0415
+        from warden.metrics import MARKETPLACE_OFFER_SIGNATURE_TOTAL
         MARKETPLACE_OFFER_SIGNATURE_TOTAL.labels(
             result=result, enforced=str(signed_offers_required()).lower()
         ).inc()
@@ -377,19 +362,21 @@ def _assert_actor(
 
     public_key = ""
     try:
-        from warden.marketplace.agent import get_agent  # noqa: PLC0415
+        from warden.marketplace.agent import get_agent
         agent = get_agent(from_agent_id, db_path=db_path)
         public_key = getattr(agent, "public_key", "") or ""
     except Exception as exc:
         # A lookup failure must not become an accept. Under enforcement it
-        # denies; unenforced it is counted so the failure is visible rather
-        # than silently scored as "valid".
+        # denies; unenforced the offer proceeds unverified — that is a real
+        # guard bypass, so it goes through record_failopen (alertable Prometheus
+        # counter), not just a log line.
         log.warning("offer signature: agent lookup failed for %s: %s", from_agent_id, exc)
         _record_signature_outcome("lookup_error")
         if enforced:
             raise OfferSignatureError(
                 f"Could not resolve signing key for agent '{from_agent_id}'."
             ) from exc
+        record_failopen("marketplace_offer_signature", Reason.BACKEND_ERROR, exc)
         return
 
     if not public_key:

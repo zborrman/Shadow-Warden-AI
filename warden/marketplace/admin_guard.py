@@ -14,9 +14,9 @@ Why this module exists
 With ``ADMIN_KEY`` unset — the default in any deployment that never provisioned
 one — ``admin_key`` is ``""`` and the whole condition short-circuits to False.
 The endpoint then revokes any agent's KYA status for any caller. An empty secret
-silently disabled the check rather than denying, which is the same fail-open
-shape the Phase-7 signing-key rule exists to prevent (an unresolvable key must
-deny, never wave the request through).
+silently disabled the check rather than denying — the same shape the Phase-7
+signing-key rule exists to prevent, where an unresolvable key must deny rather
+than wave the request through.
 
 Posture
 ───────
@@ -50,8 +50,8 @@ def require_admin_key(provided: str | None) -> None:
 
     Read fresh on every call, never snapshotted at import — a module-level
     ``_ADMIN_KEY = os.getenv(...)`` captures ``""`` when the module is imported
-    before the environment is populated, and then denies (or, with the old
-    fail-open shape, allows) forever regardless of what the operator sets later.
+    before the environment is populated, and then behaves wrongly forever
+    regardless of what the operator sets later.
     """
     admin_key = os.getenv("ADMIN_KEY", "")
 
