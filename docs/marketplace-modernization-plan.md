@@ -121,10 +121,21 @@ not auth"*, and both should be named explicitly so they stop recurring:
 
 ### 2.5 Coverage of live gates
 
-`sybil_guard.py` is **0% covered** while being called on live paths
-(`api_listings.py:59`, `api_agents.py:120`) — rule #4's gate is entirely unverified.
-Also 0%: `trust_graph`, `seller_agent`, `service.py`, `auto_responder`,
-`bayesian_stats`, `payments/l402.py`, `agentic_commerce/{service,ucp,multi_agent/*}`.
+⚠️ **Corrected during MP-4 execution.** The audit reported `sybil_guard.py` at
+**0%**. That was a measurement artifact: the coverage run selected only
+`test_marketplace_*` files, and the existing `warden/tests/test_sybil_guard.py`
+(14 tests, 74%) does not match that glob. The detector internals were covered all
+along.
+
+What genuinely had no test was the thing rule #4 asserts — the **gate at the
+request boundary**. No test called `POST /marketplace/listings`, so nothing
+verified that a flagged agent is refused, that a clean one is not, or that the
+documented fail-open posture holds. **Treat every other "0%" in this section as
+unverified until re-measured the same way.**
+
+Also reported 0% and still to be re-checked: `trust_graph`, `seller_agent`,
+`service.py`, `auto_responder`, `bayesian_stats`, `payments/l402.py`,
+`agentic_commerce/{service,ucp,multi_agent/*}`.
 
 Note the Track A interlock: SR-7.2 raised the gate to `--cov-fail-under=83` (PR #266)
 and its own notes name `marketplace/` as a remaining gap on the road to 85%. **MP-4
