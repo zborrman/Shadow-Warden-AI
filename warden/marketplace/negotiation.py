@@ -200,16 +200,51 @@ def _canonical_offer(
     round_: int,
     agent_id: str,
     timestamp: str,
+    negotiation_id: str = "",
 ) -> bytes:
+    """Canonical bytes an agent signs for one offer.
+
+    MP-1b added ``negotiation_id``. Without it the envelope was portable: a
+    signature produced for round N of one negotiation verified just as well
+    against a different negotiation over the same asset at the same price and
+    round, so a captured signature could be replayed sideways. Binding the
+    negotiation makes each signature usable in exactly one place.
+
+    Changing the envelope broke no existing signer — until MP-1b nothing signed
+    at all, every stored signature was the empty string.
+    """
     envelope = {
-        "type":         offer_type,
-        "price":        price,
-        "asset_ueciid": asset_ueciid,
-        "round":        round_,
-        "agent_id":     agent_id,
-        "timestamp":    timestamp,
+        "type":           offer_type,
+        "price":          price,
+        "asset_ueciid":   asset_ueciid,
+        "round":          round_,
+        "agent_id":       agent_id,
+        "timestamp":      timestamp,
+        "negotiation_id": negotiation_id,
     }
     return json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode()
+
+
+def build_offer_canonical(
+    *,
+    offer_type: str,
+    price: float,
+    asset_ueciid: str,
+    round_: int,
+    agent_id: str,
+    timestamp: str,
+    negotiation_id: str,
+) -> bytes:
+    """Public envelope builder — the bytes a client must sign.
+
+    Exported so an agent SDK and the tests derive the envelope from the same
+    code the server verifies against. A second, hand-rolled copy of this
+    serialization on the client side is how signature schemes quietly stop
+    matching.
+    """
+    return _canonical_offer(
+        offer_type, price, asset_ueciid, round_, agent_id, timestamp, negotiation_id
+    )
 
 
 def _sign_offer(canonical: bytes, keypair) -> str:
@@ -220,6 +255,42 @@ def _sign_offer(canonical: bytes, keypair) -> str:
     except Exception as exc:
         log.debug("Offer signing failed (non-critical): %s", exc)
         return ""
+
+
+def signed_offers_required() -> bool:
+    """True when an unsigned/badly-signed offer is rejected rather than merely counted.
+
+    Read per call, never snapshotted at import, so an operator can flip it
+    without a redeploy and so tests can toggle it.
+
+    Defaults to **false**: every offer already persisted carries ``signature=''``
+    (nothing ever signed), so switching straight to rejection would break every
+    live integration at once. Verification and its metric run either way — the
+    ``absent`` counter is what tells an operator when it is safe to flip.
+    """
+    return os.getenv("MARKETPLACE_REQUIRE_SIGNED_OFFERS", "false").strip().lower() == "true"
+
+
+def _max_skew_seconds() -> int:
+    try:
+        return int(os.getenv("MARKETPLACE_OFFER_MAX_SKEW_S", "300"))
+    except ValueError:
+        return 300
+
+
+def _record_signature_outcome(result: str) -> None:
+    """Count a verification outcome. Never raises — telemetry must not break a trade."""
+    try:
+        from warden.metrics import MARKETPLACE_OFFER_SIGNATURE_TOTAL  # noqa: PLC0415
+        MARKETPLACE_OFFER_SIGNATURE_TOTAL.labels(
+            result=result, enforced=str(signed_offers_required()).lower()
+        ).inc()
+    except Exception as exc:  # pragma: no cover - metrics are optional
+        log.debug("offer signature metric unavailable: %s", exc)
+
+
+class OfferSignatureError(ValueError):
+    """Raised when an offer's actor proof is missing or invalid and enforcement is on."""
 
 
 def _verify_offer_signature(
@@ -239,6 +310,122 @@ def _verify_offer_signature(
         return True
     except Exception:
         return False
+
+
+def _assert_actor(
+    *,
+    neg: Negotiation,
+    from_agent_id: str,
+    offer_type: str,
+    price: float,
+    round_: int,
+    signature: str,
+    timestamp: str,
+    db_path: str,
+) -> None:
+    """Prove the caller controls ``from_agent_id`` before its offer moves the price.
+
+    An API key (MP-1a) proves *a tenant*; it says nothing about *which agent* an
+    action is attributed to. ``from_agent_id`` arrives as body text, so without
+    this check any authenticated caller could send or accept offers as anybody —
+    that is how a $1000 listing was settled at $0.01 by impersonating the seller
+    on accept.
+
+    The binding is free: ``agent_id`` is *derived from* the public key
+    (``did:shadow:{base62(sha256(pubkey))}``, see ``agent.pubkey_to_agent_id``),
+    so a signature that verifies against the registered
+    ``marketplace_agents.public_key`` is itself proof of the claimed identity.
+    No extra binding table, no key-distribution step.
+
+    Fail-CLOSED under enforcement: unknown agent, missing key, absent signature,
+    stale timestamp or a verify error all reject. This is signature
+    verification, governed by the Phase-7 signing rule (an unresolvable key
+    denies) — *not* by the x402 fail-open rule, which is about payment
+    availability.
+
+    Party check runs regardless of enforcement: a signature from an agent that
+    is not a party to this negotiation is meaningless even when it verifies, and
+    rejecting that never breaks a legitimate unsigned client.
+    """
+    if from_agent_id not in (neg.buyer_agent, neg.seller_agent):
+        raise OfferSignatureError(
+            f"Agent '{from_agent_id}' is not a party to negotiation '{neg.negotiation_id}'."
+        )
+
+    enforced = signed_offers_required()
+
+    if not signature:
+        _record_signature_outcome("absent")
+        if enforced:
+            raise OfferSignatureError(
+                "Offer must carry an Ed25519 signature over the canonical envelope "
+                "(MARKETPLACE_REQUIRE_SIGNED_OFFERS is on)."
+            )
+        return
+
+    # Reject a stale or far-future envelope so a captured signature cannot be
+    # replayed later. Checked before the crypto so a malformed timestamp cannot
+    # be laundered by a valid signature.
+    if not _timestamp_within_skew(timestamp):
+        _record_signature_outcome("stale")
+        if enforced:
+            raise OfferSignatureError(
+                f"Offer timestamp '{timestamp}' is outside the "
+                f"{_max_skew_seconds()}s acceptance window."
+            )
+        return
+
+    public_key = ""
+    try:
+        from warden.marketplace.agent import get_agent  # noqa: PLC0415
+        agent = get_agent(from_agent_id, db_path=db_path)
+        public_key = getattr(agent, "public_key", "") or ""
+    except Exception as exc:
+        # A lookup failure must not become an accept. Under enforcement it
+        # denies; unenforced it is counted so the failure is visible rather
+        # than silently scored as "valid".
+        log.warning("offer signature: agent lookup failed for %s: %s", from_agent_id, exc)
+        _record_signature_outcome("lookup_error")
+        if enforced:
+            raise OfferSignatureError(
+                f"Could not resolve signing key for agent '{from_agent_id}'."
+            ) from exc
+        return
+
+    if not public_key:
+        _record_signature_outcome("no_key")
+        if enforced:
+            raise OfferSignatureError(
+                f"Agent '{from_agent_id}' has no registered public key to verify against."
+            )
+        return
+
+    canonical = _canonical_offer(
+        offer_type, price, neg.asset_ueciid, round_, from_agent_id,
+        timestamp, neg.negotiation_id,
+    )
+    if not _verify_offer_signature(canonical, signature, public_key):
+        _record_signature_outcome("invalid")
+        if enforced:
+            raise OfferSignatureError(
+                "Offer signature does not verify against the agent's registered public key."
+            )
+        return
+
+    _record_signature_outcome("valid")
+
+
+def _timestamp_within_skew(timestamp: str) -> bool:
+    """True when *timestamp* is a parseable ISO-8601 instant inside the skew window."""
+    if not timestamp:
+        return False
+    try:
+        parsed = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return abs((datetime.now(UTC) - parsed).total_seconds()) <= _max_skew_seconds()
 
 
 # ── NegotiationEngine ─────────────────────────────────────────────────────────
@@ -294,8 +481,17 @@ class NegotiationEngine:
         message: str = "",
         keypair=None,
         db_path: str = _DB_PATH,
+        signature: str = "",
+        timestamp: str = "",
     ) -> Offer:
-        """Send a counter-offer. Raises ValueError if negotiation closed or max rounds hit."""
+        """Send a counter-offer. Raises ValueError if negotiation closed or max rounds hit.
+
+        MP-1b: *signature* is the caller's Ed25519 proof over
+        ``build_offer_canonical(...)`` and *timestamp* the instant it signed.
+        Together they prove the caller controls *from_agent_id*; see
+        ``_assert_actor``. *keypair* remains for in-process callers that sign
+        server-side.
+        """
         neg = self._get_neg(negotiation_id, db_path)
         if neg is None:
             raise ValueError(f"Negotiation '{negotiation_id}' not found.")
@@ -314,8 +510,19 @@ class NegotiationEngine:
 
         now       = datetime.now(UTC).isoformat()
         new_round = neg.round_count + 1
-        canonical = _canonical_offer("offer", price, neg.asset_ueciid, new_round, from_agent_id, now)
-        sig       = _sign_offer(canonical, keypair) if keypair else ""
+
+        # Actor proof before any state change: an offer that cannot be attributed
+        # must not reach the price or the offer history.
+        _assert_actor(
+            neg=neg, from_agent_id=from_agent_id, offer_type="offer", price=price,
+            round_=new_round, signature=signature, timestamp=timestamp or now,
+            db_path=db_path,
+        )
+
+        canonical = _canonical_offer(
+            "offer", price, neg.asset_ueciid, new_round, from_agent_id, now, negotiation_id
+        )
+        sig       = signature or (_sign_offer(canonical, keypair) if keypair else "")
 
         offer = Offer(
             offer_id=f"OFR-{uuid.uuid4().hex[:10].upper()}",
@@ -354,8 +561,15 @@ class NegotiationEngine:
         from_agent_id: str,
         keypair=None,
         db_path: str = _DB_PATH,
+        signature: str = "",
+        timestamp: str = "",
     ) -> Offer:
-        """Accept the current offer. Closes the negotiation as 'accepted'."""
+        """Accept the current offer. Closes the negotiation as 'accepted'.
+
+        MP-1b: this is the step the impersonation exploit targeted — accepting
+        as the counterparty locks in whatever price the attacker just offered.
+        It carries the same actor proof as ``send_offer``.
+        """
         neg = self._get_neg(negotiation_id, db_path)
         if neg is None:
             raise ValueError(f"Negotiation '{negotiation_id}' not found.")
@@ -364,10 +578,18 @@ class NegotiationEngine:
 
         now       = datetime.now(UTC).isoformat()
         new_round = neg.round_count + 1
-        canonical = _canonical_offer(
-            "accept", neg.current_price, neg.asset_ueciid, new_round, from_agent_id, now
+
+        _assert_actor(
+            neg=neg, from_agent_id=from_agent_id, offer_type="accept",
+            price=neg.current_price, round_=new_round, signature=signature,
+            timestamp=timestamp or now, db_path=db_path,
         )
-        sig = _sign_offer(canonical, keypair) if keypair else ""
+
+        canonical = _canonical_offer(
+            "accept", neg.current_price, neg.asset_ueciid, new_round, from_agent_id,
+            now, negotiation_id,
+        )
+        sig = signature or (_sign_offer(canonical, keypair) if keypair else "")
 
         offer = Offer(
             offer_id=f"OFR-{uuid.uuid4().hex[:10].upper()}",

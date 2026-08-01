@@ -507,6 +507,21 @@ try:
             "warden_marketplace_listings_total"
         )
 
+    # MP-1b: offer-signature outcomes. `absent` is the one that matters during
+    # the bake period — it counts offers that would be rejected once
+    # MARKETPLACE_REQUIRE_SIGNED_OFFERS flips to true, so an operator can watch
+    # it reach zero before flipping instead of guessing.
+    try:
+        MARKETPLACE_OFFER_SIGNATURE_TOTAL = Counter(
+            "warden_marketplace_offer_signature_total",
+            "Marketplace offer signature verification outcomes",
+            ["result", "enforced"],
+        )
+    except ValueError:
+        MARKETPLACE_OFFER_SIGNATURE_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_marketplace_offer_signature_total"
+        )
+
     try:
         MARKETPLACE_PURCHASES_TOTAL = Counter(
             "warden_marketplace_purchases_total",

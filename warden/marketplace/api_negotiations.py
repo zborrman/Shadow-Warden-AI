@@ -35,6 +35,14 @@ class OfferRequest(BaseModel):
     from_agent_id: str
     price:         float
     message:       str = ""
+    # MP-1b actor proof. `signature` is base64 Ed25519 over
+    # negotiation.build_offer_canonical(...); `timestamp` is the ISO-8601 instant
+    # that envelope carries and must be inside MARKETPLACE_OFFER_MAX_SKEW_S.
+    # Optional at the schema level so unsigned clients keep working during the
+    # bake period — negotiation.signed_offers_required() decides whether an
+    # absent signature is counted or rejected, not this model.
+    signature:     str = ""
+    timestamp:     str = ""
 
 
 @router.post("/negotiations", status_code=201, dependencies=_WRITE)
@@ -63,6 +71,8 @@ async def send_offer(negotiation_id: str, body: OfferRequest) -> dict:
             from_agent_id=body.from_agent_id,
             price=body.price,
             message=body.message,
+            signature=body.signature,
+            timestamp=body.timestamp,
         )
         return offer.to_dict()
     except ValueError as exc:
@@ -76,6 +86,8 @@ async def accept_offer(negotiation_id: str, body: OfferRequest) -> dict:
         offer = NegotiationEngine().accept_offer(
             negotiation_id=negotiation_id,
             from_agent_id=body.from_agent_id,
+            signature=body.signature,
+            timestamp=body.timestamp,
         )
         return {"accepted": True, "offer": offer.to_dict()}
     except ValueError as exc:
