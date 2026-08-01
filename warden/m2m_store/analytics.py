@@ -10,6 +10,21 @@ Creates 10 SQLite tables that back the marketplace_* semantic models:
 These tables use flat columns (not JSON blobs) so the Semantic Layer
 engine can generate valid SQL against them directly.
 
+⚠️ NOT WIRED — see MP-5 (`docs/marketplace-modernization-plan.md`).
+As of the 2026-08-01 Track M audit, none of the ``record_*``/``register_*``
+functions below has a production caller — the only callers are in
+``warden/tests/test_marketplace_semantic.py``. The five Semantic Layer models
+that read these tables (``mp_listings``, ``mp_trades``, ``mp_escrow``,
+``mp_reputation``, ``mp_agents`` in ``warden/semantic_layer/engine.py``)
+therefore return empty results in production, and do so *silently* — as
+"no data" rather than "not wired".
+
+Pending owner decision D-2: either wire this projector into the marketplace
+write paths, or re-point those five models at the real ``marketplace_*``
+tables and delete this module. Recommendation is the latter — FT-6 is
+actively reducing the number of order-shaped models, and this would add a
+fifth live writer.
+
 Public API
 ──────────
   ensure_analytics_schema()   — idempotent schema bootstrap
