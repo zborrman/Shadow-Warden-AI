@@ -149,6 +149,13 @@ services:
       - WARDEN_ENV=${WARDEN_ENV:-dev}
       - WARDEN_DATA_DIR=${WARDEN_DATA_DIR:-/warden/data}
       - CONFIG_FAILCLOSED=${CONFIG_FAILCLOSED:-false}
+      # SR-9. ADMIN_KEY gates every X-Admin-Key endpoint (billing add-on
+      # grant/revoke, marketplace sponsor + KYA revoke, key-rotation, streams
+      # replay, tokenomics mint). These services carry no env_file, so without
+      # this passthrough a value set in .env never reaches the container: it was
+      # set on the VPS and empty in every container, leaving fail-open guards
+      # bypassed and fail-closed ones denying unconditionally.
+      - ADMIN_KEY=${ADMIN_KEY:-}
       - SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY:-}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://shadow-warden-ai.com,https://www.shadow-warden-ai.com,http://localhost:3000}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}

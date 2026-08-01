@@ -180,7 +180,15 @@ class TestTokenomicsApi:
         app.include_router(router)
         self.client = TestClient(app, raise_server_exceptions=False)
 
-    def test_mint_no_admin_key_required_when_env_empty(self):
+    def test_mint_allowed_in_explicit_dev_mode(self):
+        """SR-9 renamed this from test_mint_no_admin_key_required_when_env_empty.
+
+        The old name asserted the bug as intended behaviour: an unset ADMIN_KEY
+        used to skip the admin check entirely, so mint ran for anybody. It now
+        passes only because the suite sets ALLOW_UNAUTHENTICATED=true, which is
+        the one explicit dev escape in warden.admin_guard. In production an unset
+        key returns 503 and mint is unreachable, not open.
+        """
         resp = self.client.post("/tokenomics/mint", json={"agent_id": "api-agent-1", "amount": 10.0})
         assert resp.status_code == 200
         data = resp.json()

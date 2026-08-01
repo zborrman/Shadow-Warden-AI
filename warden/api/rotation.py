@@ -29,6 +29,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
+from warden.admin_guard import require_admin_key
 from warden.auth_guard import require_api_key
 from warden.config import settings
 
@@ -131,8 +132,9 @@ def _status_for(label: str, digest: str) -> dict:
 
 
 def _require_admin(x_admin_key: Annotated[str, Header(alias="X-Admin-Key")] = "") -> None:
-    if _ADMIN_KEY and x_admin_key != _ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="Admin key required.")
+    # SR-9: previously skipped the check entirely on an unset ADMIN_KEY, which
+    # was also snapshotted at import.
+    require_admin_key(x_admin_key)
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
