@@ -180,19 +180,37 @@ class TestTokenomicsApi:
         app.include_router(router)
         self.client = TestClient(app, raise_server_exceptions=False)
 
-    def test_mint_allowed_in_explicit_dev_mode(self):
-        """SR-9 renamed this from test_mint_no_admin_key_required_when_env_empty.
+    # SR-9 replaced test_mint_no_admin_key_required_when_env_empty, whose name
+    # asserted the bug as intended behaviour: an unset ADMIN_KEY used to skip the
+    # admin check entirely, so mint ran for anybody.
+    #
+    # These three pin each branch explicitly instead of inheriting whatever
+    # ADMIN_KEY the ambient environment happens to have. The original rewrite
+    # passed locally (no ADMIN_KEY set) and failed in CI (ADMIN_KEY present) --
+    # an admin-auth test must never depend on ambient env to decide which path
+    # it is exercising.
 
-        The old name asserted the bug as intended behaviour: an unset ADMIN_KEY
-        used to skip the admin check entirely, so mint ran for anybody. It now
-        passes only because the suite sets ALLOW_UNAUTHENTICATED=true, which is
-        the one explicit dev escape in warden.admin_guard. In production an unset
-        key returns 503 and mint is unreachable, not open.
-        """
+    def test_mint_allowed_in_explicit_dev_mode(self, monkeypatch):
+        """No key configured + the explicit dev escape => open, for local runs only."""
+        monkeypatch.delenv("ADMIN_KEY", raising=False)
+        monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "true")
         resp = self.client.post("/tokenomics/mint", json={"agent_id": "api-agent-1", "amount": 10.0})
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("simulated") is True or "agent_id" in data
+
+    def test_mint_denies_without_admin_key_when_one_is_configured(self, monkeypatch):
+        """The actual production posture: a key exists, the caller did not send it."""
+        monkeypatch.setenv("ADMIN_KEY", "prod-like-key")
+        resp = self.client.post("/tokenomics/mint", json={"agent_id": "api-agent-1", "amount": 10.0})
+        assert resp.status_code == 403
+
+    def test_mint_is_disabled_when_no_key_is_configured(self, monkeypatch):
+        """Unset key must disable the endpoint (503), never leave it open (200)."""
+        monkeypatch.delenv("ADMIN_KEY", raising=False)
+        monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "false")
+        resp = self.client.post("/tokenomics/mint", json={"agent_id": "api-agent-1", "amount": 10.0})
+        assert resp.status_code == 503
 
     def test_balance_endpoint(self):
         self.client.post("/tokenomics/mint", json={"agent_id": "api-agent-bal", "amount": 25.0})
