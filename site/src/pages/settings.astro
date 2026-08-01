@@ -444,7 +444,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           <div class="settings-card mt-6">
             <div class="flex items-center gap-3 mb-4">
               <h3 class="card-title">Detection Rules</h3>
-              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#6366f1;background:rgba(99,102,241,0.1)">153 active</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#80b4fd;background:rgba(128,180,253,0.1)">153 active</span>
               <button class="btn-primary-sm ml-auto">+ Add rule</button>
             </div>
             {[
@@ -476,7 +476,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           <div class="settings-card mt-6">
             <div class="flex items-center gap-3 mb-5">
               <h3 class="card-title">Members</h3>
-              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#6366f1;background:rgba(99,102,241,0.1)">5 members</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full" style="color:#80b4fd;background:rgba(128,180,253,0.1)">5 members</span>
               <button class="btn-primary-sm ml-auto">Invite member</button>
             </div>
             {[
@@ -488,7 +488,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
             ].map(m => (
               <div class="key-row">
                 <div class="w-9 h-9 rounded-full flex items-center justify-center text-[16px] flex-shrink-0"
-                     style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">{m.avatar}</div>
+                     style="background:rgba(128,180,253,0.1);border:1px solid rgba(128,180,253,0.2)">{m.avatar}</div>
                 <div class="key-info">
                   <div class="key-name">{m.name}</div>
                   <div class="key-meta">Joined {m.joined}</div>
@@ -519,8 +519,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               Loading subscription…
             </div>
             <div id="billing-plan" class="hidden">
-              <div class="flex items-center gap-4 p-4 rounded-xl mb-4" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15)">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px]" style="background:rgba(99,102,241,0.1)">⚡</div>
+              <div class="flex items-center gap-4 p-4 rounded-xl mb-4" style="background:rgba(128,180,253,0.06);border:1px solid rgba(128,180,253,0.15)">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[20px]" style="background:rgba(128,180,253,0.1)">⚡</div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span id="plan-name" class="text-[15px] font-bold" style="color:#f1f5f9">—</span>
@@ -534,7 +534,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                 <span id="usage-count" style="color:#f1f5f9">—</span>
               </div>
               <div class="h-2 rounded-full overflow-hidden mb-5" style="background:rgba(255,255,255,0.06)">
-                <div id="usage-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#6366f1,#8b5cf6);width:0%"></div>
+                <div id="usage-bar" class="h-full rounded-full" style="background:linear-gradient(90deg,#80b4fd,#38bdf8);width:0%"></div>
               </div>
             </div>
 
@@ -586,7 +586,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                               style="color:#10b981;background:rgba(16,185,129,0.1)">{row.status}</span>
                       </td>
                       <td class="py-2.5 text-right">
-                        <button class="text-[11px]" style="color:#6366f1">PDF ↓</button>
+                        <button class="text-[11px]" style="color:#80b4fd">PDF ↓</button>
                       </td>
                     </tr>
                   ))}
@@ -765,7 +765,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
             <div class="space-y-3 max-w-md">
               {[
                 { label: 'GDPR',       controls: 6,  color: '#38bdf8', on: true  },
-                { label: 'SOC 2',      controls: 5,  color: '#818cf8', on: true  },
+                { label: 'SOC 2',      controls: 5,  color: '#80b4fd', on: true  },
                 { label: 'ISO 27001',  controls: 4,  color: '#f59e0b', on: true  },
                 { label: 'HIPAA',      controls: 4,  color: '#10b981', on: false },
               ].map(fw => (
@@ -896,7 +896,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               Classical Ed25519/X25519 remain active on all tiers.
             </p>
             <div class="flex gap-3 flex-wrap">
-              <a href="/pricing#enterprise" class="btn-primary-sm" style="background:linear-gradient(135deg,#06b6d4,#8b5cf6)">
+              <a href="/pricing#enterprise" class="btn-primary-sm" style="background:linear-gradient(135deg,#06b6d4,#38bdf8)">
                 Upgrade to Enterprise →
               </a>
               <a href="/doc#pqc" class="btn-secondary-sm">PQC Documentation ↗</a>
@@ -1134,8 +1134,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     font-weight: 500;
   }
   .nav-item:hover { background: rgba(255,255,255,0.04); color: #94a3b8; }
-  .nav-item.active { background: rgba(99,102,241,0.12); color: #f1f5f9; }
-  .nav-item.active .nav-icon { color: #6366f1; }
+  .nav-item.active { background: rgba(128,180,253,0.12); color: #f1f5f9; }
+  .nav-item.active .nav-icon { color: #80b4fd; }
   .nav-icon { font-size: 15px; flex-shrink: 0; }
   .nav-text { flex: 1; }
   .nav-badge {
@@ -1143,8 +1143,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     font-weight: 700;
     padding: 1px 7px;
     border-radius: 99px;
-    background: rgba(99,102,241,0.15);
-    color: #818cf8;
+    background: rgba(128,180,253,0.15);
+    color: #80b4fd;
   }
   .danger-item { color: #64748b; }
   .danger-item:hover { background: rgba(239,68,68,0.08); color: #ef4444; }
@@ -1296,7 +1296,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     transition: background 0.15s, color 0.15s;
   }
   .seg-btn + .seg-btn { border-left: 1px solid rgba(255,255,255,0.08); }
-  .seg-btn.active { background: rgba(99,102,241,0.2); color: #c7d2fe; }
+  .seg-btn.active { background: rgba(128,180,253,0.2); color: #80b4fd; }
   .seg-btn:hover:not(.active) { background: rgba(255,255,255,0.05); color: #94a3b8; }
 
   /* Rate limit input row */
@@ -1353,7 +1353,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     transition: border-color 0.15s;
     font-family: inherit;
   }
-  .settings-input:focus { border-color: rgba(99,102,241,0.5); }
+  .settings-input:focus { border-color: rgba(128,180,253,0.5); }
 
   /* Toggle switch */
   .toggle-label { cursor: pointer; flex-shrink: 0; }
@@ -1384,8 +1384,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #fff;
-    background: #6366f1;
+    color: #070910;
+    background: #80b4fd;
     border: none;
     cursor: pointer;
     transition: opacity 0.15s;
@@ -1448,7 +1448,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     border-radius: 99px;
     flex-shrink: 0;
   }
-  .role-owner  { color: #f1f5f9; background: rgba(99,102,241,0.2); }
+  .role-owner  { color: #f1f5f9; background: rgba(128,180,253,0.2); }
   .role-admin  { color: #10b981; background: rgba(16,185,129,0.12); }
   .role-viewer { color: #64748b; background: rgba(255,255,255,0.06); }
 

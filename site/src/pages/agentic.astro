@@ -221,7 +221,7 @@ const apiUrl           = API_URL;
               <td>
                 <div class="trust-row">
                   <span class="mono" style="color:#10b981;min-width:34px">{a.trust.toFixed(2)}</span>
-                  <div class="trust-bg"><div class="trust-fill" style={`width:${a.trust*100}%`}></div></div>
+                  <div class="trust-bg"><div class="trust-fill" style={`transform:scaleX(${a.trust})`}></div></div>
                 </div>
               </td>
               <td><span class={`badge badge-${a.autonomy_level.toLowerCase()}`}>{a.autonomy_level}</span></td>
@@ -346,7 +346,7 @@ const apiUrl           = API_URL;
           <li>142 sat example cost ($0.002 at $50k/BTC)</li>
         </ul>
       </div>
-      <div class="pay-card" style="border-color:rgba(123,92,240,.2)">
+      <div class="pay-card" style="border-color:rgba(128,180,253,.2)">
         <div class="pay-icon">💜</div>
         <div class="pay-name">x402 USDC</div>
         <div class="pay-tag">HTTP 402 · EVM · Replay Protection</div>
@@ -511,7 +511,7 @@ const SEED_AUC     = JSON.parse(_sd ? _sd.dataset.auctions: '[]');
 const API_URL      = _sd ? _sd.dataset.api : '';
 
 const C = {
-  cyan:   '#0ECFFF', violet: '#7B5CF0', green:  '#10b981',
+  cyan:   '#0ECFFF', violet: '#80b4fd', green:  '#10b981',
   amber:  '#F59E0B', red:    '#EF4444', brand:  '#80b4fd',
   dim:    '#1F2937', lo:     '#475569',
 };

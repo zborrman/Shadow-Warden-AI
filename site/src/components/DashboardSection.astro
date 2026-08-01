@@ -24,14 +24,14 @@ const tierBg:    Record<string, string> = { 'All': 'rgba(100,116,139,.12)', 'Ind
 <section id="dashboard" class="relative py-24 overflow-hidden"
          style="background:var(--sw-bg)">
 
-  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 0%,rgba(99,102,241,.07) 0%,transparent 70%)"></div>
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 0%,rgba(128,180,253,.07) 0%,transparent 70%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Header -->
     <div class="text-center mb-16">
       <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[12px] font-semibold"
-           style="color:var(--sw-indigo);background:var(--sw-tint-indigo);border:1px solid rgba(99,102,241,.2)">
+           style="color:var(--sw-indigo);background:var(--sw-tint-indigo);border:1px solid rgba(128,180,253,.2)">
         ◈ Dashboard
       </div>
       <h2 class="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold mb-4" style="color:var(--sw-fg-1)">
@@ -78,7 +78,7 @@ const tierBg:    Record<string, string> = { 'All': 'rgba(100,116,139,.12)', 'Ind
         <div class="h-[120px] flex items-end gap-1">
           {[18,32,24,45,38,52,41,29,58,44,36,62,48,35,71,55,43,68,52,39,76,61,48,83,67,54,91,72,59,86].map((v,i) => (
             <div class="flex-1 rounded-t-sm transition-opacity hover:opacity-80"
-                 style={`height:${v}%;background:${i % 5 === 0 ? 'var(--sw-red-deep)' : i % 7 === 0 ? 'var(--sw-amber)' : 'rgba(99,102,241,.6)'}`}></div>
+                 style={`height:${v}%;background:${i % 5 === 0 ? 'var(--sw-red-deep)' : i % 7 === 0 ? 'var(--sw-amber)' : 'rgba(128,180,253,.6)'}`}></div>
           ))}
         </div>
         <div class="flex justify-between mt-2 text-[10px]" style="color:var(--sw-fg-4)">

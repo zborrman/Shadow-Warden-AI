@@ -12,7 +12,7 @@ const API_URL     = 'https://api.shadow-warden-ai.com';
 
 const FLOW = [
   { step: '1', label: 'Upload',    detail: 'PDF / DOCX / PPTX / XLSX / HTML / image / audio / ZIP',  color: '#3b82f6' },
-  { step: '2', label: 'Convert',   detail: 'Microsoft MarkItDown → clean Markdown',                    color: '#8b5cf6' },
+  { step: '2', label: 'Convert',   detail: 'Microsoft MarkItDown → clean Markdown',                    color: '#38bdf8' },
   { step: '3', label: 'Redact',    detail: 'SecretRedactor — 15 patterns + entropy scan',             color: '#f59e0b' },
   { step: '4', label: 'Classify',  detail: 'Data class: PHI / PII / FINANCIAL / CLASSIFIED / GENERAL', color: '#06b6d4' },
   { step: '5', label: 'Filter',    detail: '9-layer pipeline — Topology → Brain → Causal → Decision',  color: '#ef4444' },
@@ -157,7 +157,7 @@ const CACHE_TTLS = [
             {
               icon: '🔗',
               title: 'REST API',
-              color: '#8b5cf6',
+              color: '#38bdf8',
               lines: [
                 'POST /document-intel/convert-and-scan',
                 'POST /document-intel/convert',

@@ -11,7 +11,7 @@ interface Props {
   features: Feature[];
   accent?: string;
 }
-const { features, accent = '#6366f1' } = Astro.props;
+const { features, accent = '#80b4fd' } = Astro.props;
 
 const statusLabel: Record<string, string> = {
   shipped:     '✅ Shipped',
@@ -22,10 +22,10 @@ const statusLabel: Record<string, string> = {
 const tierColor: Record<string, string> = {
   'All':                'rgba(148,163,184,.12)',
   'Individual+':        'rgba(16,185,129,.12)',
-  'Community Business+':'rgba(139,92,246,.12)',
-  'Community Business': 'rgba(139,92,246,.12)',
-  'Pro':                'rgba(99,102,241,.12)',
-  'Pro+':               'rgba(99,102,241,.12)',
+  'Community Business+':'rgba(128,180,253,.12)',
+  'Community Business': 'rgba(128,180,253,.12)',
+  'Pro':                'rgba(128,180,253,.12)',
+  'Pro+':               'rgba(128,180,253,.12)',
   'Enterprise':         'rgba(6,182,212,.12)',
   'Starter':            'rgba(148,163,184,.12)',
   'Individual':         'rgba(16,185,129,.12)',
@@ -33,10 +33,10 @@ const tierColor: Record<string, string> = {
 const tierText: Record<string, string> = {
   'All':                '#94a3b8',
   'Individual+':        '#10b981',
-  'Community Business+':'#8b5cf6',
-  'Community Business': '#8b5cf6',
-  'Pro':                '#6366f1',
-  'Pro+':               '#6366f1',
+  'Community Business+':'#38bdf8',
+  'Community Business': '#38bdf8',
+  'Pro':                '#80b4fd',
+  'Pro+':               '#80b4fd',
   'Enterprise':         '#06b6d4',
   'Starter':            '#94a3b8',
   'Individual':         '#10b981',

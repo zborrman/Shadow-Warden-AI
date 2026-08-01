@@ -40,8 +40,8 @@ const tiers = [
     name: 'Community Business',
     price_monthly: 19,
     price_annual: 194,
-    color: '#8b5cf6',
-    tint: 'rgba(139,92,246,0.08)',
+    color: '#38bdf8',
+    tint: 'rgba(128,180,253,0.08)',
     tag: 'Teams',
     highlight: false,
     cta: 'Start Free Trial',
@@ -53,8 +53,8 @@ const tiers = [
     name: 'Pro',
     price_monthly: 69,
     price_annual: 705,
-    color: '#6366f1',
-    tint: 'rgba(99,102,241,0.1)',
+    color: '#80b4fd',
+    tint: 'rgba(128,180,253,0.1)',
     tag: 'Most Popular',
     highlight: true,
     cta: 'Start Free Trial',
@@ -293,7 +293,7 @@ const addons = [
                   <ul class="space-y-1 flex-1">
                     {a.bullets.map((b: string) => (
                       <li class="flex items-start gap-1.5 text-[11px]" style="color:#64748b">
-                        <span style="color:#8b5cf6;flex-shrink:0;margin-top:1px">◆</span>
+                        <span style="color:#38bdf8;flex-shrink:0;margin-top:1px">◆</span>
                         {b}
                       </li>
                     ))}
@@ -467,18 +467,18 @@ const addons = [
               </div>
 
               <!-- Upsell tip -->
-              <div id="roi-upsell" class="hidden rounded-lg p-4" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22)">
+              <div id="roi-upsell" class="hidden rounded-lg p-4" style="background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.22)">
                 <div class="flex items-start gap-3">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                   <div>
-                    <div class="text-[12px] font-semibold mb-1" style="color:#6366f1">Smart upgrade suggestion</div>
+                    <div class="text-[12px] font-semibold mb-1" style="color:#80b4fd">Smart upgrade suggestion</div>
                     <div class="text-[11px] leading-relaxed" id="roi-upsell-text" style="color:#94a3b8"></div>
                     <a href="#roi-estimator" onclick="document.getElementById('roi-tier').value=this.dataset.tier;window._roiCalc();return false;"
                        id="roi-upsell-cta" data-tier="community"
                        class="inline-block mt-2 text-[11px] font-semibold px-3 py-1 rounded"
-                       style="color:#6366f1;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25)">
+                       style="color:#80b4fd;background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">
                        Apply upgrade →
                     </a>
                   </div>
@@ -625,7 +625,7 @@ const addons = [
     box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   }
   .tier-card.highlight {
-    box-shadow: 0 0 0 1px rgba(99,102,241,0.4), 0 16px 48px rgba(99,102,241,0.15);
+    box-shadow: 0 0 0 1px rgba(128,180,253,0.4), 0 16px 48px rgba(128,180,253,0.15);
   }
   details summary::-webkit-details-marker { display: none; }
 

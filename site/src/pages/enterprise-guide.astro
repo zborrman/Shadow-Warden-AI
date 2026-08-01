@@ -114,7 +114,7 @@ import Layout from '../layouts/Layout.astro';
       <div class="grid sm:grid-cols-3 gap-4 mb-8">
         {[
           ['$2.3M', 'Average annual breach cost avoided (IBM 2024)', '#FF2D55'],
-          ['340%', '3-year ROI for mid-market deployments', '#6366f1'],
+          ['340%', '3-year ROI for mid-market deployments', '#80b4fd'],
           ['< 2 ms', 'Topological gatekeeper P50 latency', '#10b981'],
         ].map(([val, desc, color]) => (
           <div class="rounded-xl p-5 border border-white/[0.07]" style={`background:rgba(255,255,255,0.02);border-top:2px solid ${color}`}>
@@ -159,8 +159,8 @@ import Layout from '../layouts/Layout.astro';
           ['L1', 'Auth Guard', 'Per-tenant API keys (SHA-256 hash, constant-time compare). Fail-closed — missing key = 401.', '#FF2D55', '< 0.1 ms'],
           ['L2', 'Topological Gatekeeper', 'n-gram point cloud → β₀/β₁ Betti numbers via TDA. Rejects structurally anomalous prompts.', '#f59e0b', '< 2 ms'],
           ['L3', 'Obfuscation Decoder', 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, unicode homoglyphs.', '#10b981', '< 1 ms'],
-          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', '#6366f1', '< 0.5 ms'],
-          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', '#8b5cf6', '< 1 ms'],
+          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', '#80b4fd', '< 0.5 ms'],
+          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', '#38bdf8', '< 1 ms'],
           ['L6', 'ML Brain (MiniLM)', 'all-MiniLM-L6-v2 cosine similarity + Poincaré ball hyperbolic distance blend (70/30). Adversarial suffix stripping.', '#06b6d4', '3–6 ms'],
           ['L7', 'Causal Arbiter', 'Bayesian DAG — 5 nodes, Pearl do-calculus, backdoor correction. P(HIGH_RISK|evidence).', '#f59e0b', '< 0.5 ms'],
           ['L8', 'Phishing & SE Guard', 'URL phishing detection + social engineering classification (PhishGuard + SE-Arbiter).', '#10b981', '< 0.5 ms'],
@@ -196,11 +196,11 @@ import Layout from '../layouts/Layout.astro';
             highlights: ['PQC signing on all AI transactions', 'Sovereign routing — PHI stays US/EU only', 'SOC 2 Type II evidence vault', 'GDPR Art. 35 DPIA pre-filled'] },
           { seg: 'B', title: 'Healthcare / Life Sciences', tier: 'Enterprise', color: '#10b981',
             highlights: ['PHI data pod jurisdiction lock', 'HIPAA audit chain (STIX 2.1)', 'Secret redactor covers HL7/FHIR tokens', 'Causal Transfer Guard blocks exfiltration'] },
-          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Pro', color: '#6366f1',
+          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Pro', color: '#80b4fd',
             highlights: ['Per-tenant API keys + rate limits', 'MasterAgent SOC coordinator', 'Shadow AI Discovery for rogue models', 'XAI audit reports per request'] },
           { seg: 'D', title: 'Government / Public Sector', tier: 'Enterprise', color: '#FF2D55',
             highlights: ['MASQUE H3 sovereign tunnels', '8-jurisdiction transfer matrix', 'Post-quantum key encapsulation (ML-KEM-768)', 'Air-gapped Evolution Engine mode'] },
-          { seg: 'E', title: 'SMB / Startup', tier: 'Community Business', color: '#8b5cf6',
+          { seg: 'E', title: 'SMB / Startup', tier: 'Community Business', color: '#38bdf8',
             highlights: ['Single Docker Compose deploy', 'SMB Governance Suite add-on', 'AI Budget Dashboard + Vendor Registry', 'Obsidian Plugin for note security'] },
           { seg: 'F', title: 'AI-Native / LLM Platform', tier: 'Pro + Add-ons', color: '#06b6d4',
             highlights: ['OpenAI-compatible proxy endpoint', 'LangChain WardenCallback', 'SOVA scheduled threat sync (every 6h)', 'Evolution Engine with ArXiv auto-synthesis'] },
@@ -323,7 +323,7 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
                 ['minio-init', '—', 'One-shot bucket provisioning init container'],
               ].map(([svc, port, role], i) => (
                 <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
-                  <td class="px-5 py-2.5 font-mono text-[#6366f1]">{svc}</td>
+                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{svc}</td>
                   <td class="px-5 py-2.5 font-mono text-[#94a3b8]">{port}</td>
                   <td class="px-5 py-2.5 text-[#94a3b8]">{role}</td>
                 </tr>
@@ -350,15 +350,15 @@ curl http://localhost:8001/health
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
         Financial impact is calculated across five independent cost models using IBM 2024 benchmarks.
-        Run <code class="text-[#6366f1] bg-[#6366f1]/10 px-1 rounded">python scripts/impact_analysis.py --live --industry fintech</code> for real-time figures.
+        Run <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">python scripts/impact_analysis.py --live --industry fintech</code> for real-time figures.
       </p>
       <div class="space-y-3 mb-8">
         {[
           ['Breach Prevention', 'Blocks average AI-enabled breach ($2.3M IBM median). Multiplier 1.6× for regulated industries.', '$2.3M – $3.7M', '#FF2D55'],
           ['Secret Leak Prevention', '15-pattern + entropy scan catches API keys, JWTs, PII before reaching third-party LLMs.', '$180K – $450K', '#f59e0b'],
           ['Compliance Penalty Avoidance', 'GDPR Art. 83 max €20M or 4% revenue. SOC 2 enables $500K–$2M contract eligibility.', '$20K – $2M', '#10b981'],
-          ['Productivity Recovery', 'Eliminates manual prompt review. ~$1,200/employee/year at 1 FTE per 500 users.', '$120K – $600K', '#6366f1'],
-          ['Shadow AI Cost Control', 'Detects unauthorized AI spend. Median $47K/yr untracked LLM costs per 200-person org.', '$47K – $190K', '#8b5cf6'],
+          ['Productivity Recovery', 'Eliminates manual prompt review. ~$1,200/employee/year at 1 FTE per 500 users.', '$120K – $600K', '#80b4fd'],
+          ['Shadow AI Cost Control', 'Detects unauthorized AI spend. Median $47K/yr untracked LLM costs per 200-person org.', '$47K – $190K', '#38bdf8'],
         ].map(([model, desc, impact, color]) => (
           <div class="flex items-start gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
             <div class="flex-1">
@@ -430,7 +430,7 @@ curl http://localhost:8001/health
               ['ComplianceAgent', 'SLA monitors, SOC 2 controls, ROI proposals'],
             ].map(([agent, role]) => (
               <div class="flex gap-3 p-2.5 rounded-lg" style="background:rgba(255,255,255,0.03)">
-                <span class="text-[11px] font-mono text-[#6366f1] flex-shrink-0 w-28">{agent}</span>
+                <span class="text-[11px] font-mono text-[#80b4fd] flex-shrink-0 w-28">{agent}</span>
                 <span class="text-[11px]" style="color:#64748b">{role}</span>
               </div>
             ))}
@@ -447,11 +447,11 @@ curl http://localhost:8001/health
         <div class="p-5">
           <p class="text-[12px] mb-4" style="color:#94a3b8">
             Every blocked or flagged request generates a 9-stage causal chain: which layer fired, the primary cause,
-            and counterfactual remediations. Available as HTML or PDF via <code class="text-[#6366f1] bg-[#6366f1]/10 px-1 rounded">GET /xai/report/{'{id}'}/pdf</code>.
+            and counterfactual remediations. Available as HTML or PDF via <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">GET /xai/report/{'{id}'}/pdf</code>.
           </p>
           <div class="flex flex-wrap gap-2">
             {['topology','obfuscation','secrets','semantic_rules','brain','causal','phish','ers','decision'].map(s => (
-              <span class="text-[10px] font-mono px-2 py-1 rounded" style="background:rgba(99,102,241,0.1);color:#6366f1;border:1px solid rgba(99,102,241,0.2)">{s}</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded" style="background:rgba(128,180,253,0.1);color:#80b4fd;border:1px solid rgba(128,180,253,0.2)">{s}</span>
             ))}
           </div>
         </div>
@@ -484,9 +484,9 @@ curl http://localhost:8001/health
                 <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
                   <td class="px-5 py-2.5 font-semibold text-white">{tier}</td>
                   <td class="px-5 py-2.5 text-[#94a3b8]">{rqd}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#6366f1]">{cpu}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#6366f1]">{ram}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#6366f1]">{disk}</td>
+                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{cpu}</td>
+                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{ram}</td>
+                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{disk}</td>
                   <td class="px-5 py-2.5 text-[#64748b]">{notes}</td>
                 </tr>
               ))}
@@ -523,7 +523,7 @@ curl http://localhost:8001/health
             'Art. 30 — ForensicsAgent generates processing record automatically',
             'Art. 83 — audit chain timestamps defensible in proceedings',
           ]},
-          { framework: 'SOC 2 Type II', color: '#6366f1', items: [
+          { framework: 'SOC 2 Type II', color: '#80b4fd', items: [
             'CC6.1 — per-tenant API key isolation, constant-time compare',
             'CC6.7 — all traffic TLS 1.3+, Caddy HSTS, optional PQC layer',
             'CC7.2 — SOVA scheduled health monitoring, Grafana SLO alerts',
@@ -537,7 +537,7 @@ curl http://localhost:8001/health
             'Enterprise-tier only (PQC gate in TIER_LIMITS)',
             'Hybrid key ID convention: v1-hybrid suffix on PQC keypairs',
           ]},
-          { framework: 'Analytics & Commerce (v7.1)', color: '#8b5cf6', items: [
+          { framework: 'Analytics & Commerce (v7.1)', color: '#38bdf8', items: [
             'AI Analytics Hub: 9 built-in Semantic Layer models, Redis query cache',
             'Self-Service Catalog: tenant model registry, SQLite persistence, hot-reload',
             'Commerce Budget Guardian: real MTD spend from ai_spend model, Slack alerts',
@@ -569,7 +569,7 @@ curl http://localhost:8001/health
         <h2 class="text-[24px] font-bold">Configuration Reference</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
-        All configuration is via environment variables. Copy <code class="text-[#6366f1] bg-[#6366f1]/10 px-1 rounded">.env.example</code> to <code class="text-[#6366f1] bg-[#6366f1]/10 px-1 rounded">.env</code> and override as needed.
+        All configuration is via environment variables. Copy <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">.env.example</code> to <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">.env</code> and override as needed.
       </p>
       <div class="space-y-5">
         {[
@@ -621,7 +621,7 @@ curl http://localhost:8001/health
                 <tbody>
                   {vars.map(([key, def, desc], i) => (
                     <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
-                      <td class="px-5 py-2.5 font-mono text-[#6366f1] w-56 align-top">{key}</td>
+                      <td class="px-5 py-2.5 font-mono text-[#80b4fd] w-56 align-top">{key}</td>
                       <td class="px-5 py-2.5 font-mono text-[#f59e0b] w-32 align-top">{def}</td>
                       <td class="px-5 py-2.5 align-top" style="color:#94a3b8">{desc}</td>
                     </tr>
