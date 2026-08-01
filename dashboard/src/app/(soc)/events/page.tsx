@@ -76,7 +76,7 @@ export default function EventsPage() {
                 onClick={() => setFilter(v)}
                 className={cn(
                   "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                  filter === v ? "bg-accent-blue text-white" : "text-gray-400 hover:text-white"
+                  filter === v ? "bg-accent-blue text-[#070910]" : "text-gray-400 hover:text-white"
                 )}
               >
                 {v}

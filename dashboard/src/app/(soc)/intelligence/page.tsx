@@ -175,8 +175,8 @@ export default function IntelligencePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2a42" />
                 <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} />
                 <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} />
-                <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 11 }} />
-                <Line type="monotone" dataKey="total"   stroke="#2563eb" strokeWidth={2} dot={false} name="Total" />
+                <Tooltip contentStyle={{ background: "#0c1020", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 11 }} />
+                <Line type="monotone" dataKey="total"   stroke="#80b4fd" strokeWidth={2} dot={false} name="Total" />
                 <Line type="monotone" dataKey="blocked" stroke="#ef4444" strokeWidth={2} dot={false} name="Blocked" />
               </LineChart>
             </ResponsiveContainer>
@@ -193,7 +193,7 @@ export default function IntelligencePage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e2a42" horizontal={false} />
                 <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} width={110} axisLine={false} />
-                <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: "#0c1020", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 11 }} />
                 <Bar dataKey="count" fill="#ef4444" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

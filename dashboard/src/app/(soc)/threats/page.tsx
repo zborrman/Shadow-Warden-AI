@@ -15,7 +15,7 @@ const FLAG_LABEL: Record<string, string> = {
   shadow_ban:         "Shadow Ban",
 };
 
-const BAR_COLORS = ["#7c3aed", "#2563eb", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"];
+const BAR_COLORS = ["#7c3aed", "#80b4fd", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"];
 
 const RADAR_AXES = ["Jailbreak", "Obfuscation", "Secret Exfil", "SE / Phishing", "Data Poisoning", "Prompt Injection"];
 
@@ -51,7 +51,7 @@ export default function ThreatsPage() {
                 <BarChart data={barData} layout="vertical">
                   <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} width={120} />
-                  <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }} />
+                  <Tooltip contentStyle={{ background: "#0c1020", border: "1px solid #1e2a42", borderRadius: 8, fontSize: 12 }} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {barData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
                   </Bar>

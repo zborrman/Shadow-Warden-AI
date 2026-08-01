@@ -13,10 +13,10 @@ import { WARDEN_PROXY } from "@/lib/api";
 
 // ─── Design tokens (match sw-* from design system) ──────────────────
 const sw = {
-  bg:        "#050810",
-  surf1:     "#0a0e1a",
-  surf2:     "#0d1220",
-  surf3:     "#111828",
+  bg:        "#070910",
+  surf1:     "#0c1020",
+  surf2:     "#0c1020",
+  surf3:     "#111827",
   surf4:     "#1a2236",
   border:    "rgba(124,58,237,0.14)",
   borderStr: "rgba(124,58,237,0.30)",

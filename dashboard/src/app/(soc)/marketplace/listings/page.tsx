@@ -140,7 +140,7 @@ export default function ListingsPage() {
               <XAxis dataKey="type" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis hide />
               <Tooltip
-                contentStyle={{ background: "#0d1220", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 11 }}
+                contentStyle={{ background: "#0c1020", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 11 }}
                 labelStyle={{ color: "#94a3b8" }}
                 itemStyle={{ color: "#e2e8f0" }}
               />
@@ -264,7 +264,7 @@ export default function ListingsPage() {
       {/* Buy modal */}
       {buying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-[#0d1220] rounded-2xl border border-white/10 p-6 shadow-2xl">
+          <div className="w-full max-w-sm bg-[#0c1020] rounded-2xl border border-white/10 p-6 shadow-2xl">
             <h2 className="text-base font-bold text-white mb-4">Confirm Purchase</h2>
             <p className="text-sm text-slate-400 mb-4">
               Listing <span className="font-mono text-white">{buying.slice(0, 18)}…</span>

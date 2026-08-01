@@ -48,7 +48,7 @@ export default function BudgetPage() {
   const alertCount = depts.filter(d => d.status === "alert").length;
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white">
+    <div className="min-h-screen bg-[#070910] text-white">
       <Header title="AI Budget Dashboard" subtitle="Real-time spend vs cap by department" />
       <main className="p-6 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
