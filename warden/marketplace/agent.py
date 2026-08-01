@@ -34,6 +34,22 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.agent")
 
 _DB_PATH  = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock  = threading.RLock()
 _DEFAULT_MANDATE_USD = float(os.getenv("MARKETPLACE_DEFAULT_MANDATE_USD", "1000"))
 
@@ -97,9 +113,10 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         _ensure_columns(con)
         yield con
@@ -144,7 +161,7 @@ def register_agent(
     community_id: str,
     public_key_b64: str,
     capabilities: list[str],
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> MarketplaceAgent:
     """Register a marketplace agent and create its AP2 mandate.
 
@@ -213,7 +230,7 @@ def register_agent(
     return agent
 
 
-def get_agent(agent_id: str, db_path: str = _DB_PATH) -> MarketplaceAgent | None:
+def get_agent(agent_id: str, db_path: str | None = None) -> MarketplaceAgent | None:
     with _conn(db_path) as con:
         row = con.execute(
             "SELECT * FROM marketplace_agents WHERE agent_id=?", (agent_id,)
@@ -225,7 +242,7 @@ def update_capabilities(
     agent_id: str,
     tenant_id: str,
     capabilities: list[str],
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> bool:
     valid = [c for c in capabilities if c in VALID_CAPABILITIES]
     if not valid:
@@ -243,7 +260,7 @@ def update_agent(
     *,
     name: str | None = None,
     budget_limit: float | None = None,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> bool:
     """Patch name and/or budget_limit on an agent (no tenant guard — caller verifies)."""
     parts: list[str] = []
@@ -265,7 +282,7 @@ def update_agent(
         return cur.rowcount > 0
 
 
-def deactivate_agent(agent_id: str, db_path: str = _DB_PATH) -> bool:
+def deactivate_agent(agent_id: str, db_path: str | None = None) -> bool:
     """Set agent status → 'inactive' (soft delete, preserves audit trail)."""
     with _db_lock, _conn(db_path) as con:
         cur = con.execute(
@@ -278,7 +295,7 @@ def deactivate_agent(agent_id: str, db_path: str = _DB_PATH) -> bool:
 def suspend_agent(
     agent_id: str,
     tenant_id: str,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> bool:
     with _db_lock, _conn(db_path) as con:
         cur = con.execute(
@@ -292,7 +309,7 @@ def list_agents(
     tenant_id: str | None = None,
     community_id: str | None = None,
     limit: int = 50,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[MarketplaceAgent]:
     query = "SELECT * FROM marketplace_agents WHERE 1=1"
     params: list = []
@@ -309,7 +326,7 @@ def list_agents(
     return [_row_to_agent(r) for r in rows]
 
 
-def get_agent_stats(tenant_id: str, db_path: str = _DB_PATH) -> dict:
+def get_agent_stats(tenant_id: str, db_path: str | None = None) -> dict:
     with _conn(db_path) as con:
         total = con.execute(
             "SELECT COUNT(*) FROM marketplace_agents WHERE tenant_id=?", (tenant_id,)

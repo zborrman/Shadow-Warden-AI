@@ -27,6 +27,22 @@ from warden.db.connect import open_db_readonly
 log = logging.getLogger("warden.marketplace.sybil_guard")
 
 _DB_PATH        = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _WINDOW_HOURS   = int(os.getenv("SYBIL_CIRCULAR_WINDOW_HOURS", "24"))
 _Z_THRESHOLD    = float(os.getenv("SYBIL_Z_THRESHOLD", "3.0"))
 _FLAG_TTL_HOURS = 72
@@ -53,7 +69,7 @@ class SybilGuard:
 
     # ── Circular trade detection ──────────────────────────────────────────────
 
-    def detect_circular_trades(self, db_path: str = _DB_PATH) -> list[tuple[str, str]]:
+    def detect_circular_trades(self, db_path: str | None = None) -> list[tuple[str, str]]:
         """Return (agent_A, agent_B) pairs that traded both directions in WINDOW_HOURS."""
         cutoff = (datetime.now(UTC) - timedelta(hours=_WINDOW_HOURS)).isoformat()
         try:
@@ -81,7 +97,7 @@ class SybilGuard:
 
     # ── Volume spike detection ────────────────────────────────────────────────
 
-    def detect_volume_spike(self, agent_id: str, db_path: str = _DB_PATH) -> float:
+    def detect_volume_spike(self, agent_id: str, db_path: str | None = None) -> float:
         """Return z-score of the agent's 24h trade count vs 30-day rolling mean."""
         try:
             now = datetime.now(UTC)
@@ -126,7 +142,7 @@ class SybilGuard:
 
     # ── Combined penalty ──────────────────────────────────────────────────────
 
-    def compute_sybil_penalty(self, agent_id: str, db_path: str = _DB_PATH) -> float:
+    def compute_sybil_penalty(self, agent_id: str, db_path: str | None = None) -> float:
         """[0.0–1.0] penalty: 0.5 for circular trades + ≤0.5 for volume spike."""
         penalty = 0.0
         try:

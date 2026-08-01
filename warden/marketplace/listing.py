@@ -27,6 +27,22 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.listing")
 
 _DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock = threading.RLock()
 
 # Stale signals threshold — signal assets older than this are auto-delisted
@@ -293,9 +309,10 @@ def upsert_mirrored_order(
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         _migrate_chain_column(con)
         _migrate_sponsored_columns(con)
@@ -404,7 +421,7 @@ def publish_listing(
     demand_score: float = 0.5,
     expires_hours: int | None = None,
     chain: str = "sepolia",
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> Listing:
     from warden.web3.chains import VALID_CHAINS  # noqa: PLC0415
     if chain not in VALID_CHAINS:
@@ -453,7 +470,7 @@ def publish_listing(
     return listing
 
 
-def get_listing(listing_id: str, db_path: str = _DB_PATH) -> Listing | None:
+def get_listing(listing_id: str, db_path: str | None = None) -> Listing | None:
     with _conn(db_path) as con:
         row = con.execute(
             "SELECT * FROM marketplace_listings WHERE listing_id=?", (listing_id,)
@@ -467,7 +484,7 @@ def get_listings(
     status: str = "active",
     max_price: float | None = None,
     limit: int = 50,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[Listing]:
     query = "SELECT * FROM marketplace_listings WHERE status=?"
     params: list = [status]
@@ -490,7 +507,7 @@ def get_listings(
 def update_listing_status(
     listing_id: str,
     status: str,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> bool:
     extras = {}
     if status == "sold":
@@ -509,7 +526,7 @@ def update_listing_status(
         return cur.rowcount > 0
 
 
-def delist_stale_signals(db_path: str = _DB_PATH) -> int:
+def delist_stale_signals(db_path: str | None = None) -> int:
     cutoff = (
         datetime.now(UTC) - timedelta(hours=_SIGNAL_STALE_HOURS)
     ).isoformat()
@@ -534,7 +551,7 @@ def create_purchase(
     seller_agent: str,
     price_paid: float,
     negotiation_id: str = "",
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
     idempotency_key: str | None = None,
 ) -> Purchase:
     purchase_id = f"PUR-{uuid.uuid4().hex[:12].upper()}"
@@ -569,7 +586,7 @@ def create_purchase(
     return purchase
 
 
-def get_purchase_by_idempotency_key(idempotency_key: str, db_path: str = _DB_PATH) -> Purchase | None:
+def get_purchase_by_idempotency_key(idempotency_key: str, db_path: str | None = None) -> Purchase | None:
     """Look up a purchase by its client-supplied idempotency key (FT-3)."""
     with _conn(db_path) as con:
         row = con.execute(
@@ -578,7 +595,7 @@ def get_purchase_by_idempotency_key(idempotency_key: str, db_path: str = _DB_PAT
     return _row_to_purchase(row) if row else None
 
 
-def get_purchase(purchase_id: str, db_path: str = _DB_PATH) -> Purchase | None:
+def get_purchase(purchase_id: str, db_path: str | None = None) -> Purchase | None:
     with _conn(db_path) as con:
         row = con.execute(
             "SELECT * FROM marketplace_purchases WHERE purchase_id=?", (purchase_id,)
@@ -589,7 +606,7 @@ def get_purchase(purchase_id: str, db_path: str = _DB_PATH) -> Purchase | None:
 def finalize_purchase(
     purchase_id: str,
     escrow_id: str = "",
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> bool:
     now = datetime.now(UTC).isoformat()
     with _db_lock, _conn(db_path) as con:
@@ -617,7 +634,7 @@ def list_purchases(
     seller_agent: str | None = None,
     tenant_id: str | None = None,
     limit: int = 50,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[Purchase]:
     query = "SELECT * FROM marketplace_purchases WHERE 1=1"
     params: list = []
@@ -637,7 +654,7 @@ def list_purchases(
 def purchase_listing(
     listing_id: str,
     buyer_agent_id: str,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
     idempotency_key: str | None = None,
 ) -> dict:
     """Atomically buy a listing: create purchase record + escrow + trigger import.
@@ -807,7 +824,7 @@ def list_purchases_by_agent(
     agent_id: str,
     role: str = "buyer",
     limit: int = 50,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[Purchase]:
     col = "buyer_agent" if role == "buyer" else "seller_agent"
     with _conn(db_path) as con:

@@ -27,6 +27,22 @@ from warden.config import data_path
 log = logging.getLogger("warden.marketplace.buyer_agent")
 
 _DB_PATH        = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _STRETCH_FACTOR = float(os.getenv("MARKETPLACE_BUYER_STRETCH", "1.10"))
 _MIN_REP_SCORE  = float(os.getenv("MARKETPLACE_MIN_SELLER_REP", "0.0"))
 # First-Proposal Bias Guard: minimum alternatives to evaluate before committing.
@@ -39,7 +55,7 @@ class BuyerAgent:
     Autonomous buyer on behalf of a registered marketplace agent.
     """
 
-    def __init__(self, agent_id: str, keypair=None, db_path: str = _DB_PATH) -> None:
+    def __init__(self, agent_id: str, keypair=None, db_path: str | None = None) -> None:
         self.agent_id = agent_id
         self.keypair  = keypair
         self.db_path  = db_path

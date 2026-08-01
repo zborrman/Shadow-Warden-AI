@@ -39,6 +39,16 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.autonomy")
 
 _DB_PATH   = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call (DE-6 P2).
+
+    A module-level constant freezes the first value the process sees, so a test
+    or worker that sets the env later silently reads someone else's database.
+    ``_DB_PATH`` is kept for callers that reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock   = threading.RLock()
 _REDIS_TTL = 86400   # 24 hours
 
@@ -90,7 +100,7 @@ register("marketplace", "warden.marketplace.autonomy", _AUTONOMY_DDL)
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
     with open_db(
-        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", _db_path(), turso_name="marketplace", module_default_path=_db_path()
     ) as con:
         yield con
 

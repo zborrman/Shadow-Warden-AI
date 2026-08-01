@@ -44,6 +44,16 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.kyb")
 
 _DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call (DE-6 P2).
+
+    A module-level constant freezes the first value the process sees, so a test
+    or worker that sets the env later silently reads someone else's database.
+    ``_DB_PATH`` is kept for callers that reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock = threading.RLock()
 
 _VALID_STATUSES = frozenset({"PENDING", "VERIFIED", "FLAGGED", "REJECTED"})

@@ -38,6 +38,16 @@ from warden.marketplace.rate_limit import marketplace_rate_limit
 log = logging.getLogger("warden.marketplace.agent_key_rotation")
 
 _DB_PATH          = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
+def _db_path() -> str:
+    """Resolve the DB path on every call (DE-6 P2).
+
+    A module-level constant freezes the first value the process sees, so a test
+    or worker that sets the env later silently reads someone else's database.
+    ``_DB_PATH`` is kept for callers that reference it directly.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _ROTATION_MAX_DAYS = int(os.getenv("AGENT_KEY_ROTATION_MAX_DAYS", "90"))
 _db_lock          = threading.RLock()
 
@@ -69,7 +79,7 @@ def _migrate(con: sqlite3.Connection) -> None:
 @contextmanager
 def _conn() -> Generator[sqlite3.Connection, None, None]:
     with open_db(
-        "marketplace", _DB_PATH, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", _db_path(), turso_name="marketplace", module_default_path=_db_path()
     ) as con:
         _migrate(con)
         yield con
