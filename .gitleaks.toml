@@ -30,4 +30,19 @@ regexes = [
   # override it. NEVER reuse this value for a real deployment — it wraps community
   # keypairs, data-pod secrets, encrypted backups, and every resolve_key() subkey.
   '''VAULT_MASTER_KEY",?\s*"i5EjtPkHUtDxUPbjfMgWpurGBBc7mjUEpweFU40aDAA="''',
+
+  # Documented test-run command: the suite runs with auth and the Evolution Engine
+  # DISABLED, which is expressed by assigning these vars the EMPTY STRING. The
+  # generic-api-key rule matches the `API_KEY="..."` shape without regard to the
+  # value, so `WARDEN_API_KEY=""` reads as a leak. An empty value cannot be a
+  # credential.
+  #
+  # Matches the empty assignment ONLY — `WARDEN_API_KEY="sk-live-…"` still fails
+  # the scan. Verified 2026-08-01: this exact command block appears in
+  # warden/marketplace/CLAUDE.md, agents/code-reviewer.md, commands/test-m2m.md
+  # and docs/marketplace-modernization-plan.md, always with empty values.
+  # (Those three pre-existing copies never tripped CI only because the PR-range
+  # scan re-reads just the commits under review; a fourth copy in a new commit
+  # surfaced the latent false positive — see PR #268.)
+  '''(WARDEN|ANTHROPIC)_API_KEY=""''',
 ]
