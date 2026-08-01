@@ -10,18 +10,17 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from warden.admin_guard import require_admin_key
 from warden.streams.agent_runner import get_runner
 from warden.streams.event_bus import TOPICS, get_event_bus
 
 log = logging.getLogger("warden.streams.api")
 router = APIRouter(prefix="/streams", tags=["Streams"])
 
-_ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 
 
 # ── Models ────────────────────────────────────────────────────────────────────
@@ -51,9 +50,13 @@ def streams_health():
 @router.post("/topics/{topic}/replay")
 def replay_topic(topic: str, body: ReplayRequest, request: Request):
     """Admin — replay events on a topic from a given timestamp."""
-    key = request.headers.get("X-Admin-Key", "")
-    if _ADMIN_KEY and key != _ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="Admin key required.")
+    # SR-9: this read `if _ADMIN_KEY and key != _ADMIN_KEY`, with _ADMIN_KEY
+    # snapshotted at import. ADMIN_KEY has no docker-compose passthrough, so it
+    # was empty in every container and the whole condition short-circuited away
+    # -- this router has no router-level auth either, so replay was reachable
+    # with no credential at all (verified against production: 422 on body
+    # validation, i.e. it got past auth).
+    require_admin_key(request.headers.get("X-Admin-Key"))
     if topic not in TOPICS:
         raise HTTPException(status_code=404, detail=f"Unknown topic: {topic!r}. Valid: {TOPICS}")
     # In production this would seek the Kafka consumer to the given offset.

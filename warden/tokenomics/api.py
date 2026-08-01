@@ -13,11 +13,11 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from warden.admin_guard import require_admin_key
 from warden.auth_guard import require_api_key
 from warden.tokenomics.agent_token import get_agent_token
 from warden.tokenomics.outcome_pricing import OutcomePricingService
@@ -35,7 +35,6 @@ log = logging.getLogger("warden.tokenomics.api")
 # agent-scoped state. See docs/anonymous-route-audit-2026-07-29.md.
 router = APIRouter(prefix="/tokenomics", tags=["Tokenomics"], dependencies=[Depends(require_api_key)])
 
-_ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 _svc = OutcomePricingService()
 
 
@@ -66,8 +65,9 @@ class SettleRequest(BaseModel):
 def mint_tokens(body: MintRequest, request: Request):
     """Admin — mint WAT to an agent address."""
     key = request.headers.get("X-Admin-Key", "")
-    if _ADMIN_KEY and key != _ADMIN_KEY:
-        raise HTTPException(status_code=403, detail="Admin key required.")
+    # SR-9: previously skipped the check entirely on an unset ADMIN_KEY, which
+    # was also snapshotted at import.
+    require_admin_key(key)
     try:
         result = get_agent_token().mint(body.agent_id, body.amount)
         return result
