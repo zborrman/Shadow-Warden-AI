@@ -526,11 +526,11 @@ before): `test_route_inventory.py`, `test_no_new_counterless_failopen.py`,
 
 | ID | Item | Model | Status |
 |---|---|---|---|
-| MP-0 | Reconcile `marketplace/CLAUDE.md` | Sonnet 5 | ⬜ not started |
-| MP-1a | Transport auth on 16 open marketplace writes | Sonnet 5 + Opus review | ⬜ not started |
-| MP-1b | Offer signature verification 🔴 | **Opus 5** | ⬜ not started |
-| MP-1c | Empty-secret admin bypass | **Opus 5** | ⬜ not started |
-| MP-2 | Single injection guard | Sonnet 5 | ⬜ not started |
+| MP-0 | Reconcile `marketplace/CLAUDE.md` | Sonnet 5 | ✅ done — 4 false rules tagged in place, 3 anti-patterns named, rules #23/#24 added (`2795def7`) |
+| MP-1a | Transport auth on open marketplace writes | Sonnet 5 + Opus review | ✅ done — 12 routes closed, verified 401; **found worse than catalogued: `POST /credits/purchase` had no auth and took the tenant from an `X-Tenant-ID` header, so an anonymous POST minted 1000 spendable credits to any tenant, free.** Ratchet added and proven to fail on a real regression (`4397039d`, `5b2c6b66`) |
+| MP-1b | Offer signature verification 🔴 | **Opus 5** | ✅ done — `_assert_actor` before any state change; envelope gained `negotiation_id` (signatures were portable across negotiations); `build_offer_canonical` exported; skew window; fail-CLOSED under `MARKETPLACE_REQUIRE_SIGNED_OFFERS` (default off + metric for the bake). Original exploit re-run end-to-end: 400, negotiation stays open, real seller still settles (`43210365`) |
+| MP-1c | Empty-secret admin bypass | **Opus 5** | ✅ done — `admin_guard.require_admin_key`, 503 when unconfigured, constant-time, read per call (`f752e8fe`). ⚠️ Same shape found and **not** fixed (out of cluster): `api/rotation.py:134`, `streams/api.py:55`, `tokenomics/api.py:69` |
+| MP-2 | Single injection guard | Sonnet 5 | ✅ done — `_scan_injection` delegates to `injection_guard`; private lists deleted; `send_message`/`send_proposal` had **no** screening at all and now return 422 (`29097654`) |
 | MP-3 | Escrow-on-accept: implement or retract | Opus 5 (memo) | ⬜ needs D-1 |
 | MP-4 | Coverage for live gates (`sybil_guard` 0%) | Sonnet 5 | ⬜ not started (⇄ SR-7.2) |
 | MP-5 | Resolve dead `mp_*` projection | Opus 5 → Sonnet 5 | ⬜ needs D-2 |
