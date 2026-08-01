@@ -548,7 +548,7 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 | Feature | Description |
 |---------|-------------|
 | **SCIM 2.0 Provisioning** | Auto-provision/deprovision tenant users from Okta, Azure AD, Google Workspace. SCIM Groups map to community membership and clearance levels. `SCIM_BEARER_TOKEN` env var. |
-| **SAML 2.0 SSO** | `warden/auth/saml.py` — SP-initiated SAML flow; `AuthnRequest` signed with tenant Ed25519 key. Attribute mapping: `email` → tenant, `groups` → community roles. Dashboard login via SAML assertion redirect. |
+| **SAML 2.0 SSO — tenant-signed AuthnRequest** | Extends `warden/auth/saml_provider.py` (the shipped SP-initiated flow) with `AuthnRequest` signed by a tenant Ed25519 key. Attribute mapping: `email` → tenant, `groups` → community roles. Dashboard login via SAML assertion redirect. |
 | **Hardware Security Module (HSM)** | PKCS#11 bridge for community keypairs and VAULT_MASTER_KEY on Enterprise tier. Supports YubiHSM 2, AWS CloudHSM, Azure Managed HSM. Ed25519 + ML-DSA-65 signing operations execute inside HSM boundary — private key material never in process memory. |
 
 ---

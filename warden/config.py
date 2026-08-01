@@ -701,31 +701,6 @@ class Settings:
         default_factory=lambda: _env("SAML_ALLOWED_DOMAINS", "")
     )
 
-    # ── SAML SSO — Enterprise (warden/auth/saml.py) ──────────────────────────────
-    # No test file imports this module directly — all reads are safe frozen
-    # module-level constants (unlike the sibling saml_provider.py above).
-    saml_sso_sp_entity_id: str = field(
-        default_factory=lambda: _env("SAML_SP_ENTITY_ID", "https://api.shadow-warden-ai.com/auth/saml/metadata")
-    )
-    saml_sso_sp_acs_url: str = field(
-        default_factory=lambda: _env("SAML_SP_ACS_URL", "https://api.shadow-warden-ai.com/auth/saml/acs")
-    )
-    saml_sso_idp_metadata_url: str = field(
-        default_factory=lambda: _env("SAML_IDP_METADATA_URL", "")
-    )
-    saml_default_tier: str = field(
-        default_factory=lambda: _env("SAML_DEFAULT_TIER", "enterprise")
-    )
-    saml_clock_skew_s: int = field(
-        default_factory=lambda: _int("SAML_CLOCK_SKEW_S", 60)
-    )
-    saml_require_sha256: bool = field(
-        default_factory=lambda: _bool("SAML_REQUIRE_SHA256", True)
-    )
-    saml_cert_path: str = field(
-        default_factory=lambda: _env("SAML_CERT_PATH", "")
-    )
-
     # ── Billing Streamlit page (warden/analytics/pages/9_Billing.py) ─────────────
     # NB: reuses lemonsqueezy_api_key/store_id/webhook_secret (pre-existing).
     # WARDEN_INTERNAL_URL and PORTAL_BASE_URL are distinct env-var names from
