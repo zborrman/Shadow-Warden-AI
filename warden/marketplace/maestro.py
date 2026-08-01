@@ -41,6 +41,30 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.maestro")
 
 _DB_PATH       = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock       = threading.RLock()
 _COLLUSION_TTL = 90 * 86_400   # 90 days in seconds
 
@@ -96,9 +120,10 @@ register("marketplace", "warden.marketplace.maestro", _SCHEMA)
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         yield con
 
@@ -180,7 +205,7 @@ class GoalMisalignmentDetector:
 
     DEFAULT_GOALS = {"fair_pricing", "volume_optimisation", "risk_minimisation"}
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path
 
     # ── Community goal registry ───────────────────────────────────────────────
@@ -400,7 +425,7 @@ class CollusionDetector:
     _TACIT_MIN_SELLERS     = 3     # minimum sellers needed for market-level scan
     _TACIT_WINDOW          = 100   # last N clearing prices per seller
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path
 
     def analyze_negotiation_pair(
@@ -637,7 +662,7 @@ class ModelPoisoningDetector:
 
     _SIGMA_THRESHOLD = 3.0
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path
 
     # ── Rule validation ───────────────────────────────────────────────────────
@@ -836,7 +861,7 @@ class BehavioralAnomalyDetector:
     _Z_CRITICAL = 3.0
     _Z_ELEVATED  = 2.0
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path
 
     def evaluate(self, agent_id: str) -> TradingAnomalyReport:
@@ -945,7 +970,7 @@ class MaestroService:
       high    — any score ≥ 0.7 OR collusion flag active
     """
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path          = db_path
         self.misalignment     = GoalMisalignmentDetector(db_path)
         self.collusion        = CollusionDetector(db_path)
@@ -1067,7 +1092,7 @@ _service: MaestroService | None = None
 _service_lock = threading.Lock()
 
 
-def get_maestro_service(db_path: str = _DB_PATH) -> MaestroService:
+def get_maestro_service(db_path: str | None = None) -> MaestroService:
     """Return the process-level MaestroService singleton."""
     global _service
     with _service_lock:

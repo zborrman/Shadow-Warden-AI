@@ -44,6 +44,30 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.escrow")
 
 _DB_PATH   = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 
 
 class EscrowDeploymentError(RuntimeError):
@@ -91,9 +115,10 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         _migrate_chain_column(con)
         yield con
@@ -174,7 +199,7 @@ class EscrowService:
         amount_usd: float,
         purchase_id: str = "",
         chain: str = "sepolia",
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> Escrow:
         escrow_id = f"ESC-{uuid.uuid4().hex[:12].upper()}"
         now       = datetime.now(UTC).isoformat()
@@ -220,7 +245,7 @@ class EscrowService:
         log.info("Escrow created: %s contract=%s chain=%s", escrow_id, contract, chain)
         return escrow
 
-    def fund_escrow(self, escrow_id: str, db_path: str = _DB_PATH) -> bool:
+    def fund_escrow(self, escrow_id: str, db_path: str | None = None) -> bool:
         """Buyer deposits — transitions to 'funded'."""
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "pending_deposit":
@@ -233,7 +258,7 @@ class EscrowService:
         self,
         escrow_id: str,
         asset_hash: str,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> bool:
         """Seller delivers asset hash — transitions to 'delivered'."""
         esc = self._get(escrow_id, db_path)
@@ -251,7 +276,7 @@ class EscrowService:
         self,
         escrow_id: str,
         purchase_id: str = "",
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> bool:
         """Buyer confirms receipt → funds released to seller + purchase finalized."""
         esc = self._get(escrow_id, db_path)
@@ -274,7 +299,7 @@ class EscrowService:
         self,
         escrow_id: str,
         reason: str,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> bool:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status not in ("funded", "delivered"):
@@ -310,7 +335,7 @@ class EscrowService:
         escrow_id: str,
         release_to_buyer: bool,
         bypass_dao_check: bool = False,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> bool:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "disputed":
@@ -339,7 +364,7 @@ class EscrowService:
         self._update_status(escrow_id, verdict, {}, db_path)
         return True
 
-    def cancel_escrow(self, escrow_id: str, db_path: str = _DB_PATH) -> bool:
+    def cancel_escrow(self, escrow_id: str, db_path: str | None = None) -> bool:
         """Cancel after delivery timeout expiry — refunds buyer."""
         esc = self._get(escrow_id, db_path)
         if esc is None:
@@ -353,7 +378,7 @@ class EscrowService:
         log.info("Escrow %s cancelled (timeout)", escrow_id)
         return True
 
-    def get_escrow(self, escrow_id: str, db_path: str = _DB_PATH) -> Escrow | None:
+    def get_escrow(self, escrow_id: str, db_path: str | None = None) -> Escrow | None:
         return self._get(escrow_id, db_path)
 
     def list_escrows(
@@ -361,7 +386,7 @@ class EscrowService:
         agent_id: str,
         role: str = "any",
         limit: int = 50,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> list[Escrow]:
         if role == "buyer":
             query = "SELECT * FROM marketplace_escrow WHERE buyer_agent=? ORDER BY created_at DESC LIMIT ?"
@@ -380,7 +405,7 @@ class EscrowService:
         self,
         status: str | None = None,
         limit: int = 50,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> list[Escrow]:
         if status:
             query = "SELECT * FROM marketplace_escrow WHERE status=? ORDER BY created_at DESC LIMIT ?"

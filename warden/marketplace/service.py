@@ -34,6 +34,30 @@ if TYPE_CHECKING:
 log = logging.getLogger("warden.marketplace.service")
 
 _DB_PATH = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _db_lock = threading.RLock()
 
 _VALID_ASSET_TYPES = {"rule", "model", "signals"}
@@ -63,9 +87,10 @@ register("marketplace", "warden.marketplace.service", _ASSETS_DDL)
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         yield con
 
@@ -78,7 +103,7 @@ def register_asset(
     asset_type: str,
     raw_data: dict | list,
     keypair: CommunityKeypair,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> str:
     """Tokenize and register an asset. Returns the UECIID (asset_id).
 
@@ -136,7 +161,7 @@ def register_asset(
     return asset_id
 
 
-def get_asset(asset_id: str, db_path: str = _DB_PATH) -> dict | None:
+def get_asset(asset_id: str, db_path: str | None = None) -> dict | None:
     with _conn(db_path) as con:
         row = con.execute(
             "SELECT * FROM marketplace_assets WHERE asset_id=?", (asset_id,)
@@ -159,7 +184,7 @@ def list_assets_by_agent(
     agent_id: str,
     asset_type: str | None = None,
     limit: int = 50,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[dict]:
     query = "SELECT * FROM marketplace_assets WHERE seller_agent_id=?"
     params: list = [agent_id]
@@ -188,7 +213,7 @@ def search_assets(
     community_id: str,
     asset_type: str | None = None,
     limit: int = 20,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[dict]:
     query = "SELECT * FROM marketplace_assets WHERE community_id=?"
     params: list = [community_id]

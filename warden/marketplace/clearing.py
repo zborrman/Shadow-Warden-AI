@@ -50,6 +50,30 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.clearing")
 
 _DB_PATH   = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
+
 _PG_DSN    = os.getenv("DATABASE_URL", "")
 _TAKE_RATE = Decimal(os.getenv("MARKETPLACE_TAKE_RATE", "0.015"))
 
@@ -96,7 +120,7 @@ def _conn(db_path: str) -> Generator[sqlite3.Connection, None, None]:
     # ALTER ADD COLUMN is not idempotent (errors on a column that already exists),
     # so it cannot be folded into the registered DDL — stays a suppress-per-connect.
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         with suppress(Exception):
             con.execute("ALTER TABLE marketplace_clearing_log ADD COLUMN platform_fee_usd REAL NOT NULL DEFAULT 0.0")
@@ -153,7 +177,7 @@ class ClearingEngine:
     per-request.
     """
 
-    def __init__(self, db_path: str = _DB_PATH) -> None:
+    def __init__(self, db_path: str | None = None) -> None:
         self.db_path = db_path
         with _conn(db_path):  # ensure schema exists
             pass
@@ -433,7 +457,7 @@ class ClearingEngine:
         return True
 
 
-async def relay_pending(db_path: str = _DB_PATH, limit: int = 50) -> dict:
+async def relay_pending(db_path: str | None = None, limit: int = 50) -> dict:
     """Drain up to `limit` pending outbox rows — the worker-facing entry point.
 
     Async (the relay itself is asyncpg-based) — await directly from an ARQ
@@ -466,7 +490,7 @@ async def relay_pending(db_path: str = _DB_PATH, limit: int = 50) -> dict:
 
 
 def purge_relayed_outbox(
-    db_path: str = _DB_PATH, older_than_days: float = 30.0, limit: int = 1000
+    db_path: str | None = None, older_than_days: float = 30.0, limit: int = 1000
 ) -> dict:
     """Delete confirmed-relayed outbox rows older than `older_than_days`.
 

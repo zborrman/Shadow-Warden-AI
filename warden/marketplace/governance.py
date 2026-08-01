@@ -29,6 +29,30 @@ from warden.db.ddl_registry import register
 log = logging.getLogger("warden.marketplace.governance")
 
 _DB_PATH = settings.marketplace_db_path
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return settings.marketplace_db_path
+
 _db_lock = threading.RLock()
 _PROPOSAL_TTL_HOURS = settings.dao_proposal_ttl_hours
 _QUORUM_PCT = settings.dao_quorum_pct
@@ -69,9 +93,10 @@ register("marketplace", "warden.marketplace.governance", _GOVERNANCE_DDL)
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
     with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=_DB_PATH
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
         yield con
 
@@ -157,7 +182,7 @@ class GovernanceService:
         title: str,
         description: str = "",
         options: list[str] | None = None,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> Proposal:
         if proposal_type not in PROPOSAL_TYPES:
             raise ValueError(
@@ -209,7 +234,7 @@ class GovernanceService:
         proposal_id: str,
         voter_id: str,
         choice: int,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> Vote:
         prop = self._get_proposal(proposal_id, db_path)
         if prop is None:
@@ -247,7 +272,7 @@ class GovernanceService:
     def tally_votes(
         self,
         proposal_id: str,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> dict:
         """
         Tally weighted votes and determine pass/reject/pending.
@@ -307,7 +332,7 @@ class GovernanceService:
     def execute_proposal(
         self,
         proposal_id: str,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
     ) -> dict:
         prop = self._get_proposal(proposal_id, db_path)
         if prop is None:
@@ -334,7 +359,7 @@ class GovernanceService:
         self,
         community_id: str,
         status_filter: str | None = None,
-        db_path: str = _DB_PATH,
+        db_path: str | None = None,
         limit: int = 50,
     ) -> list[Proposal]:
         if status_filter:
@@ -350,10 +375,10 @@ class GovernanceService:
             rows = con.execute(sql, params).fetchall()
         return [_row_to_proposal(r) for r in rows]
 
-    def get_proposal(self, proposal_id: str, db_path: str = _DB_PATH) -> Proposal | None:
+    def get_proposal(self, proposal_id: str, db_path: str | None = None) -> Proposal | None:
         return self._get_proposal(proposal_id, db_path)
 
-    def get_votes(self, proposal_id: str, db_path: str = _DB_PATH) -> list[Vote]:
+    def get_votes(self, proposal_id: str, db_path: str | None = None) -> list[Vote]:
         with _conn(db_path) as con:
             rows = con.execute(
                 "SELECT * FROM dao_votes WHERE proposal_id=? ORDER BY created_at DESC",
@@ -368,7 +393,7 @@ class GovernanceService:
         ]
 
     def check_active_proposal_for_escrow(
-        self, escrow_id: str, db_path: str = _DB_PATH
+        self, escrow_id: str, db_path: str | None = None
     ) -> Proposal | None:
         """Return the active dispute_resolution proposal targeting this escrow, if any."""
         with _conn(db_path) as con:
@@ -380,7 +405,7 @@ class GovernanceService:
             ).fetchone()
         return _row_to_proposal(row) if row else None
 
-    def finalize_tally(self, proposal_id: str, db_path: str = _DB_PATH) -> dict:
+    def finalize_tally(self, proposal_id: str, db_path: str | None = None) -> dict:
         """
         Evaluate votes and persist pass/reject status if quorum is met.
         Call this after the proposal TTL to close voting.

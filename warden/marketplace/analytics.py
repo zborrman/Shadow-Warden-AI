@@ -18,10 +18,35 @@ from warden.db.connect import open_db_readonly
 log = logging.getLogger("warden.marketplace.analytics")
 
 _DB_PATH = settings.marketplace_db_path
+_DB_PATH_AT_IMPORT = _DB_PATH   # pristine; never monkeypatched
+
+def _db_path() -> str:
+    """Resolve the DB path on every call.
+
+    DE-6 P2: this used to be read once into a module-level ``_DB_PATH`` and then
+    used as a *parameter default* (``db_path: str | None = None``). Defaults bind at
+    def-time, so the first value seen by the process was frozen into ~79
+    signatures — no later ``MARKETPLACE_DB_PATH`` change, and no monkeypatch,
+    could move them. That is the repo's own documented trap (Track F: use
+    ``= None`` and resolve dynamically), and it is why test files that set the
+    env at import fought over one another's databases.
+
+    ``_DB_PATH`` is kept for callers that still reference it directly.
+    """
+    # An explicit override wins. Tests across this repo use
+    # `monkeypatch.setattr(module, "_DB_PATH", ...)`, and callers may assign
+    # it directly; re-reading the env unconditionally would silently ignore
+    # both. Only when _DB_PATH is still the pristine import-time value do we
+    # resolve fresh -- which is what unfreezes the parameter defaults.
+    if _DB_PATH != _DB_PATH_AT_IMPORT:
+        return _DB_PATH
+    return settings.marketplace_db_path
+
 
 
 @contextmanager
-def _conn(db_path: str = _DB_PATH):
+def _conn(db_path: str | None = None):
+    db_path = db_path or _db_path()
     con = open_db_readonly(db_path)
     try:
         yield con
@@ -38,7 +63,7 @@ def get_summary(
     tenant_id: str | None = None,
     community_id: str | None = None,
     period_days: int = 30,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> dict:
     try:
         with _conn(db_path) as con:
@@ -160,7 +185,7 @@ def get_volume_series(
     tenant_id: str | None = None,
     community_id: str | None = None,
     period_days: int = 30,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> list[dict]:
     try:
         with _conn(db_path) as con:
@@ -191,7 +216,7 @@ def get_agent_leaderboard(
     tenant_id: str | None = None,
     community_id: str | None = None,
     limit: int = 10,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> dict:
     try:
         with _conn(db_path) as con:
@@ -231,7 +256,7 @@ def get_agent_leaderboard(
         return {"top_sellers": [], "top_buyers": []}
 
 
-def fairness_stats(period_days: int = 7, db_path: str = _DB_PATH) -> dict:
+def fairness_stats(period_days: int = 7, db_path: str | None = None) -> dict:
     """Return First-Proposal Bias metrics for the marketplace.
 
     - avg_candidates_evaluated: mean alternatives compared per search_and_buy call
@@ -315,7 +340,7 @@ _TIER_COST_PER_1K: dict[str, float] = {
 
 def model_tier_distribution(
     period_days: int = 7,
-    db_path: str = _DB_PATH,
+    db_path: str | None = None,
 ) -> dict:
     """Model router tier distribution derived from dispatch action types.
 
