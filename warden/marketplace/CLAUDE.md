@@ -93,12 +93,9 @@ POST /marketplace/analytics/query      ← MCP/SOVA: SELECT-only SQL gate (500 r
 2. **First-Proposal Bias Guard is mandatory for LLM buyers.** Always call `search_and_buy()`, never `auto_buy()` directly unless the caller has already evaluated ≥ `MARKETPLACE_MIN_OFFERS_BEFORE_BUY` alternatives.
 3. **`POST /analytics/query` is SELECT-only.** Any non-SELECT statement returns `{"error": "..."}` immediately. The `caller_agent_id` field scopes results — a query referencing another agent's DID is rejected (Confused Deputy guard).
 4. **Sybil gate fires on every `POST /listings`.** `SybilGuard.is_flagged()` before accept. Flagged agents → HTTP 403.
-5. **Escrow is required for all purchases.** `EscrowService` is invoked automatically on `accept_offer()`. Direct payment without escrow is not a supported flow.
-   - ⚠️ **NOT IMPLEMENTED on the negotiation path — see MP-3.** `negotiation.py` contains
-     **zero** escrow references. Escrow is created by `listing.py::purchase_listing()`
-     only. Pending owner decision D-1: implement it on accept, or retract this half of
-     the rule (recommended — a second escrow-creating path re-opens the double-escrow
-     bug FT-3c just closed).
+5. **Escrow is required for all purchases, and `listing.py::purchase_listing()` is the only thing that creates one.** Direct payment without escrow is not a supported flow.
+   - **`accept_offer()` does NOT create escrow, by decision** (D-1, resolved 2026-08-01, MP-3). The rule previously claimed it did; `negotiation.py` never contained a single escrow reference. Accepting an offer records a **price agreement**, not a settlement — the buyer still goes through the purchase path, which is where escrow, the `Idempotency-Key` and `authorize_payment()` live.
+   - **Do not add a second escrow-creating path.** `purchase_listing()` holds the FT-3c idempotency key precisely because a retried purchase used to create a second purchase row *and* a second escrow for one buyer intent — a real double-charge. An escrow-on-accept would reintroduce that bug class on a path that has no idempotency key of its own.
 6. **MAESTRO auto-isolation is fail-open.** All 7 isolation steps catch exceptions independently — partial failure must not block the remaining steps.
 7. **No DDL/DML through the analytics gate.** Pattern: `stmt.upper().startswith("SELECT")` check in `analytics_sql_query()`.
 8. **Federation deny-list fires before registration.** `check_threat_hash()` in `api_agents.register_agent()` — HTTP 403 if flagged.

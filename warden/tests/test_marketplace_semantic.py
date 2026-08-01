@@ -37,12 +37,15 @@ def _filter(dimension: str, value: str, operator: str = "="):
 
 @pytest.fixture(autouse=True)
 def _analytics_db(tmp_path):
-    """Each test gets an isolated analytics DB."""
-    db = str(tmp_path / "analytics.db")
-    os.environ["M2M_ANALYTICS_DB_PATH"] = db
-    os.environ["M2M_STORE_DB_PATH"] = db
-    from warden.m2m_store.analytics import ensure_analytics_schema
-    ensure_analytics_schema()
+    """Isolated marketplace DB per test.
+
+    MP-5: this used to bootstrap the mp_* projector schema. That projector had no
+    production caller and was deleted; the models now read the real marketplace_*
+    tables. These tests assert on the SQL the engine *generates*, so no rows are
+    needed -- only that the path is isolated.
+    """
+    db = str(tmp_path / "marketplace.db")
+    os.environ["MARKETPLACE_DB_PATH"] = db
     yield db
     # cleanup handled by tmp_path
 
@@ -55,7 +58,7 @@ class TestMarketplaceListings:
         q = _query("marketplace_listings", ["total_listings"])
         result = engine.generate(q)
         assert "COUNT(*)" in result.sql
-        assert "mp_listings" in result.sql
+        assert "marketplace_listings" in result.sql
         assert result.model_id == "marketplace_listings"
 
     def test_active_listings_metric(self):
@@ -69,7 +72,7 @@ class TestMarketplaceListings:
         engine = _engine()
         q = _query("marketplace_listings", ["total_value"])
         result = engine.generate(q)
-        assert "SUM(price * quantity)" in result.sql
+        assert "SUM(price_usd)" in result.sql
 
 
 # ── 2. Trades — with date filter ──────────────────────────────────────────────
@@ -80,7 +83,7 @@ class TestMarketplaceTrades:
         f = _filter("date", "2026-06-01", ">=")
         q = _query("marketplace_trades", ["trade_volume_usd"], ["date"], [f])
         result = engine.generate(q)
-        assert "SUM(amount_usd)" in result.sql
+        assert "SUM(price_paid)" in result.sql
         assert "WHERE" in result.sql
         assert "purchased_at" in result.sql
 
@@ -88,7 +91,7 @@ class TestMarketplaceTrades:
         engine = _engine()
         q = _query("marketplace_trades", ["unique_buyers", "total_trades"], ["seller_agent_id"])
         result = engine.generate(q)
-        assert "COUNT(DISTINCT buyer_agent_id)" in result.sql
+        assert "COUNT(DISTINCT buyer_agent)" in result.sql
         assert "GROUP BY" in result.sql
 
 
@@ -112,7 +115,7 @@ class TestMarketplaceEscrow:
         engine = _engine()
         q = _query("marketplace_escrow", ["total_escrows"], ["chain"])
         result = engine.generate(q)
-        assert "mp_escrow" in result.sql
+        assert "marketplace_escrow" in result.sql
         assert "chain" in result.sql
 
 
@@ -130,43 +133,39 @@ class TestMarketplaceNegotiations:
         engine = _engine()
         q = _query("marketplace_negotiations", ["avg_rounds", "total_negotiations"])
         result = engine.generate(q)
-        assert "AVG(rounds)" in result.sql
+        assert "AVG(round_count)" in result.sql
         assert "COUNT(*)" in result.sql
 
 
 # ── 5. Reputation — average score ────────────────────────────────────────────
 
-class TestMarketplaceReputation:
-    def test_avg_reputation_metric(self):
-        engine = _engine()
-        q = _query("marketplace_reputation", ["avg_reputation"])
-        result = engine.generate(q)
-        assert "AVG(overall_score)" in result.sql
-        assert "mp_reputation" in result.sql
-
-    def test_top_agents_metric(self):
-        engine = _engine()
-        q = _query("marketplace_reputation", ["top_agents"])
-        result = engine.generate(q)
-        assert "0.8" in result.sql
-
-
-# ── 6. Governance — passed proposals ─────────────────────────────────────────
-
 class TestMarketplaceGovernance:
-    def test_passed_proposals_metric(self):
+    def test_accepted_proposals_metric(self):
         engine = _engine()
-        q = _query("marketplace_governance", ["passed_proposals", "total_proposals"])
+        q = _query("marketplace_governance", ["accepted_proposals", "total_proposals"])
         result = engine.generate(q)
-        assert "passed" in result.sql
-        assert "mp_proposals" in result.sql
+        assert "accepted" in result.sql
+        assert "marketplace_proposals" in result.sql
 
-    def test_voter_turnout_metric(self):
+    def test_order_shape_metrics(self):
+        """MP-5: marketplace_proposals is an ORDER proposal, not a DAO vote.
+
+        The model used to expose passed_proposals / avg_voter_turnout over
+        mp_proposals columns (status='passed', voter_count, eligible_voters) that
+        the real table does not have -- and could not have had, since it stores
+        quantity, SLA hours and max price per unit. Those metrics are gone.
+        """
         engine = _engine()
-        q = _query("marketplace_governance", ["avg_voter_turnout"])
-        result = engine.generate(q)
-        assert "voter_count" in result.sql
-        assert "eligible_voters" in result.sql
+        result = engine.generate(_query("marketplace_governance", ["avg_quantity", "avg_max_price"]))
+        assert "AVG(quantity)" in result.sql
+        assert "AVG(max_price_per_unit)" in result.sql
+
+    def test_vote_shaped_metrics_are_gone(self):
+        engine = _engine()
+        model = next(m for m in engine.list_models() if m.id == "marketplace_governance")
+        names = {metric.name for metric in model.metrics}
+        assert "avg_voter_turnout" not in names
+        assert "passed_proposals" not in names
 
 
 # ── 7. Agents — active count ──────────────────────────────────────────────────
@@ -177,7 +176,7 @@ class TestMarketplaceAgents:
         q = _query("marketplace_agents", ["active_agents", "total_agents"])
         result = engine.generate(q)
         assert "SUM(CASE WHEN status = 'active'" in result.sql
-        assert "mp_agents" in result.sql
+        assert "marketplace_agents" in result.sql
 
 
 # ── 8. Assets — grouped by type ──────────────────────────────────────────────
@@ -187,7 +186,7 @@ class TestMarketplaceAssets:
         engine = _engine()
         q = _query("marketplace_assets", ["total_assets"], ["asset_type"])
         result = engine.generate(q)
-        assert "mp_assets" in result.sql
+        assert "marketplace_assets" in result.sql
         assert "asset_type" in result.sql
         assert "GROUP BY" in result.sql
 
@@ -199,21 +198,38 @@ class TestMarketplaceMaestroFlags:
         engine = _engine()
         q = _query("marketplace_maestro_flags", ["high_threats", "total_flags"])
         result = engine.generate(q)
-        assert "high" in result.sql
-        assert "critical" in result.sql
-        assert "mp_flags" in result.sql
+        assert "score >= 0.7" in result.sql
+        assert "maestro_flags" in result.sql
 
 
 # ── 10. Cross-chain — grouped by chain ───────────────────────────────────────
 
-class TestMarketplaceCrossChain:
-    def test_cross_chain_by_chain(self):
+class TestRemovedModelsStayRemoved:
+    """MP-5: two models were deleted rather than re-pointed -- nothing backs them.
+
+    `marketplace_reputation` read mp_reputation; TrustRank is computed on demand
+    by ReputationEngine and never persisted. `marketplace_cross_chain` read
+    mp_cross_chain; no such table exists anywhere in the codebase. Both returned
+    empty result sets in production, silently, which reads as "no data" rather
+    than "not wired".
+
+    Re-adding either is fine -- but it has to come with a real source table, not
+    a projector nobody calls.
+    """
+
+    @pytest.mark.parametrize("model_id", ["marketplace_reputation", "marketplace_cross_chain"])
+    def test_model_is_not_served(self, model_id):
         engine = _engine()
-        q = _query("marketplace_cross_chain", ["total_cross_chain", "volume_usd"], ["chain"])
-        result = engine.generate(q)
-        assert "mp_cross_chain" in result.sql
-        assert "chain" in result.sql
-        assert "GROUP BY" in result.sql
+        assert model_id not in {m.id for m in engine.list_models()}
+
+    def test_no_model_points_at_a_projector_table(self):
+        """The mp_* tables have no writer. A model on one can only return nothing."""
+        engine = _engine()
+        stale = [
+            m.id for m in engine.list_models()
+            if str(getattr(m, "source_table", "")).startswith("mp_")
+        ]
+        assert not stale, f"models still pointing at unwritten mp_* tables: {stale}"
 
 
 # ── 11. Tenant isolation via community_id filter ──────────────────────────────
@@ -288,7 +304,12 @@ class TestAIIntent:
         assert result.model_id  # QueryResult echoes model_id only, not intent
 
     def test_all_marketplace_models_registered(self):
-        """All 10 marketplace semantic models are registered in the engine."""
+        """The 8 marketplace models that have a real backing table are registered.
+
+        Was 10. MP-5 dropped marketplace_reputation and marketplace_cross_chain:
+        nothing persists TrustRank (ReputationEngine computes it on demand) and
+        no cross-chain table exists, so both could only ever return empty.
+        """
         engine = _engine()
         model_ids = {m.id for m in engine.list_models()}
         expected = {
@@ -296,12 +317,10 @@ class TestAIIntent:
             "marketplace_trades",
             "marketplace_escrow",
             "marketplace_negotiations",
-            "marketplace_reputation",
             "marketplace_governance",
             "marketplace_agents",
             "marketplace_assets",
             "marketplace_maestro_flags",
-            "marketplace_cross_chain",
         }
         missing = expected - model_ids
         assert not missing, f"Missing models: {missing}"
