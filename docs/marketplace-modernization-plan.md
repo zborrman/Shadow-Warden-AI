@@ -548,8 +548,8 @@ before): `test_route_inventory.py`, `test_no_new_counterless_failopen.py`,
 | MP-1c | Empty-secret admin bypass | **Opus 5** | ✅ done — `admin_guard.require_admin_key`, 503 when unconfigured, constant-time, read per call (`f752e8fe`). ⚠️ Same shape found and **not** fixed (out of cluster): `api/rotation.py:134`, `streams/api.py:55`, `tokenomics/api.py:69` |
 | MP-2 | Single injection guard | Sonnet 5 | ✅ done — `_scan_injection` delegates to `injection_guard`; private lists deleted; `send_message`/`send_proposal` had **no** screening at all and now return 422 (`29097654`) |
 | MP-3 | Escrow-on-accept: implement or retract | Opus 5 (memo) | ⬜ needs D-1 |
-| MP-4 | Coverage for live gates (`sybil_guard` 0%) | Sonnet 5 | ⬜ not started (⇄ SR-7.2) |
+| MP-4 | Coverage for live gates | Sonnet 5 | ✅ done — covered the **gate at the request boundary** (403 path), which no test reached. ⚠️ Audit's "0%" was a measurement artifact: `test_sybil_guard.py` (14 tests, 74%) exists but doesn't match the `test_marketplace_*` glob used. Combined now 79% (`d51ccf47`) |
 | MP-5 | Resolve dead `mp_*` projection | Opus 5 → Sonnet 5 | ⬜ needs D-2 |
-| MP-6 | Authorization-posture metric + documented default | Sonnet 5 | ⬜ needs Track F |
-| MP-7 | Manifest/health honesty about simulation mode | Sonnet 5 | ⬜ not started |
-| MP-8 | ACP + agentic-commerce write auth | **Opus 5** | ⬜ not started |
+| MP-6 | Authorization-posture metric + documented default | Sonnet 5 | ✅ done — `warden_payment_authorization_total{verdict,enforced}` separates allowed-because-checked from allowed-because-off; marketplace rule #23 states the default. Flip stays Track F's call (`7851d900`) |
+| MP-7 | Manifest/health honesty about simulation mode | Sonnet 5 | ✅ done — `negotiation.signature_enforced` + `escrow.settlement_mode`; derived from config, never by probing (`_check_rpc_with_retry` backs off 2/4/8s) (`7851d900`) |
+| MP-8 | ACP + agentic-commerce write auth | **Opus 5** | ✅ done — 13 routes bound to the authenticated tenant. ⚠️ **Audit overstated this**: they were *not* anonymously reachable (403 on main); the real defect was body-supplied `tenant_id` ⇒ cross-tenant. `webhooks/ap2` deliberately left open (inert; an API key is the wrong control for a provider callback) (`1fc5e216`) |
