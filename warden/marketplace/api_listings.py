@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import contextlib
+import hmac
 import logging
 import os
 import time
@@ -180,8 +181,13 @@ async def sponsor_listing(
 
     Requires X-Admin-Key header matching ADMIN_KEY env var.
     """
+    # Already fail-closed (unset ADMIN_KEY denies). MP-1c only makes the compare
+    # constant-time — a plain != leaks the key a byte at a time via response
+    # timing. Deliberately NOT switched to admin_guard.require_admin_key: that
+    # helper has an ALLOW_UNAUTHENTICATED dev escape, and this endpoint's
+    # stricter "no key configured ⇒ always deny" posture should not be relaxed.
     admin_key = os.getenv("ADMIN_KEY", "")
-    if not admin_key or x_admin_key != admin_key:
+    if not admin_key or not hmac.compare_digest(x_admin_key or "", admin_key):
         raise HTTPException(status_code=403, detail="X-Admin-Key required.")
 
     if body.days < 1 or body.days > 365:

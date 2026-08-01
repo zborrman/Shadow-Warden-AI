@@ -1233,11 +1233,15 @@ class KYARevokeRequest(BaseModel):
 
 @router.post("/agents/{agent_id}/kya/revoke", status_code=200)
 async def revoke_agent_kya(agent_id: str, body: KYARevokeRequest, request: Request) -> dict:
-    """Revoke KYA status for an agent. Requires X-Admin-Key header."""
-    admin_key = os.getenv("ADMIN_KEY", "")
-    if admin_key and request.headers.get("X-Admin-Key") != admin_key:
-        from fastapi import HTTPException  # noqa: PLC0415
-        raise HTTPException(status_code=403, detail="Invalid or missing X-Admin-Key")
+    """Revoke KYA status for an agent. Requires X-Admin-Key header.
+
+    MP-1c: this used to read ``if admin_key and provided != admin_key``, which
+    skipped the check entirely whenever ``ADMIN_KEY`` was unset — any caller
+    could revoke any agent's KYA status. It now fails closed (503 when no key is
+    configured) and compares in constant time.
+    """
+    from warden.marketplace.admin_guard import require_admin_key  # noqa: PLC0415
+    require_admin_key(request.headers.get("X-Admin-Key"))
     from warden.marketplace.kya import revoke_agent  # noqa: PLC0415
     revoke_agent(agent_id, reason=body.reason)
     return {"agent_id": agent_id, "kya_status": "REVOKED", "reason": body.reason}
