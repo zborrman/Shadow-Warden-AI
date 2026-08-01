@@ -60,11 +60,42 @@ POST /marketplace/analytics/query      ← MCP/SOVA: SELECT-only SQL gate (500 r
 
 ## Security Rules (non-negotiable)
 
+> ⚠️ **Read this before relying on any rule below.** A 2026-08-01 audit (Track M,
+> `docs/marketplace-modernization-plan.md`) found that **four of these rules described
+> code that does not exist**. They are kept here as the *intended* target and each is
+> now tagged with its true state and the `MP-*` item that closes it. **Before relying on
+> a rule in this file, grep for a production caller.** A rule with no caller is a plan,
+> not a guarantee.
+>
+> Three anti-patterns caused most of the drift. None of them is authentication:
+>
+> - **A rate limiter is not auth.** `marketplace_rate_limit` throttles; it identifies
+>   nobody. A router carrying only that dependency is unauthenticated.
+> - **A feature gate is not auth.** `billing/feature_gate.py::require_plan` /
+>   `require_feature` resolve a *tier* and 403 if it is too low — they never
+>   establish identity. Such a gate may still deny an anonymous caller as a side
+>   effect (a feature above the default tier does 403), but the handler still
+>   cannot tell one entitled tenant from another, so any `tenant_id` it reads
+>   from the body is unverified — and an entitlement change silently becomes an
+>   access change. Measured on `/acp/*` (MP-8).
+> - **An empty secret must not disable a check.** `if secret and provided != secret:`
+>   silently allows everyone when the env var is unset. Resolve through
+>   `warden.secret_keys.resolve_key(..., purpose=...)` and **deny** when unresolvable.
+
 1. **Every offer must be Ed25519-signed.** `scan_negotiation_message()` runs on every offer body before persist. Unsigned or injection-flagged offers → HTTP 400.
+   - ⚠️ **SIGNING: NOT IMPLEMENTED — see MP-1b.** `negotiation.py::_verify_offer_signature()`
+     exists but is called from **nowhere**; `send_offer`/`accept_offer` default
+     `keypair=None` and the HTTP routes never pass one, so every API-originated offer
+     persists `signature=''` and `from_agent_id` is unverified body text.
+   - ⚠️ **INJECTION: WRONG MODULE — see MP-2.** `injection_guard.scan_negotiation_message()`
+     is dead (0% coverage). A weaker private substring matcher,
+     `negotiation.py::_scan_injection()`, runs instead.
 2. **First-Proposal Bias Guard is mandatory for LLM buyers.** Always call `search_and_buy()`, never `auto_buy()` directly unless the caller has already evaluated ≥ `MARKETPLACE_MIN_OFFERS_BEFORE_BUY` alternatives.
 3. **`POST /analytics/query` is SELECT-only.** Any non-SELECT statement returns `{"error": "..."}` immediately. The `caller_agent_id` field scopes results — a query referencing another agent's DID is rejected (Confused Deputy guard).
 4. **Sybil gate fires on every `POST /listings`.** `SybilGuard.is_flagged()` before accept. Flagged agents → HTTP 403.
-5. **Escrow is required for all purchases.** `EscrowService` is invoked automatically on `accept_offer()`. Direct payment without escrow is not a supported flow.
+5. **Escrow is required for all purchases, and `listing.py::purchase_listing()` is the only thing that creates one.** Direct payment without escrow is not a supported flow.
+   - **`accept_offer()` does NOT create escrow, by decision** (D-1, resolved 2026-08-01, MP-3). The rule previously claimed it did; `negotiation.py` never contained a single escrow reference. Accepting an offer records a **price agreement**, not a settlement — the buyer still goes through the purchase path, which is where escrow, the `Idempotency-Key` and `authorize_payment()` live.
+   - **Do not add a second escrow-creating path.** `purchase_listing()` holds the FT-3c idempotency key precisely because a retried purchase used to create a second purchase row *and* a second escrow for one buyer intent — a real double-charge. An escrow-on-accept would reintroduce that bug class on a path that has no idempotency key of its own.
 6. **MAESTRO auto-isolation is fail-open.** All 7 isolation steps catch exceptions independently — partial failure must not block the remaining steps.
 7. **No DDL/DML through the analytics gate.** Pattern: `stmt.upper().startswith("SELECT")` check in `analytics_sql_query()`.
 8. **Federation deny-list fires before registration.** `check_threat_hash()` in `api_agents.register_agent()` — HTTP 403 if flagged.
@@ -126,6 +157,9 @@ Three access tiers for marketplace participation:
 20. **MasterAgent autonomy check is fail-open.** `check_action()` exceptions → fall through to text-scan for REQUIRES_APPROVAL. Never block MasterAgent execution on autonomy policy errors.
 21. **KYB enforcement is opt-in and fail-conservative, never fail-open toward ALLOW.** `KYB_ENFORCEMENT_ENABLED` defaults `false` — existing tenants are never retroactively capped by shipping `kyb.py`. Once enabled, a KYA/KYB lookup failure caps the agent at REQUIRE_APPROVAL (same as an unverified owner), it never resolves to ALLOW. But if the flag itself can't be read, behavior must still fall back to "enforcement off" — never let a broken flag read silently cap every agent in production.
 22. **Sanctions screening never blocks or delays clearing.** `clearing.py::clear_async()` calls `sanctions.screen_settlement_party()` after the outbox relay step; any exception is caught inside `_screen_sanctions()` and only logged. A HIT opens a `COMPLIANCE` incident via `incident_register.log_incident()` — it never raises, blocks, reverses, or holds the transaction. Opt-in via `SANCTIONS_SCREENING_ENABLED` (default `false`).
+23. **`authorize_payment()` is OFF by default — do not read it as a live gate (MP-6).** `AUTHORIZE_PAYMENT_ENFORCED` defaults to `false`, and both marketplace call sites (`listing.py::purchase_listing()`, `clearing.py::clear()`) additionally fail soft to "proceed" if the call itself raises. In a default deployment the FT-6 chokepoint therefore evaluates nothing, even though the code path reads as gated. `warden_payment_authorization_total{verdict,enforced}` distinguishes *allowed because the checks passed* from *allowed because enforcement is off* — check the `enforced="false"` series before assuming any money path is protected. Flipping the default is Track F's call (P-6 tracks the deadline); this rule exists so nobody infers protection that is not there.
+24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
+25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 
 ### Monetization Modules
 

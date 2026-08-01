@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -16,6 +17,14 @@ with contextlib.suppress(Exception):
     from warden.metrics import MARKETPLACE_AGENTS_ACTIVE
 
 router = APIRouter(tags=["Marketplace Agents"], dependencies=[Depends(marketplace_rate_limit)])
+
+# MP-1a: mutating an *existing* agent (capabilities, PATCH, DELETE) is identity
+# tampering — it was reachable with no credential. `POST /agents/register` is
+# deliberately NOT in this list: it is Stage 1 of the advertised M2M
+# first-contact protocol, where the caller by definition has no relationship
+# yet. Gating it is a protocol change, not a bug fix — owner decision D-5 in
+# docs/marketplace-modernization-plan.md. Registration abuse is SybilGuard's job.
+_WRITE = [Depends(require_api_key)]
 
 
 class AgentRegisterRequest(BaseModel):
@@ -95,7 +104,7 @@ async def get_agent(agent_id: str) -> dict:
     return agent.to_dict()
 
 
-@router.put("/agents/{agent_id}/capabilities")
+@router.put("/agents/{agent_id}/capabilities", dependencies=_WRITE)
 async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest) -> dict:
     from warden.marketplace.agent import update_capabilities as _update
     try:
@@ -145,7 +154,7 @@ async def get_agent_trust(agent_id: str) -> dict:
     }
 
 
-@router.patch("/agents/{agent_id}", status_code=200)
+@router.patch("/agents/{agent_id}", status_code=200, dependencies=_WRITE)
 async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
     """Update agent name and/or monthly budget limit."""
     from warden.marketplace.agent import update_agent as _update
@@ -155,7 +164,7 @@ async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
     return {"updated": True, "agent_id": agent_id}
 
 
-@router.delete("/agents/{agent_id}", status_code=200)
+@router.delete("/agents/{agent_id}", status_code=200, dependencies=_WRITE)
 async def deactivate_agent_endpoint(agent_id: str) -> dict:
     """Soft-delete an agent (status → inactive). Preserves audit trail."""
     from warden.marketplace.agent import deactivate_agent as _deactivate

@@ -17,12 +17,18 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.governance import PROPOSAL_TYPES, GovernanceService
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_governance")
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace Governance"], dependencies=[Depends(marketplace_rate_limit)])
+
+# MP-1a: create/vote/execute were all anonymously reachable — a DAO whose
+# proposals can be raised, voted and executed without a credential is not a
+# governance mechanism. Reads stay open so proposals remain publicly auditable.
+_WRITE = [Depends(require_api_key)]
 _svc = GovernanceService()
 
 
@@ -45,7 +51,7 @@ class VoteCast(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/proposals", status_code=201)
+@router.post("/proposals", status_code=201, dependencies=_WRITE)
 async def create_proposal(body: ProposalCreate):
     if body.proposal_type not in PROPOSAL_TYPES:
         raise HTTPException(
@@ -89,7 +95,7 @@ async def get_proposal(proposal_id: str):
     return {**prop.to_dict(), "tally": tally, "votes": votes}
 
 
-@router.post("/proposals/{proposal_id}/vote", status_code=201)
+@router.post("/proposals/{proposal_id}/vote", status_code=201, dependencies=_WRITE)
 async def cast_vote(proposal_id: str, body: VoteCast):
     try:
         vote = _svc.cast_vote(
@@ -102,7 +108,7 @@ async def cast_vote(proposal_id: str, body: VoteCast):
     return vote.to_dict()
 
 
-@router.post("/proposals/{proposal_id}/execute")
+@router.post("/proposals/{proposal_id}/execute", dependencies=_WRITE)
 async def execute_proposal(proposal_id: str):
     prop = _svc.get_proposal(proposal_id)
     if prop is None:

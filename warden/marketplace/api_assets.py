@@ -7,11 +7,16 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_assets")
 
 router = APIRouter(tags=["Marketplace Assets"], dependencies=[Depends(marketplace_rate_limit)])
+
+# MP-1a: asset tokenization mints a UECIID container bound to a seller — it must
+# not be reachable anonymously. Reads stay open (same posture as api_listings).
+_WRITE = [Depends(require_api_key)]
 
 
 class AssetRegisterRequest(BaseModel):
@@ -32,7 +37,7 @@ def _resolve_keypair(community_id: str):
         return generate_community_keypair("_ephemeral", kid="v1")
 
 
-@router.post("/assets", status_code=201)
+@router.post("/assets", status_code=201, dependencies=_WRITE)
 async def register_asset(body: AssetRegisterRequest) -> dict:
     from warden.marketplace.agent import get_agent as _get_agent
     from warden.marketplace.service import register_asset as _register

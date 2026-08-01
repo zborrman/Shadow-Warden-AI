@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -45,6 +46,12 @@ router = APIRouter(
     tags=["Marketplace Key Rotation"],
     dependencies=[Depends(marketplace_rate_limit)],
 )
+
+# MP-1a: rotating an agent's signing key replaces the credential its whole
+# identity rests on — an anonymous caller could point any agent's DID at a key
+# they control, which is full account takeover. This was reachable with only a
+# rate limiter in front of it.
+_WRITE = [Depends(require_api_key)]
 
 
 # ── Schema migration (adds last_key_rotation_at if absent) ────────────────────
@@ -103,7 +110,7 @@ class KeyRotationRequest(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/agents/{agent_id}/rotate-key", status_code=200)
+@router.post("/agents/{agent_id}/rotate-key", status_code=200, dependencies=_WRITE)
 def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
     """
     Rotate the signing key for a marketplace agent.

@@ -23,7 +23,7 @@ import time
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from warden.auth_guard import AuthResult, require_api_key
@@ -41,6 +41,43 @@ log = logging.getLogger("warden.marketplace.api")
 # never reach app.routes. The sibling sub-routers already use the prefix-arg
 # pattern for the same reason.
 router = APIRouter(tags=["Marketplace"])
+
+
+def _signed_offers_required() -> bool:
+    """Whether unsigned offers are rejected, for the protocol manifest (MP-7)."""
+    try:
+        from warden.marketplace.negotiation import signed_offers_required
+        return signed_offers_required()
+    except Exception as exc:
+        log.debug("manifest: signature-enforcement probe unavailable: %s", exc)
+        return False
+
+
+def _escrow_settlement_mode() -> str:
+    """``"onchain"`` when a chain RPC is configured, else ``"simulated"`` (MP-7).
+
+    ``EscrowService`` runs a deterministic in-process simulation when no RPC is
+    set — the state machine is real, the settlement is not. The manifest used to
+    advertise ``chains`` unconditionally, which reads as an on-chain guarantee.
+
+    Derived from **configuration**, never by probing. ``_check_rpc_with_retry()``
+    is the reachability check, and it retries with 2/4/8s back-off — putting that
+    behind a discovery endpoint would hand any caller a 14-second stall. A
+    configured-but-currently-unreachable node is an availability problem for
+    ``/health``, not a change in what this marketplace offers.
+    """
+    try:
+        from warden.web3.chains import VALID_CHAINS, get_chain
+        for chain in VALID_CHAINS:
+            try:
+                if get_chain(chain).get("rpc_url", ""):
+                    return "onchain"
+            except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
+                continue
+        return "simulated"
+    except Exception as exc:
+        log.debug("manifest: escrow mode probe unavailable: %s", exc)
+        return "unknown"
 
 
 def _require_marketplace_gate() -> None:
@@ -84,9 +121,18 @@ async def get_market_protocol(response: Response) -> dict:
             "deliver_asset", "confirm_receipt", "raise_dispute",
             "reject_proposal",
         ],
+        # MP-7: a counterparty agent makes trust decisions from this manifest, so
+        # every key here has to describe the running configuration rather than the
+        # intended design. Two of these were false advertising until MP-1b/MP-2:
+        # signatures were never verified (all offers stored signature='') and
+        # `injection_guard` named a module with no production caller.
         "negotiation": {
             "max_rounds": int(os.getenv("MARKETPLACE_MAX_NEGOTIATION_ROUNDS", "5")),
             "signature_type": "Ed25519",
+            # Whether an unsigned or badly-signed offer is actually REJECTED, as
+            # opposed to verified-and-counted during the bake period. A partner
+            # cannot infer this from `signature_type` alone.
+            "signature_enforced": _signed_offers_required(),
             "message_format": "MCP-envelope-v1",
             "injection_guard": True,
             "min_offers_before_buy": int(os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
@@ -100,6 +146,11 @@ async def get_market_protocol(response: Response) -> dict:
             "required": True,
             "chains": ["sepolia", "eth_tester"],
             "delivery_timeout_hours": int(os.getenv("ESCROW_DELIVERY_TIMEOUT_HOURS", "48")),
+            # "simulated" when no chain RPC is configured: the escrow state
+            # machine runs deterministically in-process and settles nothing
+            # on-chain. Advertising `chains` without this let a counterparty
+            # read an on-chain guarantee that does not exist.
+            "settlement_mode": _escrow_settlement_mode(),
         },
         "governance": {
             "dao_enabled": os.getenv("DAO_GOVERNANCE_ENABLED", "false").lower() == "true",
@@ -298,6 +349,27 @@ _PROPOSALS_DDL = """
 register("marketplace", "warden.marketplace.api.proposals", _PROPOSALS_DDL)
 
 
+def _reject_if_injection(message: str) -> None:
+    """Reject agent-authored free text carrying a prompt-injection attempt.
+
+    HTTP 422, matching ``injection_guard``'s documented contract. Deliberately
+    fail-CLOSED on the scan itself: if the guard cannot run we do not have a
+    clean message, and this text is destined for an LLM agent with spend
+    authority. That is the opposite posture from MAESTRO/KYA (rules #6/#18),
+    which stay permissive on error because they are advisory scoring rather than
+    content admission.
+    """
+    if not message:
+        return
+    from warden.marketplace.injection_guard import scan_negotiation_message
+    if scan_negotiation_message(message):
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "prompt_injection_detected",
+                    "message": "Message blocked: prompt injection detected."},
+        )
+
+
 async def _action_send_message(
     negotiation_id: str = "",
     from_agent_id: str = "",
@@ -305,6 +377,11 @@ async def _action_send_message(
     **_: Any,
 ) -> dict:
     """Stage 3: send a text message within an active negotiation channel."""
+    # MP-2: this free text is authored by a counterparty agent and later read by
+    # LLM-backed buyer/seller agents that hold spend authority. It was persisted
+    # with no screening at all, while rule #1 claimed every offer body was
+    # scanned. Same guard as send_offer, one implementation.
+    _reject_if_injection(message)
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     msg_id = str(uuid.uuid4())[:12]
     with open_db(
@@ -328,6 +405,7 @@ async def _action_send_proposal(
     **_: Any,
 ) -> dict:
     """Stage 3: send a structured order proposal (quantity + SLA + max price)."""
+    _reject_if_injection(message)
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     proposal_id = str(uuid.uuid4())[:16]
     with open_db(
@@ -1233,11 +1311,15 @@ class KYARevokeRequest(BaseModel):
 
 @router.post("/agents/{agent_id}/kya/revoke", status_code=200)
 async def revoke_agent_kya(agent_id: str, body: KYARevokeRequest, request: Request) -> dict:
-    """Revoke KYA status for an agent. Requires X-Admin-Key header."""
-    admin_key = os.getenv("ADMIN_KEY", "")
-    if admin_key and request.headers.get("X-Admin-Key") != admin_key:
-        from fastapi import HTTPException  # noqa: PLC0415
-        raise HTTPException(status_code=403, detail="Invalid or missing X-Admin-Key")
+    """Revoke KYA status for an agent. Requires X-Admin-Key header.
+
+    MP-1c: this used to read ``if admin_key and provided != admin_key``, which
+    skipped the check entirely whenever ``ADMIN_KEY`` was unset — any caller
+    could revoke any agent's KYA status. It now fails closed (503 when no key is
+    configured) and compares in constant time.
+    """
+    from warden.marketplace.admin_guard import require_admin_key
+    require_admin_key(request.headers.get("X-Admin-Key"))
     from warden.marketplace.kya import revoke_agent  # noqa: PLC0415
     revoke_agent(agent_id, reason=body.reason)
     return {"agent_id": agent_id, "kya_status": "REVOKED", "reason": body.reason}
@@ -1250,7 +1332,11 @@ class CreditsPurchaseRequest(BaseModel):
 
 
 @router.post("/credits/purchase", status_code=200)
-async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Request) -> dict:
+async def purchase_credits_endpoint(
+    body: CreditsPurchaseRequest,
+    request: Request,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
     """Purchase a credit package. In production, redirects to Lemon Squeezy checkout.
 
     For direct testing (integration tests, webhook simulation), grants credits immediately.
@@ -1282,12 +1368,23 @@ async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Reque
                     "valid_packages": list(CREDIT_PACKAGES.keys())},
         )
 
-    state = getattr(request, "state", None)
-    tenant_obj = getattr(state, "tenant", None)
-    if isinstance(tenant_obj, dict):
-        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
-    else:
-        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+    # MP-1a: credits are directly spendable, so the tenant they are granted to is
+    # a security decision, not a routing hint. The authenticated tenant wins.
+    # Previously this endpoint had no auth dependency at all and fell back to a
+    # caller-supplied ``X-Tenant-ID`` header — an anonymous POST minted 1000
+    # spendable credits to any tenant id the caller named, for free.
+    #
+    # The header is honoured only in dev/air-gapped mode (no API key configured
+    # at all, where require_api_key resolves every caller to "default"), so local
+    # and test ergonomics are unchanged while production has no bypass.
+    tenant_id = auth.tenant_id
+    if tenant_id == "default":
+        state = getattr(request, "state", None)
+        tenant_obj = getattr(state, "tenant", None)
+        if isinstance(tenant_obj, dict):
+            tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or tenant_id
+        else:
+            tenant_id = request.headers.get("X-Tenant-ID", tenant_id)
 
     new_balance = purchase_credits(tenant_id, body.package_id, idempotency_key=idempotency_key)
     return {

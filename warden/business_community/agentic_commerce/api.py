@@ -10,16 +10,42 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import AuthResult, require_api_key
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(
     prefix="/business-community/commerce",
     tags=["Agentic Commerce"],
 )
+
+# MP-8: `_Gate` is an ENTITLEMENT gate, not authentication — it answers "is this
+# tenant's plan good enough", never "who is this". Measured on origin/main these
+# writes were NOT anonymously reachable (an anonymous caller resolves to the
+# default tier and gets 403), so the gap is identity, not access: `tenant_id`
+# arrives as caller-supplied text on every write, so any caller whose plan
+# clears the gate could mint mandates, place orders and approve workflows
+# against another tenant. Access control also should not rest on a side effect
+# of tier resolution — an entitlement change must not silently become an
+# authentication change. Entitlement and identity are orthogonal; keep both.
 _Gate = require_feature("agentic_commerce_enabled")
+_AUTH = Depends(require_api_key)
+
+
+def _effective_tenant(auth: AuthResult, body_tenant: str) -> str:
+    """Bind a commerce write to the authenticated tenant, not caller-supplied text.
+
+    `tenant_id` arrives in the body or query string on every write here. With no
+    auth in front of it, one tenant could mint mandates, place orders and
+    approve workflows against another. The authenticated tenant wins; the
+    supplied value is honoured only in dev/air-gapped mode (no API key
+    configured, where require_api_key resolves everyone to "default").
+    """
+    if auth.tenant_id and auth.tenant_id != "default":
+        return auth.tenant_id
+    return body_tenant
 
 
 # ── Request models ────────────────────────────────────────────────────────────
@@ -57,11 +83,11 @@ class WebhookAP2Request(BaseModel):
 # ── Mandate endpoints ─────────────────────────────────────────────────────────
 
 @router.post("/mandates", summary="Create a spending mandate", dependencies=[_Gate])
-async def create_mandate(body: MandateCreateRequest) -> dict:
+async def create_mandate(body: MandateCreateRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.business_community.agentic_commerce.ap2 import AP2Processor
     proc = AP2Processor()
     mandate = proc.create_mandate(
-        tenant_id=body.tenant_id,
+        tenant_id=_effective_tenant(auth, body.tenant_id),
         max_amount=body.max_amount,
         currency=body.currency,
         valid_until=body.valid_until,
@@ -89,10 +115,10 @@ async def get_mandate(mandate_id: str, tenant_id: str) -> dict:
 
 
 @router.delete("/mandates/{mandate_id}", summary="Revoke a mandate", dependencies=[_Gate])
-async def revoke_mandate(mandate_id: str, tenant_id: str) -> dict:
+async def revoke_mandate(mandate_id: str, tenant_id: str, auth: AuthResult = _AUTH) -> dict:
     from warden.business_community.agentic_commerce.ap2 import AP2Processor
     proc = AP2Processor()
-    ok = proc.revoke_mandate(mandate_id, tenant_id)
+    ok = proc.revoke_mandate(mandate_id, _effective_tenant(auth, tenant_id))
     if not ok:
         raise HTTPException(status_code=404, detail=f"Mandate {mandate_id!r} not found")
     return {"revoked": True, "mandate_id": mandate_id}
@@ -107,7 +133,7 @@ async def verify_mandate(mandate_id: str, tenant_id: str) -> dict:
 # ── Order endpoints ───────────────────────────────────────────────────────────
 
 @router.post("/orders", summary="Create a purchase order", dependencies=[_Gate])
-async def create_order(body: OrderCreateRequest) -> dict:
+async def create_order(body: OrderCreateRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.business_community.agentic_commerce.service import AgenticCommerceService
     svc = AgenticCommerceService()
     result = await svc.create_purchase_workflow(
@@ -143,7 +169,7 @@ async def get_order(order_id: str, tenant_id: str) -> dict:
 # ── MCP intent endpoint ───────────────────────────────────────────────────────
 
 @router.post("/mcp/intent", summary="Submit MCP agent purchase intent", dependencies=[_Gate])
-async def submit_mcp_intent(body: MCPIntentRequest) -> dict:
+async def submit_mcp_intent(body: MCPIntentRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.business_community.agentic_commerce.mcp_bridge import MCPBridge
     bridge = MCPBridge()
     intent = bridge.receive_intent({
@@ -181,7 +207,7 @@ async def ap2_webhook(body: WebhookAP2Request) -> dict:
 # ── Approval callback ─────────────────────────────────────────────────────────
 
 @router.post("/approve/{workflow_id}", summary="Approve a pending MCP purchase intent", dependencies=[_Gate])
-async def approve_workflow(workflow_id: str, tenant_id: str, action: str = "approve") -> dict:
+async def approve_workflow(workflow_id: str, tenant_id: str, action: str = "approve", auth: AuthResult = _AUTH) -> dict:
     """
     Record a human decision on a pending commerce approval.
 
@@ -232,7 +258,7 @@ class AuctionRequest(BaseModel):
 
 
 @router.post("/auctions", summary="Launch multi-agent procurement auction", dependencies=[_Gate])
-async def create_auction(body: AuctionRequest) -> dict:
+async def create_auction(body: AuctionRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
         MultiAgentOrchestrator,
     )
