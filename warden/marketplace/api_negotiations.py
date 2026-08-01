@@ -6,11 +6,22 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_negotiations")
 
 router = APIRouter(tags=["Marketplace Negotiations"], dependencies=[Depends(marketplace_rate_limit)])
+
+# MP-1a: negotiation writes move money-adjacent state (a price agreement that
+# clearing later settles) and were reachable with no credential at all —
+# `marketplace_rate_limit` throttles, it does not identify. Same shape as
+# api_listings.py's `_WRITE`.
+#
+# This proves *a tenant*, not *which agent* — MP-1b adds the Ed25519 offer
+# signature that binds `from_agent_id` to the caller. Both are required; see
+# rules #23/#24 in warden/marketplace/CLAUDE.md.
+_WRITE = [Depends(require_api_key)]
 
 
 class NegotiationStartRequest(BaseModel):
@@ -26,7 +37,7 @@ class OfferRequest(BaseModel):
     message:       str = ""
 
 
-@router.post("/negotiations", status_code=201)
+@router.post("/negotiations", status_code=201, dependencies=_WRITE)
 async def start_negotiation(body: NegotiationStartRequest) -> dict:
     from warden.marketplace.listing import get_listing as _get_listing
     from warden.marketplace.negotiation import NegotiationEngine
@@ -43,7 +54,7 @@ async def start_negotiation(body: NegotiationStartRequest) -> dict:
     return neg.to_dict()
 
 
-@router.post("/negotiations/{negotiation_id}/offer", status_code=201)
+@router.post("/negotiations/{negotiation_id}/offer", status_code=201, dependencies=_WRITE)
 async def send_offer(negotiation_id: str, body: OfferRequest) -> dict:
     from warden.marketplace.negotiation import NegotiationEngine
     try:
@@ -58,7 +69,7 @@ async def send_offer(negotiation_id: str, body: OfferRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/negotiations/{negotiation_id}/accept")
+@router.post("/negotiations/{negotiation_id}/accept", dependencies=_WRITE)
 async def accept_offer(negotiation_id: str, body: OfferRequest) -> dict:
     from warden.marketplace.negotiation import NegotiationEngine
     try:

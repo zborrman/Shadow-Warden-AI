@@ -1250,7 +1250,11 @@ class CreditsPurchaseRequest(BaseModel):
 
 
 @router.post("/credits/purchase", status_code=200)
-async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Request) -> dict:
+async def purchase_credits_endpoint(
+    body: CreditsPurchaseRequest,
+    request: Request,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
     """Purchase a credit package. In production, redirects to Lemon Squeezy checkout.
 
     For direct testing (integration tests, webhook simulation), grants credits immediately.
@@ -1282,12 +1286,23 @@ async def purchase_credits_endpoint(body: CreditsPurchaseRequest, request: Reque
                     "valid_packages": list(CREDIT_PACKAGES.keys())},
         )
 
-    state = getattr(request, "state", None)
-    tenant_obj = getattr(state, "tenant", None)
-    if isinstance(tenant_obj, dict):
-        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
-    else:
-        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+    # MP-1a: credits are directly spendable, so the tenant they are granted to is
+    # a security decision, not a routing hint. The authenticated tenant wins.
+    # Previously this endpoint had no auth dependency at all and fell back to a
+    # caller-supplied ``X-Tenant-ID`` header — an anonymous POST minted 1000
+    # spendable credits to any tenant id the caller named, for free.
+    #
+    # The header is honoured only in dev/air-gapped mode (no API key configured
+    # at all, where require_api_key resolves every caller to "default"), so local
+    # and test ergonomics are unchanged while production has no bypass.
+    tenant_id = auth.tenant_id
+    if tenant_id == "default":
+        state = getattr(request, "state", None)
+        tenant_obj = getattr(state, "tenant", None)
+        if isinstance(tenant_obj, dict):
+            tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or tenant_id
+        else:
+            tenant_id = request.headers.get("X-Tenant-ID", tenant_id)
 
     new_balance = purchase_credits(tenant_id, body.package_id, idempotency_key=idempotency_key)
     return {
