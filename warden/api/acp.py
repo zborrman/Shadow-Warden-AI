@@ -22,13 +22,48 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import AuthResult, require_api_key
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/acp", tags=["acp"])
+
+# MP-8: `_Gate` is an ENTITLEMENT gate, not authentication. It answers "is this
+# tenant's plan good enough", never "who is this". Measured on origin/main: an
+# anonymous caller does get a 403 here, because `agentic_commerce_enabled` is
+# false at the default tier — so these writes were not anonymously reachable,
+# and the tier cannot be spoofed via `X-Tenant-Tier` (SR-1.1 closed that).
+#
+# The real defect is identity, not access: every write model below carries its
+# own `tenant_id` as caller-supplied text, which the handler used directly. Any
+# caller whose plan clears the gate could therefore issue payment tokens, check
+# out carts and file refunds *against another tenant*.
+#
+# Two consequences, both fixed here: access control no longer rests on a
+# side-effect of tier resolution (an entitlement change must not silently become
+# an authentication change), and the tenant is taken from the authenticated
+# identity. Entitlement and identity are orthogonal — keep both.
 _Gate = require_feature("agentic_commerce_enabled")
+_AUTH = Depends(require_api_key)
+
+
+def _effective_tenant(auth: AuthResult, body_tenant: str) -> str:
+    """Bind an ACP write to the authenticated tenant, not a body-supplied string.
+
+    Every write model here carries its own ``tenant_id``, which is caller text:
+    with no auth in front of it, one tenant could issue tokens, check out carts
+    and file refunds against another. The authenticated tenant wins.
+
+    The body value is honoured only in dev/air-gapped mode (no API key
+    configured at all, where ``require_api_key`` resolves every caller to
+    "default"), so local runs and the suite keep working while production has no
+    cross-tenant path. Same rule as marketplace rule #24.
+    """
+    if auth.tenant_id and auth.tenant_id != "default":
+        return auth.tenant_id
+    return body_tenant
 
 _MERCHANT_ID = os.getenv("ACP_MERCHANT_ID", "shadow-warden-ai")
 _BASE_URL    = os.getenv("ACP_BASE_URL", "https://api.shadow-warden-ai.com")
@@ -99,7 +134,7 @@ async def acp_manifest() -> dict:
 # ── SPT endpoints ─────────────────────────────────────────────────────────────
 
 @router.post("/token", summary="Issue a Shared Payment Token (merchant)", dependencies=[_Gate])
-async def issue_token(body: IssueTokenRequest) -> dict:
+async def issue_token(body: IssueTokenRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.token_vault import issue_spt
     spt = issue_spt(
         merchant_id=_MERCHANT_ID,
@@ -126,7 +161,7 @@ async def verify_token(token_id: str, agent_id: str | None = None) -> dict:
 
 
 @router.delete("/token/{token_id}", summary="Revoke SPT", dependencies=[_Gate])
-async def revoke_token(token_id: str) -> dict:
+async def revoke_token(token_id: str, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.token_vault import revoke_spt
     ok = revoke_spt(token_id)
     if not ok:
@@ -137,11 +172,11 @@ async def revoke_token(token_id: str) -> dict:
 # ── Cart endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/cart", summary="Create a cart", dependencies=[_Gate])
-async def create_cart(body: CreateCartRequest, request: Request) -> dict:
+async def create_cart(body: CreateCartRequest, request: Request, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.cart import create_cart as _create
     redis = getattr(request.app.state, "redis", None)
     cart = _create(
-        tenant_id=body.tenant_id,
+        tenant_id=_effective_tenant(auth, body.tenant_id),
         agent_id=body.agent_id,
         merchant_id=body.merchant_id,
         mandate_id=body.mandate_id,
@@ -164,7 +199,7 @@ async def get_cart(cart_id: str, request: Request) -> dict:
 
 
 @router.post("/cart/{cart_id}/items", summary="Add item to cart", dependencies=[_Gate])
-async def add_item(cart_id: str, body: AddItemRequest, request: Request) -> dict:
+async def add_item(cart_id: str, body: AddItemRequest, request: Request, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.cart import add_item as _add
     from warden.protocols.acp.models import CartItem
     redis = getattr(request.app.state, "redis", None)
@@ -178,14 +213,14 @@ async def add_item(cart_id: str, body: AddItemRequest, request: Request) -> dict
 
 
 @router.post("/cart/{cart_id}/checkout", summary="Checkout cart (dual-ceiling validated)", dependencies=[_Gate])
-async def checkout(cart_id: str, body: CheckoutRequest, request: Request) -> dict:
+async def checkout(cart_id: str, body: CheckoutRequest, request: Request, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.checkout import checkout as _checkout
     redis = getattr(request.app.state, "redis", None)
     result = await _checkout(
         cart_id=cart_id,
         spt_id=body.spt_id,
         agent_id=body.agent_id,
-        tenant_id=body.tenant_id,
+        tenant_id=_effective_tenant(auth, body.tenant_id),
         redis=redis,
     )
     if not result["success"]:
@@ -197,13 +232,13 @@ async def checkout(cart_id: str, body: CheckoutRequest, request: Request) -> dic
 # ── Refund endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/refund", summary="Request a refund (PENDING_REVIEW)", dependencies=[_Gate])
-async def request_refund(body: RefundRequestBody) -> dict:
+async def request_refund(body: RefundRequestBody, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.refund import request_refund as _request
     refund = _request(
         order_id=body.order_id,
         merchant_id=body.merchant_id,
         agent_id=body.agent_id,
-        tenant_id=body.tenant_id,
+        tenant_id=_effective_tenant(auth, body.tenant_id),
         amount=body.amount,
         currency=body.currency,
         reason=body.reason,
@@ -231,7 +266,7 @@ async def list_refunds(tenant_id: str, status: str | None = None) -> dict:
 
 
 @router.post("/refund/{refund_id}/resolve", summary="Human approval: approve/reject refund", dependencies=[_Gate])
-async def resolve_refund(refund_id: str, body: ResolveRefundRequest) -> dict:
+async def resolve_refund(refund_id: str, body: ResolveRefundRequest, auth: AuthResult = _AUTH) -> dict:
     from warden.protocols.acp.refund import resolve_refund as _resolve
     try:
         ok = _resolve(refund_id, body.action)

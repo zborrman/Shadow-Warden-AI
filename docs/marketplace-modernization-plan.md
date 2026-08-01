@@ -95,10 +95,15 @@ The pattern is **drift, not design**: within the same cluster, `/marketplace/esc
 Both are the same class of error as the already-documented *"a rate-limit dependency is
 not auth"*, and both should be named explicitly so they stop recurring:
 
-1. **A feature gate is not auth.** `/acp/*` carries `_Gate` = `billing/feature_gate.py::
-   require_plan(...)`. It resolves a tier and 403s if too low — it never verifies
-   identity, and `_get_tenant_tier()` **defaults to `"starter"`** for an anonymous
-   caller. Any ACP route gated at starter level is effectively open.
+1. **A feature gate is not auth.** `/acp/*` carries `_Gate` =
+   `billing/feature_gate.py::require_feature(...)`. It resolves a tier and 403s if too
+   low — it never establishes identity. **Corrected during MP-8 execution:** these
+   routes are *not* anonymously reachable (measured on `origin/main`: 403, and the
+   tier cannot be spoofed via `X-Tenant-Tier` — SR-1.1 closed that). The real defect
+   is narrower: `tenant_id` arrives as caller-supplied body text, so any caller whose
+   plan clears the gate can act **against another tenant**; and access control rests
+   on a side effect of tier resolution, so an entitlement change silently becomes an
+   access change.
 2. **An empty secret disables the check.** `api.py:1237` —
    `admin_key = os.getenv("ADMIN_KEY",""); if admin_key and request.headers.get(...) != admin_key:`
    With `ADMIN_KEY` unset, `POST /marketplace/agents/{id}/kya/revoke` skips its admin
@@ -136,7 +141,7 @@ directly serves SR-7.2** — coordinate rather than duplicate.
 | T3 | Attacker mutates/deletes another agent's registration or capabilities | `PATCH`/`DELETE /agents/{id}` open | denial of service, capability escalation | **High** | MP-1a |
 | T4 | DAO proposal created, voted and executed by an unauthenticated caller | `/proposals/*` open | governance capture | **High** | MP-1a |
 | T5 | KYA revoked on any agent when `ADMIN_KEY` is unset | empty-secret fail-open | compliance-state tampering | **High** | MP-1c |
-| T6 | ACP payment token minted / cart checked out / refund resolved anonymously | entitlement gate ≠ auth | money movement | **High** | MP-8 |
+| T6 | ACP/commerce payment token minted, cart checked out or refund filed **against another tenant** by any entitled caller (`tenant_id` is body text) | entitlement gate ≠ identity | cross-tenant money movement | **Medium-High** | MP-8 |
 | T7 | Injection payload passes the weaker substring matcher into an LLM-backed buyer/seller agent | MP-2 gap | prompt injection into an agent with spend authority | **Medium** | MP-2 |
 | T8 | Counterparty agent trusts `"signature_type":"Ed25519"` + `"injection_guard":true` from `/marketplace/protocol` | manifest asserts unimplemented capabilities | misplaced trust by an external agent | **Medium** | MP-1, MP-2, MP-7 |
 

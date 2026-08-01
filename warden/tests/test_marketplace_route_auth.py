@@ -60,30 +60,24 @@ _KNOWN_OPEN: frozenset[str] = frozenset({
     # dependency scan below cannot see it. MP-1c makes that check fail closed.
     "POST /marketplace/agents/{agent_id}/kya/revoke",
 
-    # ── Pending MP-8 ─────────────────────────────────────────────────────────
-    # These carry `_Gate` (billing/feature_gate.py::require_plan), which resolves
-    # a tier and 403s if it is too low but never verifies identity — and
-    # _get_tenant_tier() defaults an anonymous caller to "starter". A feature
-    # gate is not auth (marketplace CLAUDE.md, MP-0). MP-8 adds require_api_key
-    # alongside it; webhooks/ap2 needs signature verification, not an API key.
-    "POST /acp/token",
-    "DELETE /acp/token/{token_id}",
-    "POST /acp/cart",
-    "POST /acp/cart/{cart_id}/items",
-    "POST /acp/cart/{cart_id}/checkout",
-    "POST /acp/refund",
-    "POST /acp/refund/{refund_id}/resolve",
-    "POST /business-community/commerce/mandates",
-    "DELETE /business-community/commerce/mandates/{mandate_id}",
-    "POST /business-community/commerce/orders",
-    "POST /business-community/commerce/auctions",
-    "POST /business-community/commerce/approve/{workflow_id}",
-    "POST /business-community/commerce/mcp/intent",
+    # Inbound payment-provider callback. An API key is the wrong control here —
+    # an external provider cannot hold ours — and AP2 does not currently send a
+    # signature to verify. It is safe only because the handler is inert: it logs
+    # and changes no state, so a forged call achieves nothing beyond a log line.
+    # Before it may settle an order, mark it paid or release escrow it needs a
+    # real signature check keyed via resolve_key(..., purpose=...), rejecting
+    # unconditionally when the key will not resolve. See the comment on the
+    # handler itself.
     "POST /business-community/commerce/webhooks/ap2",
 })
 
 # Dependency callables that constitute authentication. A rate limiter and a
-# feature/plan gate are deliberately NOT in this list — see MP-0.
+# feature/plan gate are deliberately NOT in this list — see MP-0. Note a
+# feature gate may still *deny* an anonymous caller as a side effect of tier
+# resolution (measured: /acp/* returns 403 anonymously because the feature is
+# above the default tier). That is not authentication: it establishes no
+# identity, so the handler still cannot tell one entitled tenant from another,
+# and an entitlement change would silently become an access change.
 _AUTH_CALLABLES = ("require_api_key", "require_ext_auth", "_require_admin")
 
 _CHILD = r'''

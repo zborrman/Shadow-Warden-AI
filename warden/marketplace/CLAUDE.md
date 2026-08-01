@@ -72,8 +72,12 @@ POST /marketplace/analytics/query      ← MCP/SOVA: SELECT-only SQL gate (500 r
 > - **A rate limiter is not auth.** `marketplace_rate_limit` throttles; it identifies
 >   nobody. A router carrying only that dependency is unauthenticated.
 > - **A feature gate is not auth.** `billing/feature_gate.py::require_plan` /
->   `require_feature` resolve a *tier* and 403 if it is too low — they never verify
->   identity, and `_get_tenant_tier()` defaults an anonymous caller to `"starter"`.
+>   `require_feature` resolve a *tier* and 403 if it is too low — they never
+>   establish identity. Such a gate may still deny an anonymous caller as a side
+>   effect (a feature above the default tier does 403), but the handler still
+>   cannot tell one entitled tenant from another, so any `tenant_id` it reads
+>   from the body is unverified — and an entitlement change silently becomes an
+>   access change. Measured on `/acp/*` (MP-8).
 > - **An empty secret must not disable a check.** `if secret and provided != secret:`
 >   silently allows everyone when the env var is unset. Resolve through
 >   `warden.secret_keys.resolve_key(..., purpose=...)` and **deny** when unresolvable.
