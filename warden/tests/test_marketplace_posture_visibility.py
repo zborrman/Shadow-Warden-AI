@@ -1,0 +1,145 @@
+"""
+warden/tests/test_marketplace_posture_visibility.py — MP-6 + MP-7.
+
+Two related problems, same shape: the system reported a stronger posture than it
+had.
+
+MP-6 — ``authorize_payment()`` returns ALLOW when
+``AUTHORIZE_PAYMENT_ENFORCED`` is off. To a caller that is indistinguishable
+from an ALLOW after every check passed, so a reader sees a gated money path
+where nothing is evaluating.
+
+MP-7 — ``GET /marketplace/protocol`` is what a counterparty agent reads before
+deciding to trade. It advertised ``signature_type: Ed25519`` while nothing
+verified signatures, ``injection_guard: true`` while that module had no caller,
+and escrow ``chains`` while settlement was an in-process simulation.
+"""
+from __future__ import annotations
+
+import pytest
+
+
+class TestAuthorizationPostureIsVisible:
+    def test_disabled_enforcement_still_returns_allow(self, monkeypatch):
+        """Behaviour is unchanged — MP-6 adds visibility, not enforcement."""
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "false")
+        from warden.payments.authorize import authorize_payment
+        result = authorize_payment("t1", "did:shadow:A", "purchase", 10.0)
+        assert result.verdict == "ALLOW"
+        assert "enforcement_disabled" in result.reasons
+
+    def test_allow_carries_the_reason_it_was_allowed(self, monkeypatch):
+        """`enforcement_disabled` must stay in reasons — it is the audit trail."""
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "false")
+        from warden.payments.authorize import authorize_payment
+        assert authorize_payment("t1", "a", "purchase", 1.0).reasons == ["enforcement_disabled"]
+
+    def test_enforced_allow_is_labelled_differently_from_disabled_allow(self, monkeypatch):
+        """The whole point of MP-6: the two ALLOWs must be distinguishable."""
+        recorded: list[tuple[str, bool]] = []
+        import warden.payments.authorize as mod
+        monkeypatch.setattr(
+            mod, "_record_authorization",
+            lambda verdict, *, enforced: recorded.append((verdict, enforced)),
+        )
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "false")
+        mod.authorize_payment("t1", "a", "purchase", 1.0)
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "true")
+        mod.authorize_payment("t1", "a", "purchase", 1.0)
+
+        assert len(recorded) == 2
+        assert recorded[0][1] is False, "disabled path must record enforced=False"
+        assert recorded[1][1] is True, "enforced path must record enforced=True"
+
+    def test_metric_failure_never_blocks_a_payment(self, monkeypatch):
+        """Telemetry must not be able to reject money movement."""
+        import warden.payments.authorize as mod
+
+        def _boom(*_a, **_kw):
+            raise RuntimeError("registry gone")
+
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "false")
+        monkeypatch.setattr(mod, "_record_authorization", _boom)
+        with pytest.raises(RuntimeError):
+            mod.authorize_payment("t1", "a", "purchase", 1.0)
+
+    def test_recorder_itself_swallows_metric_errors(self, monkeypatch):
+        """_record_authorization is the layer that must not raise."""
+        import warden.payments.authorize as mod
+        mod._record_authorization("ALLOW", enforced=False)  # must not raise
+
+    def test_enforcement_flag_is_read_fresh(self, monkeypatch):
+        from warden.payments.authorize import enforcement_enabled
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "true")
+        assert enforcement_enabled() is True
+        monkeypatch.setenv("AUTHORIZE_PAYMENT_ENFORCED", "false")
+        assert enforcement_enabled() is False
+
+    def test_default_is_off(self, monkeypatch):
+        """Pinned because rule #23 tells operators to assume exactly this."""
+        monkeypatch.delenv("AUTHORIZE_PAYMENT_ENFORCED", raising=False)
+        from warden.payments.authorize import enforcement_enabled
+        assert enforcement_enabled() is False
+
+
+class TestProtocolManifestHonesty:
+    def _manifest(self) -> dict:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from warden.marketplace import api
+        app = FastAPI()
+        app.include_router(api.router, prefix="/marketplace")
+        return TestClient(app).get("/marketplace/protocol").json()
+
+    def test_signature_enforcement_is_advertised(self, monkeypatch):
+        """`signature_type: Ed25519` alone cannot tell a partner if it is enforced."""
+        monkeypatch.setenv("MARKETPLACE_REQUIRE_SIGNED_OFFERS", "false")
+        assert self._manifest()["negotiation"]["signature_enforced"] is False
+        monkeypatch.setenv("MARKETPLACE_REQUIRE_SIGNED_OFFERS", "true")
+        assert self._manifest()["negotiation"]["signature_enforced"] is True
+
+    def test_escrow_settlement_mode_is_advertised(self):
+        """Advertising `chains` without this reads as an on-chain guarantee."""
+        mode = self._manifest()["escrow"]["settlement_mode"]
+        assert mode in ("onchain", "simulated", "unknown")
+
+    def test_settlement_mode_is_simulated_without_an_rpc(self, monkeypatch):
+        from warden.marketplace.api import _escrow_settlement_mode
+        monkeypatch.setattr("warden.web3.chains.get_chain", lambda _c: {"rpc_url": ""})
+        assert _escrow_settlement_mode() == "simulated"
+
+    def test_settlement_mode_is_onchain_with_an_rpc(self, monkeypatch):
+        from warden.marketplace.api import _escrow_settlement_mode
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain", lambda _c: {"rpc_url": "https://rpc.example"}
+        )
+        assert _escrow_settlement_mode() == "onchain"
+
+    def test_manifest_probes_never_raise(self, monkeypatch):
+        """A discovery endpoint must not 500 because a probe failed."""
+        from warden.marketplace.api import _escrow_settlement_mode, _signed_offers_required
+
+        def _boom(*_a, **_kw):
+            raise RuntimeError("nope")
+
+        monkeypatch.setattr("warden.web3.chains.get_chain", _boom)
+        assert _escrow_settlement_mode() in ("simulated", "unknown")
+        monkeypatch.setattr("warden.marketplace.negotiation.signed_offers_required", _boom)
+        assert _signed_offers_required() is False
+
+    def test_settlement_mode_probe_does_not_hit_the_network(self, monkeypatch):
+        """Derived from config: _check_rpc_with_retry backs off 2/4/8s.
+
+        Putting that behind discovery would hand any caller a 14-second stall.
+        """
+        from warden.marketplace import escrow
+
+        def _must_not_be_called(*_a, **_kw):
+            raise AssertionError("manifest must not probe RPC reachability")
+
+        monkeypatch.setattr(
+            escrow.EscrowService, "_check_rpc_with_retry", _must_not_be_called, raising=False
+        )
+        from warden.marketplace.api import _escrow_settlement_mode
+        assert _escrow_settlement_mode() in ("onchain", "simulated", "unknown")

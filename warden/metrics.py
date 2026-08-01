@@ -507,6 +507,21 @@ try:
             "warden_marketplace_listings_total"
         )
 
+    # MP-6: payment-authorization outcomes. The `enforced` label separates
+    # "allowed after the checks ran" from "allowed because
+    # AUTHORIZE_PAYMENT_ENFORCED is off" — indistinguishable to a caller, and
+    # the difference between a gated and an ungated money path.
+    try:
+        PAYMENT_AUTHORIZATION_TOTAL = Counter(
+            "warden_payment_authorization_total",
+            "authorize_payment() verdicts by enforcement state",
+            ["verdict", "enforced"],
+        )
+    except ValueError:
+        PAYMENT_AUTHORIZATION_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_payment_authorization_total"
+        )
+
     # MP-1b: offer-signature outcomes. `absent` is the one that matters during
     # the bake period — it counts offers that would be rejected once
     # MARKETPLACE_REQUIRE_SIGNED_OFFERS flips to true, so an operator can watch

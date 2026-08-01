@@ -61,6 +61,21 @@ def enforcement_enabled() -> bool:
     return os.getenv("AUTHORIZE_PAYMENT_ENFORCED", "false").lower() == "true"
 
 
+def _record_authorization(verdict: str, *, enforced: bool) -> None:
+    """Count an authorization outcome. Never raises — telemetry must not block money.
+
+    The ``enforced`` label is the whole point: it separates "allowed after the
+    checks ran" from "allowed because the chokepoint was switched off".
+    """
+    try:
+        from warden.metrics import PAYMENT_AUTHORIZATION_TOTAL
+        PAYMENT_AUTHORIZATION_TOTAL.labels(
+            verdict=verdict, enforced=str(enforced).lower()
+        ).inc()
+    except Exception as exc:  # pragma: no cover - metrics are optional
+        log.debug("authorize_payment metric unavailable: %s", exc)
+
+
 def _merge(current: Verdict, new: Verdict) -> Verdict:
     return new if _PRECEDENCE[new] > _PRECEDENCE[current] else current
 
@@ -122,6 +137,19 @@ def authorize_payment(
     verdict across all evaluated checks wins.
     """
     if not enforcement_enabled():
+        # MP-6: an ALLOW because nothing was checked and an ALLOW because every
+        # check passed are the same object to a caller, and both read as "the
+        # chokepoint approved this". They must not be the same *metric*: as
+        # shipped, AUTHORIZE_PAYMENT_ENFORCED defaults false and both live call
+        # sites (marketplace/listing.py, marketplace/clearing.py) additionally
+        # fail soft to "proceed", so a reader could reasonably believe money
+        # movement is gated when nothing is evaluating it.
+        #
+        # This only makes the posture visible. Whether the default flips is
+        # Track F's call (docs/master-kickoff-plan.md; P-6 tracks the deadlines
+        # for the default-OFF gates) — the metric is what lets that decision be
+        # made from data instead of assumption.
+        _record_authorization("ALLOW", enforced=False)
         return AuthorizationResult(verdict="ALLOW", reasons=["enforcement_disabled"])
 
     verdict: Verdict = "ALLOW"
@@ -144,4 +172,5 @@ def authorize_payment(
         reasons.append(mandate_reason)
         checks["mandate"] = mandate_verdict
 
+    _record_authorization(verdict, enforced=True)
     return AuthorizationResult(verdict=verdict, reasons=reasons, checks=checks)

@@ -43,6 +43,43 @@ log = logging.getLogger("warden.marketplace.api")
 router = APIRouter(tags=["Marketplace"])
 
 
+def _signed_offers_required() -> bool:
+    """Whether unsigned offers are rejected, for the protocol manifest (MP-7)."""
+    try:
+        from warden.marketplace.negotiation import signed_offers_required
+        return signed_offers_required()
+    except Exception as exc:
+        log.debug("manifest: signature-enforcement probe unavailable: %s", exc)
+        return False
+
+
+def _escrow_settlement_mode() -> str:
+    """``"onchain"`` when a chain RPC is configured, else ``"simulated"`` (MP-7).
+
+    ``EscrowService`` runs a deterministic in-process simulation when no RPC is
+    set — the state machine is real, the settlement is not. The manifest used to
+    advertise ``chains`` unconditionally, which reads as an on-chain guarantee.
+
+    Derived from **configuration**, never by probing. ``_check_rpc_with_retry()``
+    is the reachability check, and it retries with 2/4/8s back-off — putting that
+    behind a discovery endpoint would hand any caller a 14-second stall. A
+    configured-but-currently-unreachable node is an availability problem for
+    ``/health``, not a change in what this marketplace offers.
+    """
+    try:
+        from warden.web3.chains import VALID_CHAINS, get_chain
+        for chain in VALID_CHAINS:
+            try:
+                if get_chain(chain).get("rpc_url", ""):
+                    return "onchain"
+            except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
+                continue
+        return "simulated"
+    except Exception as exc:
+        log.debug("manifest: escrow mode probe unavailable: %s", exc)
+        return "unknown"
+
+
 def _require_marketplace_gate() -> None:
     try:
         from warden.billing.feature_gate import require_feature
@@ -84,9 +121,18 @@ async def get_market_protocol(response: Response) -> dict:
             "deliver_asset", "confirm_receipt", "raise_dispute",
             "reject_proposal",
         ],
+        # MP-7: a counterparty agent makes trust decisions from this manifest, so
+        # every key here has to describe the running configuration rather than the
+        # intended design. Two of these were false advertising until MP-1b/MP-2:
+        # signatures were never verified (all offers stored signature='') and
+        # `injection_guard` named a module with no production caller.
         "negotiation": {
             "max_rounds": int(os.getenv("MARKETPLACE_MAX_NEGOTIATION_ROUNDS", "5")),
             "signature_type": "Ed25519",
+            # Whether an unsigned or badly-signed offer is actually REJECTED, as
+            # opposed to verified-and-counted during the bake period. A partner
+            # cannot infer this from `signature_type` alone.
+            "signature_enforced": _signed_offers_required(),
             "message_format": "MCP-envelope-v1",
             "injection_guard": True,
             "min_offers_before_buy": int(os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
@@ -100,6 +146,11 @@ async def get_market_protocol(response: Response) -> dict:
             "required": True,
             "chains": ["sepolia", "eth_tester"],
             "delivery_timeout_hours": int(os.getenv("ESCROW_DELIVERY_TIMEOUT_HOURS", "48")),
+            # "simulated" when no chain RPC is configured: the escrow state
+            # machine runs deterministically in-process and settles nothing
+            # on-chain. Advertising `chains` without this let a counterparty
+            # read an on-chain guarantee that does not exist.
+            "settlement_mode": _escrow_settlement_mode(),
         },
         "governance": {
             "dao_enabled": os.getenv("DAO_GOVERNANCE_ENABLED", "false").lower() == "true",
