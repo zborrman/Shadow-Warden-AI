@@ -83,10 +83,17 @@ POST /marketplace/analytics/query      ← MCP/SOVA: SELECT-only SQL gate (500 r
 >   `warden.secret_keys.resolve_key(..., purpose=...)` and **deny** when unresolvable.
 
 1. **Every offer must be Ed25519-signed.** `scan_negotiation_message()` runs on every offer body before persist. Unsigned or injection-flagged offers → HTTP 400.
-   - ⚠️ **SIGNING: NOT IMPLEMENTED — see MP-1b.** `negotiation.py::_verify_offer_signature()`
-     exists but is called from **nowhere**; `send_offer`/`accept_offer` default
-     `keypair=None` and the HTTP routes never pass one, so every API-originated offer
-     persists `signature=''` and `from_agent_id` is unverified body text.
+   - ✅ **SIGNING: IMPLEMENTED (MP-1b) and ENFORCED in production (D-3, 2026-08-01).**
+     `_assert_actor()` verifies an Ed25519 signature over `build_offer_canonical(...)`
+     against the agent's registered `marketplace_agents.public_key` before any state
+     change. `agent_id` is *derived from* that key, so a valid signature is itself
+     proof of the claimed `from_agent_id`. Fail-CLOSED: unknown agent, missing key,
+     absent signature, stale timestamp or verify error all reject with HTTP 400.
+     Rejection is gated on `MARKETPLACE_REQUIRE_SIGNED_OFFERS` (**default `false`**,
+     `true` in production). Verification and
+     `warden_marketplace_offer_signature_total{result,enforced}` run either way.
+     ⚠️ The flag needs an explicit `${...}` passthrough in `docker-compose.yml` —
+     warden has no `env_file`, so setting it only in `.env` is a silent no-op.
    - ⚠️ **INJECTION: WRONG MODULE — see MP-2.** `injection_guard.scan_negotiation_message()`
      is dead (0% coverage). A weaker private substring matcher,
      `negotiation.py::_scan_injection()`, runs instead.
