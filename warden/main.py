@@ -485,14 +485,34 @@ async def lifespan(app: FastAPI):
 
     log.info("Warden gateway starting — initialising filter pipeline…")
 
-    # ── DB schema (idempotent — IF NOT EXISTS) ────────────────────────
+    # ── DB schema — Alembic is the authority (D-1) ────────────────────
+    # Until D-1 the tree under warden/db/migrations was never executed (not in
+    # CI, entrypoint.sh, the Dockerfile, or the deploy), so the tables that live
+    # only there — warden_core.monitors, probe_results, marketplace_embeddings —
+    # existed in no deployment while /monitors stayed mounted. Every revision is
+    # IF NOT EXISTS, so this adopts the live schema rather than recreating it.
+    #
+    # create_schema() is kept strictly as the fallback: if the upgrade fails we
+    # reproduce exactly the previous behaviour, loudly. Delete the fallback once
+    # a clean run is confirmed in production.
     try:
-        from warden.db.connection import DATABASE_URL, create_schema  # noqa: PLC0415
+        from warden.db.connection import DATABASE_URL  # noqa: PLC0415
         if DATABASE_URL:
-            await asyncio.to_thread(create_schema)
-            log.info("DB schema verified.")
+            from warden.db.migrate import upgrade_to_head  # noqa: PLC0415
+            _mig = await asyncio.to_thread(upgrade_to_head)
+            log.info("DB schema: alembic %s", _mig.get("status"))
     except Exception as _db_err:
-        log.warning("DB schema init failed (non-fatal): %s", _db_err)
+        log.error(
+            "Alembic upgrade failed (%s) — falling back to create_schema(); "
+            "tables that exist only in the migration tree will be missing.",
+            _db_err,
+        )
+        try:
+            from warden.db.connection import create_schema  # noqa: PLC0415
+            await asyncio.to_thread(create_schema)
+            log.info("DB schema verified via create_schema() fallback.")
+        except Exception as _fb_err:
+            log.warning("DB schema init failed (non-fatal): %s", _fb_err)
 
     _redactor = SecretRedactor(strict=strict)
     _guard    = SemanticGuard(strict=strict)
