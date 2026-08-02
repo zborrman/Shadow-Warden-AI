@@ -463,3 +463,134 @@ def test_masked_bitcoin_shows_last_four() -> None:
     assert replacement.startswith("[MASKED:bitcoin_address:...")
     assert replacement.endswith("NVN2]")
     assert btc not in result.text
+
+
+# ── Pattern-registry invariants (SR-7.3) ──────────────────────────────────────
+#
+# Added to kill surviving mutants found by `mutmut run` on this module. Two
+# whole classes of mutation were surviving because nothing asserted them:
+#
+#   1. `pii=True/False` on a _Pattern could be flipped with every test still
+#      green. That flag feeds _PII_KINDS → Result.has_pii → the PII_DETECTED
+#      flag raised in both /filter paths (main.py), so a silent flip is a GDPR
+#      classification change that no test would catch.
+#   2. The FULL-mode `[REDACTED:*]` token could be rewritten arbitrarily. The
+#      existing tests only assert the secret is *gone*, never that it was
+#      labelled correctly — so the label is what downstream consumers key on
+#      and it was untested.
+#
+# These tests pin the registry itself rather than any one detection, so the
+# table stays honest as patterns are added.
+
+from warden.secret_redactor import _PATTERNS, _PII_KINDS, _TOKEN  # noqa: E402
+
+# Every kind in the registry, with the GDPR personal-data flag it must carry.
+# Keep alphabetically grouped by category, matching _PATTERNS order.
+_EXPECTED_PII: dict[str, bool] = {
+    # ── API / service keys — credentials, not personal data ───────────────
+    "anthropic_api_key":      False,
+    "huggingface_token":      False,
+    "openai_key":             False,
+    "aws_access_key":         False,
+    "aws_secret_key":         False,
+    "github_token":           False,
+    "stripe_key":             False,
+    "gcp_api_key":            False,
+    "bearer_token":           False,
+    "url_credentials":        False,
+    "private_key_block":      False,
+    # ── Financial ─────────────────────────────────────────────────────────
+    # FIXME(SR-7.3): credit_card is the only financial identifier in the table
+    # without pii=True — iban and bic_swift both carry it. A PAN is personal
+    # data under GDPR Art. 4(1). Asserting current behaviour here so the
+    # mutant dies; flipping it changes /filter output and needs its own change.
+    "credit_card":            False,
+    "iban":                   True,
+    "bic_swift":              True,
+    # ── Direct identifiers ────────────────────────────────────────────────
+    "us_ssn":                 True,
+    "email":                  True,
+    "ipv4":                   True,
+    "phone_number":           True,
+    "ethereum_address":       True,
+    "bitcoin_address":        True,
+    "us_passport":            True,
+    # ── ICS / SCADA — infrastructure addresses, not personal data ─────────
+    "opcua_endpoint":         False,
+    "siemens_db_address":     False,
+    "modbus_register":        False,
+    "ics_station_address":    False,
+    "ics_default_credential": False,
+    "ethernetip_connection":  False,
+    "scada_config_path":      False,
+    "plc_tag_address":        False,
+}
+
+
+def test_registry_covered_by_expected_pii_table() -> None:
+    """Every _Pattern must be listed above — a new pattern forces a decision."""
+    registry = {p.kind for p in _PATTERNS}
+    assert registry == set(_EXPECTED_PII), (
+        f"registry drift: missing from test table={registry - set(_EXPECTED_PII)}, "
+        f"stale in test table={set(_EXPECTED_PII) - registry}"
+    )
+
+
+@pytest.mark.parametrize("kind,expected", sorted(_EXPECTED_PII.items()))
+def test_pattern_pii_flag_is_pinned(kind: str, expected: bool) -> None:
+    """The GDPR personal-data flag is asserted per pattern, not inferred."""
+    pattern = next(p for p in _PATTERNS if p.kind == kind)
+    assert pattern.pii is expected, (
+        f"{kind}: pii={pattern.pii} but table says {expected}. This flag drives "
+        f"Result.has_pii → FlagType.PII_DETECTED in /filter — do not flip it "
+        f"without changing the table and the downstream expectation."
+    )
+
+
+def test_pii_kinds_matches_registry() -> None:
+    """_PII_KINDS is derived from _PATTERNS; pin the derivation, not a literal."""
+    assert frozenset(k for k, v in _EXPECTED_PII.items() if v) == _PII_KINDS
+
+
+# url_credentials keeps the scheme separator so the rewritten URL still parses:
+#   postgres://user:pw@host  →  [REDACTED:url_credentials]://host
+_TOKEN_SUFFIX: dict[str, str] = {"url_credentials": "://"}
+
+
+@pytest.mark.parametrize("kind", sorted(_EXPECTED_PII))
+def test_full_mode_token_is_well_formed(kind: str) -> None:
+    """FULL-mode placeholder must be exactly [REDACTED:<label>] + known suffix."""
+    token = _TOKEN[kind]
+    suffix = _TOKEN_SUFFIX.get(kind, "")
+    assert token.startswith("[REDACTED:"), f"{kind}: token {token!r} lost its prefix"
+    assert token.endswith("]" + suffix), (
+        f"{kind}: token {token!r} should end with {']' + suffix!r}"
+    )
+    label = token[len("[REDACTED:"):-(1 + len(suffix))]
+    assert label, f"{kind}: token {token!r} has an empty label"
+
+
+def test_full_mode_tokens_are_unique() -> None:
+    """Two kinds sharing a placeholder would make redacted output ambiguous."""
+    seen: dict[str, str] = {}
+    for kind, token in _TOKEN.items():
+        assert token not in seen, f"{kind} and {seen[token]} share token {token!r}"
+        seen[token] = kind
+
+
+@pytest.mark.parametrize("text,kind,token", [
+    ("sk-ant-" + "a" * 95,                          "anthropic_api_key", "[REDACTED:anthropic_api_key]"),
+    ("AKIAIOSFODNN7EXAMPLE",                        "aws_access_key",    "[REDACTED:aws_key]"),
+    ("sk_live_" + "a" * 30,                         "stripe_key",        "[REDACTED:stripe_key]"),
+    ("user@example.com",                            "email",             "[REDACTED:email]"),
+    ("123-45-6789",                                 "us_ssn",            "[REDACTED:ssn]"),
+    ("GB82WEST12345698765432",                      "iban",              "[REDACTED:iban]"),
+    ("DEUTDEFF500",                                 "bic_swift",         "[REDACTED:bic_swift]"),
+])
+def test_full_mode_writes_the_registry_token(text: str, kind: str, token: str) -> None:
+    """The exact placeholder reaches the output — not just 'the secret is gone'."""
+    result = r.redact(text, RedactionPolicy.FULL)
+    kinds = [f.kind for f in result.findings]
+    assert kind in kinds, f"expected kind={kind!r}, got {kinds}"
+    assert token in result.text, f"expected {token!r} in {result.text!r}"
+    assert text not in result.text
