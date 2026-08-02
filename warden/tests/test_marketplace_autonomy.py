@@ -1,16 +1,15 @@
 """Tests for warden/marketplace/autonomy.py — Progressive Autonomy L1/L2/L3."""
-import os
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolate_autonomy(tmp_path):
-    os.environ["MARKETPLACE_DB_PATH"] = str(tmp_path / "autonomy_test.db")
-    os.environ["REDIS_URL"] = "memory://"
+def _isolate_autonomy(tmp_path, monkeypatch):
+    # setenv restores the previous value; a manual pop deletes it, leaving every
+    # later test file on the redis://redis:6379 default.
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(tmp_path / "autonomy_test.db"))
+    monkeypatch.setenv("REDIS_URL", "memory://")
     yield
-    os.environ.pop("MARKETPLACE_DB_PATH", None)
-    os.environ.pop("REDIS_URL", None)
 
 
 def _make_policy(agent_id, level, *, max_spend=10.0, daily=100.0,

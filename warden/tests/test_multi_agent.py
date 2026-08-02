@@ -67,10 +67,14 @@ class TestMultiAgentOrchestrator:
         assert winner.agent == "claude"
 
     @pytest.mark.asyncio
-    async def test_run_auction_no_api_keys(self):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
-        os.environ.pop("OPENAI_API_KEY", None)
-        os.environ.pop("GEMINI_API_KEY", None)
+    async def test_run_auction_no_api_keys(self, monkeypatch):
+        # delenv (not pop) so the keys come BACK at teardown. Popping them left
+        # ANTHROPIC_API_KEY unset for the rest of the session, which is how the
+        # Evolution Engine's "no key = disabled" guard silently changes meaning
+        # for every later test.
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         orch = self._orch()
         auction_id = await orch.run_auction("tenant1", "Buy cloud storage under $50")
         assert len(auction_id) > 8

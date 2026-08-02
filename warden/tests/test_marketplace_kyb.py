@@ -1,17 +1,18 @@
 """Tests for warden/marketplace/kyb.py — KYB (Know Your Business), sits behind KYA."""
-import os
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolate_kyb(tmp_path):
-    """Each test gets its own SQLite DB and no Redis."""
-    os.environ["MARKETPLACE_DB_PATH"] = str(tmp_path / "kyb_test.db")
-    os.environ["REDIS_URL"] = "memory://"
+def _isolate_kyb(tmp_path, monkeypatch):
+    """Each test gets its own SQLite DB and no Redis.
+
+    setenv (not a manual set + pop) so teardown restores the suite's values
+    instead of deleting them out from under every later test file.
+    """
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(tmp_path / "kyb_test.db"))
+    monkeypatch.setenv("REDIS_URL", "memory://")
     yield
-    os.environ.pop("MARKETPLACE_DB_PATH", None)
-    os.environ.pop("REDIS_URL", None)
 
 
 class TestSubmission:

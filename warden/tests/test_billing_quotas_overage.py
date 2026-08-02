@@ -134,8 +134,10 @@ class TestGetUpgradeUrl:
         finally:
             del os.environ["PORTAL_BASE_URL"]
 
-    def test_default_base_url(self):
-        os.environ.pop("PORTAL_BASE_URL", None)
+    def test_default_base_url(self, monkeypatch):
+        # delenv restores at teardown; a bare pop would leave PORTAL_BASE_URL
+        # deleted for every test that runs after this one.
+        monkeypatch.delenv("PORTAL_BASE_URL", raising=False)
         from warden.billing.overage import get_upgrade_url
         url = get_upgrade_url("individual", "bw")
         assert "shadowwarden.ai" in url or "shadow" in url
