@@ -1,16 +1,17 @@
 """Tests for warden/marketplace/credits.py — Flex Credits system."""
-import os
 
 import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolate_credits(tmp_path):
-    os.environ["MARKETPLACE_DB_PATH"] = str(tmp_path / "credits_test.db")
-    os.environ["REDIS_URL"] = "memory://"
+def _isolate_credits(tmp_path, monkeypatch):
+    # monkeypatch.setenv restores the PREVIOUS value on teardown. A manual
+    # os.environ.pop() deletes it instead, so every later test file inherits the
+    # default (redis://redis:6379) rather than the suite's memory:// and opens a
+    # real connection.
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(tmp_path / "credits_test.db"))
+    monkeypatch.setenv("REDIS_URL", "memory://")
     yield
-    os.environ.pop("MARKETPLACE_DB_PATH", None)
-    os.environ.pop("REDIS_URL", None)
 
 
 class TestCreditPackages:

@@ -1,23 +1,21 @@
 """Tests for warden/marketplace/sanctions.py — sanctions screening at settlement (FT-5)."""
 from __future__ import annotations
 
-import os
-
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def _isolate(tmp_path, monkeypatch):
-    os.environ["MARKETPLACE_DB_PATH"] = str(tmp_path / "mkt.db")
-    os.environ["REDIS_URL"] = "memory://"
+    # setenv restores the previous value; a manual pop would delete it and leave
+    # every later test file on the redis://redis:6379 default.
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(tmp_path / "mkt.db"))
+    monkeypatch.setenv("REDIS_URL", "memory://")
 
     import warden.communities.incident_register as incident_mod
     import warden.staff.tools.compliance_kyc as kyc_mod
     monkeypatch.setattr(kyc_mod, "_DB_PATH", str(tmp_path / "compliance.db"))
     monkeypatch.setattr(incident_mod, "_DB_PATH", str(tmp_path / "sep.db"))
     yield
-    os.environ.pop("MARKETPLACE_DB_PATH", None)
-    os.environ.pop("REDIS_URL", None)
 
 
 class TestScreeningEnabledFlag:
