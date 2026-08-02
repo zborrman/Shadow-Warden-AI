@@ -130,6 +130,45 @@ def append(entry: dict) -> None:
             f.write(line)
     # Ship to S3-compatible object storage in background (fail-open, GDPR-safe)
     _s3_storage.ship_log_entry(entry)
+    # Mirror into the filter_events hypertable so reporting can query SQL instead
+    # of re-parsing this file (D-3). Off by default, never raises, and strictly
+    # after the authoritative write above — the NDJSON line is what the system
+    # depends on.
+    _mirror_to_sql(entry)
+
+
+def _mirror_to_sql(entry: dict) -> None:
+    """Best-effort SQL mirror. Imported lazily: this module is a leaf used by
+    tests and workers that have no SQLAlchemy/Postgres at all."""
+    try:
+        from warden.analytics.events_store import mirror
+
+        mirror(entry)
+    except Exception as exc:
+        log.debug("filter_events mirror skipped: %s", exc)
+
+
+def _purge_mirror_before(before: datetime) -> int:
+    """Erase mirrored rows in the same operation as the NDJSON purge.
+
+    GDPR erasure is only complete if it reaches every copy; a mirror that
+    outlived a subject-erasure request would be a violation, not an
+    optimisation. Failures here are logged, never raised — the authoritative
+    NDJSON purge must still complete.
+    """
+    try:
+        from warden.analytics.events_store import purge_before as _pb
+
+        return _pb(before)
+    except Exception as exc:
+        try:
+            from warden.observability import Reason, record_failopen
+
+            record_failopen("filter_events_purge", Reason.BACKEND_ERROR, exc)
+        except Exception:
+            pass
+        log.warning("filter_events mirror purge skipped: %s", exc)
+        return 0
 
 
 # ── Reader (used by the dashboard) ───────────────────────────────────────────
@@ -188,6 +227,11 @@ def purge_before(before: datetime) -> int:
 
     Used by the GDPR /gdpr/purge endpoint for on-demand erasure requests.
     """
+    # The mirror is purged unconditionally — including when the NDJSON file is
+    # already gone. An erasure request must clear every copy, and "the journal
+    # file does not exist" says nothing about what Postgres still holds.
+    _purge_mirror_before(before)
+
     if not LOGS_PATH.exists():
         return 0
 
@@ -223,11 +267,18 @@ def purge_old_entries() -> int:
     """
     Remove entries older than LOG_RETENTION_DAYS.
     Rewrites the file atomically.  Returns the number of entries removed.
+
+    LOG_RETENTION_DAYS is the *single* retention authority: the filter_events
+    migration installs no Timescale retention policy precisely so an env var and
+    a hardcoded SQL interval cannot drift apart. This call is therefore what
+    ages the mirror out too.
     """
+    cutoff = datetime.now(UTC) - timedelta(days=LOG_RETENTION_DAYS)
+    _purge_mirror_before(cutoff)
+
     if not LOGS_PATH.exists():
         return 0
 
-    cutoff   = datetime.now(UTC) - timedelta(days=LOG_RETENTION_DAYS)
     kept, removed = [], 0
 
     with LOGS_PATH.open("r", encoding="utf-8") as f:
