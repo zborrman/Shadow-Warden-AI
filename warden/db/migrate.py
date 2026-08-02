@@ -46,6 +46,7 @@ Safety properties
 from __future__ import annotations
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -122,13 +123,26 @@ def upgrade_to_head(*, timeout_s: float = 60.0) -> dict[str, Any]:
             )
             return {"status": "skipped_locked"}
 
+        sync_url = _sync_url(DATABASE_URL)
+        # migrations/env.py reads os.environ["DATABASE_URL"] itself and *raises*
+        # when it is unset — it never consults the Config we build. The app
+        # resolves its URL through settings, which today happens to read the same
+        # env var, but relying on that coupling means a deployment that supplies
+        # the DSN any other way would fail the upgrade and silently fall back to
+        # create_schema() forever. Pin the variable for the duration instead.
+        prev_env = os.environ.get("DATABASE_URL")
+        os.environ["DATABASE_URL"] = sync_url
         try:
             from alembic import command
-            cfg = _alembic_config(_sync_url(DATABASE_URL))
+            cfg = _alembic_config(sync_url)
             command.upgrade(cfg, "head")
             log.info("alembic: schema at head (%.1fs)", time.monotonic() - started)
             return {"status": "ok", "elapsed_s": round(time.monotonic() - started, 2)}
         finally:
+            if prev_env is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = prev_env
             # Best-effort unlock; the lock is session-scoped, so closing the
             # connection would release it anyway.
             try:
