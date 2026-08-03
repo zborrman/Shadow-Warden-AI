@@ -61,7 +61,12 @@ _db_lock   = threading.RLock()
 _REDIS_TTL = 86400   # 24 hours
 
 _VALID_LEVELS = frozenset({1, 2, 3})
-_DEFAULT_ALLOWED_ACTIONS = ["search", "negotiate", "clear"]
+# "purchase" is the action string listing.py::_authorize_purchase() passes to
+# authorize_payment(). It was missing here, so even an explicitly-configured L2
+# policy rejected every listing purchase ("action not in allowed_actions") and an
+# L3 policy hard-BLOCKed it — a mismatch between the gate's vocabulary and the
+# caller's that no test covered, because nothing enforced the gate.
+_DEFAULT_ALLOWED_ACTIONS = ["search", "negotiate", "purchase", "clear"]
 
 
 # ── Dataclass ──────────────────────────────────────────────────────────────────
@@ -256,6 +261,72 @@ def delete_policy(agent_id: str) -> bool:
     if deleted:
         log.info("autonomy: deleted policy agent=%s", agent_id[:32])
     return deleted
+
+
+def _default_level() -> int:
+    """Autonomy level granted to a newly-VERIFIED agent. 0 disables the grant.
+
+    Read per call, never snapshotted at import — a module-level constant would
+    freeze whatever the env held when the first module imported this one.
+    """
+    try:
+        level = int(os.getenv("KYA_DEFAULT_AUTONOMY_LEVEL", "2"))
+    except ValueError:
+        return 2
+    return level if level in _VALID_LEVELS or level == 0 else 2
+
+
+def _default_float(env_name: str, fallback: float) -> float:
+    try:
+        return float(os.getenv(env_name, str(fallback)))
+    except ValueError:
+        return fallback
+
+
+def build_default_policy(agent_id: str, created_by: str = "kya_auto") -> AutonomyPolicy:
+    """The conservative starting policy for an agent that passed KYA screening.
+
+    L2 (Supervised): the standard marketplace actions are allowed below a spend
+    threshold, and anything at or above it routes to a human. That is the level
+    the autonomy model was designed around — L1 means "can do nothing", which is
+    correct as a *safe default for an unknown agent* but wrong as a permanent
+    state for one the system has verified.
+    """
+    return AutonomyPolicy(
+        agent_id=agent_id,
+        level=_default_level() or 2,
+        max_spend_usd=_default_float("KYA_DEFAULT_MAX_SPEND_USD", 10.0),
+        daily_spend_usd=_default_float("KYA_DEFAULT_DAILY_USD", 100.0),
+        allowed_actions=list(_DEFAULT_ALLOWED_ACTIONS),
+        require_approval_above_usd=_default_float("KYA_DEFAULT_APPROVAL_ABOVE_USD", 10.0),
+        expires_at=None,
+        created_by=created_by,
+    )
+
+
+def ensure_default_policy(agent_id: str, created_by: str = "kya_auto") -> bool:
+    """Install the default policy iff the agent has none. Returns True if written.
+
+    Never overwrites: an operator's explicit policy — including a deliberate
+    lock-down to L1 — always wins over this onboarding grant.
+
+    Fail-soft. This runs inside KYA screening, and failing to grant autonomy must
+    never fail the screening itself; the agent simply stays at the L1 default,
+    which is the restrictive direction.
+    """
+    if _default_level() == 0:
+        return False
+    try:
+        if get_policy(agent_id) is not None:
+            return False
+        set_policy(build_default_policy(agent_id, created_by))
+        log.info("autonomy: granted default L%d policy to verified agent=%s",
+                 _default_level(), agent_id[:32])
+        return True
+    except Exception as exc:
+        log.warning("autonomy: ensure_default_policy failed for %s (agent stays L1): %s",
+                    agent_id[:32], exc)
+        return False
 
 
 def _owner_kyb_unverified(agent_id: str) -> bool:
