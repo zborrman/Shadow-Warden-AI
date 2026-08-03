@@ -98,7 +98,8 @@ _PATTERNS: list[_Pattern] = [
                         r"3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}|"
                         r"(?:2131|1800|35\d{3})\d{11})\b"
                         r"|(?:\d{4}[- ]){3}\d{4}"),
-             "[REDACTED:credit_card]"),
+             "[REDACTED:credit_card]",
+             pii=True),
 
     # ── US Social Security Numbers ────────────────────────────────────────
     _Pattern("us_ssn",
@@ -369,7 +370,11 @@ class SecretRedactor:
         result = redactor.redact(text, RedactionPolicy.RAW)
     """
 
-    strict: bool = False   # when True, also redacts IPs and raises on any PII
+    # When True, also redacts IPv4 and enables strict_only patterns (us_passport,
+    # plc_tag_address). It does NOT raise — this class never raises; callers read
+    # Result.has_pii and decide. (The old comment here claimed "raises on any PII",
+    # which was never true of any version of this module.)
+    strict: bool = False
 
     # ── Result container ──────────────────────────────────────────────────
 

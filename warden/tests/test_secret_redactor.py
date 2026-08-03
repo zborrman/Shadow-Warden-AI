@@ -499,12 +499,8 @@ _EXPECTED_PII: dict[str, bool] = {
     "bearer_token":           False,
     "url_credentials":        False,
     "private_key_block":      False,
-    # ── Financial ─────────────────────────────────────────────────────────
-    # FIXME(SR-7.3): credit_card is the only financial identifier in the table
-    # without pii=True — iban and bic_swift both carry it. A PAN is personal
-    # data under GDPR Art. 4(1). Asserting current behaviour here so the
-    # mutant dies; flipping it changes /filter output and needs its own change.
-    "credit_card":            False,
+    # ── Financial — a PAN is personal data under GDPR Art. 4(1) ───────────
+    "credit_card":            True,
     "iban":                   True,
     "bic_swift":              True,
     # ── Direct identifiers ────────────────────────────────────────────────
@@ -708,3 +704,15 @@ class TestMaskValue:
     def test_generic_kind_short_value_kept_as_is(self) -> None:
         from warden.secret_redactor import _mask_value
         assert _mask_value("ab", "some_kind") == "[MASKED:some_kind:...ab]"
+
+
+def test_credit_card_sets_has_pii() -> None:
+    """A PAN is personal data under GDPR Art. 4(1) — has_pii must reflect that.
+
+    Regression guard for SR-7.3: credit_card was the only financial identifier
+    in the registry without pii=True (iban and bic_swift both carried it), so a
+    card number was redacted but never raised FlagType.PII_DETECTED in /filter.
+    """
+    result = r.redact("4532015112830366")          # Luhn-valid Visa
+    assert "credit_card" in [f.kind for f in result.findings]
+    assert result.has_pii, "a detected card number must set has_pii"
