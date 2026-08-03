@@ -92,7 +92,7 @@ Background / On-demand:
 | 7 | Causal Arbiter | 1–5 ms | ✅ | All |
 | 8 | Browser Security Sandbox | On-demand | ✅ | Pro+ |
 | 9 | SOVA Agent | On-demand | ⚠️ API key | Pro+ |
-| 10 | MasterAgent | On-demand | ⚠️ API key | Pro ($69) |
+| 10 | MasterAgent | On-demand | ⚠️ API key | Pro ($99.99) |
 | 11 | Shadow AI Discovery | On-demand | ✅ | Enterprise or +$15/mo add-on |
 | 12 | Explainable AI | On-demand | ✅ | Pro+ or +$9/mo add-on |
 | 13 | Sovereign AI Cloud | Routing | ✅ | Enterprise ($249) |
@@ -383,7 +383,7 @@ POST  /agent/approve/{token}      approve or reject pending action
 GET   /agent/approve/{token}      check approval status
 ```
 
-**Tier gate:** `master_agent_enabled` — Pro ($69/mo) and above.
+**Tier gate:** `master_agent_enabled` — Pro ($99.99/mo) and above.
 
 ---
 

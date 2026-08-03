@@ -38,8 +38,8 @@ const tiers = [
   {
     key: 'communityBusiness',
     name: 'Community Business',
-    price_monthly: 19,
-    price_annual: 194,
+    price_monthly: 39.99,
+    price_annual: 407.90,
     color: '#38bdf8',
     tint: 'rgba(128,180,253,0.08)',
     tag: 'Teams',
@@ -51,8 +51,8 @@ const tiers = [
   {
     key: 'pro',
     name: 'Pro',
-    price_monthly: 69,
-    price_annual: 705,
+    price_monthly: 99.99,
+    price_annual: 1019.90,
     color: '#80b4fd',
     tint: 'rgba(128,180,253,0.1)',
     tag: 'Most Popular',
@@ -159,12 +159,12 @@ const addons = [
                       {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}`}
                     </span>
                     <span class="price-annual text-[32px] font-black hidden" style="color:#f1f5f9">
-                      {t.price_annual === 0 ? 'Free' : `$${Math.round(t.price_annual / 12)}`}
+                      {t.price_annual === 0 ? 'Free' : `$${(t.price_annual / 12).toFixed(2)}`}
                     </span>
                     {t.price_monthly > 0 && (
                       <span class="text-[12px]" style="color:#475569">
                         <span class="price-monthly">/mo</span>
-                        <span class="price-annual hidden">/mo<br/><small style="font-size:10px;color:#334155">(billed ${t.price_annual}/yr)</small></span>
+                        <span class="price-annual hidden">/mo<br/><small style="font-size:10px;color:#334155">(billed ${t.price_annual.toFixed(2)}/yr)</small></span>
                       </span>
                     )}
                   </div>
@@ -244,7 +244,7 @@ const addons = [
             IBM 2024 Cost of a Data Breach Report
           </div>
           <p class="text-[12px] max-w-2xl mx-auto" style="color:#64748b">
-            Average breach cost $4.88M · Pro plan $828/yr · Threat-to-breach conversion 1-in-180.
+            Average breach cost $4.88M · Pro plan $1,019.90/yr · Threat-to-breach conversion 1-in-180.
             For 50,000 requests/month at a 5% threat rate: <strong style="color:#f97316">estimated ROI 782×</strong>
           </p>
         </div>
@@ -370,8 +370,8 @@ const addons = [
                         style="background:#0c1020;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;-webkit-appearance:none">
                   <option value="starter">Starter — Free (1,000 req/mo)</option>
                   <option value="individual">Individual — $5/mo (5,000 req/mo)</option>
-                  <option value="community" selected>Community Business — $19/mo (10,000 req/mo)</option>
-                  <option value="pro">Pro — $69/mo (50,000 req/mo)</option>
+                  <option value="community" selected>Community Business — $39.99/mo (10,000 req/mo)</option>
+                  <option value="pro">Pro — $99.99/mo (50,000 req/mo)</option>
                 </select>
               </div>
 
@@ -702,8 +702,8 @@ const addons = [
     const TIERS: Record<string, { sub: number; takeRate: number; name: string; upsell: string | null; upsellTo: string | null }> = {
       starter:   { sub: 0,    takeRate: 0,     name: 'Starter',            upsell: null, upsellTo: null },
       individual:{ sub: 500,  takeRate: 0,     name: 'Individual',         upsell: 'At this GMV, upgrading to Community Business unlocks the SOVA AI agent, 1.5% take rate vs high per-action fees, and 180-day log retention — net profit improves above $1,000/mo GMV.', upsellTo: 'community' },
-      community: { sub: 1900, takeRate: 0.015, name: 'Community Business', upsell: 'At this volume, Pro ($69/mo) gives 50k req/mo, MasterAgent SOC, and Evolution Engine — your effective cost per request drops 60%.', upsellTo: 'pro' },
-      pro:       { sub: 6900, takeRate: 0.015, name: 'Pro',               upsell: null, upsellTo: null },
+      community: { sub: 3999, takeRate: 0.015, name: 'Community Business', upsell: 'At this volume, Pro ($99.99/mo) gives 50k req/mo, MasterAgent SOC, and Evolution Engine — your effective cost per request drops 60%.', upsellTo: 'pro' },
+      pro:       { sub: 9999, takeRate: 0.015, name: 'Pro',               upsell: null, upsellTo: null },
     };
     const SPONSOR_COST_CENTS = 2900; // $29/mo
 

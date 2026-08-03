@@ -646,6 +646,7 @@
     "GET /billing/addons/tenant",
     "GET /billing/addons/{addon_key}/checkout",
     "GET /billing/community-seats",
+    "GET /billing/margin",
     "GET /billing/overage/preview",
     "GET /billing/quota",
     "GET /billing/referral/stats",

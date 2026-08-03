@@ -27,8 +27,8 @@ const PERKS = [
 
 const TIERS = [
   { name: 'Starter',  price: 'Free',   color: '#64748b' },
-  { name: 'Pro',      price: '$69/mo', color: '#6366f1', popular: true },
-  { name: 'Business', price: '$19/mo', color: '#8b5cf6' },
+  { name: 'Pro',      price: '$99.99/mo', color: '#6366f1', popular: true },
+  { name: 'Business', price: '$39.99/mo', color: '#8b5cf6' },
 ]
 
 export default function RegisterPage() {

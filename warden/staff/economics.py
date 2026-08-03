@@ -10,6 +10,7 @@ Fail-open: all methods return gracefully on any DB or import error.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import sqlite3
 import time
@@ -23,6 +24,7 @@ from warden.db.ddl_registry import register
 from warden.finops.rating import DEFAULT_RATES as _DEFAULT_RATES
 from warden.finops.rating import PRICE_BOOK as _COST_PER_MTOK
 from warden.finops.rating import rate_usage
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger(__name__)
 
@@ -106,8 +108,17 @@ class TokenCostTracker:
         model: str,
         input_tokens: int,
         output_tokens: int,
+        cached_tokens: int = 0,
     ) -> ActionCost:
-        cost = compute_cost_usd(model, input_tokens, output_tokens)
+        """
+        Record one LLM call's cost against a tenant.
+
+        `cached_tokens` are prompt-cache reads, billed at 10% of the input rate
+        (see warden.finops.rating). Callers that have the usage object should
+        pass it — omitting it overstates cost on cache-heavy paths like SOVA,
+        which caches its whole tool schema block.
+        """
+        cost = compute_cost_usd(model, input_tokens, output_tokens, cached_tokens)
         entry = ActionCost(
             tenant_id=tenant_id,
             agent_id=agent_id,
@@ -132,6 +143,11 @@ class TokenCostTracker:
             )
         except Exception as exc:  # noqa: BLE001
             log.warning("ECONOMICS record failed (fail-open): %s", exc)
+
+        # Prometheus COGS counter — metrics must never block a recorded cost
+        with contextlib.suppress(Exception):
+            from warden.metrics import LLM_COST_USD_TOTAL
+            LLM_COST_USD_TOTAL.labels(agent=agent_id, model=model).inc(cost)
 
         # Billing audit chain — fail-open, never blocks
         try:
@@ -208,6 +224,27 @@ class TokenCostTracker:
 
     def get_total_cost(self, tenant_id: str, days: int = 30) -> float:
         return self.get_report(tenant_id, days).get("total_cost_usd", 0.0)
+
+    def get_cost_since(self, tenant_id: str, since_ts: int) -> float:
+        """
+        Total USD spent by *tenant_id* since a unix timestamp.
+
+        A single SUM, not a grouped report — this is on the hot path of every
+        budget check (warden.finops.llm_budget), so it must stay cheap.
+        Fail-open: an unreadable DB reads as $0 spent, which keeps agents
+        answering rather than degrading them on an infrastructure fault.
+        """
+        try:
+            with _conn(self._db_path) as conn:
+                row = conn.execute(
+                    "SELECT COALESCE(SUM(cost_usd), 0.0) AS total "
+                    "FROM staff_action_costs WHERE tenant_id = ? AND ts >= ?",
+                    (tenant_id, int(since_ts)),
+                ).fetchone()
+            return float(row["total"] if row else 0.0)
+        except Exception as exc:
+            record_failopen("staff_economics", Reason.BACKEND_ERROR, exc)
+            return 0.0
 
 
 def _model_breakdown(actions: list[dict]) -> list[dict]:

@@ -17,7 +17,7 @@ This plan is the reconciliation of an external integration guide (TypeScript/Pri
 | **Monetization** | 70 | Full stack built: 5 tiers ($0→$249), add-ons (402/403 gates), two-phase wallet, x402 nanopayments, Lemon Squeezy metered billing, referral flywheel, 14-day trial | Demand unproven; no conversion-funnel instrumentation; wallet/trial/referral are three disjoint balance systems |
 | **Profitability** | pre-revenue | Gross-margin potential >90% on `/filter` traffic (local ML, zero marginal LLM cost); infra floor ≈ $25/mo | Distribution, not technology, is the bottleneck |
 
-**Headline economics.** The filter pipeline's marginal cost per request is CPU-only (~$10⁻⁶); LLM spend occurs only on HIGH/BLOCK evolution and agent runs. Break-even at current infra floor is **one Community Business tenant + one Individual** ($24/mo) or any single Pro ($69/mo). This is a structurally high-margin product; every phase below either protects that margin or measures it.
+**Headline economics.** The filter pipeline's marginal cost per request is CPU-only (~$10⁻⁶); LLM spend occurs only on HIGH/BLOCK evolution and agent runs. Break-even at current infra floor is **one Community Business tenant + one Individual** ($24/mo) or any single Pro ($99.99/mo). This is a structurally high-margin product; every phase below either protects that margin or measures it.
 
 ---
 

@@ -5,6 +5,65 @@ Feature IDs reference the project ROADMAP.
 
 ---
 
+## v7.9 — FinOps & Monetization Coherence (2026-08-03)
+
+Track C / **FM-7**. Full analysis: `docs/monetization-plan.md`.
+
+**Fixed — revenue**
+
+- **BL-25 — One price list.** Three copies of the tier prices had drifted apart:
+  `billing/router.py` served $39.99/$99.99, a hand-written
+  `feature_gate.ANNUAL_PRICING` was still built off the retired $19/$69 list,
+  and `finops/margin.py` rated revenue from a third private copy. A year of Pro
+  therefore sold for **$703 against a $1,199.88 list — a 41% discount on a plan
+  advertised at 15%**. New `warden/billing/pricing.py` is the only place a price
+  is written down; annual figures are **derived** (`monthly × 12 × (1 −
+  ANNUAL_DISCOUNT)`), never typed. The tier-alias table moved there too, so a
+  tenant cannot be priced on one plan and gated on another.
+- **BL-26 — Overage rating repair.** `_calculate_overage()` read a
+  `per_1k_requests_usd` key that has never existed in `OVERAGE_PRICES` (which
+  stores *cents*). Every request overage on every tier had rated at **$0.00**
+  and reported `overage_enabled: False` since BL-19 shipped.
+
+**Fixed — cost of goods**
+
+- **BL-27 — LLM COGS attribution.** MasterAgent (supervisor, sub-agent turns,
+  batch and fallback paths) and the Evolution Engine — the two most expensive
+  code paths in the product — recorded no cost at all. Both now write to
+  `TokenCostTracker`, which gained a `cached_tokens` bucket and
+  `get_cost_since()`. New `warden_llm_cost_usd_total{agent,model}` counter.
+  `claude-opus-4-6` was missing from `PRICE_BOOK` and fell through to the Sonnet
+  default — a **5× understatement** of the largest variable cost; `price_for()`
+  now resolves exact id → model family → default.
+- **BL-28 — Budget control.** `warden/finops/llm_budget.py` derives a monthly
+  inference allowance per tier (`price × (1 − TARGET_GROSS_MARGIN)`) and picks a
+  model within it (Opus → Sonnet → Haiku), wired into MasterAgent. Soft and
+  additive: it never blocks, never routes below the caller's declared floor,
+  never returns a model the caller did not offer, and resolves to the *most
+  capable* model on any fault. `EVOLUTION_DAILY_BUDGET_USD` (default $5) bounds
+  evolution spend — its rate gate capped calls per window, which sustained is
+  ~$750/day on a path with no revenue attached.
+
+**Added**
+
+- `GET /billing/margin` — plan revenue against month-to-date inference cost.
+- `scripts/finops_report.py` — unit economics, per-model turn cost and node
+  capacity, all computed from the code's own price book.
+- `warden_llm_budget_downgrade_total{tier,agent,chosen_model}` — a rising rate
+  means a tier is under-priced for how it is used, not that traffic needs
+  throttling.
+- 95 tests, including a pricing-coherence ratchet that fails on any new
+  hand-written price or annual figure.
+
+**Changed**
+
+- Public price list raised to the canonical table across the site, portal,
+  `llms.txt`, README, ROADMAP, STRATEGY, PRODUCT.md and CLAUDE.md: Community
+  Business **$39.99/mo**, Pro **$99.99/mo**. Annual: $51 / $407.90 / $1,019.90 /
+  $2,539.80. Historical changelog entries were deliberately left unedited.
+
+---
+
 ## v6.6 — Five New Modules + Production Assembly (2026-06-16)
 
 **New Modules**

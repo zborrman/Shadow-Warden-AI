@@ -169,6 +169,63 @@ _RATE_KEY              = "warden:evolution:calls"
 
 _RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
 
+# Cost centre for evolution spend. The engine is a platform-wide service — it
+# learns from one tenant's blocked attack and protects every tenant — so its
+# cost is charged to a shared account rather than to whoever happened to trigger
+# it. Until FM-7 it was charged to nobody at all: Opus calls on the /filter hot
+# path with no cost record anywhere.
+_EVOLUTION_COST_TENANT = "system:evolution"
+
+# Hard ceiling on evolution spend per UTC day. The rate gate above caps calls per
+# *window* (10 / 5 min), which sustained is ~2 900 Opus calls a day — a four-digit
+# monthly bill from a single sustained attack campaign, on a code path with no
+# revenue attached to it. This converts that open-ended exposure into a number.
+# 0 disables the ceiling.
+EVOLUTION_DAILY_BUDGET_USD = float(os.getenv("EVOLUTION_DAILY_BUDGET_USD", "5.0"))
+
+
+def _is_over_daily_budget() -> bool:
+    """
+    True when today's evolution spend has hit EVOLUTION_DAILY_BUDGET_USD.
+
+    Fail-open: an unreadable cost store returns False (allow). Detection quality
+    must not depend on the FinOps database being up — the ceiling is a cost
+    guard, not a security control.
+    """
+    if EVOLUTION_DAILY_BUDGET_USD <= 0:
+        return False
+    try:
+        from datetime import UTC, datetime
+
+        from warden.staff.economics import get_tracker
+        midnight = int(
+            datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        )
+        spent = get_tracker().get_cost_since(_EVOLUTION_COST_TENANT, midnight)
+        return spent >= EVOLUTION_DAILY_BUDGET_USD
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("evolution_budget", Reason.BACKEND_ERROR, exc)
+        return False
+
+
+def _record_cost(model: str, usage: object) -> None:
+    """Attribute one evolution LLM call to the platform cost centre (fail-open)."""
+    try:
+        from warden.staff.economics import get_tracker
+        get_tracker().record(
+            _EVOLUTION_COST_TENANT,
+            "evolution",
+            "process_blocked",
+            model,
+            int(getattr(usage, "input_tokens", 0) or 0),
+            int(getattr(usage, "output_tokens", 0) or 0),
+            int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        )
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("evolution_cost", Reason.BACKEND_ERROR, exc)
+
 
 def _is_rate_limited() -> bool:
     """Return True when the EvolutionEngine is over its Claude Opus API budget.
@@ -438,6 +495,7 @@ class EvolutionEngine:
           • corpus cap (MAX_CORPUS_RULES) is reached
           • this exact content was already processed (dedup by SHA-256)
           • the call-rate cap (EVOLUTION_RATE_MAX / EVOLUTION_RATE_WINDOW) is exceeded
+          • today's spend has reached EVOLUTION_DAILY_BUDGET_USD
           • the Claude API call fails               (error logged, not raised)
         """
         # ── 1. Risk gate ────────────────────────────────────────────────
@@ -470,6 +528,19 @@ class EvolutionEngine:
             log.warning(
                 "EvolutionEngine: rate limit reached (%d calls per %ds window) — skipping.",
                 EVOLUTION_RATE_MAX, EVOLUTION_RATE_WINDOW,
+            )
+            return None
+
+        # ── 4b. Daily spend ceiling ─────────────────────────────────────
+        # The rate gate bounds calls per window but not the day's bill.
+        # Checked here, after dedup and rate, so the cheapest rejections
+        # happen first. Same retry semantics: not marked as seen, so the
+        # attack is reconsidered tomorrow.
+        if _is_over_daily_budget():
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="daily_budget").inc()
+            log.warning(
+                "EvolutionEngine: daily budget $%.2f exhausted — skipping until UTC midnight.",
+                EVOLUTION_DAILY_BUDGET_USD,
             )
             return None
 
@@ -652,6 +723,7 @@ class EvolutionEngine:
                 system     = system,
                 messages   = [{"role": "user", "content": user}],
             )
+            _record_cost(EVOLUTION_MODEL, resp.usage)
             raw = resp.content[0].text.strip()  # type: ignore[union-attr]
             # Strip markdown code fences if present
             raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.DOTALL).strip()
@@ -751,6 +823,8 @@ class EvolutionEngine:
             },
         ) as stream:
             final = await stream.get_final_message()
+
+        _record_cost(EVOLUTION_MODEL, final.usage)
 
         text = next(
             block.text for block in final.content if block.type == "text"

@@ -935,7 +935,7 @@
     "id": "BL-03",
     "category": "Price",
     "subcategory": "Tiers",
-    "feature": "Community Business — $19/mo",
+    "feature": "Community Business — $39.99/mo",
     "description": "10,000 req/mo. Obsidian integration. Secrets Governance. 3 communities × 10 members. 180-day retention.",
     "version": "v4.6",
     "tier": "Community Business",
@@ -946,7 +946,7 @@
     "id": "BL-04",
     "category": "Price",
     "subcategory": "Tiers",
-    "feature": "Pro — $69/mo",
+    "feature": "Pro — $99.99/mo",
     "description": "50,000 req/mo. MasterAgent SOC. Evolution Engine. Evidence Vault + STIX 2.1. SOC 2 + GDPR audit package.",
     "version": "v2.0",
     "tier": "Pro",
@@ -1104,12 +1104,12 @@
     "id": "BL-19",
     "category": "Price",
     "subcategory": "Billing & Monetization",
-    "feature": "Request overage billing — automatic charge per 1k requests above Pro tier",
-    "description": "Automatic charge per 1k requests above Pro tier limit. Estimated $0.05 per 1k requests. Charged automatically at end of billing period via Lemon Squeezy. No service interruption — usage continues unthrottled. Detailed overage report available in the SOC dashboard.",
-    "version": "",
+    "feature": "Request overage billing — automatic charge per 1k requests above the Pro quota",
+    "description": "Automatic charge per 1,000 requests above the plan quota: $0.50/1k on Pro, $0.10/1k on Enterprise. Computed monthly by an ARQ cron and previewed at GET /billing/overage/preview.",
+    "version": "v4.21",
     "tier": "Pro+",
     "status": "shipped",
-    "price_per_1k": 0.05
+    "price_per_1k": 0.5
   },
   {
     "id": "BL-20",
@@ -1771,5 +1771,65 @@
     "version": "v5.6",
     "tier": "Pro+",
     "status": "shipped"
+  },
+  {
+    "id": "BL-25",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "Canonical price list — one table, derived annual pricing",
+    "description": "Every tier price, tier alias and annual figure lives in a single source of truth, with annual pricing derived from the monthly price rather than written by hand. A ratchet test fails the build on any new hand-written price.",
+    "version": "v7.9",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "BL-26",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "Overage rating repair",
+    "description": "The overage calculator read a rate key that did not exist in the price table, so every request overage on every tier had rated at $0.00 and reported itself disabled.",
+    "version": "v7.9",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "BL-27",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "LLM cost attribution across every agent path",
+    "description": "The MasterAgent and Evolution Engine now record token spend against the tenant, with prompt-cache reads billed at a tenth of the input rate. Model pricing resolves by family so a new model snapshot can never rate as a cheaper one.",
+    "version": "v7.9",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "BL-28",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "Per-tenant inference budget with a soft model ladder",
+    "description": "Each plan carries a monthly inference allowance derived from its own price. As the allowance is consumed, agent runs move down the model ladder (Opus → Sonnet → Haiku) instead of being refused — the gate never blocks a request, never drops below the capability a task requires, and serves the most capable model if anything fails.",
+    "version": "v7.9",
+    "tier": "All",
+    "status": "shipped"
+  },
+  {
+    "id": "BL-29",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "Margin reporting — GET /billing/margin",
+    "description": "Plan revenue against month-to-date inference cost, plus a FinOps CLI printing unit economics, per-model turn cost and node capacity from the code's own price book.",
+    "version": "v7.9",
+    "tier": "Pro+",
+    "status": "shipped"
+  },
+  {
+    "id": "BL-30",
+    "category": "Price",
+    "subcategory": "Billing & Monetization",
+    "feature": "Metered agent-turn allowance published per plan",
+    "description": "Publish the included agent-turn allowance explicitly, with metered overage beyond it, instead of leaving 'MasterAgent included' implicit.",
+    "version": "",
+    "tier": "Pro+",
+    "status": "planned"
   }
 ]

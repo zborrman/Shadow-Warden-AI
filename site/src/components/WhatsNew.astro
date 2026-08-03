@@ -1,10 +1,46 @@
 ---
 const releases = [
   {
-    version: 'v7.7',
-    date: 'Jul 2026',
+    version: 'v7.9',
+    date: 'Aug 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🏷️',
+        title: 'One Canonical Price List',
+        tier: 'All Plans',
+        desc: 'Every tier price, tier alias, and annual figure now lives in a single table, and annual pricing is derived from the monthly price rather than written by hand. Three copies had drifted apart across the billing API, the feature gate, and the margin engine.',
+        tags: ['Billing', 'Pricing', 'Correctness'],
+      },
+      {
+        icon: '📐',
+        title: 'LLM Cost Attribution',
+        tier: 'All Plans',
+        desc: 'The MasterAgent and Evolution Engine — the two most expensive code paths — now record their token spend against the tenant, with prompt-cache reads billed at a tenth of the input rate. Model pricing resolves by family, so a new model snapshot can never rate as a cheaper one.',
+        tags: ['FinOps', 'Observability', 'Cost'],
+      },
+      {
+        icon: '🎚️',
+        title: 'Per-Tenant Inference Budget',
+        tier: 'All Plans',
+        desc: 'Each plan carries a monthly inference allowance derived from its own price. As the allowance is consumed, agent runs move down the model ladder instead of being refused — the gate never blocks a request, never drops below the capability a task requires, and serves the most capable model if anything goes wrong.',
+        tags: ['FinOps', 'Agents', 'Fail-Open'],
+      },
+      {
+        icon: '📊',
+        title: 'Margin Reporting',
+        tier: 'Pro+',
+        desc: 'GET /billing/margin reports plan revenue against month-to-date inference cost, and a new FinOps CLI prints unit economics, per-model turn cost, and node capacity from the code’s own price book.',
+        tags: ['Billing', 'API', 'Reporting'],
+      },
+    ],
+  },
+  {
+    version: 'v7.7',
+    date: 'Jul 2026',
+    badge: 'Previous',
+    badgeColor: '#80b4fd',
     items: [
       {
         icon: '📡',

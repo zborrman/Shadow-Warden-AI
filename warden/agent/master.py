@@ -44,6 +44,10 @@ from warden.secret_keys import resolve_key
 log = logging.getLogger("warden.agent.master")
 
 _MODEL    = "claude-opus-4-6"
+# Capability floor → ceiling for a sub-agent turn. The FinOps budget gate may
+# pick the cheaper end when a tenant is near its monthly inference allowance,
+# but never routes below Sonnet: these agents run SOC triage with tool use.
+_MODEL_LADDER = ["claude-sonnet-4-6", _MODEL]
 # Sub-agent tool-loop cap — keeps cost predictable; fallback summary fires after.
 _SUB_AGENT_MAX_ITER    = 5
 # Per-sub-agent input token budget. Loop halts early when exceeded.
@@ -273,6 +277,49 @@ async def _post_approval_request(token: str, action: str, context: str) -> None:
         log.warning("master: Slack approval post failed: %s", exc)
 
 
+# ── FinOps: cost attribution + budget-aware model choice ─────────────────────
+# MasterAgent is the most expensive path in the product (Opus, fanned out across
+# sub-agents, included in the Pro plan) and until FM-7 it recorded no cost at
+# all — its spend was invisible to per-tenant margin. Both helpers are fail-open:
+# a FinOps fault must never stop a SOC investigation.
+
+def _pick_model(tenant_id: str, agent_type: SubAgent) -> str:
+    """Most capable model in `_MODEL_LADDER` the tenant's LLM budget still affords."""
+    try:
+        from warden.finops.llm_budget import choose_model, resolve_tier
+        choice = choose_model(
+            tenant_id,
+            resolve_tier(tenant_id),
+            _MODEL_LADDER,
+            est_input_tokens=_SUB_AGENT_TOKEN_BUDGET,
+            est_output_tokens=2048,
+            agent=f"master:{agent_type.value}",
+        )
+        return choice.model
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("master_agent_budget", Reason.BACKEND_ERROR, exc)
+        return _MODEL
+
+
+def _record_cost(tenant_id: str, agent_id: str, model: str, usage: Any) -> None:
+    """Attribute one sub-agent turn's token spend to the tenant."""
+    try:
+        from warden.staff.economics import get_tracker
+        get_tracker().record(
+            tenant_id,
+            f"master:{agent_id}",
+            "sub_agent_turn",
+            model,
+            int(getattr(usage, "input_tokens", 0) or 0),
+            int(getattr(usage, "output_tokens", 0) or 0),
+            int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        )
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("master_agent_cost", Reason.BACKEND_ERROR, exc)
+
+
 # ── Sub-agent runner ──────────────────────────────────────────────────────────
 
 async def _run_sub_agent(
@@ -309,6 +356,8 @@ async def _run_sub_agent(
     total_tokens = 0
     t0 = time.perf_counter()
 
+    model = _pick_model(tenant_id, agent_type)
+
     for _ in range(_SUB_AGENT_MAX_ITER):
         # Early-halt if accumulated input tokens exceed budget
         if total_tokens >= _SUB_AGENT_TOKEN_BUDGET:
@@ -319,7 +368,7 @@ async def _run_sub_agent(
             break
 
         resp = await client.messages.create(
-            model      = _MODEL,
+            model      = model,
             max_tokens = 2048,
             system     = [{"type": "text", "text": _AGENT_PROMPTS[agent_type],
                            "cache_control": {"type": "ephemeral"}}],
@@ -327,6 +376,7 @@ async def _run_sub_agent(
             messages   = history,    # type: ignore[arg-type]
         )
         total_tokens += resp.usage.input_tokens + resp.usage.output_tokens
+        _record_cost(tenant_id, agent_type.value, model, resp.usage)
 
         if resp.stop_reason == "end_turn":
             text = "".join(b.text for b in resp.content if hasattr(b, "text"))
@@ -384,11 +434,12 @@ async def _run_sub_agent(
 
     # Fallback summary
     fallback = await client.messages.create(
-        model=_MODEL, max_tokens=512,
+        model=model, max_tokens=512,
         system=[{"type": "text", "text": _AGENT_PROMPTS[agent_type]}],
         messages=history + [{"role": "user", "content": "Summarize your findings concisely."}],  # type: ignore[arg-type]
     )
     text = "".join(b.text for b in fallback.content if hasattr(b, "text"))
+    _record_cost(tenant_id, agent_type.value, model, fallback.usage)
     return {
         "agent":      agent_type.value,
         "response":   text,
@@ -488,6 +539,7 @@ async def run_master(
         messages=[{"role": "user", "content": decompose_prompt}],
     )
     decomp_text = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
+    _record_cost(tenant_id, "supervisor", _MODEL, decomp_resp.usage)
 
     # Parse sub-agent assignments (fallback: run all)
     sub_tasks: dict[str, str] = {}
@@ -584,6 +636,7 @@ async def run_master(
     )
     synthesis = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
     total_tokens += synth_resp.usage.input_tokens + synth_resp.usage.output_tokens
+    _record_cost(tenant_id, "supervisor", _MODEL, synth_resp.usage)
 
     latency = round((time.perf_counter() - t0) * 1000, 1)
     log.info(
@@ -677,6 +730,7 @@ async def run_master_batch(
                 msg           = result.result.message
                 decomp_text   = "".join(b.text for b in msg.content if hasattr(b, "text"))
                 decomp_tokens = msg.usage.input_tokens + msg.usage.output_tokens
+                _record_cost(tenant_id, "supervisor_batch", _MODEL, msg.usage)
 
     except Exception as exc:
         # Batches API unavailable (old SDK, no beta access) — fall through to regular API
@@ -688,6 +742,7 @@ async def run_master_batch(
         )
         decomp_text   = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
         decomp_tokens = decomp_resp.usage.input_tokens + decomp_resp.usage.output_tokens
+        _record_cost(tenant_id, "supervisor_batch", _MODEL, decomp_resp.usage)
 
     # Parse sub-agent assignments
     sub_tasks: dict[str, str] = {}
@@ -755,6 +810,7 @@ async def run_master_batch(
                 msg          = result.result.message
                 synthesis    = "".join(b.text for b in msg.content if hasattr(b, "text"))
                 synth_tokens = msg.usage.input_tokens + msg.usage.output_tokens
+                _record_cost(tenant_id, "supervisor_batch", _MODEL, msg.usage)
 
     except Exception as exc:
         log.warning("master_batch: synthesis Batches API error (%s) — falling back", exc)
@@ -765,6 +821,7 @@ async def run_master_batch(
         )
         synthesis    = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
         synth_tokens = synth_resp.usage.input_tokens + synth_resp.usage.output_tokens
+        _record_cost(tenant_id, "supervisor_batch", _MODEL, synth_resp.usage)
 
     total_tokens = (
         decomp_tokens
