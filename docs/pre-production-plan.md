@@ -65,7 +65,7 @@ These are the genuinely-open track items after reconciliation. All are additive;
 | ID | Item | Status | Notes |
 |---|---|---|---|
 | **SR-7.2** | Coverage floor 75% → 85% | open | raise `--cov-fail-under` incrementally with real tests, not coverage-boost files |
-| **SR-7.3** | Extend mutation testing beyond the 2 seeded modules | open | Linux/CI only (mutmut unsupported on native Windows) |
+| **SR-7.3** | Extend mutation testing beyond the 2 seeded modules | harness fixed (#277), remediation open | First real sweep: 1482 mutants, 786 survived. `secret_redactor.py` brought to 19/module; `causal_arbiter.py` (405) and `marketplace/x402_gate.py` (259) — the newly-extended modules — carry nearly all remaining volume. Concrete finding: `causal_arbiter.calibrate_from_logs`'s anti-poisoning drift-gate chain (`_drift_ok` over `obfusc_pos`/`obfusc_neg`/`ers_center`/`entropy_center`) never has a test reach the point where a *later* parameter's specific drift value is checked — every argument in those calls can be `None`'d or reordered undetected, exactly the coordinated slow-burn poisoning scenario the gate exists to stop (see CLAUDE.md). Linux/CI only (mutmut unsupported on native Windows); never run against this repo's own built image (`PYTHONPATH=/` shadows the mutant sandbox). |
 | **SR-2.3** | Pinned-IP httpx transport wiring | primitive done | `resolve_validated_ips()` exists; wiring the pinned transport into live callers needs a real-host TLS-SNI test and **auto-deploys to prod** — do not ship blind |
 | **DE-3** | Embedding + hyperbolic model upgrade | in-flight | TDA H1 slice done; remainder is detection-quality, not a gate |
 | **DE-4** | Bayesian MAESTRO & reputation | in-flight | collusion slice done |
