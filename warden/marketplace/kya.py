@@ -237,6 +237,16 @@ def screen_agent(agent_id: str) -> KYARecord:
             ).fetchone()
 
         _cache_set(agent_id, status)
+
+        if status == "VERIFIED":
+            # Onboarding grant. Without this an agent that passes screening still
+            # has no autonomy policy, and autonomy.check_action() treats "no
+            # policy" as L1 REQUIRE_APPROVAL — so every purchase, clearing and
+            # x402 search stays blocked for an agent the system has verified.
+            # Lazy import: autonomy.py imports this module (KYB cap lookup).
+            from warden.marketplace.autonomy import ensure_default_policy
+            ensure_default_policy(agent_id, created_by="kya_screening")
+
         log.info("kya: screened agent=%s status=%s risk=%.2f flags=%s",
                  agent_id[:32], status, risk, flags)
         return _row_to_record(row)
@@ -281,7 +291,13 @@ def get_kya_record(agent_id: str) -> KYARecord | None:
 
 
 def revoke_agent(agent_id: str, reason: str = "admin_revoke") -> None:
-    """Set kya_status to REVOKED and flush Redis cache."""
+    """Set kya_status to REVOKED, drop the autonomy policy, flush Redis cache.
+
+    Revoking KYA without removing the policy would leave a revoked agent holding
+    whatever spend rights it was granted — `check_action()` reads the policy, not
+    the KYA status. Deleting it drops the agent back to the L1 default, which is
+    the restrictive direction.
+    """
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     with _db_lock, _conn() as con:
         con.execute(
@@ -291,6 +307,15 @@ def revoke_agent(agent_id: str, reason: str = "admin_revoke") -> None:
                WHERE agent_id=?""",
             (now, f"REVOKED:{reason}", agent_id),
         )
+    try:
+        from warden.marketplace.autonomy import delete_policy
+        delete_policy(agent_id)
+    except Exception as exc:
+        # Fail-soft on the revocation record itself, but this is the one place a
+        # failure leaves capability behind, so log it at warning, not debug.
+        log.warning("kya: could not drop autonomy policy for revoked agent=%s: %s",
+                    agent_id[:32], exc)
+
     _cache_del(agent_id)
     _cache_set(agent_id, "REVOKED")
     log.info("kya: revoked agent=%s reason=%s", agent_id[:32], reason)

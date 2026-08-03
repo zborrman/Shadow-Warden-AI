@@ -268,7 +268,13 @@ class TestErrorFallbacks:
         import warden.marketplace.autonomy as a
         monkeypatch.setattr(a, "_redis", lambda: None)   # force SQLite read
         _make_policy("agent-badjson", level=3, max_spend=100.0)
-        con = sqlite3.connect(a._DB_PATH)
+        # a._DB_PATH is the import-time constant. When another test file imported
+        # this module first, it is stale and points at a different file than
+        # a._db_path() resolves — the UPDATE below then silently hit an empty DB,
+        # get_policy() returned the untouched policy, and this test passed while
+        # exercising nothing. Resolve the path the same way the code under test
+        # does.
+        con = sqlite3.connect(a._db_path())
         con.execute(
             "UPDATE marketplace_autonomy_policies SET allowed_actions=? WHERE agent_id=?",
             ("{not valid json", "agent-badjson"),
@@ -277,7 +283,10 @@ class TestErrorFallbacks:
         con.close()
         pol = a.get_policy("agent-badjson")
         assert pol is not None
-        assert pol.allowed_actions == ["search", "negotiate", "clear"]
+        # Assert against the constant, not a hand-copied literal: the list gained
+        # "purchase" (the action listing.py actually passes) and a duplicated
+        # literal here is how that stayed unnoticed.
+        assert pol.allowed_actions == a._DEFAULT_ALLOWED_ACTIONS
 
     def test_get_policy_sqlite_error_returns_none(self, monkeypatch):
         """A SQLite failure in get_policy must fail-safe to None, not raise."""
