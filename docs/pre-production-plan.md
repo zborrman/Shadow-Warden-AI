@@ -65,7 +65,7 @@ These are the genuinely-open track items after reconciliation. All are additive;
 | ID | Item | Status | Notes |
 |---|---|---|---|
 | **SR-7.2** | Coverage floor 75% → 85% | open | raise `--cov-fail-under` incrementally with real tests, not coverage-boost files |
-| **SR-7.3** | Extend mutation testing beyond the 2 seeded modules | open | Linux/CI only (mutmut unsupported on native Windows) |
+| **SR-7.3** | Extend mutation testing beyond the 2 seeded modules | in progress | Config migrated 2.x→3.x (was silently broken after the `mutmut==3.6.0` constraints bump), extended to `auth_guard`/`causal_arbiter`/`x402_gate`. Two sandbox bugs found+fixed by actually running it (see CLAUDE.md). Full 5-module sweep in progress — large mutant population, no survivor-count reported yet. Linux/CI only (mutmut unsupported on native Windows); never run against this repo's own built image (`PYTHONPATH=/` shadows the mutant sandbox). |
 | **SR-2.3** | Pinned-IP httpx transport wiring | primitive done | `resolve_validated_ips()` exists; wiring the pinned transport into live callers needs a real-host TLS-SNI test and **auto-deploys to prod** — do not ship blind |
 | **DE-3** | Embedding + hyperbolic model upgrade | in-flight | TDA H1 slice done; remainder is detection-quality, not a gate |
 | **DE-4** | Bayesian MAESTRO & reputation | in-flight | collusion slice done |

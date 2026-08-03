@@ -210,12 +210,102 @@ markers      = [
 asyncio_mode = "auto"
 
 # ── Mutmut (mutation testing) ─────────────────────────────────────────────────
-# Targets: the two core safety modules — everything else is glue.
-# Runner: fast unit tests only (no ML model, no slow fixtures).
-# Threshold: < 10 surviving mutants = acceptable.
+# SR-7.3: extended beyond the original two core safety modules to the
+# security-critical modules named in the roadmap (auth_guard, causal_arbiter,
+# x402_gate) — everything else is glue.
+# Fast unit tests only (no ML model, no slow fixtures).
+# Threshold: < 20 surviving mutants per module = acceptable (per CI docs below).
 # Run: mutmut run  (Linux / WSL / CI only — not supported on native Windows)
-
+#
+# ⚠️ Schema note (2026-08-02): warden/constraints.txt pins mutmut==3.6.0, which
+# dropped the 2.x `paths_to_mutate` (comma-string) / `runner` (shell command) /
+# `tests_dir` (string) keys — `mutmut run` crashed with a TypeError on any
+# config using them (tests_dir + a list requires tests_dir to itself be a
+# list, not a string; concatenating a list with a string raises). This had
+# apparently never been re-verified after the constraints.txt bump to 3.x, so
+# mutation testing was silently non-functional. Rewritten below for the 3.x
+# schema: `source_paths` (list), `pytest_add_cli_args_test_selection` (list of
+# test files/dirs, replaces `runner`+`tests_dir`), `pytest_add_cli_args` (list
+# of extra flags, replaces the shell-command parts of the old `runner`).
 [tool.mutmut]
-paths_to_mutate = "warden/secret_redactor.py,warden/semantic_guard.py"
-runner          = "python -m pytest warden/tests/test_secret_redactor.py warden/tests/test_semantic_guard.py -x -q --no-header --no-cov"
-tests_dir       = "warden/tests/"
+source_paths = [
+    "warden/secret_redactor.py",
+    "warden/semantic_guard.py",
+    "warden/auth_guard.py",
+    "warden/causal_arbiter.py",
+    "warden/marketplace/x402_gate.py",
+]
+pytest_add_cli_args_test_selection = [
+    "warden/tests/test_secret_redactor.py",
+    "warden/tests/test_semantic_guard.py",
+    "warden/tests/test_auth_guard.py",
+    "warden/tests/test_causal_arbiter.py",
+    "warden/tests/test_causal_c1_guardrail.py",
+    "warden/tests/test_causal_online.py",
+    "warden/tests/test_x402_gate.py",
+]
+pytest_add_cli_args = ["-x", "-q", "--no-header", "--no-cov"]
+# NOTE (2026-08-03): the two bugs below were not hypothetical — this config
+# previously reached this point uncommitted, and every attempt to actually
+# `mutmut run` it failed. Fixed both; see the CLAUDE.md mutation-testing note
+# for the current status of a full 5-module sweep (large mutant population,
+# in progress, not yet a CI gate).
+#
+# also_copy's built-in defaults only look for top-level tests/ or test/ dirs
+# (a bare `Path("tests/")`) — this repo's suite lives at warden/tests/, which
+# the mutants sandbox otherwise never receives, so every mutant run failed
+# with "file or directory not found" (pytest exit 4) before this was added.
+#
+# The transitive closure of every `from warden...` import reached by the 5
+# source_paths files + their test files, traced by hand (mutmut's mutants/
+# sandbox is NOT merged with the real source tree by Python's import system —
+# it is its own isolated copy; also_copy runs BEFORE source_paths mutation is
+# written, so listing these does not clobber the mutated/trampoline versions
+# of the 5 files above):
+#   secret_redactor, semantic_guard  -> schemas, telemetry -> config
+#   auth_guard                       -> config
+#   causal_arbiter                   -> observability -> metrics
+#   marketplace/x402_gate            -> config, db/connect -> db/ddl_registry,
+#                                        db/sqlite_pragmas; payments/x402_balance
+#   test_auth_guard (conditional)    -> auth/oidc_guard -> observability
+# `warden/__init__.py` (and each subpackage's own __init__.py) must come along
+# too, or `warden.db`/`warden.marketplace`/`warden.payments`/`warden.auth`
+# won't resolve as packages at all under the isolated copy.
+#
+# Deliberately NOT `also_copy = ["warden"]`: warden/models/ alone is 162 MB of
+# ONNX/MiniLM weights these 5 modules never touch, and copying it wholesale
+# for every run cost several minutes on a Windows bind mount for zero benefit.
+#
+# Subpackages (db/, payments/, auth/, marketplace/) are listed as whole
+# directories, not individual files: mutmut's also_copy uses shutil.copy2 for
+# file entries, which does NOT create missing parent directories — listing
+# "warden/db/__init__.py" alone crashes with FileNotFoundError because
+# mutants/warden/db/ doesn't exist yet. Directory entries use copytree, which
+# creates their own path. All four are small (103K-1.5M) so copying each
+# wholesale (a few unused sibling files along for the ride) costs nothing.
+#
+# Do not "fix" this by running against a Docker image that already has warden
+# installed (e.g. this repo's own built image) as a shortcut to skip also_copy:
+# warden/Dockerfile sets `ENV PYTHONPATH=/` with `WORKDIR /warden`, so `/warden`
+# (a regular package with __init__.py) wins Python's namespace-package
+# resolution over the mutants/ overlay outright — every mutant then silently
+# runs against the ORIGINAL unmutated code and reports as trivially "killed".
+# Confirmed by direct comparison: baked /warden/secret_redactor.py was
+# byte-identical to source, zero mutant markers, while tests still "passed".
+# Run mutmut in a plain interpreter (no PYTHONPATH override) with only the
+# packages these 5 modules + their tests need: pytest, pytest-asyncio,
+# pytest-cov, httpx, pyjwt, pydantic>=2, fastapi>=0.110.
+also_copy = [
+    "warden/tests/",
+    "warden/__init__.py",
+    "warden/schemas.py",
+    "warden/telemetry.py",
+    "warden/config.py",
+    "warden/observability.py",
+    "warden/metrics.py",
+    "warden/db/",
+    "warden/payments/",
+    "warden/auth/",
+    "warden/marketplace/",
+]
+debug = true
