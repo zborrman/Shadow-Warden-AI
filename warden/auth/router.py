@@ -44,10 +44,10 @@ import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from warden.auth import user_store
 from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.db.connect import open_db
-from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.auth")
 
@@ -55,7 +55,10 @@ _COOKIE = "sw_session"
 _ALG = "HS256"
 _TTL = settings.auth_session_ttl
 _DOMAIN = settings.auth_cookie_domain
-_DB_PATH = settings.auth_db_path
+# Resolved per call (see _db_path), never snapshotted at import: warden/auth/
+# user_store.py resolves the *same* file, and two modules holding two
+# independently-captured copies of one path is how they end up pointed at
+# different databases. The project already learned this with signing keys.
 
 # Signup rate limit: max 5 registrations per IP per hour
 _SIGNUP_RATE_LIMIT = settings.auth_signup_rate_limit
@@ -92,20 +95,20 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # ── SQLite user store ──────────────────────────────────────────────────────────
 
-_AUTH_DDL = """
-    CREATE TABLE IF NOT EXISTS users (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        email         TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-        password_hash TEXT    NOT NULL,
-        created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
-    );
-"""
-register("auth", "warden.auth.router", _AUTH_DDL)
+# Schema + path now live with the code that opens the file — see
+# warden/auth/user_store.py. Importing it is what registers the DDL.
+_AUTH_DDL = user_store._AUTH_DDL
+
+
+def _db_path() -> str:
+    """The one resolver for warden_auth.db, shared with `user_store`."""
+    return user_store.sqlite_path()
 
 
 @contextmanager
 def _db() -> Generator[sqlite3.Connection, None, None]:
-    with open_db("auth", _DB_PATH, module_default_path=_DB_PATH) as con:
+    path = _db_path()
+    with open_db("auth", path, module_default_path=path) as con:
         yield con
 
 
@@ -153,15 +156,22 @@ def _load_env_users() -> dict[str, str]:
 
 
 def _email_exists(email: str) -> bool:
-    """Check both SQLite DB and env-var users."""
-    if _db_get_user(email) is not None:
+    """Check the account store (Postgres → SQLite) and env-var users."""
+    if user_store.email_exists(email):
         return True
     return email.lower() in _load_env_users()
 
 
 def _lookup_password_hash(email: str) -> str | None:
-    """Return stored hash from SQLite first, then env users."""
-    h = _db_get_user(email)
+    """Return the stored hash from the account store, then env users.
+
+    D-4: this used to read `warden_auth.db` only, which is why an account
+    created in the customer portal could not log in here and vice versa.
+    `user_store` reads Postgres `portal_users` first and falls back to the same
+    SQLite table, so both front doors now see one set of accounts — and a
+    deployment with no DATABASE_URL behaves exactly as it did before.
+    """
+    h = user_store.find_password_hash(email)
     if h:
         return h
     return _load_env_users().get(email.lower())
@@ -319,6 +329,12 @@ async def login(request: Request) -> JSONResponse:
     if not valid:
         return JSONResponse({"detail": "Invalid credentials"}, status_code=401)
 
+    # D-4 lazy migration — strictly *after* the password verified above. An
+    # account that still lives only in SQLite is promoted into portal_users, so
+    # the two stores converge through ordinary traffic instead of a flag day.
+    # Never move this before the check: it writes a usable credential.
+    user_store.note_successful_login(email, stored_hash)
+
     try:
         return _cookie_response(email)
     except RuntimeError as exc:
@@ -362,7 +378,18 @@ async def signup(request: Request) -> JSONResponse:
         log.error("bcrypt hash failed: %s", exc)
         return JSONResponse({"detail": "Registration failed. Please try again."}, status_code=500)
 
-    if not _db_create_user(email, pw_hash):
+    # D-4: writes to portal_users when Postgres is configured, SQLite otherwise.
+    # Uniqueness is checked across both stores, so a site signup can no longer
+    # shadow an existing portal account with a second password.
+    try:
+        created = user_store.create_user(email, pw_hash)
+    except Exception as exc:
+        # user_store deliberately does not fall back to SQLite when the Postgres
+        # write fails — a silent reroute is exactly how the two stores forked.
+        log.error("signup: account store write failed: %s", exc)
+        return JSONResponse({"detail": "Registration failed. Please try again."}, status_code=500)
+
+    if not created:
         return JSONResponse({"detail": "An account with this email already exists."}, status_code=409)
 
     log.info("new user registered: %s", email)
