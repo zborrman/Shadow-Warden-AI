@@ -314,7 +314,7 @@ managed primary.
 | **D-4** | ✅ **done** — `warden/auth/user_store.py` is now the one account store behind both front doors. `portal_users` (Postgres) is authoritative when configured; the SQLite table stays as the fallback read and the sole store when `DATABASE_URL` is unset, because `auth/router.py` must keep working air-gapped and auth here is fail-closed. Both routers hash with the same `bcrypt`, so accounts move **without a password reset**: a SQLite-only account is promoted on its next *verified* login, and `import_sqlite_users()` does the rest in bulk. Uniqueness now spans both stores, so a site signup can no longer shadow a portal account. **Not unified:** the session mechanisms (`sw_session` JWT cookie vs. the portal's access/refresh tokens) — a separate concern, not needed to fix the data split. | — | — | F2, GDPR erasure correctness |
 | **D-5** | **Class A → Postgres** (money + audit tables): real FKs, one transaction across escrow/credits/clearing/x402. Coordinate with Track F — the *precision* story is theirs (journal + `Money`); this slice is about **atomicity and concurrency**, not column types. | 5–8 d | **High** | F4 (placement half) |
 | **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness):** moving the SEP cluster (`warden_sep.db`, 31 tables / ~15 modules) and these two files to Postgres. | ~1 d done | Med | F3 |
-| **D-7** | **Merge the SQLite long tail** (~10 single-table files → 2 per-domain files). | 1 d | Low | F9 |
+| **D-7** | ❌ **dropped after measurement — do not re-propose.** See §6a. | — | — | — |
 | **D-8** | **ClickHouse question to Track B** — fold the GSAM stream into a hypertable, or keep. Decision, then ≤2 d. | — | — | F7 |
 
 Suggested order: **D-1 → D-2 → D-3 → D-4 → D-6 → D-7 → D-5 (with Track F) → D-8 (Track B).**
@@ -325,6 +325,27 @@ before any money table moves.
 **Explicitly not in this roadmap:** converting `REAL` money columns in place.
 That is Track F's FT-2, which chose opening-balance journal entries over
 in-place rewrites — see F4.
+
+### 6a. D-7 (merge the SQLite long tail) — dropped, with the measurement
+
+The original plan folded ~10 single-table DBs into `warden_platform.db` and
+`warden_staff.db`. Measured before implementing, it does not pay for itself:
+
+| | Finding |
+|---|---|
+| Coupling to untangle | **None.** All 14 tail `db_key`s (`push`, `oauth_discovery`, `quota`, `handoff`, `notifications`, `webhooks`, `webhook_dispatch`, `marketplace_lifecycle`, `staff_bdr/growth/support/compliance/a2a/economics`) hold 1–3 tables and have **exactly one writing module** each. Merging buys file count and nothing else. |
+| Concurrency | **Net negative.** SQLite is single-writer *per file*. Folding the five `staff_*` keys into one file puts `staff_economics` (writes on every agent action, via `_record_cost` on every return path) and `staff_a2a` (writes on every cross-agent call) — the subsystem's two highest-frequency writers — behind a single write lock, alongside three draft stores. This document's own principle in P3/§4 ("per-domain files preserve write concurrency") argues *against* the merge, not for it. |
+| Risk | Every one of these files holds live production rows — push device tokens, OAuth grants, quota counters, refund intents, SAR drafts, the staff cost ledger, webhook endpoints and their secrets. Merging means a data migration on the VPS. |
+| Benefit | ~10 fewer files in the nightly snapshot and ~10 fewer WAL/SHM triples. Nothing measures this as a constraint; `backup/service.py` handles the current 49 without strain. |
+
+A live-data migration plus a write-concurrency regression, in exchange for a
+smaller `ls`. Dropped.
+
+Also checked while measuring, and **clean**: no `db_key` is used against two
+different physical files (the cross-leak hazard `warden/db/ddl_registry.py`
+warns about). `web3/key_rotation.py` looks like a violation in a naive grep — it
+holds both `settings.key_rotation_db_path` and `settings.marketplace_db_path` —
+but it opens each under its own matching key, which is correct.
 
 ---
 
