@@ -45,4 +45,11 @@ regexes = [
   # scan re-reads just the commits under review; a fourth copy in a new commit
   # surfaced the latent false positive — see PR #268.)
   '''(WARDEN|ANTHROPIC)_API_KEY=""''',
+
+  # Synthetic high-entropy fixtures in test_secret_redactor.py — deliberately
+  # mixed-case+digit strings (the exact shape _find_high_entropy_tokens is
+  # designed to catch: one at the 32-char floor, one at 31 to test the length
+  # cutoff), not real credentials. The 31-char prefix matches both literal
+  # test values and nothing else.
+  '''aB3xQ9zK7mP2vN8wR4tY6uI1oL5jH0g''',
 ]

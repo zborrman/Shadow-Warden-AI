@@ -594,3 +594,117 @@ def test_full_mode_writes_the_registry_token(text: str, kind: str, token: str) -
     assert kind in kinds, f"expected kind={kind!r}, got {kinds}"
     assert token in result.text, f"expected {token!r} in {result.text!r}"
     assert text not in result.text
+
+
+# ── Direct unit tests for private helpers (SR-7.3 mutation-testing gaps) ──────
+# These pin exact values, not just "did it detect something" — the indirect
+# TP/FP tests above rarely constrain arithmetic/comparison internals tightly
+# enough to catch off-by-one or operator-swap mutants.
+
+class TestShannonEntropy:
+    def test_empty_string_is_zero(self) -> None:
+        from warden.secret_redactor import _shannon_entropy
+        assert _shannon_entropy("") == 0.0
+
+    def test_single_repeated_char_is_zero(self) -> None:
+        from warden.secret_redactor import _shannon_entropy
+        assert _shannon_entropy("aaaaaaaa") == 0.0
+
+    def test_two_symbols_even_split_is_one_bit(self) -> None:
+        from warden.secret_redactor import _shannon_entropy
+        # "abab" — 2 symbols, each p=0.5 → entropy = 1.0 bit exactly
+        assert _shannon_entropy("abab") == pytest.approx(1.0)
+
+    def test_four_symbols_even_split_is_two_bits(self) -> None:
+        from warden.secret_redactor import _shannon_entropy
+        # "abcd" — 4 symbols, each p=0.25 → entropy = 2.0 bits exactly
+        assert _shannon_entropy("abcd") == pytest.approx(2.0)
+
+    def test_higher_entropy_for_more_distinct_symbols(self) -> None:
+        from warden.secret_redactor import _shannon_entropy
+        assert _shannon_entropy("abcdefgh") > _shannon_entropy("aabbccdd")
+
+
+class TestFindHighEntropyTokens:
+    def test_low_entropy_long_run_not_flagged(self) -> None:
+        from warden.secret_redactor import _find_high_entropy_tokens
+        # 40 identical chars: passes the length regex but entropy is 0.
+        assert _find_high_entropy_tokens("a" * 40) == []
+
+    def test_high_entropy_token_span_is_exact(self) -> None:
+        from warden.secret_redactor import _find_high_entropy_tokens
+        token = "aB3xQ9zK7mP2vN8wR4tY6uI1oL5jH0gF"  # 32 chars, mixed case+digits
+        assert len(token) == 32
+        text = f"prefix {token} suffix"
+        spans = _find_high_entropy_tokens(text)
+        assert spans == [(7, 7 + len(token))]
+        assert text[spans[0][0]:spans[0][1]] == token
+
+    def test_short_high_entropy_run_not_flagged(self) -> None:
+        from warden.secret_redactor import _find_high_entropy_tokens
+        # 31 chars — one under the length floor — must not match at all.
+        token = "aB3xQ9zK7mP2vN8wR4tY6uI1oL5jH0g"
+        assert len(token) == 31
+        assert _find_high_entropy_tokens(token) == []
+
+
+class TestLuhnValid:
+    def test_known_valid_card_number(self) -> None:
+        from warden.secret_redactor import _luhn_valid
+        assert _luhn_valid("4111111111111111") is True
+
+    def test_known_invalid_card_number(self) -> None:
+        from warden.secret_redactor import _luhn_valid
+        # last digit flipped from the valid number above
+        assert _luhn_valid("4111111111111112") is False
+
+    def test_non_digit_characters_are_ignored(self) -> None:
+        from warden.secret_redactor import _luhn_valid
+        assert _luhn_valid("4111-1111-1111-1111") is True
+
+    def test_single_digit_zero_is_valid(self) -> None:
+        from warden.secret_redactor import _luhn_valid
+        # digits=[0], i=0 is even → no doubling; total=0; 0 % 10 == 0
+        assert _luhn_valid("0") is True
+
+    def test_single_digit_nine_is_invalid(self) -> None:
+        from warden.secret_redactor import _luhn_valid
+        assert _luhn_valid("9") is False
+
+
+class TestMaskValue:
+    def test_credit_card_strips_separators_before_last_four(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("4111-1111-1111-1111", "credit_card") == "****-****-****-1111"
+
+    def test_credit_card_short_digits_kept_as_is(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("12", "credit_card") == "****-****-****-12"
+
+    def test_email_reveals_first_char_and_domain(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("jdoe@example.com", "email") == "j***@example.com"
+
+    def test_us_ssn_shows_last_four(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("123-45-6789", "us_ssn") == "***-**-6789"
+
+    def test_private_key_block_never_reveals_content(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("-----BEGIN PRIVATE KEY-----abc", "private_key_block") == "[MASKED:private_key]"
+
+    def test_url_credentials_never_reveals_content(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("user:pass@", "url_credentials") == "[MASKED:url_credentials]://"
+
+    def test_phone_number_shows_last_four(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("+1 (555) 867-5309", "phone_number") == "***-***-5309"
+
+    def test_generic_kind_shows_last_four_alphanum(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("0x71C7656EC7ab88b098defB751B7401B5f6d8976F", "ethereum_address") == "[MASKED:ethereum_address:...976F]"
+
+    def test_generic_kind_short_value_kept_as_is(self) -> None:
+        from warden.secret_redactor import _mask_value
+        assert _mask_value("ab", "some_kind") == "[MASKED:some_kind:...ab]"
