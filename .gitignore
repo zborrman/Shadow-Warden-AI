@@ -129,3 +129,8 @@ scan_result.json
 # (security-critical upstream artifact — see docker/seccomp/README.md)
 docker/seccomp/chrome.json
 docker/seccomp/chrome.json.sha256
+
+# mutmut mutation-testing sandbox (SR-7.3) — generated, not committed
+mutants/
+mutmut-stats.json
+.mutmut-cache

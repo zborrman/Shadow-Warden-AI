@@ -48,7 +48,13 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
-    "mutmut>=2.4.0",
+    # Lower bound matches warden/constraints.txt's mutmut==3.6.0 pin — the
+    # [tool.mutmut] block below is written for the 3.x config schema
+    # (source_paths / pytest_add_cli_args_test_selection), which replaced the
+    # 2.x schema (paths_to_mutate / runner / tests_dir) this repo used to use.
+    # An unbounded/pre-3.x pin here would silently install a version whose
+    # config loader doesn't understand these keys.
+    "mutmut>=3.6.0",
 ]
 langchain = [
     "langchain-core>=0.1.0",
@@ -210,12 +216,63 @@ markers      = [
 asyncio_mode = "auto"
 
 # ── Mutmut (mutation testing) ─────────────────────────────────────────────────
-# Targets: the two core safety modules — everything else is glue.
-# Runner: fast unit tests only (no ML model, no slow fixtures).
-# Threshold: < 10 surviving mutants = acceptable.
+# SR-7.3: extended beyond the original two core safety modules to the
+# security-critical modules named in the roadmap (auth_guard, causal_arbiter,
+# x402_gate) — everything else is glue.
+# Fast unit tests only (no ML model, no slow fixtures).
 # Run: mutmut run  (Linux / WSL / CI only — not supported on native Windows)
-
+#
+# Baseline measured 2026-08-02 (first real run ever — see schema note below):
+# 1482 mutants, 710 killed, 772 survived, after adding direct unit tests for
+# secret_redactor's private helpers (_shannon_entropy/_find_high_entropy_tokens/
+# _luhn_valid/_mask_value — previously only exercised indirectly through
+# SecretRedactor.redact(), which rarely pins exact internal values) brought
+# secret_redactor from 33 survivors down to 19. Per module: secret_redactor 19,
+# semantic_guard 0, auth_guard 89, causal_arbiter 405, x402_gate 259. The
+# previously-documented "<10/<20 surviving mutants" threshold predates any
+# verified run (mutmut has been silently non-functional — see below) and does
+# not reflect these numbers; treat it as aspirational, not a gate. Reducing
+# survivor counts is tracked as SR-7.3 follow-on work, module by module.
+#
+# ⚠️ Schema note (2026-08-02): warden/constraints.txt pins mutmut==3.6.0, which
+# dropped the 2.x `paths_to_mutate` (comma-string) / `runner` (shell command) /
+# `tests_dir` (string) keys — `mutmut run` crashed with a TypeError on any
+# config using them (tests_dir + a list requires tests_dir to itself be a
+# list, not a string; concatenating a list with a string raises). This had
+# apparently never been re-verified after the constraints.txt bump to 3.x, so
+# mutation testing was silently non-functional. Rewritten below for the 3.x
+# schema: `source_paths` (list), `pytest_add_cli_args_test_selection` (list of
+# test files/dirs, replaces `runner`+`tests_dir`), `pytest_add_cli_args` (list
+# of extra flags, replaces the shell-command parts of the old `runner`).
 [tool.mutmut]
-paths_to_mutate = "warden/secret_redactor.py,warden/semantic_guard.py"
-runner          = "python -m pytest warden/tests/test_secret_redactor.py warden/tests/test_semantic_guard.py -x -q --no-header --no-cov"
-tests_dir       = "warden/tests/"
+source_paths = [
+    "warden/secret_redactor.py",
+    "warden/semantic_guard.py",
+    "warden/auth_guard.py",
+    "warden/causal_arbiter.py",
+    "warden/marketplace/x402_gate.py",
+]
+pytest_add_cli_args_test_selection = [
+    "warden/tests/test_secret_redactor.py",
+    "warden/tests/test_semantic_guard.py",
+    "warden/tests/test_auth_guard.py",
+    "warden/tests/test_causal_arbiter.py",
+    "warden/tests/test_causal_c1_guardrail.py",
+    "warden/tests/test_causal_online.py",
+    "warden/tests/test_x402_gate.py",
+]
+pytest_add_cli_args = ["-x", "-q", "--no-header", "--no-cov"]
+# `warden` has a real warden/__init__.py (not a PEP 420 namespace package), so
+# the mutants/ sandbox mutmut builds around source_paths alone can never fall
+# through to the original tree for anything it doesn't contain: Python's
+# import finder stops at the first sys.path entry with an __init__.py, and
+# since /workspace itself is never added back to sys.path (that would just
+# resurrect the same "resolves to unmutated code" bug this section already
+# fixed once, for the *image's* stale baked-in /warden copy — see below),
+# a partial also_copy list means every transitively-imported sibling module
+# (warden.schemas, warden.config, warden.marketplace.escrow, ...) 404s during
+# test collection. Copying the whole package sidesteps the namespace-portion
+# problem entirely: mutants/warden becomes a complete, self-sufficient
+# regular package, identical to the original except for the instrumented
+# source_paths files.
+also_copy = ["warden/"]
