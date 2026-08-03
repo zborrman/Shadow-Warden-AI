@@ -76,6 +76,29 @@ def test_load_key_store_default_rate_limit_when_missing(tmp_path, monkeypatch):
     assert store[0].rate_limit == 42
 
 
+def test_load_key_store_reads_label(tmp_path, monkeypatch):
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("secret"), "tenant_id": "acme", "label": "prod key"},
+    ])
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    store = ag._load_key_store()
+    assert store[0].label == "prod key"
+
+
+def test_load_key_store_active_defaults_true_when_omitted(tmp_path, monkeypatch):
+    """A key entry that omits "active" entirely must still be usable — the
+    field exists so a key can be explicitly REVOKED, not so every key must
+    opt in to being active."""
+    _reset_store()
+    key_file = _write_key_file(tmp_path, [
+        {"key_hash": _sha256("secret"), "tenant_id": "acme"},  # no "active" field
+    ])
+    monkeypatch.setattr(ag, "_KEYS_PATH", key_file)
+    store = ag._load_key_store()
+    assert store[0].active is True
+
+
 # ── AuthResult carries rate_limit ─────────────────────────────────────────────
 
 def test_auth_result_default_rate_limit():
@@ -281,6 +304,55 @@ def test_require_api_key_missing_header_raises_401(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         ag.require_api_key(api_key=None)
     assert exc.value.status_code == 401
+    assert exc.value.detail == "Missing X-API-Key header."
+    assert exc.value.headers == {"WWW-Authenticate": "ApiKey"}
+
+
+def test_require_api_key_invalid_key_raises_401_with_detail(monkeypatch):
+    from fastapi import HTTPException
+    monkeypatch.setattr(ag, "_VALID_KEY", "secret")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    with pytest.raises(HTTPException) as exc:
+        ag.require_api_key(api_key="wrong-key")
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Invalid or missing X-API-Key header."
+    assert exc.value.headers == {"WWW-Authenticate": "ApiKey"}
+
+
+def test_require_api_key_dev_mode_returns_empty_api_key(monkeypatch):
+    """Dev-mode AuthResult.api_key is the empty string, not None or a stub."""
+    monkeypatch.setattr(ag, "_VALID_KEY", "")
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    result = ag.require_api_key(api_key=None)
+    assert result.api_key == ""
+    assert result.tenant_id == "default"
+
+
+# ── _load_key_store memoization ───────────────────────────────────────────────
+
+def test_load_key_store_sets_loaded_flag_true(monkeypatch):
+    monkeypatch.setattr(ag, "_key_store", [])
+    monkeypatch.setattr(ag, "_key_store_loaded", False)
+    monkeypatch.setattr(ag, "_KEYS_PATH", "")
+    ag._load_key_store()
+    assert ag._key_store_loaded is True
+
+
+def test_load_key_store_second_call_does_not_reread_file(tmp_path, monkeypatch):
+    """Once loaded, a changed file on disk must NOT be picked up without reload_keys()."""
+    p = tmp_path / "keys.json"
+    p.write_text('{"keys": [{"key_hash": "a", "tenant_id": "t1", "active": true}]}')
+    monkeypatch.setattr(ag, "_key_store", [])
+    monkeypatch.setattr(ag, "_key_store_loaded", False)
+    monkeypatch.setattr(ag, "_KEYS_PATH", str(p))
+
+    first = ag._load_key_store()
+    assert len(first) == 1
+
+    p.write_text('{"keys": [{"key_hash": "a", "tenant_id": "t1", "active": true}, '
+                 '{"key_hash": "b", "tenant_id": "t2", "active": true}]}')
+    second = ag._load_key_store()
+    assert len(second) == 1  # memoized — the on-disk change is ignored
 
 
 # ── tier_header_trusted ───────────────────────────────────────────────────────
@@ -335,12 +407,32 @@ def test_get_rate_limit_single_key_and_unknown(monkeypatch):
 
 def test_require_ext_auth_bearer_uses_oidc(monkeypatch):
     """A Bearer token routes through Warden Identity (OIDC) and never logs raw email."""
+    import hashlib
+
     import warden.auth.oidc_guard as oidc
     monkeypatch.setattr(oidc, "verify_oidc_token", lambda tok: ("acme-tenant", "user@acme.com"))
+    monkeypatch.setattr(ag, "_DEFAULT_KEY_RATE", 77)
     result = ag.require_ext_auth(x_api_key=None, authorization="Bearer abc.def.ghi")
     assert result.tenant_id == "acme-tenant"
     assert result.api_key == ""
-    assert result.entity_key  # GDPR-safe hash, non-empty
+    assert result.rate_limit == 77
+    assert result.entity_key == hashlib.sha256(
+        b"acme-tenant:oidc:user@acme.com"
+    ).hexdigest()[:16]
+
+
+def test_require_ext_auth_strips_bearer_prefix_before_verifying(monkeypatch):
+    """The raw token handed to verify_oidc_token must have "Bearer " stripped."""
+    import warden.auth.oidc_guard as oidc
+    captured: dict = {}
+
+    def _fake_verify(tok):
+        captured["token"] = tok
+        return ("t", "u@example.com")
+
+    monkeypatch.setattr(oidc, "verify_oidc_token", _fake_verify)
+    ag.require_ext_auth(x_api_key=None, authorization="Bearer the-real-token")
+    assert captured["token"] == "the-real-token"
 
 
 def test_require_ext_auth_falls_back_to_api_key(monkeypatch):
