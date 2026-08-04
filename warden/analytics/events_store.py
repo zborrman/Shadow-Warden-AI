@@ -153,37 +153,6 @@ def mirror(entry: dict) -> bool:
 
 
 
-# ── Read statements ──────────────────────────────────────────────────────────
-# Written out in full per variant. Assembling a WHERE clause from fragments is
-# what the SQL-injection SAST rule flags, and it is a fair objection even when
-# every fragment is a constant: safety should be visible without tracing where
-# the pieces came from.
-
-_SUMMARY_COLUMNS = """
-    SELECT
-        COUNT(*)                                     AS total,
-        COUNT(*) FILTER (WHERE allowed)              AS allowed,
-        COUNT(*) FILTER (WHERE NOT allowed)          AS blocked,
-        COUNT(*) FILTER (WHERE risk_level = 'HIGH')  AS high,
-        COUNT(*) FILTER (WHERE risk_level = 'BLOCK') AS block,
-        COUNT(*) FILTER (WHERE masked)               AS masked,
-        COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
-        AVG(elapsed_ms)                              AS avg_elapsed_ms
-    FROM warden_core.filter_events
-"""
-_SUMMARY_ALL = _SUMMARY_COLUMNS + " WHERE ts >= :since"
-_SUMMARY_BY_TENANT = _SUMMARY_COLUMNS + " WHERE ts >= :since AND tenant_id = :tid"
-
-_HOURLY_COLUMNS = """
-    SELECT bucket, tenant_id, total, allowed, blocked, high, block,
-           masked, attack_cost_usd, avg_elapsed_ms, max_elapsed_ms
-    FROM warden_core.filter_events_hourly
-"""
-_HOURLY_ALL = _HOURLY_COLUMNS + " WHERE bucket >= :since ORDER BY bucket"
-_HOURLY_BY_TENANT = (
-    _HOURLY_COLUMNS + " WHERE bucket >= :since AND tenant_id = :tid ORDER BY bucket"
-)
-
 # ── GDPR erasure ──────────────────────────────────────────────────────────────
 
 def purge_before(before: datetime) -> int:
@@ -231,15 +200,46 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
     try:
         from sqlalchemy import text
 
-        # Two whole literal statements rather than one assembled from a
-        # fragment: nothing here is user input, but SQL that is *built* cannot
-        # be read as safe at a glance, and the SAST gate is right to say so.
-        sql = _SUMMARY_BY_TENANT if tenant_id else _SUMMARY_ALL
-        params: dict[str, Any] = {"since": since}
-        if tenant_id:
-            params["tid"] = tenant_id
+        # Each statement is written out where it is executed. Not style: the
+        # SAST gate's `avoid-sqlalchemy-text` rule only clears `text()` when it
+        # can see the literal at the call site, and a rule that has to trace a
+        # value back through a module constant cannot vouch for it. Nothing
+        # here is user input either way — every value is bound.
         with _engine().connect() as conn:
-            row = conn.execute(text(sql), params).fetchone()
+            if tenant_id:
+                row = conn.execute(
+                    text("""
+                        SELECT
+                            COUNT(*)                                     AS total,
+                            COUNT(*) FILTER (WHERE allowed)              AS allowed,
+                            COUNT(*) FILTER (WHERE NOT allowed)          AS blocked,
+                            COUNT(*) FILTER (WHERE risk_level = 'HIGH')  AS high,
+                            COUNT(*) FILTER (WHERE risk_level = 'BLOCK') AS block,
+                            COUNT(*) FILTER (WHERE masked)               AS masked,
+                            COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
+                            AVG(elapsed_ms)                              AS avg_elapsed_ms
+                        FROM warden_core.filter_events
+                        WHERE ts >= :since AND tenant_id = :tid
+                    """),
+                    {"since": since, "tid": tenant_id},
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    text("""
+                        SELECT
+                            COUNT(*)                                     AS total,
+                            COUNT(*) FILTER (WHERE allowed)              AS allowed,
+                            COUNT(*) FILTER (WHERE NOT allowed)          AS blocked,
+                            COUNT(*) FILTER (WHERE risk_level = 'HIGH')  AS high,
+                            COUNT(*) FILTER (WHERE risk_level = 'BLOCK') AS block,
+                            COUNT(*) FILTER (WHERE masked)               AS masked,
+                            COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
+                            AVG(elapsed_ms)                              AS avg_elapsed_ms
+                        FROM warden_core.filter_events
+                        WHERE ts >= :since
+                    """),
+                    {"since": since},
+                ).fetchone()
         if row is None:
             return None
         d = dict(row._mapping)
@@ -258,12 +258,30 @@ def hourly_series(since: datetime, *, tenant_id: str | None = None) -> list[dict
     try:
         from sqlalchemy import text
 
-        sql = _HOURLY_BY_TENANT if tenant_id else _HOURLY_ALL
-        params: dict[str, Any] = {"since": since}
-        if tenant_id:
-            params["tid"] = tenant_id
         with _engine().connect() as conn:
-            return [dict(r._mapping) for r in conn.execute(text(sql), params)]
+            if tenant_id:
+                rows = conn.execute(
+                    text("""
+                        SELECT bucket, tenant_id, total, allowed, blocked, high, block,
+                               masked, attack_cost_usd, avg_elapsed_ms, max_elapsed_ms
+                        FROM warden_core.filter_events_hourly
+                        WHERE bucket >= :since AND tenant_id = :tid
+                        ORDER BY bucket
+                    """),
+                    {"since": since, "tid": tenant_id},
+                )
+            else:
+                rows = conn.execute(
+                    text("""
+                        SELECT bucket, tenant_id, total, allowed, blocked, high, block,
+                               masked, attack_cost_usd, avg_elapsed_ms, max_elapsed_ms
+                        FROM warden_core.filter_events_hourly
+                        WHERE bucket >= :since
+                        ORDER BY bucket
+                    """),
+                    {"since": since},
+                )
+            return [dict(r._mapping) for r in rows]
     except Exception as exc:
         log.debug("filter_events hourly_series unavailable: %s", exc)
         return None
