@@ -58,7 +58,6 @@ from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.auth.user_store")
 
-_TABLE = "warden_core.portal_users"
 
 # The SQLite fallback table's schema is registered *here*, with the code that
 # opens it. It used to live in `router.py`, which meant any process importing
@@ -120,7 +119,7 @@ def _pg_get(email: str) -> dict | None:
 
         with _engine().connect() as conn:
             row = conn.execute(
-                text(f"SELECT id, email, password_hash, tenant_id, role FROM {_TABLE} WHERE email = :e"),
+                text("SELECT id, email, password_hash, tenant_id, role FROM warden_core.portal_users WHERE email = :e"),
                 {"e": email.lower()},
             ).mappings().first()
         return dict(row) if row else None
@@ -173,13 +172,13 @@ def _pg_insert(email: str, pw_hash: str) -> bool:
     email = email.lower()
     with _engine().begin() as conn:
         taken = conn.execute(
-            text(f"SELECT 1 FROM {_TABLE} WHERE email = :e"), {"e": email}
+            text("SELECT 1 FROM warden_core.portal_users WHERE email = :e"), {"e": email}
         ).first()
         if taken:
             return False
         conn.execute(
-            text(f"""
-                INSERT INTO {_TABLE} (id, email, password_hash, display_name, tenant_id, role)
+            text("""
+                INSERT INTO warden_core.portal_users (id, email, password_hash, display_name, tenant_id, role)
                 VALUES (:id, :email, :pw, :name, :tid, 'owner')
             """),
             {
