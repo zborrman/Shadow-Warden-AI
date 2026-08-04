@@ -54,6 +54,32 @@ os.environ.setdefault("GSAM_SPOOL_PATH",  "/tmp/warden_test_gsam_spool.ndjson")
 os.environ.setdefault("GSAM_DB_PATH",     "/tmp/warden_test_gsam.db")
 
 
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_teardown(item, nextitem):
+    """Close `open_db`'s per-thread connection cache before fixture teardown.
+
+    `open_db` keeps connections open between calls (that setup cost dominated the
+    write itself by ~150x). A held connection also holds the *file*, so a test
+    whose own fixture teardown does `os.remove(tmp_path/…)` fails on Windows with
+    "used by another process", and on POSIX silently unlinks a file the cache
+    would carry on writing to.
+
+    This is a hook rather than an autouse fixture on purpose: fixtures finalize
+    in reverse setup order, so a conftest-level autouse fixture tears down
+    *after* the test's own `_clean`, which is too late. `tryfirst` puts this
+    ahead of fixture finalization.
+
+    Production has the matching guard in `_checkout`, which re-stats the path and
+    drops a connection whose file was deleted or replaced underneath it.
+    """
+    try:
+        from warden.db.connect import close_cached_connections
+
+        close_cached_connections()
+    except Exception:
+        pass
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _clear_threat_store():
     """
