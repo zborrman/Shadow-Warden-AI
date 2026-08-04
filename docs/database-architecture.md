@@ -312,7 +312,7 @@ managed primary.
 | **D-2** | ✅ **done** — Postgres memory capped at 2 GB. It was the only service without a limit, and this image's `timescaledb-tune` sizes from the memory it *believes* it has: measured unbounded on the 16 GB host it picked `shared_buffers=3494 MB` / `effective_cache_size=10 GB`, while warden is separately allowed 8 GB on the same box. The tuner reads the cgroup, so the limit alone is the whole fix (explicit `-c` flags produced identical settings and were dropped). | — | — | F6 |
 | **D-3** | 🟡 **seam shipped** — `warden_core.filter_events` hypertable + `filter_events_hourly` continuous aggregate (rev `0013`), `warden/analytics/events_store.py` (opt-in mirror off `FILTER_EVENTS_MIRROR`, readers return `None` ⇒ caller keeps its scan), and `financial/metrics_reader.py` migrated as the reference consumer. **GDPR: the mirror is inside the erasure path** — `logger.purge_before()`/`purge_old_entries()` purge it in the same call, and `GDPR_LOG_RETENTION_DAYS` stays the single retention authority (the migration installs no Timescale retention policy on purpose). **Remaining:** the other ~24 readers still scan NDJSON — mechanical, one caller at a time, each with the same `None`-fallback shape. | ~1 d done, ~2 d left | Low | F5, F8 |
 | **D-4** | ✅ **done** — `warden/auth/user_store.py` is now the one account store behind both front doors. `portal_users` (Postgres) is authoritative when configured; the SQLite table stays as the fallback read and the sole store when `DATABASE_URL` is unset, because `auth/router.py` must keep working air-gapped and auth here is fail-closed. Both routers hash with the same `bcrypt`, so accounts move **without a password reset**: a SQLite-only account is promoted on its next *verified* login, and `import_sqlite_users()` does the rest in bulk. Uniqueness now spans both stores, so a site signup can no longer shadow a portal account. **Not unified:** the session mechanisms (`sw_session` JWT cookie vs. the portal's access/refresh tokens) — a separate concern, not needed to fix the data split. | — | — | F2, GDPR erasure correctness |
-| **D-5** | **Class A → Postgres** (money + audit tables): real FKs, one transaction across escrow/credits/clearing/x402. Coordinate with Track F — the *precision* story is theirs (journal + `Money`); this slice is about **atomicity and concurrency**, not column types. | 5–8 d | **High** | F4 (placement half) |
+| **D-5** | ⛔ **blocked, and the premise was partly wrong — see §6b.** A readiness check found both Track F prerequisites unmet (`LEDGER_DUAL_WRITE` has never run; FT-6 Phase C not started), *and* that the atomicity gap D-5 was meant to buy is mostly **not cross-file**: clearing/listing/credits/escrow already share one `marketplace` file. The real gap was cross-*transaction* inside that file, and it has been fixed in SQLite — no migration required. | — | **High** | F4 (placement half) |
 | **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness):** moving the SEP cluster (`warden_sep.db`, 31 tables / ~15 modules) and these two files to Postgres. | ~1 d done | Med | F3 |
 | **D-7** | ❌ **dropped after measurement — do not re-propose.** See §6a. | — | — | — |
 | **D-8** | **ClickHouse question to Track B** — fold the GSAM stream into a hypertable, or keep. Decision, then ≤2 d. | — | — | F7 |
@@ -325,6 +325,44 @@ before any money table moves.
 **Explicitly not in this roadmap:** converting `REAL` money columns in place.
 That is Track F's FT-2, which chose opening-balance journal entries over
 in-place rewrites — see F4.
+
+### 6b. D-5 (money tables → Postgres) — readiness check: not ready, and narrower than stated
+
+**Track F prerequisites, both unmet.** `LEDGER_DUAL_WRITE` defaults false, so the
+double-entry journal is a shadow that has never run and no reconciliation
+baseline exists. FT-6 Phase C (cutover reads) has not started and is explicitly
+gated on a production bake plus reconciliation queries; `marketplace_purchases`
+is documented as a fail-soft mirror that is *not yet trusted*. Moving the same
+rows to Postgres now would be a second concurrent migration on one dataset, and
+would destroy the ability to reconcile the first.
+
+**Measured risk factors.** Coverage on the modules that would be rewritten:
+`clearing` 79%, `credits` 68%, `escrow` 61% — against 100% on this repo's
+security modules. Two Streamlit pages (`23_Marketplace_Admin.py`,
+`24_Agentic_Trading.py`) open `MARKETPLACE_DB_PATH` directly, outside the module
+seam. `marketplace_purchases` has 7 readers, `marketplace_escrow` 6.
+
+**Correction to §F4.** The cross-file atomicity gap is narrower than this
+document claimed. `clearing`, `listing`, `credits` and `escrow` all open the same
+`marketplace` db_key — one file, so one transaction was always possible. The
+separate files are `marketplace_x402` and `voice_x402`, and no flow writes both:
+`x402_gate` deducts a balance, `voice/x402` is a different product, and neither
+writes a marketplace order in the same call.
+
+**The real gap, and it did not need Postgres.** `_do_purchase` committed three
+separate statements — INSERT purchase, `create_escrow`'s own INSERT, then an
+UPDATE writing the escrow_id back — serialised only by a `threading.RLock`,
+which is in-process while `arq-worker` and `workers/x402_settlement.py` write the
+same database from other containers. The worst window left an escrow row holding
+funds against a purchase that still read `escrow_id=""`. Fixed by deploying the
+contract outside the transaction (it is a network round-trip that can raise) and
+writing both rows in one, which also removed the third statement entirely.
+Escrow-failure policy is deliberately unchanged — a purchase whose escrow could
+not be created is still recorded with `escrow_id=""`; making that roll back is a
+money-semantics decision for Track F.
+
+**Verdict.** D-5 stays blocked on Track F. Its headline benefit has been
+delivered at a fraction of its risk.
 
 ### 6a. D-7 (merge the SQLite long tail) — dropped, with the measurement
 

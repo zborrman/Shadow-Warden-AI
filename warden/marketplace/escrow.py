@@ -201,6 +201,37 @@ class EscrowService:
         chain: str = "sepolia",
         db_path: str | None = None,
     ) -> Escrow:
+        escrow = self.build_escrow(
+            listing_id=listing_id,
+            buyer_agent_id=buyer_agent_id,
+            seller_agent_id=seller_agent_id,
+            amount_usd=amount_usd,
+            purchase_id=purchase_id,
+            chain=chain,
+        )
+        with _db_lock, _conn(db_path) as con:
+            self.insert_escrow(con, escrow)
+        log.info("Escrow created: %s contract=%s chain=%s",
+                 escrow.escrow_id, escrow.contract_address, chain)
+        return escrow
+
+    def build_escrow(
+        self,
+        listing_id: str,
+        buyer_agent_id: str,
+        seller_agent_id: str,
+        amount_usd: float,
+        purchase_id: str = "",
+        chain: str = "sepolia",
+    ) -> Escrow:
+        """Deploy the on-chain contract and return an unsaved Escrow.
+
+        Split out of :meth:`create_escrow` so a caller can do the slow, failure-
+        prone part — a network round-trip that raises `EscrowDeploymentError`
+        when the RPC is configured but unreachable — *outside* a database
+        transaction, then persist the escrow together with its purchase row in
+        one. See `listing._do_purchase`.
+        """
         escrow_id = f"ESC-{uuid.uuid4().hex[:12].upper()}"
         now       = datetime.now(UTC).isoformat()
         expires   = (datetime.now(UTC) + timedelta(hours=_DELIVERY_TIMEOUT_HOURS)).isoformat()
@@ -208,7 +239,7 @@ class EscrowService:
             buyer_agent_id, seller_agent_id, listing_id, escrow_id, chain
         )
 
-        escrow = Escrow(
+        return Escrow(
             escrow_id=escrow_id,
             purchase_id=purchase_id,
             listing_id=listing_id,
@@ -226,24 +257,29 @@ class EscrowService:
             confirmed_at=None,
             expires_at=expires,
         )
-        with _db_lock, _conn(db_path) as con:
-            con.execute(
-                """INSERT INTO marketplace_escrow
-                   (escrow_id, purchase_id, listing_id, buyer_agent, seller_agent,
-                    amount_usd, contract_address, status, asset_hash, dispute_reason,
-                    chain, created_at, funded_at, delivered_at, confirmed_at, expires_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (
-                    escrow.escrow_id, escrow.purchase_id, escrow.listing_id,
-                    escrow.buyer_agent, escrow.seller_agent, escrow.amount_usd,
-                    escrow.contract_address, escrow.status, escrow.asset_hash,
-                    escrow.dispute_reason, escrow.chain, escrow.created_at,
-                    escrow.funded_at, escrow.delivered_at, escrow.confirmed_at,
-                    escrow.expires_at,
-                ),
-            )
-        log.info("Escrow created: %s contract=%s chain=%s", escrow_id, contract, chain)
-        return escrow
+
+    @staticmethod
+    def insert_escrow(con: sqlite3.Connection, escrow: Escrow) -> None:
+        """Write an escrow row on a connection the caller owns.
+
+        Takes the connection rather than opening one so the insert can share a
+        transaction with the purchase row it belongs to.
+        """
+        con.execute(
+            """INSERT INTO marketplace_escrow
+               (escrow_id, purchase_id, listing_id, buyer_agent, seller_agent,
+                amount_usd, contract_address, status, asset_hash, dispute_reason,
+                chain, created_at, funded_at, delivered_at, confirmed_at, expires_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                escrow.escrow_id, escrow.purchase_id, escrow.listing_id,
+                escrow.buyer_agent, escrow.seller_agent, escrow.amount_usd,
+                escrow.contract_address, escrow.status, escrow.asset_hash,
+                escrow.dispute_reason, escrow.chain, escrow.created_at,
+                escrow.funded_at, escrow.delivered_at, escrow.confirmed_at,
+                escrow.expires_at,
+            ),
+        )
 
     def fund_escrow(self, escrow_id: str, db_path: str | None = None) -> bool:
         """Buyer deposits — transitions to 'funded'."""
