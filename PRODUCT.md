@@ -59,7 +59,7 @@ The second differentiator is that the system improves itself: HIGH/BLOCK verdict
 
 - Compliance artifacts in `docs/`: `dpia.md` (GDPR Art. 35 DPIA), `soc2-evidence.md` (control mapping + auditor collection procedures), `security-model.md` (9-layer model, OWASP LLM Top 10 coverage, threat model), `sla.md` (Pro 99.9% / Enterprise 99.95%, P99 < 50ms, credits), and a 93-control ISO 27001:2022 mapping shipped as live product surface.
 - Measured operational figures: sub-2ms topological gate, P99 < 50ms filter budget, a verified restore drill at ~17s RTO (21 Postgres tables + 7 SQLite DBs), ~4300 tests, 75% coverage gate.
-- Published pricing, exact: Starter $0 (1k req), Individual $5/mo (5k), Community Business $19/mo (10k), Pro $69/mo (50k, MasterAgent included), Enterprise $249/mo (unlimited, PQC + Sovereign). Add-ons: `shadow_ai_discovery` +$15/mo (Pro+), `xai_audit` +$9/mo (Individual+), `smb_governance_suite` $29/mo. Quote these exactly or not at all.
+- Published pricing, exact: Starter $0 (1k req), Individual $5/mo (5k), Community Business $39.99/mo (10k), Pro $99.99/mo (50k, MasterAgent included), Enterprise $249/mo (unlimited, PQC + Sovereign). Add-ons: `shadow_ai_discovery` +$15/mo (Pro+), `xai_audit` +$9/mo (Individual+), `smb_governance_suite` $29/mo. Quote these exactly or not at all.
 - A live production deployment behind Cloudflare at `api.shadow-warden-ai.com`.
 
 **Absent — must never be fabricated:** `[inferred: no customer logos, quotes, case studies, press, funding, team-size, or user-count claims appear anywhere in the repo]`

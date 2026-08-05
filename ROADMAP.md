@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.7 · Last updated 2026-07-22**
+**Version 7.9 · Last updated 2026-08-03**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -19,6 +19,19 @@ Every item on this roadmap competes across three inputs:
 We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+
+---
+
+## v7.9 Release — 2026-08-03 · FinOps & Monetization (FM-7)
+
+| ID | Feature | Status |
+|----|---------|--------|
+| BL-25 | Canonical price list — one table, derived annual pricing; closed a 41% unintended discount on annual Pro | ✅ |
+| BL-26 | Overage rating repair — request overage had rated at $0.00 on every tier since BL-19 | ✅ |
+| BL-27 | LLM COGS attribution — MasterAgent + Evolution Engine now record spend; Opus 4.6 was rating as Sonnet (5× under) | ✅ |
+| BL-28 | Per-tenant LLM budget + soft model gate; evolution daily spend ceiling; `GET /billing/margin` | ✅ |
+| BL-29 | `scripts/finops_report.py` — unit economics, model cost and node capacity from the code's own price book | ✅ |
+| BL-30 | Monetization plan published — `docs/monetization-plan.md` | ✅ |
 
 ---
 
@@ -468,7 +481,7 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 
 | ID | Feature | Version | Tier | Status |
 |----|---------|---------|------|--------|
-| BL-01 | Tier catalog — Starter $0 / Individual $5 / Community Business $19 / Pro $69 / Enterprise $249 | v4.5 | — | ✅ |
+| BL-01 | Tier catalog — Starter $0 / Individual $5 / Community Business $39.99 / Pro $99.99 / Enterprise $249 | v4.5 | — | ✅ |
 | BL-02 | Feature gate system — `require_feature()` FastAPI dep, per-tier caps | v4.5 | — | ✅ |
 | BL-03 | Add-on: Secrets Vault Governance — +$12/mo (Individual+) | v4.9 | Individual+ | ✅ |
 | BL-04 | Add-on: XAI Audit Reports — +$9/mo (Individual+) | v4.5 | Individual+ | ✅ |
@@ -482,7 +495,7 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-12 | Add-on: On-Prem Deployment Pack — +$29/mo (Pro+), unlocks `on_prem_deployment` | v4.20 | Pro+ | ✅ |
 | BL-13 | Add-on: Community Seats (+5 members) — +$9/mo (Community Business+), stackable | v4.20 | CB+ | ✅ |
 | BL-14 | Bundle: Power User Bundle — Secrets Vault + XAI + Shadow AI at $29 (save $7) | v4.20 | Pro+ | ✅ |
-| BL-15 | Annual billing — 15% off: $51/$194/$703/$2541/yr for Individual/CB/Pro/Enterprise | v4.20 | All | ✅ |
+| BL-15 | Annual billing — 15% off: $51/$407.90/$1,019.90/$2,539.80/yr for Individual/CB/Pro/Enterprise | v4.20 | All | ✅ |
 | BL-16 | 14-day Pro trial — 10k req cap, no MasterAgent, one-time per tenant | v4.20 | Individual+ | ✅ |
 | BL-17 | `PricingCalculator` React component — tier + add-on + bundle + annual/monthly toggle | v4.20 | — | ✅ |
 | BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
@@ -492,6 +505,10 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-22 | AI Vendor Governance Register — DPA tracking + expiry alerts | v4.23 | Individual+ | ✅ |
 | BL-23 | AI Cost Allocation — per-department/vendor spend tracking | v4.24 | Community+ | ✅ |
 | BL-24 | AI Budget Dashboard — real-time spend + approval workflow | v4.24 | Community+ | ✅ |
+| BL-25 | Canonical price list (FM-7) — `warden/billing/pricing.py` owns tier prices, tier aliases and **derived** annual pricing; `feature_gate`, `/billing/tiers` and `finops/margin` re-export from it. Closed a three-way drift that sold a year of Pro at $703 against a $1,019.90 list — a 41% discount on a plan advertised at 15%. Ratchet: `test_pricing_coherence.py` | v7.9 | — | ✅ |
+| BL-26 | Overage rating repair (FM-7) — `_calculate_overage()` read a `per_1k_requests_usd` key that never existed in `OVERAGE_PRICES` (which stores cents), so **every** request overage on every tier had rated at $0.00 and reported itself disabled since BL-19 shipped | v7.9 | Pro+ | ✅ |
+| BL-27 | LLM COGS attribution (FM-7) — MasterAgent (all four call sites) and the Evolution Engine now record token spend; `TokenCostTracker` takes `cached_tokens` and gains `get_cost_since()`; `warden_llm_cost_usd_total` Prometheus counter; `claude-opus-4-6` added to the price book plus a model-family fallback (it had been rating as Sonnet, 5× under) | v7.9 | — | ✅ |
+| BL-28 | Per-tenant LLM budget + soft model gate (FM-7) — `warden/finops/llm_budget.py` derives a monthly inference allowance from the list price at the target gross margin and picks a model inside it (Opus→Sonnet→Haiku). Never blocks, never routes below the caller's floor, resolves to the most capable model on any fault. `EVOLUTION_DAILY_BUDGET_USD` bounds evolution spend; `GET /billing/margin` reports revenue vs. MTD cost | v7.9 | All | ✅ |
 
 ---
 

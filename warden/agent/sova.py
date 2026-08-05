@@ -89,12 +89,26 @@ def _end_span(span, input_tokens: int, output_tokens: int, detail: str = "") -> 
         span.end(input_tokens, output_tokens, detail=detail)
 
 
-def _record_cost(tenant_id: str, model: str, input_tokens: int, output_tokens: int) -> float:
-    """Record SOVA LLM spend via the shared economics tracker. Returns USD cost."""
+def _record_cost(
+    tenant_id: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cached_tokens: int = 0,
+) -> float:
+    """
+    Record SOVA LLM spend via the shared economics tracker. Returns USD cost.
+
+    `cached_tokens` are prompt-cache reads — a separate, additive bucket in the
+    Anthropic usage object, billed at 10% of the input rate. SOVA caches its
+    whole tool-schema block, so omitting them (as this did before FM-7)
+    overstated SOVA's cost by most of its input spend on every turn after the
+    first.
+    """
     try:
         from warden.staff.economics import get_tracker
         entry = get_tracker().record(
-            tenant_id, "sova", "query", model, input_tokens, output_tokens
+            tenant_id, "sova", "query", model, input_tokens, output_tokens, cached_tokens
         )
         return entry.cost_usd
     except Exception as exc:
@@ -373,7 +387,7 @@ async def run_query(
             memory.save_history(session_id, history)
             _store_memory(session_id, final_text)
             _end_span(span, total_input, total_output, detail=f"tools={len(tools_used)}")
-            cost_usd = _record_cost(tenant_id, _active_model, total_input, total_output)
+            cost_usd = _record_cost(tenant_id, _active_model, total_input, total_output, cache_read)
             return {
                 "response":          final_text,
                 "tools_used":        tools_used,
@@ -453,7 +467,7 @@ async def run_query(
     memory.save_history(session_id, history)
     _store_memory(session_id, final_text)
     _end_span(span, total_input, total_output, detail="max_iter_fallback")
-    cost_usd = _record_cost(tenant_id, _active_model, total_input, total_output)
+    cost_usd = _record_cost(tenant_id, _active_model, total_input, total_output, cache_read)
 
     return {
         "response":          final_text,
@@ -533,7 +547,7 @@ async def stream_query(
         memory.save_history(session_id, history)
         _store_memory(session_id, final_text)
         _end_span(span, total_input, total_output, detail=detail)
-        cost = _record_cost(tenant_id, active_model, total_input, total_output)
+        cost = _record_cost(tenant_id, active_model, total_input, total_output, cache_read)
         return {
             "response":          final_text,
             "tools_used":        tools_used,

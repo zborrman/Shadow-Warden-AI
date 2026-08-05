@@ -31,16 +31,43 @@ CACHE_READ_DISCOUNT: float = 0.10
 PRICE_BOOK: dict[str, dict[str, float]] = {
     "claude-haiku-4-5-20251001": {"input": 0.80,  "output": 4.00},
     "claude-sonnet-4-6":         {"input": 3.00,  "output": 15.00},
+    "claude-opus-4-6":           {"input": 15.00, "output": 75.00},
     "claude-opus-4-8":           {"input": 15.00, "output": 75.00},
 }
 
-# Fallback when a model id is unknown — Sonnet-tier, the middle of the range.
+# Per-family rates, used when an exact model id is not in the price book above.
+# This exists because an unknown id used to fall straight through to the Sonnet
+# default: `claude-opus-4-6` — the model the Evolution Engine, MasterAgent and
+# the red-team runner all call — was rated at 3/15 instead of 15/75, understating
+# our single largest variable cost by 5×. A new dated Opus/Haiku snapshot must
+# never silently rate as Sonnet again.
+_FAMILY_RATES: dict[str, dict[str, float]] = {
+    "claude-opus":   {"input": 15.00, "output": 75.00},
+    "claude-sonnet": {"input": 3.00,  "output": 15.00},
+    "claude-haiku":  {"input": 0.80,  "output": 4.00},
+}
+
+# Fallback when neither the id nor its family is recognised — Sonnet-tier, the
+# middle of the range.
 DEFAULT_RATES: dict[str, float] = {"input": 3.00, "output": 15.00}
 
 
 def price_for(model: str) -> dict[str, float]:
-    """Return {'input','output'} USD/MTok rates for a model (never raises)."""
-    return PRICE_BOOK.get(model, DEFAULT_RATES)
+    """
+    Return {'input','output'} USD/MTok rates for a model (never raises).
+
+    Resolution order: exact id → model family prefix → DEFAULT_RATES. Rating an
+    unknown model too cheaply is the expensive failure mode, so the family rule
+    is deliberately biased toward the more expensive interpretation.
+    """
+    exact = PRICE_BOOK.get(model)
+    if exact is not None:
+        return exact
+    name = (model or "").strip().lower()
+    for family, rates in _FAMILY_RATES.items():
+        if name.startswith(family):
+            return rates
+    return DEFAULT_RATES
 
 
 def blended_input_rate(model: str, input_tokens: int, cached_tokens: int) -> float:

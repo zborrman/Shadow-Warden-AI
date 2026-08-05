@@ -814,6 +814,31 @@ try:
     except ValueError:
         LEDGER_RECON_HOLD_DRIFT_USD = REGISTRY._names_to_collectors.get("warden_ledger_recon_hold_drift_usd")  # type: ignore[attr-defined, assignment]
 
+    # ── LLM cost of goods sold (FM-7) ────────────────────────────────────────
+    # Our single largest variable cost. Labelled by agent + model only —
+    # tenant_id would explode cardinality; per-tenant spend lives in the
+    # staff_action_costs table, which is queried by warden.finops.llm_budget.
+    try:
+        LLM_COST_USD_TOTAL = Counter(
+            "warden_llm_cost_usd_total",
+            "Cumulative LLM spend (USD) attributed to an agent path",
+            ["agent", "model"],
+        )
+    except ValueError:
+        LLM_COST_USD_TOTAL = REGISTRY._names_to_collectors.get("warden_llm_cost_usd_total")  # type: ignore[attr-defined, assignment]
+
+    # Fires when a tenant's month-to-date LLM spend forces a cheaper model than
+    # the caller offered. A rising rate means a tier is under-priced for how it
+    # is actually used — the signal that a plan needs repricing, not throttling.
+    try:
+        LLM_BUDGET_DOWNGRADE_TOTAL = Counter(
+            "warden_llm_budget_downgrade_total",
+            "Model downgrades forced by a tenant's month-to-date LLM budget",
+            ["tier", "agent", "chosen_model"],
+        )
+    except ValueError:
+        LLM_BUDGET_DOWNGRADE_TOTAL = REGISTRY._names_to_collectors.get("warden_llm_budget_downgrade_total")  # type: ignore[attr-defined, assignment]
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -895,3 +920,5 @@ except ImportError:
     EDGE_PACK_ANALYZE_TOTAL         = _Noop()  # type: ignore[assignment]
     LEDGER_RECON_DRIFT_USD          = _Noop()  # type: ignore[assignment]
     LEDGER_RECON_HOLD_DRIFT_USD     = _Noop()  # type: ignore[assignment]
+    LLM_COST_USD_TOTAL              = _Noop()  # type: ignore[assignment]
+    LLM_BUDGET_DOWNGRADE_TOTAL      = _Noop()  # type: ignore[assignment]

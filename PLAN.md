@@ -1,6 +1,6 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 7.7 · Last updated 2026-07-22**
+**Version 7.9 · Last updated 2026-08-03**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
 
@@ -237,7 +237,7 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | R-03 | `warden/billing/addons.py` — `BUNDLE_CATALOG` + `power_user_bundle` ($29 → saves $7 vs $36) | ✅ |
 | R-04 | `warden/billing/addons.py` — `grant_bundle()`, `get_seat_expansion()`, `increment_seat_units()` helpers | ✅ |
 | R-05 | `warden/billing/trial.py` — NEW: 14-day Pro trial (10k req cap, no MasterAgent, Redis TTL, idempotent) | ✅ |
-| R-06 | `warden/billing/feature_gate.py` — `ANNUAL_PRICING` dict (15% off: $51/$194/$703/$2541/yr) | ✅ |
+| R-06 | `warden/billing/feature_gate.py` — `ANNUAL_PRICING` dict (15% off: $51/$407.90/$1,019.90/$2,539.80/yr) | ✅ |
 | R-07 | `warden/billing/feature_gate.py` — `trial_eligible` flag per tier; `annual_pricing` in `as_dict()` | ✅ |
 | R-08 | `warden/billing/router.py` — `POST /billing/trial/start`, `GET /billing/trial/status` | ✅ |
 | R-09 | `warden/billing/router.py` — `GET /billing/addons/bundles`, `GET /billing/addons/bundle/{key}/checkout` | ✅ |

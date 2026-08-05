@@ -55,8 +55,8 @@ Enterprise AI teams deploying LLM-backed products.
 |------|-------|----------|--------|
 | Starter | Free | 1k/mo | Developers, evaluation |
 | Individual | $5/mo | 5k/mo | Freelancers, solo builders |
-| Community Business | $19/mo | 10k/mo | Small teams, Obsidian power users |
-| Pro | $69/mo | 50k/mo | SMBs, SaaS teams (≤50 employees) |
+| Community Business | $39.99/mo | 10k/mo | Small teams, Obsidian power users |
+| Pro | $99.99/mo | 50k/mo | SMBs, SaaS teams (≤50 employees) |
 | Enterprise | $249/mo | Unlimited | Regulated industries, large orgs |
 
 **Add-ons** (incremental revenue, sold separately from tier):
@@ -70,7 +70,7 @@ Enterprise AI teams deploying LLM-backed products.
 | Settings Hub | Included All | All | Unified agent/notification/commerce/semantic config |
 
 **Included in base tier** (not sold as add-ons):
-- MasterAgent SOC — included in Pro ($69)
+- MasterAgent SOC — included in Pro ($99.99)
 - Obsidian Integration — included in Community Business ($19)
 - File Scanner + Email Guard — included in Community Business ($19)
 
@@ -164,11 +164,11 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 | Segment | Target MRR |
 |---------|-----------|
-| Community Business ($19) | $3,800 (200 seats) |
-| Pro ($69) | $21,000 (304 seats) |
+| Community Business ($39.99) | $7,998 (200 seats) |
+| Pro ($99.99) | $29,997 (300 seats) |
 | Enterprise ($249) | $24,900 (100 seats) |
 | Add-ons (Shadow AI + XAI + Secrets) | $5,400 |
-| **Total MRR** | **$55,100** |
+| **Total MRR** | **$68,295** |
 
 ### Non-Recurring
 - Implementation / onboarding: $2,500 flat (Enterprise)

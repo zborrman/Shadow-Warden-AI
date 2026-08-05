@@ -5,18 +5,20 @@ Tier-based Feature Gating for Shadow Warden AI.
 
 Tiers (aligned with Lemon Squeezy monetization)
 ────────────────────────────────────────────────
-  starter            $0/mo   — Developers / Testing    1 000 req/mo
-  individual         $5/mo   — Solo Devs / Hobbyists   5 000 req/mo  (+$9/mo XAI add-on)
-  community_business $19/mo  — SMB one-click           10 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
-  pro                $69/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
-  enterprise         $249/mo — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
+  starter            $0/mo      — Developers / Testing    1 000 req/mo
+  individual         $5/mo      — Solo Devs / Hobbyists   5 000 req/mo  (+$9/mo XAI add-on)
+  community_business $39.99/mo  — SMB one-click           10 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
+  pro                $99.99/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
+  enterprise         $249/mo    — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
 
-Annual billing discount (15% off all paid tiers)
-─────────────────────────────────────────────────
-  individual_annual         $51/yr   ($4.25/mo effectively)
-  community_business_annual $194/yr  ($16.15/mo effectively)
-  pro_annual                $703/yr  ($58.65/mo effectively)
-  enterprise_annual         $2541/yr ($211.75/mo effectively)
+  Prices live in warden/billing/pricing.py — never re-typed here.
+
+Annual billing discount (15% off all paid tiers) — derived, not hand-written
+────────────────────────────────────────────────────────────────────────────
+  individual_annual         $51.00/yr    ($4.25/mo effectively)
+  community_business_annual $407.90/yr   ($33.99/mo effectively)
+  pro_annual                $1 019.90/yr ($84.99/mo effectively)
+  enterprise_annual         $2 539.80/yr ($211.65/mo effectively)
 
 Add-on SKUs (Lemon Squeezy variant IDs)
 ────────────────────────────────────────
@@ -88,6 +90,10 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request
 
+from warden.billing.pricing import ANNUAL_DISCOUNT as _ANNUAL_DISCOUNT
+from warden.billing.pricing import ANNUAL_PRICING as _ANNUAL_PRICING
+from warden.billing.pricing import TIER_PRICE_USD_MONTH, canonical_tier
+
 log = logging.getLogger("warden.billing.feature_gate")
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -98,15 +104,13 @@ _GB        = 1024 ** 3
 _TB        = 1024 ** 4
 
 # ── Annual billing — 15% discount off monthly × 12 ──────────────────────────
+# Both values are re-exported from warden.billing.pricing, the canonical price
+# list. They used to be hand-written here and drifted a full tier below the
+# monthly price served by /billing/tiers (Pro: $703/yr against a $1 199.88 list).
+# Derive, never re-type.
 
-ANNUAL_DISCOUNT = 0.15   # 15% off
-
-ANNUAL_PRICING: dict[str, dict[str, Any]] = {
-    "individual":         {"usd_per_year": 51,   "usd_per_month_effective": 4.25},
-    "community_business": {"usd_per_year": 194,  "usd_per_month_effective": 16.15},
-    "pro":                {"usd_per_year": 703,  "usd_per_month_effective": 58.58},
-    "enterprise":         {"usd_per_year": 2541, "usd_per_month_effective": 211.75},
-}
+ANNUAL_DISCOUNT = _ANNUAL_DISCOUNT
+ANNUAL_PRICING: dict[str, dict[str, Any]] = _ANNUAL_PRICING
 
 # ── Overage pricing ───────────────────────────────────────────────────────────
 
@@ -568,15 +572,9 @@ _TIER_ORDER: dict[str, int] = {
 
 
 def _normalize_tier(tier: str) -> str:
-    t = tier.lower().strip()
-    aliases = {
-        "free": "starter",
-        "smb": "community_business",
-        "business": "pro",
-        "msp": "enterprise",
-        "mcp": "enterprise",
-    }
-    t = aliases.get(t, t)
+    # Alias table lives in warden.billing.pricing so gating and pricing can never
+    # disagree about what a legacy tier name means.
+    t = canonical_tier(tier)
     return t if t in TIER_LIMITS else "starter"
 
 
@@ -653,10 +651,15 @@ class FeatureGate:
         """Return monthly request quota (None = unlimited)."""
         return self.limits.get("req_per_month")
 
+    def monthly_price_usd(self) -> float | None:
+        """Canonical list price of this tier (None = custom/unpriced)."""
+        return TIER_PRICE_USD_MONTH.get(self.tier)
+
     def as_dict(self) -> dict[str, Any]:
         """Return all limits as a serializable dict (for /billing/tiers endpoint)."""
         d = dict(self.limits)
         d["tier"] = self.tier
+        d["usd_per_month"]   = self.monthly_price_usd()
         d["overage_prices"]  = OVERAGE_PRICES.get(self.tier, {})
         d["annual_pricing"]  = ANNUAL_PRICING.get(self.tier, {})
         d["annual_discount"] = ANNUAL_DISCOUNT

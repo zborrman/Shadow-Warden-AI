@@ -4,9 +4,21 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.7 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.9 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
+
+---
+
+## What's New in v7.9
+
+| Feature | Description |
+|---------|-------------|
+| **One canonical price list** | `warden/billing/pricing.py` owns every tier price, the tier-alias table, and the **derived** annual figures. Three copies had drifted apart, selling a year of Pro for $703 against a $1,199.88 list — a 41% discount on a plan advertised at 15%. A ratchet test now fails on any hand-written price. |
+| **Overage rating repair** | `_calculate_overage()` read a rate key that never existed in `OVERAGE_PRICES`, so every request overage on every tier had rated at $0.00 since BL-19 shipped. |
+| **LLM cost attribution** | MasterAgent and the Evolution Engine — the two most expensive paths — recorded no cost at all; both now write to the shared tracker, with prompt-cache reads billed at 10%. `claude-opus-4-6` was absent from the price book and rating as Sonnet, understating the largest variable cost 5×. |
+| **Per-tenant inference budget** | `warden/finops/llm_budget.py` derives a monthly LLM allowance from each tier's price and picks a model inside it (Opus → Sonnet → Haiku). Soft and additive: never blocks, never routes below the caller's floor, resolves to the most capable model on any fault. |
+| **FinOps reporting** | `GET /billing/margin` (revenue vs. month-to-date cost), `scripts/finops_report.py` (unit economics + node capacity), and two Prometheus series for LLM spend and budget-forced downgrades. Full plan in [docs/monetization-plan.md](docs/monetization-plan.md). |
 
 ---
 
@@ -241,8 +253,8 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 |------|-------|-------------|--------------|
 | **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
 | **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
-| **Community Business** *(SMB)* | $19/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
-| **Pro** | $69/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
+| **Community Business** *(SMB)* | $39.99/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
+| **Pro** | $99.99/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
 | **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
 
 **Add-ons** (billed via Lemon Squeezy):
@@ -262,7 +274,7 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 |--------|-------|-------|---------|
 | Power User Bundle | $29/mo | $7/mo | Secrets Vault + XAI Audit + Shadow AI Discovery |
 
-**Annual billing:** 15% off all paid tiers — Individual $51/yr · Community Business $194/yr · Pro $703/yr · Enterprise $2,541/yr
+**Annual billing:** 15% off all paid tiers — Individual $51/yr · Community Business $407.90/yr · Pro $1,019.90/yr · Enterprise $2,539.80/yr
 
 **14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
 
@@ -463,7 +475,7 @@ Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`soverei
 | Feature | Description |
 |---------|-------------|
 | **Add-on Monetization** | `warden/billing/addons.py` — `ADDON_CATALOG` (3 SKUs); `grant_addon()`/`revoke_addon()`/`has_addon()` (Redis set + in-memory fallback); `require_addon_or_feature()` FastAPI dep (HTTP 403 = tier too low, HTTP 402 = add-on not purchased). |
-| **Pricing Update** | Pro: $49 → $69/mo. Enterprise: $199 → $249/mo. Shadow AI Discovery add-on (+$15/mo, Pro+). XAI Audit add-on (+$9/mo, Individual+). |
+| **Pricing Update** | Pro: $49 → $99.99/mo. Enterprise: $199 → $249/mo. Shadow AI Discovery add-on (+$15/mo, Pro+). XAI Audit add-on (+$9/mo, Individual+). |
 | **Feature Gates** | `master_agent_enabled` (Pro+), `shadow_ai_enabled` (Enterprise or add-on), `xai_reports_enabled` (Pro+ or add-on), `sovereign_enabled` (Enterprise only), `pqc_enabled` (Enterprise only). |
 
 ---

@@ -26,6 +26,7 @@ import logging
 import math
 from dataclasses import dataclass
 
+from warden.billing.pricing import TIER_PRICE_USD_MONTH
 from warden.finops.rating import rate_usage
 
 log = logging.getLogger(__name__)
@@ -34,17 +35,12 @@ log = logging.getLogger(__name__)
 # but flagged for routing/pricing review); at/below zero it is loss-making.
 DEFAULT_FLOOR_MARGIN: float = 0.50
 
-# Monthly list price per tier (USD). Canonical source is warden/billing/router.py;
-# duplicated here as pure data so the margin math has no import cycle. Unlisted or
-# unlimited-quota tiers resolve to "no floor" (custom / metered pricing).
-_TIER_PRICE_USD_MONTH: dict[str, float] = {
-    "trial": 0.0,
-    "starter": 0.0,
-    "individual": 5.0,
-    "community_business": 39.99,
-    "pro": 99.99,
-    "enterprise": 249.0,
-}
+# Monthly list price per tier (USD), imported from the canonical price list.
+# warden.billing.pricing is pure data with no warden imports, so this creates no
+# cycle — and unlike the old private copy it cannot drift away from what the
+# customer is actually charged. Unlisted or unlimited-quota tiers resolve to
+# "no floor" (custom / metered pricing).
+_TIER_PRICE_USD_MONTH = TIER_PRICE_USD_MONTH
 
 _ACTION_PROCEED = "proceed"
 _ACTION_THROTTLE = "throttle"

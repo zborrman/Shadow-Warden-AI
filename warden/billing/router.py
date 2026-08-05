@@ -8,6 +8,7 @@ Endpoints
   GET  /billing/tiers                    — public tier catalog with annual pricing (no auth)
   GET  /billing/status                   — current plan + subscription details
   GET  /billing/quota                    — monthly request usage for a tenant
+  GET  /billing/margin                   — plan revenue vs. month-to-date LLM cost
   GET  /billing/upgrade                  — redirect to Lemon Squeezy checkout
   POST /billing/trial/start              — activate 14-day Pro trial (Individual+ only)
   GET  /billing/trial/status             — trial status + days remaining
@@ -39,6 +40,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from warden.billing.feature_gate import ANNUAL_PRICING, OVERAGE_PRICES, FeatureGate
+from warden.billing.pricing import TIER_PRICE_USD_MONTH
 
 log = logging.getLogger("warden.billing.router")
 
@@ -84,18 +86,26 @@ async def get_billing_tiers():
     Returns the full feature matrix for all 4 plan tiers.
     No authentication required — used by the landing page pricing section.
     """
+    # Monthly prices come from warden.billing.pricing — the canonical list. Only
+    # the label/note copy is local; a price typed in here is how the annual plan
+    # drifted 41% below list.
+    labels = {
+        "trial":              ("Trial",              "$0 for 14 days — no credit card required"),
+        "starter":            ("Free",               ""),
+        "individual":         ("Individual",         "+ $0.000001/search via x402 metered billing"),
+        "community_business": ("Community Business", "+ 1.5% take rate on cleared M2M transactions"),
+        "pro":                ("Pro",                "Sponsored listing boost (+0.15) included"),
+        "enterprise":         ("Enterprise",         "PQC + Sovereign + dedicated Opus routing"),
+    }
     prices = {
-        "trial":              {"usd_per_month": 0,      "label": "Trial",              "annual": None,
-                               "trial_days": 14, "note": "$0 for 14 days — no credit card required"},
-        "starter":            {"usd_per_month": 0,      "label": "Free",               "annual": None},
-        "individual":         {"usd_per_month": 5,      "label": "Individual",          "annual": ANNUAL_PRICING.get("individual"),
-                               "note": "+ $0.000001/search via x402 metered billing"},
-        "community_business": {"usd_per_month": 39.99,  "label": "Community Business",  "annual": ANNUAL_PRICING.get("community_business"),
-                               "note": "+ 1.5% take rate on cleared M2M transactions"},
-        "pro":                {"usd_per_month": 99.99,  "label": "Pro",                 "annual": ANNUAL_PRICING.get("pro"),
-                               "note": "Sponsored listing boost (+0.15) included"},
-        "enterprise":         {"usd_per_month": 249,    "label": "Enterprise",          "annual": ANNUAL_PRICING.get("enterprise"),
-                               "note": "PQC + Sovereign + dedicated Opus routing"},
+        tier: {
+            "usd_per_month": TIER_PRICE_USD_MONTH.get(tier, 0.0),
+            "label":         label,
+            "annual":        ANNUAL_PRICING.get(tier),
+            **({"note": note} if note else {}),
+            **({"trial_days": 14} if tier == "trial" else {}),
+        }
+        for tier, (label, note) in labels.items()
     }
 
     tiers = []
@@ -153,6 +163,29 @@ async def get_billing_quota(
     tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.quota_middleware import get_quota_usage
     return get_quota_usage(tenant_id)
+
+
+# ── Unit economics ────────────────────────────────────────────────────────────
+
+@router.get(
+    "/margin",
+    summary="Revenue vs. LLM cost for a tenant this month",
+)
+async def get_billing_margin(
+    x_tenant_id: str | None = Header(default=None),
+):
+    """
+    Gross margin of one tenant: plan price minus month-to-date inference spend,
+    plus how much of the tier's LLM allowance is left. Answers "is this customer
+    profitable?" — the question no endpoint could answer before FM-7.
+
+    Infrastructure is deliberately excluded: it is a shared fixed cost, not a
+    per-tenant COGS, and mixing the two hides which customers are actually
+    expensive to serve.
+    """
+    tenant_id = _require_tenant(x_tenant_id)
+    from warden.finops.llm_budget import margin_report, resolve_tier
+    return margin_report(tenant_id, resolve_tier(tenant_id) or "starter")
 
 
 # ── Upgrade redirect ──────────────────────────────────────────────────────────
@@ -597,7 +630,11 @@ def _calculate_overage(tenant_id: str) -> dict:
 
     tier = _normalize_tier(plan)
     overage_rate = OVERAGE_PRICES.get(tier, {})
-    rate_per_k   = overage_rate.get("per_1k_requests_usd", 0.0)
+    # OVERAGE_PRICES stores CENTS per 1k requests. This read used to ask for a
+    # `per_1k_requests_usd` key that has never existed in that table, so
+    # rate_per_k was always 0.0 — every overage computed to a $0.00 charge and
+    # reported `overage_enabled: False`, on every tier, since BL-19 shipped.
+    rate_per_k = float(overage_rate.get("cents_per_1k_requests", 0)) / 100.0
 
     # Quota usage
     try:

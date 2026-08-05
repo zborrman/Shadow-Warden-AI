@@ -25,5 +25,5 @@ compatibility (e.g. ``from warden.semantic_guard import SemanticGuard``).
 #
 #  Bumping the product: change this line, then update the `**Version:**` /
 #  `Version X` headers the test enumerates. The test tells you which they are.
-__version__ = "7.7.0"
+__version__ = "7.9.0"
 __all__ = ["__version__"]

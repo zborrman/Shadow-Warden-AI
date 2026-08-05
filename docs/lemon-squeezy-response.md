@@ -19,8 +19,8 @@ Our self-serve plans sold through Lemon Squeezy are:
 |------|-------|
 | Starter | Free |
 | Individual | $5/mo or $51/yr |
-| Community Business | $19/mo or $194/yr |
-| Pro | $69/mo or $705/yr |
+| Community Business | $39.99/mo or $407.90/yr |
+| Pro | $99.99/mo or $1,019.90/yr |
 
 Add-ons (recurring, purchased independently): Shadow AI Discovery $15/mo, XAI Audit Reports $9/mo, Secrets Vault $12/mo, On-Prem Pack $29/mo, Extra Seats $9/mo, Power User Bundle $29/mo, SMB Governance Suite $29/mo.
 
