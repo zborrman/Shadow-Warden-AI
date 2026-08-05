@@ -59,6 +59,49 @@ class TestHeaderHelpers:
         assert payload["resource"] == "search"
         assert payload["schemes"][0]["currency"] == "USDC"
 
+    def test_payment_required_header_pins_scheme_fields(self):
+        """Only currency/resource were pinned before -- amount, scheme, network,
+        and payment_address could each drift or be dropped undetected."""
+        raw = g._build_payment_required_header("search")
+        payload = json.loads(base64.b64decode(raw).decode())
+        scheme = payload["schemes"][0]
+        assert scheme["scheme"] == "usdc"
+        assert scheme["amount"] == str(g._SEARCH_FEE_USD)
+        assert scheme["network"] == "polygon-amoy"
+        assert scheme["payment_address"] == g._PAYMENT_ADDR
+
+
+class TestGetTenantId:
+    """_get_tenant_id had zero direct coverage -- only exercised incidentally
+    through require_payment, which never inspects its return value."""
+
+    def test_dict_tenant_with_tenant_id_key(self):
+        req = _Req(tenant={"tenant_id": "t-1"})
+        assert g._get_tenant_id(req) == "t-1"
+
+    def test_dict_tenant_falls_back_to_id_key(self):
+        req = _Req(tenant={"id": "t-2"})
+        assert g._get_tenant_id(req) == "t-2"
+
+    def test_tenant_id_key_wins_over_id_key(self):
+        req = _Req(tenant={"tenant_id": "t-1", "id": "t-2"})
+        assert g._get_tenant_id(req) == "t-1"
+
+    def test_non_dict_tenant_falls_back_to_header(self):
+        req = _Req(tenant="not-a-dict", headers={"X-Tenant-ID": "t-header"})
+        assert g._get_tenant_id(req) == "t-header"
+
+    def test_no_tenant_no_header_returns_unknown(self):
+        req = _Req()
+        assert g._get_tenant_id(req) == "unknown"
+
+    def test_empty_dict_tenant_never_consults_header(self):
+        """The dict branch resolves entirely from the dict itself -- an empty
+        dict returns 'unknown' rather than falling through to X-Tenant-ID.
+        Only a non-dict `tenant` takes the header path (see the test above)."""
+        req = _Req(tenant={}, headers={"X-Tenant-ID": "t-header"})
+        assert g._get_tenant_id(req) == "unknown"
+
 
 # ── Replay protection ─────────────────────────────────────────────────────────
 
@@ -118,6 +161,36 @@ class TestBalanceAndDeduct:
         assert abs(bal - 0.5) < 1e-9      # decremented
         assert pending == 1               # queued for settlement
 
+    @pytest.mark.asyncio
+    async def test_deduct_default_amount_is_search_fee(self, monkeypatch):
+        """amount_usd=None must fall back to _SEARCH_FEE_USD, not 0 or None --
+        the ternary on line ~289 had no test pinning the default branch."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        import sqlite3
+
+        from warden.db.ddl_registry import ensure_schema
+        con = sqlite3.connect(g._DB_PATH)
+        ensure_schema(con, "marketplace_x402", g._DB_PATH)
+        con.execute("INSERT INTO x402_balances (agent_id, balance_usd, updated_at) VALUES (?,?,?)",
+                    ("a2", 1.0, "now"))
+        con.commit()
+        con.close()
+        assert await g.deduct_payment("a2", "search") is True   # no amount_usd
+        con = sqlite3.connect(g._DB_PATH)
+        amount = con.execute(
+            "SELECT amount_usd FROM x402_pending_deductions WHERE agent_id='a2'"
+        ).fetchone()[0]
+        con.close()
+        assert abs(amount - float(g._SEARCH_FEE_USD)) < 1e-12
+
+    @pytest.mark.asyncio
+    async def test_deduct_fails_open_on_db_error(self, monkeypatch):
+        """The bare except-return-True path in deduct_payment had zero coverage
+        -- unlike require_payment's exception path, which is pinned below."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        monkeypatch.setattr(g, "_DB_PATH", "/root/nonexistent-dir/x402.db")
+        assert await g.deduct_payment("a1", "search") is True
+
 
 # ── require_payment decision paths ────────────────────────────────────────────
 
@@ -156,6 +229,67 @@ class TestRequirePayment:
         assert resp is not None and resp.status_code == 402
         assert json.loads(resp.body)["error"] == "payment_required"
         assert "PAYMENT-REQUIRED" in resp.headers
+
+    @pytest.mark.asyncio
+    async def test_credits_fast_path_allows_and_deducts(self, monkeypatch):
+        """Rule 16 (credits take priority) was only ever asserted by mocking
+        credits.get_balance to 0 in every OTHER test -- the >=1 success branch
+        that actually deducts and returns None was never exercised through
+        require_payment itself. A mutant flipping `>= 1` to `> 1` or `>= 2`
+        would have survived undetected."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        deducted = []
+        monkeypatch.setattr("warden.marketplace.credits.get_balance", lambda t: 1)
+        monkeypatch.setattr("warden.marketplace.credits.deduct_credits",
+                             lambda t, n=1: deducted.append((t, n)) or True)
+        req = _Req(tenant={"tenant_id": "t-credits"})
+        resp = await g.require_payment(req, "search")
+        assert resp is None                       # allowed, no 402/403/202
+        assert deducted == [("t-credits", 1)]      # exactly one credit spent
+
+    @pytest.mark.asyncio
+    async def test_autonomy_require_approval_returns_202_with_header(self, monkeypatch):
+        """The BLOCK branch was tested; REQUIRE_APPROVAL (202 + the
+        X-Requires-Approval header the caller keys UI behaviour off of) had
+        zero coverage through require_payment."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        monkeypatch.setattr("warden.marketplace.credits.get_balance", lambda t: 0)
+        monkeypatch.setattr("warden.marketplace.autonomy.check_action",
+                             lambda a, ac, amt: "REQUIRE_APPROVAL")
+        sig = _sig(agent_id="a1")
+        resp = await g.require_payment(_Req(headers={"PAYMENT-SIGNATURE": sig}), "search")
+        assert resp is not None and resp.status_code == 202
+        assert resp.headers["X-Requires-Approval"] == "pending"
+        assert json.loads(resp.body)["status"] == "pending_approval"
+
+    @pytest.mark.asyncio
+    async def test_old_client_without_nonce_skips_replay_check(self, monkeypatch):
+        """v7.4 docs promise old clients (no nonce/issued_at) are let through
+        with only a debug log -- nothing asserted that the else-branch of
+        `if nonce and issued_at is not None` actually reaches the rest of the
+        gate instead of being silently rejected."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        monkeypatch.setattr("warden.marketplace.credits.get_balance", lambda t: 0)
+        monkeypatch.setattr("warden.marketplace.autonomy.check_action",
+                             lambda a, ac, amt: "ALLOW")
+        sig = _sig(agent_id="old-client")   # no nonce, no issued_at
+        resp = await g.require_payment(_Req(headers={"PAYMENT-SIGNATURE": sig}), "search")
+        # Reaches the balance check (402, not 402 replay_detected) -- proves it
+        # was NOT rejected by the replay path.
+        assert resp is not None and resp.status_code == 402
+        assert json.loads(resp.body)["error"] == "payment_required"
+
+    @pytest.mark.asyncio
+    async def test_no_signature_header_reaches_balance_check(self, monkeypatch):
+        """agent_id is None (no PAYMENT-SIGNATURE at all) must still resolve
+        via the `agent_id is None or not _has_sufficient_balance(...)` OR --
+        short-circuiting on the left operand was never distinguished from
+        evaluating the right operand and getting the same answer."""
+        monkeypatch.setattr(g, "_X402_ENABLED", True)
+        monkeypatch.setattr("warden.marketplace.credits.get_balance", lambda t: 0)
+        resp = await g.require_payment(_Req(), "search")
+        assert resp is not None and resp.status_code == 402
+        assert json.loads(resp.body)["error"] == "payment_required"
 
     @pytest.mark.asyncio
     async def test_gate_exception_fails_open(self, monkeypatch, caplog):
