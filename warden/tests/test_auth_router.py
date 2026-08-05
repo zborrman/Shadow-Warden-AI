@@ -25,6 +25,10 @@ def _isolated_db(tmp_path, monkeypatch):
     # and warden/auth/user_store.py both resolve this path per call from the same
     # place; patching one module's snapshot would point them at two files.
     monkeypatch.setattr(auth_router.settings, "auth_db_path", str(tmp_path / "test_auth.db"))
+    # Pin the Postgres side too: without this a developer who happens to have
+    # DATABASE_URL exported runs these against a real database.
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     with auth_router._rate_lock:
         auth_router._rate_store.clear()
     yield

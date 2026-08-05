@@ -109,36 +109,23 @@ class MetricsReader:
 
     # ── Public interface (used by DollarImpactCalculator.load_live_metrics) ───
 
-    # ── SQL read path (D-3) ────────────────────────────────────────────────────
-    # These three counters were each derived by scanning the whole NDJSON journal
-    # for the lookback window. When the filter_events mirror is populated the
-    # same numbers come from one aggregate query; when it is not, the original
-    # scan runs unchanged. `_sql_summary` returning None is the only signal —
-    # there is no separate "is it enabled" branch in the callers.
-
-    def _cutoff(self) -> datetime:
-        return datetime.now(UTC) - timedelta(days=self._lookback_days)
-
-    def _sql_summary(self) -> dict | None:
-        try:
-            from warden.analytics import events_store
-            return events_store.summary(self._cutoff())
-        except Exception as exc:
-            log.debug("filter_events summary unavailable: %s", exc)
-            return None
+    # Deliberately NOT read from the D-3 `filter_events` mirror.
+    #
+    # These figures feed the dollar-impact and ROI reporting, and the mirror is
+    # fail-open by design: a write that raises is counted and dropped, and the
+    # NDJSON journal stays the only complete record. A financial number computed
+    # from a store that is allowed to silently lose rows would under-report
+    # without any signal that it had. The mirror is the right backing for
+    # dashboards and trend views, where an approximate window is fine; it is the
+    # wrong backing for these.
 
     def monthly_requests(self) -> int:
         """Total requests in the lookback window, scaled to 30 days."""
-        scale = 30 / max(self._lookback_days, 1)
-
-        s = self._sql_summary()
-        if s is not None:
-            return int(int(s["total"]) * scale)
-
         entries = self._load_entries()
         if not entries:
             return 0
-        return int(len(entries) * scale)
+        # Scale to exactly 30 days regardless of lookback window
+        return int(len(entries) * (30 / max(self._lookback_days, 1)))
 
     def threats_blocked_by_category(self) -> dict:
         """
@@ -148,26 +135,13 @@ class MetricsReader:
         from warden.financial.impact_calculator import ThreatCategory
         tally: Counter[str] = Counter()
 
-        sql_flags: dict[str, int] | None = None
-        try:
-            from warden.analytics import events_store
-            sql_flags = events_store.blocked_flag_counts(self._cutoff())
-        except Exception as exc:
-            log.debug("filter_events blocked_flag_counts unavailable: %s", exc)
-
-        if sql_flags is not None:
-            for flag, n in sql_flags.items():
+        for entry in self._load_entries():
+            if entry.get("allowed", True):
+                continue  # only count blocked/high-risk events
+            for flag in entry.get("flags", []):
                 cat = _FLAG_TO_CATEGORY.get(flag.lower())
                 if cat:
-                    tally[cat] += n
-        else:
-            for entry in self._load_entries():
-                if entry.get("allowed", True):
-                    continue  # only count blocked/high-risk events
-                for flag in entry.get("flags", []):
-                    cat = _FLAG_TO_CATEGORY.get(flag.lower())
-                    if cat:
-                        tally[cat] += 1
+                    tally[cat] += 1
 
         result: dict[ThreatCategory, int] = {}
         for cat_val, count in tally.items():
@@ -205,9 +179,6 @@ class MetricsReader:
 
     def pii_redactions_count(self) -> int:
         """Number of log entries where masking was applied."""
-        s = self._sql_summary()
-        if s is not None:
-            return int(s["masked"])
         return sum(1 for e in self._load_entries() if e.get("masked") is True)
 
     def shadow_ban_cost_saved_usd(self) -> float:

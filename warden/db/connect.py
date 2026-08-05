@@ -54,11 +54,14 @@ _MAX_CACHED_PER_THREAD = 32
 
 
 class _Entry:
-    __slots__ = ("con", "in_use", "ident")
+    __slots__ = ("con", "in_use", "ident", "orphaned")
 
     def __init__(self, con: sqlite3.Connection, ident: tuple | None) -> None:
         self.con = con
         self.in_use = False
+        # Evicted from the cache while a frame still held it. That frame owns the
+        # close; nothing hands this connection out again.
+        self.orphaned = False
         # (st_dev, st_ino) at open time. A cached connection keeps writing to the
         # *inode* it opened, not to the path: on POSIX, deleting or replacing the
         # file leaves the connection happily writing to a ghost, and a restore
@@ -136,12 +139,18 @@ def _checkout(db_key: str, db_path: str) -> _Entry | None:
         else:
             return None                       # everything busy — open a fresh one
 
+    con = None
     try:
         con = sqlite3.connect(db_path, check_same_thread=False)
         con.row_factory = sqlite3.Row
         init_pragmas(con, foreign_keys=True)
         ensure_schema(con, db_key, db_path)
     except Exception as exc:
+        # `init_pragmas` and `ensure_schema` both run after connect() succeeded,
+        # so a failure here leaves an open handle the caller never learns about.
+        if con is not None:
+            with suppress(Exception):
+                con.close()
         log.debug("connect: could not open a cacheable connection (%s); using a fresh one", exc)
         return None
 
@@ -156,7 +165,13 @@ def _discard(db_key: str, db_path: str, entry: _Entry) -> None:
         entry.con.rollback()
     with suppress(Exception):
         entry.con.close()
-    _cache().pop((db_key, db_path), None)
+    # Evict by identity: between this entry being handed out and being discarded,
+    # the key may have been re-populated with a different connection (a nested
+    # frame that reopened after an inode change). Popping blindly would throw
+    # away a live one.
+    cache = _cache()
+    if cache.get((db_key, db_path)) is entry:
+        del cache[(db_key, db_path)]
 
 
 def close_cached_connections() -> None:
@@ -168,10 +183,18 @@ def close_cached_connections() -> None:
     cache = getattr(_tls, "cache", None)
     if not cache:
         return
-    for entry in cache.values():
+    for key, entry in list(cache.items()):
+        if entry.in_use:
+            # An enclosing frame is mid-block on this connection; closing it
+            # would pull the transaction out from under that caller. Hand the
+            # close to that frame instead and drop it from the cache, so it is
+            # never handed out again.
+            entry.orphaned = True
+            del cache[key]
+            continue
         with suppress(Exception):
             entry.con.close()
-    cache.clear()
+        del cache[key]
 
 
 @contextmanager
@@ -264,7 +287,11 @@ def open_db(
             _discard(db_key, db_path, entry)
             raise
         else:
-            entry.in_use = False
+            if entry.orphaned:
+                with suppress(Exception):
+                    entry.con.close()
+            else:
+                entry.in_use = False
         return
 
     con = sqlite3.connect(db_path, check_same_thread=check_same_thread)

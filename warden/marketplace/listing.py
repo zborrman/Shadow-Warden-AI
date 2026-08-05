@@ -802,21 +802,35 @@ def _do_purchase(
     except Exception as exc:
         log.warning("Escrow creation failed for %s: %s", purchase_id_hint, exc)
 
-    with _db_lock, _conn(db_path) as con:
-        purchase = create_purchase(
-            listing_id=listing_id,
-            asset_id=listing.asset_id,
-            buyer_agent=buyer_agent_id,
-            seller_agent=listing.seller_agent,
-            price_paid=listing.price_usd,
-            idempotency_key=idempotency_key,
-            escrow_id=escrow_id,
-            con=con,
-        )
-        if escrow is not None:
-            from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
-            escrow.purchase_id = purchase.purchase_id
-            EscrowService.insert_escrow(con, escrow)
+    try:
+        with _db_lock, _conn(db_path) as con:
+            purchase = create_purchase(
+                listing_id=listing_id,
+                asset_id=listing.asset_id,
+                buyer_agent=buyer_agent_id,
+                seller_agent=listing.seller_agent,
+                price_paid=listing.price_usd,
+                idempotency_key=idempotency_key,
+                escrow_id=escrow_id,
+                con=con,
+            )
+            if escrow is not None:
+                from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
+                escrow.purchase_id = purchase.purchase_id
+                EscrowService.insert_escrow(con, escrow)
+    except Exception:
+        # The rollback is correct — neither row should survive — but the escrow
+        # contract was already deployed on-chain, outside the transaction, and
+        # nothing now references it. Record the address so it is recoverable;
+        # losing it silently would strand funds with no way to find them.
+        if escrow is not None and escrow.contract_address:
+            log.error(
+                "orphaned escrow contract: deployed but not persisted "
+                "[escrow_id=%s contract=%s chain=%s listing=%s buyer=%s amount=%s]",
+                escrow.escrow_id, escrow.contract_address, escrow.chain,
+                listing_id, buyer_agent_id, listing.price_usd,
+            )
+        raise
 
     return {
         "purchase_id": purchase.purchase_id,

@@ -95,8 +95,13 @@ def test_readers_return_none_without_postgres(monkeypatch, call):
     assert call(datetime.now(UTC) - timedelta(days=1)) is None
 
 
-def test_metrics_reader_falls_back_to_the_scan(monkeypatch, tmp_path):
-    """The migrated caller must produce identical numbers with the mirror off."""
+def test_financial_reader_uses_the_authoritative_journal(monkeypatch, tmp_path):
+    """Financial figures never come from the mirror.
+
+    The mirror is fail-open — a write that raises is counted and dropped — so a
+    dollar-impact number taken from it could under-report with no signal. These
+    counters read the NDJSON journal, which is the only complete record.
+    """
     from warden.financial.metrics_reader import MetricsReader
 
     logs = tmp_path / "logs.json"
@@ -191,7 +196,12 @@ def test_migration_defines_no_content_column():
         Path(__file__).resolve().parent.parent
         / "db" / "migrations" / "versions" / "0013_filter_events.py"
     ).read_text(encoding="utf-8")
-    body = rev.split("CREATE TABLE IF NOT EXISTS warden_core.filter_events")[1].split(")")[0]
+    # Take the whole CREATE TABLE, not up to the first ")" — that stops inside
+    # `NUMERIC(14,6)` and leaves most of the column list unchecked, so the guard
+    # was not guarding. Cut at the statement's closing `"""` instead.
+    after = rev.split("CREATE TABLE IF NOT EXISTS warden_core.filter_events")[1]
+    body = after.split('"""')[0]
+    assert "masked" in body, "the column list was truncated — this guard is not reading the table"
     for forbidden in ("content", "payload_text", "prompt", "raw", "decoded", "body"):
         assert forbidden not in body.lower(), (
             f"filter_events gained a `{forbidden}` column — the journal is "

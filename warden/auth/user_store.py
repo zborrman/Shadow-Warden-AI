@@ -221,10 +221,15 @@ def create_user(email: str, pw_hash: str) -> bool:
             )
         return True
     except sqlite3.IntegrityError:
-        return False
-    except Exception as exc:
-        log.error("auth: sqlite write error: %s", exc)
-        return False
+        return False                       # genuine duplicate — a caller-visible 409
+    except Exception:
+        # Anything else is a backend failure, not a taken email. Returning False
+        # here made the router answer "an account with this email already
+        # exists", which is both wrong and unactionable — the caller retries a
+        # different address forever. Raise so signup reports a server error, the
+        # same posture the Postgres branch already takes.
+        log.exception("auth: sqlite write error")
+        raise
 
 
 # ── Lazy migration ────────────────────────────────────────────────────────────
