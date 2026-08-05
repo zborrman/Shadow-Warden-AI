@@ -112,8 +112,8 @@ class MetricsReader:
     # Deliberately NOT read from the D-3 `filter_events` mirror.
     #
     # These figures feed the dollar-impact and ROI reporting, and the mirror is
-    # fail-open by design: a write that raises is counted and dropped, and the
-    # NDJSON journal stays the only complete record. A financial number computed
+    # allowed to drop writes by design: one that raises is counted and discarded,
+    # and the NDJSON journal stays the only complete record. A financial number
     # from a store that is allowed to silently lose rows would under-report
     # without any signal that it had. The mirror is the right backing for
     # dashboards and trend views, where an approximate window is fine; it is the
