@@ -111,6 +111,17 @@ def _checkout(db_key: str, db_path: str) -> _Entry | None:
             del cache[key]
             entry = None
         else:
+            # Re-run ensure_schema on every checkout, not just at creation.
+            # Modules register their DDL at *import* time and several are
+            # imported lazily inside functions, so the set of registered schemas
+            # grows during a process's life. A connection that skipped this
+            # would stay frozen at whatever was registered when it was opened,
+            # and a later-imported module's tables would never be created on it
+            # — "no such table: marketplace_purchases", which is exactly how
+            # this surfaced. ensure_schema is memoized and costs one indexed
+            # SELECT; the expense reuse removes is `sqlite3.connect` plus the
+            # pragmas, not this.
+            ensure_schema(entry.con, db_key, db_path)
             entry.in_use = True
             return entry
 
