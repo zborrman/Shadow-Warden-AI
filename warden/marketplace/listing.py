@@ -561,7 +561,18 @@ def create_purchase(
     negotiation_id: str = "",
     db_path: str | None = None,
     idempotency_key: str | None = None,
+    escrow_id: str = "",
+    con: sqlite3.Connection | None = None,
 ) -> Purchase:
+    """Insert a purchase row.
+
+    ``con`` lets the caller supply an open connection so this INSERT shares a
+    transaction with the escrow row it belongs to (see `_do_purchase`); when it
+    is None the function opens and commits its own, exactly as before.
+    ``escrow_id`` is accepted up front for the same reason — writing the real id
+    with the row removes the follow-up UPDATE that used to be a third,
+    separately-committed statement.
+    """
     purchase_id = f"PUR-{uuid.uuid4().hex[:12].upper()}"
     now = datetime.now(UTC).isoformat()
     purchase = Purchase(
@@ -572,25 +583,27 @@ def create_purchase(
         seller_agent=seller_agent,
         price_paid=price_paid,
         status="pending",
-        escrow_id="",
+        escrow_id=escrow_id,
         negotiation_id=negotiation_id,
         purchased_at=now,
         completed_at=None,
     )
-    with _db_lock, _conn(db_path) as con:
-        con.execute(
-            """INSERT INTO marketplace_purchases
-               (purchase_id, listing_id, asset_id, buyer_agent, seller_agent,
-                price_paid, status, escrow_id, negotiation_id, purchased_at, completed_at,
-                idempotency_key)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                purchase.purchase_id, purchase.listing_id, purchase.asset_id,
-                purchase.buyer_agent, purchase.seller_agent, purchase.price_paid,
-                purchase.status, purchase.escrow_id, purchase.negotiation_id,
-                purchase.purchased_at, purchase.completed_at, idempotency_key,
-            ),
-        )
+    params = (
+        purchase.purchase_id, purchase.listing_id, purchase.asset_id,
+        purchase.buyer_agent, purchase.seller_agent, purchase.price_paid,
+        purchase.status, purchase.escrow_id, purchase.negotiation_id,
+        purchase.purchased_at, purchase.completed_at, idempotency_key,
+    )
+    sql = """INSERT INTO marketplace_purchases
+             (purchase_id, listing_id, asset_id, buyer_agent, seller_agent,
+              price_paid, status, escrow_id, negotiation_id, purchased_at, completed_at,
+              idempotency_key)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"""
+    if con is not None:
+        con.execute(sql, params)          # caller owns the transaction and the lock
+    else:
+        with _db_lock, _conn(db_path) as con2:
+            con2.execute(sql, params)
     return purchase
 
 
@@ -753,40 +766,71 @@ def _do_purchase(
 
     _authorize_purchase(buyer_agent_id, listing.price_usd)
 
-    purchase = create_purchase(
-        listing_id=listing_id,
-        asset_id=listing.asset_id,
-        buyer_agent=buyer_agent_id,
-        seller_agent=listing.seller_agent,
-        price_paid=listing.price_usd,
-        db_path=db_path,
-        idempotency_key=idempotency_key,
-    )
-
+    # ── One transaction for the purchase and its escrow ──────────────────────
+    #
+    # This used to be three separately-committed statements: INSERT purchase,
+    # then create_escrow's own INSERT, then an UPDATE writing the escrow_id
+    # back. Each gap is a state a crash could leave behind, and the worst is the
+    # last: the escrow row exists (funds are held against it) while the purchase
+    # still says escrow_id="". The `_db_lock` guarding them is a
+    # `threading.RLock` — in-process only — while `arq-worker` and
+    # `workers/x402_settlement.py` write this same database from other
+    # containers, so it never closed the window in the first place.
+    #
+    # The contract deployment stays *outside* the transaction: it is a network
+    # round-trip that raises EscrowDeploymentError when the RPC is configured
+    # but unreachable, and holding a write transaction open across it would
+    # block every other writer for the duration.
+    #
+    # Escrow-failure policy is deliberately unchanged — a purchase whose escrow
+    # could not be created is still recorded with escrow_id="", exactly as
+    # before. Making that failure roll the purchase back is a money-semantics
+    # decision for Track F, not something to slip into an atomicity fix.
+    escrow = None
+    escrow_id = ""
+    purchase_id_hint = f"(listing {listing_id})"
     try:
         from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
-        escrow = EscrowService().create_escrow(
+        escrow = EscrowService().build_escrow(
             listing_id=listing_id,
             buyer_agent_id=buyer_agent_id,
             seller_agent_id=listing.seller_agent,
             amount_usd=listing.price_usd,
-            purchase_id=purchase.purchase_id,
             chain=listing.chain,
-            db_path=db_path,
         )
         escrow_id = escrow.escrow_id
     except Exception as exc:
-        log.warning("Escrow creation failed for %s: %s", purchase.purchase_id, exc)
-        escrow_id = ""
+        log.warning("Escrow creation failed for %s: %s", purchase_id_hint, exc)
 
-    if escrow_id:
-        # Persist so a later replay (or get_purchase/list_purchases) sees the
-        # real escrow_id instead of the placeholder "" create_purchase wrote.
+    try:
         with _db_lock, _conn(db_path) as con:
-            con.execute(
-                "UPDATE marketplace_purchases SET escrow_id=? WHERE purchase_id=?",
-                (escrow_id, purchase.purchase_id),
+            purchase = create_purchase(
+                listing_id=listing_id,
+                asset_id=listing.asset_id,
+                buyer_agent=buyer_agent_id,
+                seller_agent=listing.seller_agent,
+                price_paid=listing.price_usd,
+                idempotency_key=idempotency_key,
+                escrow_id=escrow_id,
+                con=con,
             )
+            if escrow is not None:
+                from warden.marketplace.escrow import EscrowService  # noqa: PLC0415
+                escrow.purchase_id = purchase.purchase_id
+                EscrowService.insert_escrow(con, escrow)
+    except Exception:
+        # The rollback is correct — neither row should survive — but the escrow
+        # contract was already deployed on-chain, outside the transaction, and
+        # nothing now references it. Record the address so it is recoverable;
+        # losing it silently would strand funds with no way to find them.
+        if escrow is not None and escrow.contract_address:
+            log.error(
+                "orphaned escrow contract: deployed but not persisted "
+                "[escrow_id=%s contract=%s chain=%s listing=%s buyer=%s amount=%s]",
+                escrow.escrow_id, escrow.contract_address, escrow.chain,
+                listing_id, buyer_agent_id, listing.price_usd,
+            )
+        raise
 
     return {
         "purchase_id": purchase.purchase_id,

@@ -109,14 +109,23 @@ class MetricsReader:
 
     # ── Public interface (used by DollarImpactCalculator.load_live_metrics) ───
 
+    # Deliberately NOT read from the D-3 `filter_events` mirror.
+    #
+    # These figures feed the dollar-impact and ROI reporting, and the mirror is
+    # allowed to drop writes by design: one that raises is counted and discarded,
+    # and the NDJSON journal stays the only complete record. A financial number
+    # from a store that is allowed to silently lose rows would under-report
+    # without any signal that it had. The mirror is the right backing for
+    # dashboards and trend views, where an approximate window is fine; it is the
+    # wrong backing for these.
+
     def monthly_requests(self) -> int:
         """Total requests in the lookback window, scaled to 30 days."""
         entries = self._load_entries()
         if not entries:
             return 0
-        count = len(entries)
         # Scale to exactly 30 days regardless of lookback window
-        return int(count * (30 / max(self._lookback_days, 1)))
+        return int(len(entries) * (30 / max(self._lookback_days, 1)))
 
     def threats_blocked_by_category(self) -> dict:
         """
@@ -125,6 +134,7 @@ class MetricsReader:
         """
         from warden.financial.impact_calculator import ThreatCategory
         tally: Counter[str] = Counter()
+
         for entry in self._load_entries():
             if entry.get("allowed", True):
                 continue  # only count blocked/high-risk events

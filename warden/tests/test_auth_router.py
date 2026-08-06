@@ -21,7 +21,14 @@ from warden.auth import router as auth_router
 @pytest.fixture(autouse=True)
 def _isolated_db(tmp_path, monkeypatch):
     """Point the SQLite user store at a throwaway file per test."""
-    monkeypatch.setattr(auth_router, "_DB_PATH", str(tmp_path / "test_auth.db"))
+    # D-4: patch the settings field, not a module constant. warden/auth/router.py
+    # and warden/auth/user_store.py both resolve this path per call from the same
+    # place; patching one module's snapshot would point them at two files.
+    monkeypatch.setattr(auth_router.settings, "auth_db_path", str(tmp_path / "test_auth.db"))
+    # Pin the Postgres side too: without this a developer who happens to have
+    # DATABASE_URL exported runs these against a real database.
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     with auth_router._rate_lock:
         auth_router._rate_store.clear()
     yield
@@ -220,12 +227,16 @@ class TestSignupEndpoint:
         assert resp2.status_code == 409
 
     def test_signup_db_race_returns_409(self, client, monkeypatch):
-        """_email_exists can miss a concurrent insert; the DB's own UNIQUE
-        constraint (surfaced via _db_create_user returning False) is the real
-        guard — exercise that path directly."""
+        """_email_exists can miss a concurrent insert; the store's own uniqueness
+        check (surfaced via user_store.create_user returning False) is the real
+        guard — exercise that path directly.
+
+        D-4 moved that seam from _db_create_user to user_store.create_user, which
+        now applies the same guarantee across both the Postgres and SQLite
+        backends."""
         monkeypatch.setenv("AUTH_JWT_SECRET", "test-secret")
         monkeypatch.setattr(auth_router, "_email_exists", lambda email: False)
-        monkeypatch.setattr(auth_router, "_db_create_user", lambda email, h: False)
+        monkeypatch.setattr(auth_router.user_store, "create_user", lambda email, h: False)
         resp = client.post(
             "/auth/signup", json={"email": "race@example.com", "password": "longenough"}
         )

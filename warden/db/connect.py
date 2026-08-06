@@ -31,7 +31,9 @@ helpers it replaces.
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
+import threading
 from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from typing import Any
@@ -40,6 +42,159 @@ from warden.db.ddl_registry import ensure_schema
 from warden.db.sqlite_pragmas import init_pragmas
 
 log = logging.getLogger("warden.db.connect")
+
+# ── Per-thread connection cache ───────────────────────────────────────────────
+#
+# Per-thread, never global: a SQLite connection opened with
+# check_same_thread=False can be *passed* between threads, but two threads
+# interleaving statements on one connection would interleave their
+# transactions. One cache per thread removes that class of bug outright.
+
+_MAX_CACHED_PER_THREAD = 32
+
+
+class _Entry:
+    __slots__ = ("con", "in_use", "ident", "orphaned")
+
+    def __init__(self, con: sqlite3.Connection, ident: tuple | None) -> None:
+        self.con = con
+        self.in_use = False
+        # Evicted from the cache while a frame still held it. That frame owns the
+        # close; nothing hands this connection out again.
+        self.orphaned = False
+        # (st_dev, st_ino) at open time. A cached connection keeps writing to the
+        # *inode* it opened, not to the path: on POSIX, deleting or replacing the
+        # file leaves the connection happily writing to a ghost, and a restore
+        # from `warden/backup/service.py` swapping a database file underneath is
+        # exactly that scenario. Re-stat before every reuse.
+        self.ident = ident
+
+
+def _file_ident(db_path: str) -> tuple | None:
+    try:
+        st = os.stat(db_path)
+        return (st.st_dev, st.st_ino)
+    except OSError:
+        return None
+
+
+_tls = threading.local()
+
+
+def _reuse_enabled() -> bool:
+    """Kill switch. Set WARDEN_DB_CONN_REUSE=false to fall back to a fresh
+    connection per call — the behaviour that shipped before this optimisation."""
+    return os.getenv("WARDEN_DB_CONN_REUSE", "true").strip().lower() not in (
+        "0", "false", "no", "off",
+    )
+
+
+def _cache() -> dict[tuple[str, str], _Entry]:
+    cache = getattr(_tls, "cache", None)
+    if cache is None:
+        cache = {}
+        _tls.cache = cache
+    return cache
+
+
+def _checkout(db_key: str, db_path: str) -> _Entry | None:
+    """An idle cached connection for this key, or a new one. None ⇒ caller must
+    open its own (the cached one is busy in an enclosing frame)."""
+    cache = _cache()
+    key = (db_key, db_path)
+    entry = cache.get(key)
+
+    if entry is not None:
+        if entry.in_use:
+            return None                       # nested call — do not share
+        if _file_ident(db_path) != entry.ident:
+            # The file was deleted or replaced since this connection opened it.
+            with suppress(Exception):
+                entry.con.close()
+            del cache[key]
+            entry = None
+        else:
+            # Re-run ensure_schema on every checkout, not just at creation.
+            # Modules register their DDL at *import* time and several are
+            # imported lazily inside functions, so the set of registered schemas
+            # grows during a process's life. A connection that skipped this
+            # would stay frozen at whatever was registered when it was opened,
+            # and a later-imported module's tables would never be created on it
+            # — "no such table: marketplace_purchases", which is exactly how
+            # this surfaced. ensure_schema is memoized and costs one indexed
+            # SELECT; the expense reuse removes is `sqlite3.connect` plus the
+            # pragmas, not this.
+            ensure_schema(entry.con, db_key, db_path)
+            entry.in_use = True
+            return entry
+
+    if len(cache) >= _MAX_CACHED_PER_THREAD:
+        # Bound the open file descriptors a long-lived worker thread can hold.
+        for k, victim in list(cache.items()):
+            if not victim.in_use:
+                with suppress(Exception):
+                    victim.con.close()
+                del cache[k]
+                break
+        else:
+            return None                       # everything busy — open a fresh one
+
+    con = None
+    try:
+        con = sqlite3.connect(db_path, check_same_thread=False)
+        con.row_factory = sqlite3.Row
+        init_pragmas(con, foreign_keys=True)
+        ensure_schema(con, db_key, db_path)
+    except Exception as exc:
+        # `init_pragmas` and `ensure_schema` both run after connect() succeeded,
+        # so a failure here leaves an open handle the caller never learns about.
+        if con is not None:
+            with suppress(Exception):
+                con.close()
+        log.debug("connect: could not open a cacheable connection (%s); using a fresh one", exc)
+        return None
+
+    entry = _Entry(con, _file_ident(db_path))
+    entry.in_use = True
+    cache[key] = entry
+    return entry
+
+
+def _discard(db_key: str, db_path: str, entry: _Entry) -> None:
+    with suppress(Exception):
+        entry.con.rollback()
+    with suppress(Exception):
+        entry.con.close()
+    # Evict by identity: between this entry being handed out and being discarded,
+    # the key may have been re-populated with a different connection (a nested
+    # frame that reopened after an inode change). Popping blindly would throw
+    # away a live one.
+    cache = _cache()
+    if cache.get((db_key, db_path)) is entry:
+        del cache[(db_key, db_path)]
+
+
+def close_cached_connections() -> None:
+    """Close and forget this thread's cached connections.
+
+    For tests that recreate a database file at a path already seen in this
+    process, and for a worker that wants to release descriptors between jobs.
+    """
+    cache = getattr(_tls, "cache", None)
+    if not cache:
+        return
+    for key, entry in list(cache.items()):
+        if entry.in_use:
+            # An enclosing frame is mid-block on this connection; closing it
+            # would pull the transaction out from under that caller. Hand the
+            # close to that frame instead and drop it from the cache, so it is
+            # never handed out again.
+            entry.orphaned = True
+            del cache[key]
+            continue
+        with suppress(Exception):
+            entry.con.close()
+        del cache[key]
 
 
 @contextmanager
@@ -100,6 +255,45 @@ def open_db(
             log.debug("turso adapter unavailable (%s); using local SQLite", exc)
 
     # ── Local SQLite ──────────────────────────────────────────────────────────
+    #
+    # Connection reuse. Measured through this seam, `sqlite3.connect` + the six
+    # pragmas + ensure_schema's tracking-table check cost ~257x more than the
+    # write itself: 160 write-txn/s opening per call, 41 169/s on a reused
+    # connection. The write lock was never the ceiling — this setup was.
+    #
+    # Reuse is deliberately conservative: it applies only to the default
+    # parameter combination, and only when no other frame on this thread is
+    # already inside a block for the same (db_key, path). A nested caller gets a
+    # brand-new connection exactly as before, so a nested failure still rolls
+    # back only its own work and can never commit — or abort — the outer
+    # transaction that wraps it. That property is load-bearing: `_do_purchase`
+    # writes a purchase and its escrow in one transaction and calls into other
+    # modules while holding it.
+    reusable = (
+        _reuse_enabled()
+        and row_factory
+        and foreign_keys
+        and not check_same_thread
+    )
+    entry = _checkout(db_key, db_path) if reusable else None
+
+    if entry is not None:
+        try:
+            yield entry.con
+            entry.con.commit()
+        except BaseException:
+            # State after a failed statement is unknown — roll back and drop the
+            # connection rather than hand a poisoned one to the next caller.
+            _discard(db_key, db_path, entry)
+            raise
+        else:
+            if entry.orphaned:
+                with suppress(Exception):
+                    entry.con.close()
+            else:
+                entry.in_use = False
+        return
+
     con = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     if row_factory:
         con.row_factory = sqlite3.Row

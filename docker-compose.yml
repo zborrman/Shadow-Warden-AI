@@ -430,12 +430,35 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-warden_user}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
       - POSTGRES_DB=${POSTGRES_DB:-warden}
+    # D-2 — bounded memory. Postgres was the only service in this file without
+    # `deploy.resources.limits`, and the consequence is not merely untidy: this
+    # image runs timescaledb-tune at first boot, which sizes itself from the
+    # memory it believes it has. Measured on the 16 GB host with no limit set,
+    # it picks shared_buffers = 3494 MB and effective_cache_size = 10 GB — i.e.
+    # Postgres is configured as if it owns the box, while warden is separately
+    # permitted 8 GB on the same box.
+    #
+    # timescaledb-tune reads the cgroup, so the limit alone is the whole fix:
+    # verified at this ceiling it settles on shared_buffers 512 MB /
+    # effective_cache_size 1536 MB (25% / 75%). Explicit `-c shared_buffers=…`
+    # flags were tried here and produced byte-identical settings, so they were
+    # dropped rather than left to fight the tuner if this ceiling ever changes.
     command: postgres -c shared_preload_libraries=timescaledb
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # init.sql applies ONLY when this volume is empty (first boot). It is no
+      # longer a schema authority — the Alembic tree is, and D-1b made it a
+      # strict superset (guarded by test_alembic_is_a_superset_of_init_sql).
+      # Add new tables to a migration, never here.
       - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - warden-net
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warden_user}"]
       interval: 10s

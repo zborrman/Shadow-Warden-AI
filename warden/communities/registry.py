@@ -261,6 +261,71 @@ def _update_community_kid(community_id: str, new_kid: str) -> None:
         )
 
 
+def update_community_fields(
+    community_id: str,
+    *,
+    display_name: str | None = None,
+    description: str | None = None,
+) -> bool:
+    """Rename / re-describe a community. False when nothing matched.
+
+    Added for D-6: `/communities/{id}` PATCH is served by the v2 router over the
+    other store, so without a write path here it silently no-ops on every
+    community the create endpoint actually produced.
+    """
+    updates: list[str] = []
+    params: list = []
+    if display_name is not None:
+        updates.append("display_name=?")
+        params.append(display_name)
+    if description is not None:
+        updates.append("description=?")
+        params.append(description)
+    if not updates:
+        return False
+    updates.append("updated_at=?")
+    params.append(datetime.now(UTC).isoformat())
+    params.append(community_id)
+    with _db_lock, _conn() as conn:
+        cur = conn.execute(
+            f"UPDATE communities SET {', '.join(updates)} WHERE community_id=?", params
+        )
+        return cur.rowcount > 0
+
+
+def update_community_settings(community_id: str, settings: dict) -> bool:
+    """Replace the wizard settings payload. False when nothing matched."""
+    with _db_lock, _conn() as conn:
+        cur = conn.execute(
+            "UPDATE communities SET settings=?, updated_at=? WHERE community_id=?",
+            (json.dumps(settings), datetime.now(UTC).isoformat(), community_id),
+        )
+        return cur.rowcount > 0
+
+
+def update_community_status(community_id: str, status: str) -> bool:
+    """Set ACTIVE / SUSPENDED. False when nothing matched."""
+    with _db_lock, _conn() as conn:
+        cur = conn.execute(
+            "UPDATE communities SET status=?, updated_at=? WHERE community_id=?",
+            (status, datetime.now(UTC).isoformat(), community_id),
+        )
+        return cur.rowcount > 0
+
+
+def delete_community(community_id: str, requester_tenant_id: str) -> bool:
+    """Delete a community and its members. Only the owning tenant may do so."""
+    with _db_lock, _conn() as conn:
+        row = conn.execute(
+            "SELECT tenant_id FROM communities WHERE community_id=?", (community_id,)
+        ).fetchone()
+        if not row or row["tenant_id"] != requester_tenant_id:
+            return False
+        conn.execute("DELETE FROM community_members WHERE community_id=?", (community_id,))
+        conn.execute("DELETE FROM communities WHERE community_id=?", (community_id,))
+    return True
+
+
 # ── Member CRUD ───────────────────────────────────────────────────────────────
 
 def invite_member(

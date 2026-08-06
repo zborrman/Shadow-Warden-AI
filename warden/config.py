@@ -485,6 +485,16 @@ class Settings:
         default_factory=lambda: _bool("LEDGER_DUAL_WRITE", False)
     )
 
+    # ── /filter journal SQL mirror (warden/analytics/events_store.py, D-3) ───────
+    # Mirrors each decision into the warden_core.filter_events hypertable so the
+    # ~25 reporting modules can query SQL instead of re-parsing the whole NDJSON
+    # journal. Off by default: merging D-3 changes nothing until an operator opts
+    # in. Requires DATABASE_URL; mirror errors are swallowed and counted, and the
+    # NDJSON journal stays authoritative.
+    filter_events_mirror: bool = field(
+        default_factory=lambda: _bool("FILTER_EVENTS_MIRROR", False)
+    )
+
     # ── Entity Risk Scoring (warden/entity_risk.py) ──────────────────────────────
     ers_enabled: bool = field(
         default_factory=lambda: _bool("ERS_ENABLED", True)
