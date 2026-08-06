@@ -211,6 +211,135 @@ class TestCPTDriftGate:
         # Should not raise
         calibrate_from_logs(path)
 
+    def test_calibrate_success_pins_mle_arithmetic(self, tmp_path, monkeypatch):
+        """The success path (Laplace smoothing, block-rate/entropy proxies,
+        round-to-4dp) had zero coverage -- only the no-op/no-crash paths were
+        tested. Baseline chosen so every shift lands comfortably inside the
+        25% drift gate; entries use the real top-level flags/risk_level/
+        payload_len schema (the pre-existing fixture above nests them under
+        a "causal_arbiter" key the parser never reads)."""
+        monkeypatch.setattr(_cpt, "obfusc_pos", 0.45)
+        monkeypatch.setattr(_cpt, "obfusc_neg", 0.25)
+        monkeypatch.setattr(_cpt, "ers_center", 0.50)
+        monkeypatch.setattr(_cpt, "entropy_center", 4.5)
+
+        entries = [
+            {"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 200},
+            {"flags": ["OBFUSCATION"], "risk_level": "LOW",  "payload_len": 50},
+            {"flags": [],              "risk_level": "LOW",  "payload_len": 50},
+            {"flags": [],              "risk_level": "LOW",  "payload_len": 50},
+        ]
+        path = self._log_file(entries, tmp_path)
+
+        assert calibrate_from_logs(path, min_samples=4) is True
+        # obfusc: 1 high / 2 total -> (1+1)/(2+2) = 0.5
+        assert _cpt.obfusc_pos == 0.5
+        # clean: 0 high / 2 total -> (0+1)/(2+2) = 0.25
+        assert _cpt.obfusc_neg == 0.25
+        # block_rate = 1/4 = 0.25; shift = (0.25-0.05)*0.5 = 0.10; 0.50-0.10 = 0.40
+        assert _cpt.ers_center == 0.40
+        # median blocked payload_len (200) == the log1p(200) anchor -> zero shift
+        assert _cpt.entropy_center == 4.5
+        assert _cpt.calibration_n == 4
+        assert _cpt.calibrated_from == path
+
+    def test_calibrate_rejects_when_obfusc_pos_not_greater_than_neg(self, tmp_path, monkeypatch):
+        """Data-quality gate: if the obfuscated bucket isn't riskier than the
+        clean bucket, the update must be rejected and the CPT left untouched."""
+        before_pos, before_neg = _cpt.obfusc_pos, _cpt.obfusc_neg
+        entries = [
+            {"flags": ["OBFUSCATION"], "risk_level": "LOW", "payload_len": 50},
+            {"flags": [],              "risk_level": "HIGH", "payload_len": 50},
+        ]
+        path = self._log_file(entries, tmp_path)
+        assert calibrate_from_logs(path, min_samples=2) is False
+        assert _cpt.obfusc_pos == before_pos
+        assert _cpt.obfusc_neg == before_neg
+
+    def test_calibrate_exact_min_samples_boundary(self, tmp_path, caplog):
+        """len(entries) < min_samples must reject via the sample-count guard
+        specifically; len(entries) == min_samples must pass that guard (it may
+        still be rejected further down by the drift gate -- this test only
+        pins the < vs <= boundary via the guard's own debug message)."""
+        entries = [
+            {"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 50},
+            {"flags": [],              "risk_level": "LOW",  "payload_len": 50},
+        ]
+        path = self._log_file(entries, tmp_path)
+        with caplog.at_level("DEBUG", logger="warden.causal_arbiter"):
+            calibrate_from_logs(path, min_samples=3)   # 2 < 3 -> guard rejects
+        assert any("only 2 samples (need 3)" in r.message for r in caplog.records)
+
+        caplog.clear()
+        with caplog.at_level("DEBUG", logger="warden.causal_arbiter"):
+            calibrate_from_logs(path, min_samples=2)   # 2 == 2 -> guard passes
+        assert not any("only 2 samples" in r.message for r in caplog.records)
+
+    def test_drift_gate_reaches_ers_center_check(self, tmp_path, monkeypatch, caplog):
+        """The documented gap (docs/pre-production-plan.md, SR-7.3): the four
+        `_drift_ok(...)` calls are chained with `and`, which short-circuits on
+        the first False. Every prior test's drift lived entirely in
+        obfusc_pos/obfusc_neg, so nothing ever proved evaluation reaches
+        ers_center's own check -- a mutant that no-ops, reorders, or None's
+        that specific call would have survived undetected.
+
+        obfusc_pos/obfusc_neg are tuned to drift <25% (so the chain doesn't
+        short-circuit before reaching ers_center); block_rate is tuned so
+        ers_center alone drifts >25%.
+        """
+        monkeypatch.setattr(_cpt, "obfusc_pos", 0.6)
+        monkeypatch.setattr(_cpt, "obfusc_neg", 0.2)
+        monkeypatch.setattr(_cpt, "ers_center", 0.50)
+        monkeypatch.setattr(_cpt, "entropy_center", 4.5)
+
+        entries = (
+            [{"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 50}] * 3
+            + [{"flags": ["OBFUSCATION"], "risk_level": "LOW",  "payload_len": 50}] * 2
+            + [{"flags": [],             "risk_level": "HIGH", "payload_len": 50}] * 1
+            + [{"flags": [],             "risk_level": "LOW",  "payload_len": 50}] * 5
+        )
+        path = self._log_file(entries, tmp_path)
+
+        # new_obfusc_pos = (3+1)/(5+2) = 0.5714 -> 4.8% drift (passes)
+        # new_obfusc_neg = (1+1)/(6+2) = 0.25   -> 25.0% drift, not >25% (passes)
+        # block_rate = 4/11 = 0.3636 -> shift 0.1568 -> new_ers_center = 0.3432
+        #   -> 31.4% drift (fails)
+        with caplog.at_level("WARNING", logger="warden.causal_arbiter"):
+            assert calibrate_from_logs(path, min_samples=11) is False
+        assert any("CPT[ers_center] drift" in r.message for r in caplog.records)
+        assert _cpt.ers_center == 0.50   # rejected -- must be untouched
+
+    def test_drift_gate_reaches_entropy_center_check(self, tmp_path, monkeypatch, caplog):
+        """Companion to the ers_center test above: proves evaluation reaches
+        the LAST `_drift_ok` call in the chain too. obfusc_pos, obfusc_neg,
+        AND ers_center are all tuned to drift <25%; only entropy_center (via
+        one deliberately huge blocked payload_len) exceeds it. Without this,
+        a mutant breaking entropy_center's specific check -- the one every
+        earlier check's short-circuit would hide -- had zero coverage."""
+        monkeypatch.setattr(_cpt, "obfusc_pos", 0.6)
+        monkeypatch.setattr(_cpt, "obfusc_neg", 0.2)
+        monkeypatch.setattr(_cpt, "ers_center", 0.50)
+        monkeypatch.setattr(_cpt, "entropy_center", 3.6)
+
+        entries = (
+            [{"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 50}]
+            + [{"flags": [], "risk_level": "HIGH", "payload_len": 10**15}]   # dominates median
+            + [{"flags": [], "risk_level": "LOW",  "payload_len": 50}] * 7
+        )
+        path = self._log_file(entries, tmp_path)
+
+        # new_obfusc_pos = (1+1)/(1+2) = 0.667  -> 11.1% drift (passes)
+        # new_obfusc_neg = (1+1)/(8+2) = 0.2    -> 0% drift (passes)
+        # block_rate = 2/9 = 0.222 -> shift 0.086 -> new_ers_center = 0.414
+        #   -> 17.2% drift (passes)
+        # median blocked_len = 10**15 -> entropy_shift ~= +1.65 (uncapped by the
+        #   per-call *0.3 factor; clamped to [3.5,5.5] only at the CPT level) ->
+        #   new_entropy_center = 5.254 -> 45.9% drift (fails)
+        with caplog.at_level("WARNING", logger="warden.causal_arbiter"):
+            assert calibrate_from_logs(path, min_samples=9) is False
+        assert any("CPT[entropy_center] drift" in r.message for r in caplog.records)
+        assert _cpt.entropy_center == 3.6   # rejected -- must be untouched
+
 
 # ── Fail-open ──────────────────────────────────────────────────────────────────
 
