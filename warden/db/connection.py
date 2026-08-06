@@ -167,241 +167,22 @@ async def get_db():
 
 
 def create_schema() -> None:
+    """Removed — Alembic is the only Postgres schema authority (D-1).
+
+    This used to hold 13 tables of hand-maintained `CREATE TABLE IF NOT EXISTS`,
+    a second source of truth alongside `warden/db/migrations` and the Postgres
+    half of `data/init.sql`. Three partially-overlapping definitions is how the
+    tree ended up with objects nobody created: `warden_core.monitors` and
+    `marketplace_embeddings` lived only in migrations that nothing ran, and the
+    `portal_users` TOTP columns lived only in an `ALTER` that could not fire.
+
+    Kept as a raising stub rather than deleted outright so an out-of-tree caller
+    gets a clear instruction instead of an AttributeError.
     """
-    Create all Warden tables via the sync engine.
-    Safe to call multiple times (IF NOT EXISTS on every statement).
-    Typically called once on first deploy, or as part of a migration step.
-
-    Run::
-
-        DATABASE_URL=postgresql+asyncpg://... python -m warden.db.connection
-    """
-    engine = get_engine()
-    from sqlalchemy import text
-
-    # Tables are created in warden_core schema (init.sql already creates schemas).
-    # This DDL is idempotent — safe to re-run.
-    ddl_stmts = [
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.threat_intel_items (
-            id                  TEXT        PRIMARY KEY,
-            source              TEXT        NOT NULL,
-            title               TEXT        NOT NULL,
-            url                 TEXT        NOT NULL,
-            source_url_hash     TEXT        UNIQUE NOT NULL,
-            published_at        TEXT,
-            raw_description     TEXT,
-            relevance_score     NUMERIC(4,3),
-            owasp_category      TEXT,
-            attack_pattern      TEXT,
-            detection_hint      TEXT,
-            countermeasure      TEXT,
-            status              TEXT        NOT NULL DEFAULT 'new',
-            rules_generated     INTEGER     NOT NULL DEFAULT 0,
-            created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            analyzed_at         TIMESTAMPTZ
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.threat_intel_countermeasures (
-            id              BIGSERIAL   PRIMARY KEY,
-            threat_item_id  TEXT        NOT NULL
-                            REFERENCES warden_core.threat_intel_items(id),
-            rule_id         TEXT        NOT NULL,
-            rule_type       TEXT        NOT NULL,
-            rule_value      TEXT        NOT NULL,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.rule_ledger (
-            rule_id         TEXT        PRIMARY KEY,
-            source          TEXT        NOT NULL,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            pattern_snippet TEXT,
-            rule_type       TEXT,
-            status          TEXT        NOT NULL DEFAULT 'active'
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.billing_usage (
-            id          BIGSERIAL     PRIMARY KEY,
-            tenant_id   TEXT          NOT NULL,
-            period      TEXT          NOT NULL,
-            requests    INTEGER       NOT NULL DEFAULT 0,
-            tokens_in   BIGINT        NOT NULL DEFAULT 0,
-            tokens_out  BIGINT        NOT NULL DEFAULT 0,
-            cost_usd    NUMERIC(10,6) NOT NULL DEFAULT 0,
-            updated_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-            UNIQUE (tenant_id, period)
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS threat_intel_status_idx ON warden_core.threat_intel_items(status)",
-        "CREATE INDEX IF NOT EXISTS threat_intel_source_idx ON warden_core.threat_intel_items(source)",
-        "CREATE INDEX IF NOT EXISTS rule_ledger_source_idx  ON warden_core.rule_ledger(source)",
-        "CREATE INDEX IF NOT EXISTS billing_tenant_idx      ON warden_core.billing_usage(tenant_id)",
-
-        # ── Portal: customer accounts ──────────────────────────────────────────
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.portal_users (
-            id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-            email           TEXT        UNIQUE NOT NULL,
-            password_hash   TEXT        NOT NULL,
-            display_name    TEXT        NOT NULL DEFAULT '',
-            tenant_id       TEXT        NOT NULL,
-            role            TEXT        NOT NULL DEFAULT 'owner',
-            email_verified  BOOLEAN     NOT NULL DEFAULT false,
-            verify_token    TEXT,
-            reset_token     TEXT,
-            reset_expires   TIMESTAMPTZ,
-            notify_high     BOOLEAN     NOT NULL DEFAULT true,
-            notify_block    BOOLEAN     NOT NULL DEFAULT true,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            last_login_at   TIMESTAMPTZ
-        )
-        """,
-
-        # ── Portal: customer API keys ──────────────────────────────────────────
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.portal_api_keys (
-            id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-            tenant_id   TEXT        NOT NULL,
-            label       TEXT        NOT NULL DEFAULT 'Default',
-            key_hash    TEXT        UNIQUE NOT NULL,
-            key_prefix  TEXT        NOT NULL,
-            rate_limit  INTEGER     NOT NULL DEFAULT 60,
-            active      BOOLEAN     NOT NULL DEFAULT true,
-            created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            created_by  UUID        REFERENCES warden_core.portal_users(id),
-            revoked_at  TIMESTAMPTZ
-        )
-        """,
-
-        "CREATE INDEX IF NOT EXISTS portal_users_email_idx  ON warden_core.portal_users(email)",
-        "CREATE INDEX IF NOT EXISTS portal_users_tenant_idx ON warden_core.portal_users(tenant_id)",
-        "CREATE INDEX IF NOT EXISTS portal_keys_tenant_idx  ON warden_core.portal_api_keys(tenant_id)",
-        "CREATE INDEX IF NOT EXISTS portal_keys_hash_idx    ON warden_core.portal_api_keys(key_hash)",
-
-        # ── Warden Syndicates (Federated AI Security Network) ──────────────────
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.syndicates (
-            syndicate_id    TEXT        PRIMARY KEY,
-            tenant_id       TEXT        UNIQUE NOT NULL,
-            display_name    TEXT        NOT NULL DEFAULT '',
-            public_key_b64  TEXT        NOT NULL,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.syndicate_links (
-            link_id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-            initiator_sid       TEXT        NOT NULL
-                                REFERENCES warden_core.syndicates(syndicate_id),
-            responder_sid       TEXT,
-            status              TEXT        NOT NULL DEFAULT 'PENDING',
-            is_ephemeral        BOOLEAN     NOT NULL DEFAULT TRUE,
-            ttl_hours           INTEGER     NOT NULL DEFAULT 24,
-            expires_at          TIMESTAMPTZ NOT NULL
-                                DEFAULT (NOW() + INTERVAL '24 hours'),
-            last_notified_at    TIMESTAMPTZ,
-            safety_number       TEXT,
-            peer_endpoint       TEXT,
-            permissions         JSONB       NOT NULL DEFAULT '{}',
-            created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            established_at      TIMESTAMPTZ
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.syndicate_members (
-            wid             TEXT        PRIMARY KEY,
-            syndicate_id    TEXT        NOT NULL
-                            REFERENCES warden_core.syndicates(syndicate_id),
-            internal_email  TEXT        NOT NULL,
-            role            TEXT        NOT NULL DEFAULT 'MEMBER',
-            expires_at      TIMESTAMPTZ,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.syndicate_invitations (
-            invite_code     UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-            invite_type     TEXT        NOT NULL,
-            creator_sid     TEXT        NOT NULL
-                            REFERENCES warden_core.syndicates(syndicate_id),
-            target_email    TEXT,
-            target_group    TEXT,
-            metadata        JSONB       NOT NULL DEFAULT '{}',
-            is_used         BOOLEAN     NOT NULL DEFAULT FALSE,
-            expires_at      TIMESTAMPTZ NOT NULL
-                            DEFAULT (NOW() + INTERVAL '24 hours'),
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS syndicate_links_initiator_idx  ON warden_core.syndicate_links(initiator_sid)",
-        "CREATE INDEX IF NOT EXISTS syndicate_links_status_idx      ON warden_core.syndicate_links(status)",
-        "CREATE INDEX IF NOT EXISTS syndicate_links_expires_idx     ON warden_core.syndicate_links(expires_at) WHERE status = 'ACTIVE'",
-        "CREATE INDEX IF NOT EXISTS syndicate_members_sid_idx       ON warden_core.syndicate_members(syndicate_id)",
-        "CREATE INDEX IF NOT EXISTS syndicate_invitations_code_idx  ON warden_core.syndicate_invitations(invite_code) WHERE is_used = FALSE",
-
-        # ── Business Communities (v2.8) ────────────────────────────────────────
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.communities (
-            community_id    TEXT        PRIMARY KEY,
-            tenant_id       TEXT        NOT NULL,
-            display_name    TEXT        NOT NULL DEFAULT '',
-            description     TEXT        NOT NULL DEFAULT '',
-            tier            TEXT        NOT NULL DEFAULT 'business',
-            active_kid      TEXT        NOT NULL DEFAULT 'v1',
-            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
-            created_by      TEXT        NOT NULL,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.community_members (
-            member_id       TEXT        PRIMARY KEY,
-            community_id    TEXT        NOT NULL
-                            REFERENCES warden_core.communities(community_id),
-            tenant_id       TEXT        NOT NULL,
-            external_id     TEXT        NOT NULL,
-            display_name    TEXT        NOT NULL DEFAULT '',
-            clearance       TEXT        NOT NULL DEFAULT 'PUBLIC',
-            role            TEXT        NOT NULL DEFAULT 'MEMBER',
-            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
-            invited_by      TEXT,
-            joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS warden_core.community_key_archive (
-            community_id    TEXT        NOT NULL,
-            kid             TEXT        NOT NULL,
-            status          TEXT        NOT NULL DEFAULT 'ACTIVE',
-            ed25519_pub_b64 TEXT        NOT NULL,
-            x25519_pub_b64  TEXT        NOT NULL,
-            ed_priv_enc_b64 TEXT,
-            x_priv_enc_b64  TEXT,
-            created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            shredded_at     TIMESTAMPTZ,
-            PRIMARY KEY (community_id, kid)
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS communities_tenant_idx        ON warden_core.communities(tenant_id)",
-        "CREATE INDEX IF NOT EXISTS communities_status_idx        ON warden_core.communities(status)",
-        "CREATE INDEX IF NOT EXISTS cm_community_idx              ON warden_core.community_members(community_id)",
-        "CREATE INDEX IF NOT EXISTS cm_external_idx               ON warden_core.community_members(community_id, external_id)",
-        "CREATE INDEX IF NOT EXISTS cm_tenant_idx                 ON warden_core.community_members(tenant_id)",
-        "CREATE INDEX IF NOT EXISTS cka_community_status_idx      ON warden_core.community_key_archive(community_id, status)",
-    ]
-
-    with engine.begin() as conn:
-        for stmt in ddl_stmts:
-            conn.execute(text(stmt))
-
-    log.info("Database schema created/verified.")
-
+    raise RuntimeError(
+        "create_schema() is gone; the Postgres schema is applied by "
+        "warden.db.migrate.upgrade_to_head() (alembic upgrade head)."
+    )
 
 if __name__ == "__main__":
     import sys
@@ -409,5 +190,5 @@ if __name__ == "__main__":
     if not DATABASE_URL:
         print("ERROR: DATABASE_URL not set.")
         sys.exit(1)
-    create_schema()
-    print("Schema ready.")
+    from warden.db.migrate import upgrade_to_head
+    print("Schema:", upgrade_to_head().get("status"))

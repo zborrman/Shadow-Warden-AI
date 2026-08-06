@@ -256,6 +256,7 @@ domain: fold `push/oauth/webhooks/notif` → `warden_platform.db`, and
 
 ### What to delete
 
+- ✅ **`connection.py::create_schema()`** — removed (2026-08-06). Alembic is the only Postgres schema authority, guarded by `test_one_postgres_schema_authority.py`. `data/init.sql` stays for a brand-new container's first boot, with revision `0012` a strict superset of it. Originally stated as:
 - **`connection.py::create_schema()` and the Postgres half of `data/init.sql`** —
   Alembic becomes the only Postgres schema authority, and it is actually
   executed. (F1 — do this first; it is the one item that restores working
