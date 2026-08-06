@@ -341,6 +341,138 @@ class TestCPTDriftGate:
         assert _cpt.entropy_center == 3.6   # rejected -- must be untouched
 
 
+# ── Drift-gate chain (SR-7.3 mutation-testing gap) ─────────────────────────────
+#
+# The three tests above never exercise the actual MLE-calibration-and-apply
+# path: they stay under min_samples (default 100), or use a log-entry shape
+# (`causal_arbiter.obfuscation`) calibrate_from_logs never reads — it reads
+# top-level `flags`/`risk_level`/`payload_len` (see analytics/logger.py).
+# Nothing here has ever driven >= min_samples of real data through the four
+# `_drift_ok(...)` calls that gate the update.
+#
+# That gap matters because `_drift_ok` is a closure inside a function whose
+# entire body sits inside `except Exception: return False` (fail-open, by
+# design — a corrupt log file must never crash startup). If a `_drift_ok`
+# call's argument is corrupted (e.g. `old` swapped for `None`), the internal
+# `abs(new - old)` raises `TypeError`, and the outer handler silently turns
+# that into the *same* `False` return a genuine drift-rejection produces.
+# Nothing here distinguished "correctly rejected" from "silently crashed" —
+# which is exactly why mutation testing found the whole four-call chain
+# (`obfusc_pos`/`obfusc_neg`/`ers_center`/`entropy_center`) could have any
+# argument replaced with `None`, reordered, or relabeled without any test
+# noticing. The tests below close that: one drives a real calibration to a
+# successful, value-checked update (which fails the instant any one argument
+# in the chain is wrong), and one proves the gate rejects an update on a
+# single genuinely-drifted parameter while leaving the other three — and the
+# applied CPT — untouched. That second property is the actual security
+# guarantee this gate exists for: a coordinated attacker who keeps most
+# parameters borderline-safe while pushing one past the 25% threshold must
+# still be caught.
+
+class TestCalibrateFromLogsAppliesRealValues:
+    """Drives calibrate_from_logs() through a full, min_samples-sized MLE
+    update and pins the exact resulting CPT — not just "did it run"."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_cpt(self):
+        # _cpt is a module-level singleton mutated in place by calibration;
+        # snapshot and restore so this class can't leak state into other tests.
+        before = {
+            "ers_center": _cpt.ers_center, "obfusc_pos": _cpt.obfusc_pos,
+            "obfusc_neg": _cpt.obfusc_neg, "entropy_center": _cpt.entropy_center,
+        }
+        yield
+        _cpt.ers_center, _cpt.obfusc_pos = before["ers_center"], before["obfusc_pos"]
+        _cpt.obfusc_neg, _cpt.entropy_center = before["obfusc_neg"], before["entropy_center"]
+
+    def _log_file(self, entries: list[dict], tmp_path) -> str:
+        p = tmp_path / "logs.json"
+        with open(p, "w") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+        return str(p)
+
+    def test_happy_path_updates_all_four_parameters_to_exact_values(self, tmp_path):
+        """All four _drift_ok checks pass; verifies the exact MLE output.
+
+        This is the test that actually exercises every argument of every
+        _drift_ok(...) call with real, distinguishing data — if any argument
+        in the chain (old/new/label, any of the four calls) were corrupted,
+        the internal TypeError would be swallowed and this would assert
+        False, not the exact values below.
+        """
+        _cpt.ers_center, _cpt.obfusc_pos = 0.35, 0.82
+        _cpt.obfusc_neg, _cpt.entropy_center = 0.12, 4.5
+
+        entries = (
+            [{"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 220}] * 11
+            + [{"flags": ["OBFUSCATION"], "risk_level": "LOW", "payload_len": 60}] * 4
+            + [{"flags": [], "risk_level": "HIGH", "payload_len": 200}] * 9
+            + [{"flags": [], "risk_level": "LOW", "payload_len": 55}] * 76
+        )
+        assert len(entries) == 100
+        path = self._log_file(entries, tmp_path)
+
+        assert calibrate_from_logs(path, min_samples=100) is True
+        assert _cpt.ers_center == pytest.approx(0.275)
+        assert _cpt.obfusc_pos == pytest.approx(0.7059)
+        assert _cpt.obfusc_neg == pytest.approx(0.1149)
+        assert _cpt.entropy_center == pytest.approx(4.5054)
+        assert _cpt.calibration_n == 100
+
+    def test_single_parameter_drift_rejects_whole_update_atomically(self, tmp_path):
+        """One parameter (ers_center) drifts >25% while obfusc_pos/neg and
+        entropy_center all stay within bounds — the coordinated slow-burn
+        poisoning scenario the drift gate exists to stop. The whole update
+        must be rejected, and NONE of the four CPT fields may change: a
+        mutant that reordered the `_drift_ok` calls relative to the `_cpt.x =
+        ...` assignments, or dropped one call from the `and`-chain, would let
+        a partial update through here.
+        """
+        _cpt.ers_center, _cpt.obfusc_pos = 0.35, 0.82
+        _cpt.obfusc_neg, _cpt.entropy_center = 0.12, 4.5
+
+        entries = (
+            [{"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 220}] * 22
+            + [{"flags": ["OBFUSCATION"], "risk_level": "LOW", "payload_len": 60}] * 3
+            + [{"flags": [], "risk_level": "HIGH", "payload_len": 200}] * 8
+            + [{"flags": [], "risk_level": "LOW", "payload_len": 55}] * 67
+        )
+        assert len(entries) == 100
+        path = self._log_file(entries, tmp_path)
+
+        assert calibrate_from_logs(path, min_samples=100) is False
+        assert _cpt.ers_center == 0.35
+        assert _cpt.obfusc_pos == 0.82
+        assert _cpt.obfusc_neg == 0.12
+        assert _cpt.entropy_center == 4.5
+
+    def test_inverted_correlation_rejected_before_drift_gate(self, tmp_path):
+        """When obfuscated entries correlate with LOW risk and clean entries
+        correlate with HIGH risk — inverted from the real-world assumption
+        this module is built on — new_obfusc_pos <= new_obfusc_neg and the
+        update is rejected as a data-quality issue, never reaching the drift
+        gate at all. Distinct rejection path from the two tests above.
+        """
+        _cpt.ers_center, _cpt.obfusc_pos = 0.35, 0.82
+        _cpt.obfusc_neg, _cpt.entropy_center = 0.12, 4.5
+
+        entries = (
+            [{"flags": ["OBFUSCATION"], "risk_level": "HIGH", "payload_len": 100}] * 2
+            + [{"flags": ["OBFUSCATION"], "risk_level": "LOW", "payload_len": 50}] * 18
+            + [{"flags": [], "risk_level": "HIGH", "payload_len": 100}] * 60
+            + [{"flags": [], "risk_level": "LOW", "payload_len": 50}] * 20
+        )
+        assert len(entries) == 100
+        path = self._log_file(entries, tmp_path)
+
+        assert calibrate_from_logs(path, min_samples=100) is False
+        assert _cpt.ers_center == 0.35
+        assert _cpt.obfusc_pos == 0.82
+        assert _cpt.obfusc_neg == 0.12
+        assert _cpt.entropy_center == 4.5
+
+
 # ── Fail-open ──────────────────────────────────────────────────────────────────
 
 class TestFailOpen:
