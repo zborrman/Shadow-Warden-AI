@@ -207,3 +207,61 @@ def test_migration_defines_no_content_column():
             f"filter_events gained a `{forbidden}` column — the journal is "
             "metadata-only (GDPR)."
         )
+
+
+# ── Coverage floor ────────────────────────────────────────────────────────────
+
+def test_readers_refuse_a_window_the_mirror_cannot_cover(monkeypatch):
+    """The failure this prevents is silent under-reporting.
+
+    Nothing backfills the mirror when an operator flips it on, so a reader asking
+    for 30 days would otherwise get only the rows since the flip and present them
+    as the whole window — a smaller number than the truth with nothing to say so.
+    Worse than the NDJSON scan it replaces, because the scan is correct.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    now = datetime.now(UTC)
+    events_store.reset_coverage_cache()
+    # The mirror holds only the last hour.
+    monkeypatch.setattr(events_store, "coverage_start", lambda: now - timedelta(hours=1))
+
+    assert events_store.covers(now - timedelta(minutes=30)) is True
+    assert events_store.covers(now - timedelta(days=30)) is False
+    assert events_store.summary(now - timedelta(days=30)) is None
+    assert events_store.hourly_series(now - timedelta(days=30)) is None
+    assert events_store.top_flags(now - timedelta(days=30)) is None
+    assert events_store.blocked_flag_counts(now - timedelta(days=30)) is None
+
+
+def test_an_empty_mirror_covers_nothing(monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    events_store.reset_coverage_cache()
+    monkeypatch.setattr(events_store, "coverage_start", lambda: None)
+    assert events_store.covers(datetime.now(UTC) - timedelta(minutes=1)) is False
+
+
+def test_backfill_is_a_noop_without_postgres(monkeypatch):
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "", raising=False)
+    assert events_store.backfill_from_journal() == {"read": 0, "written": 0, "failed": 0}
+
+
+def test_backfill_never_raises_when_the_backend_fails(monkeypatch, tmp_path):
+    """A failed backfill must leave the journal and the existing mirror alone."""
+    from warden.analytics import logger
+
+    logs = tmp_path / "logs.json"
+    entry = {"ts": "2026-01-01T00:00:00+00:00", "request_id": "a"}
+    logs.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+    monkeypatch.setattr(logger, "LOGS_PATH", logs, raising=False)
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+
+    def _boom():
+        raise RuntimeError("postgres is down")
+
+    monkeypatch.setattr(events_store, "_engine", _boom)
+    out = events_store.backfill_from_journal()
+    assert out["failed"] >= 1 and out["written"] == 0
