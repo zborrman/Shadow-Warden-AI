@@ -33,6 +33,7 @@ env var stays the single authority.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 from typing import Any
 
@@ -79,6 +80,61 @@ def _engine() -> Any:
     from warden.db.connection import get_engine
 
     return get_engine()
+
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+#
+# The mirror starts collecting when an operator flips FILTER_EVENTS_MIRROR on;
+# nothing backfills what came before. Without a floor, a reader asking for the
+# last 30 days would get only the rows since the flip and present them as the
+# whole window — a smaller number than the truth, with nothing to indicate it.
+# That is worse than the NDJSON scan it replaces, because the scan is at least
+# correct.
+#
+# So every reader refuses a window the mirror cannot cover and returns None,
+# which sends the caller back to the journal. `available()` cannot answer this:
+# it only reports that Postgres is configured.
+
+_COVERAGE_TTL_S = 60.0
+_coverage: tuple[float, datetime | None] | None = None   # (fetched_at, earliest ts)
+
+
+def coverage_start() -> datetime | None:
+    """Earliest mirrored event, or None when the mirror holds nothing.
+
+    One indexed MIN(ts) lookup, memoised for a minute — it only moves when the
+    oldest row is purged or the mirror is first populated.
+    """
+    global _coverage
+    now = time.monotonic()
+    if _coverage is not None and now - _coverage[0] < _COVERAGE_TTL_S:
+        return _coverage[1]
+    if not available():
+        return None
+    try:
+        from sqlalchemy import text
+
+        with _engine().connect() as conn:
+            earliest = conn.execute(
+                text("SELECT MIN(ts) FROM warden_core.filter_events")
+            ).scalar()
+        _coverage = (now, earliest)
+        return earliest
+    except Exception as exc:
+        log.debug("filter_events coverage unavailable: %s", exc)
+        return None
+
+
+def covers(since: datetime) -> bool:
+    """True when the mirror holds the whole window starting at *since*."""
+    earliest = coverage_start()
+    return earliest is not None and earliest <= since
+
+
+def reset_coverage_cache() -> None:
+    """Drop the memoised coverage floor — after a backfill or a purge."""
+    global _coverage
+    _coverage = None
 
 
 # ── Writer ────────────────────────────────────────────────────────────────────
@@ -153,6 +209,49 @@ def mirror(entry: dict) -> bool:
 
 
 
+def backfill_from_journal(days: float | None = None, *, batch: int = 500) -> dict[str, int]:
+    """Copy existing journal entries into the mirror.
+
+    Without this the mirror only ever holds what arrived after an operator
+    flipped it on, so `covers()` stays false for any useful window and every
+    reader keeps scanning — the feature would be permanently inert.
+
+    Reads the NDJSON journal, which is the authority, and inserts with the same
+    `ON CONFLICT DO NOTHING` the live path uses, so it is safe to run while
+    mirroring is active and safe to re-run. Deliberately synchronous and
+    batched: this is an operator action, not a request path.
+
+    Returns counts; never raises, because a failed backfill must leave the
+    journal and the existing mirror exactly as they were.
+    """
+    out = {"read": 0, "written": 0, "failed": 0}
+    if not available():
+        return out
+    try:
+        from sqlalchemy import text
+
+        from warden.analytics.logger import load_entries
+
+        entries = load_entries(days=days)
+        out["read"] = len(entries)
+        for i in range(0, len(entries), batch):
+            chunk = entries[i:i + batch]
+            try:
+                with _engine().begin() as conn:
+                    conn.execute(text(_INSERT), [_params(e) for e in chunk])
+                out["written"] += len(chunk)
+            except Exception as exc:
+                out["failed"] += len(chunk)
+                log.warning("filter_events backfill: batch failed: %s", exc)
+    except Exception as exc:
+        log.warning("filter_events backfill aborted: %s", exc)
+        return out
+
+    reset_coverage_cache()
+    log.info("filter_events backfill %s", out)
+    return out
+
+
 # ── GDPR erasure ──────────────────────────────────────────────────────────────
 
 def purge_before(before: datetime) -> int:
@@ -174,6 +273,7 @@ def purge_before(before: datetime) -> int:
             )
             removed = int(res.rowcount or 0)
         if removed:
+            reset_coverage_cache()   # the floor just moved forward
             log.info("filter_events mirror: purged %d rows before %s", removed, before)
         return removed
     except Exception as exc:
@@ -195,7 +295,7 @@ def purge_before(before: datetime) -> int:
 
 def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] | None:
     """Aggregate counters over [since, now). ``None`` when unavailable."""
-    if not available():
+    if not covers(since):
         return None
     try:
         from sqlalchemy import text
@@ -253,7 +353,7 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
 
 def hourly_series(since: datetime, *, tenant_id: str | None = None) -> list[dict[str, Any]] | None:
     """Hourly buckets from the continuous aggregate — the dashboard read path."""
-    if not available():
+    if not covers(since):
         return None
     try:
         from sqlalchemy import text
@@ -293,7 +393,7 @@ def blocked_flag_counts(since: datetime) -> dict[str, int] | None:
     The threat-category breakdown reporting needs; doing it in SQL turns a
     full-window scan plus a Python Counter into one grouped query.
     """
-    if not available():
+    if not covers(since):
         return None
     try:
         from sqlalchemy import text
@@ -313,7 +413,7 @@ def blocked_flag_counts(since: datetime) -> dict[str, int] | None:
 
 def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | None:
     """Most frequent detection flags in the window."""
-    if not available():
+    if not covers(since):
         return None
     try:
         from sqlalchemy import text

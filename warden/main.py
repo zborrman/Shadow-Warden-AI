@@ -493,9 +493,18 @@ async def lifespan(app: FastAPI):
     # existed in no deployment while /monitors stayed mounted. Every revision is
     # IF NOT EXISTS, so this adopts the live schema rather than recreating it.
     #
-    # create_schema() is kept strictly as the fallback: if the upgrade fails we
-    # reproduce exactly the previous behaviour, loudly. Delete the fallback once
-    # a clean run is confirmed in production.
+    # The `create_schema()` fallback that shipped alongside this is gone.
+    # Production reached revision 0013 cleanly on 2026-08-06 — monitors,
+    # probe_results and marketplace_embeddings all present, `/monitors` serving
+    # 200 — so the safety net now only obscures the thing it was there to cover:
+    # with two schema paths, a failed migration still looks like a healthy boot.
+    #
+    # A failure here is logged and the gateway continues. Not an oversight: the
+    # filter pipeline — the part that must not go down — has no Postgres
+    # dependency at all, so refusing to boot over a migration error would trade
+    # a reporting outage for a security one. The features that do need these
+    # tables fail loudly on their own, which is now the only signal, and the
+    # correct one.
     try:
         from warden.db.connection import DATABASE_URL  # noqa: PLC0415
         if DATABASE_URL:
@@ -504,16 +513,12 @@ async def lifespan(app: FastAPI):
             log.info("DB schema: alembic %s", _mig.get("status"))
     except Exception as _db_err:
         log.error(
-            "Alembic upgrade failed (%s) — falling back to create_schema(); "
-            "tables that exist only in the migration tree will be missing.",
+            "Alembic upgrade failed: %s — tables that exist only in the "
+            "migration tree will be missing (/monitors, pgvector search, "
+            "filter_events). The gateway continues; the filter pipeline does "
+            "not depend on Postgres.",
             _db_err,
         )
-        try:
-            from warden.db.connection import create_schema  # noqa: PLC0415
-            await asyncio.to_thread(create_schema)
-            log.info("DB schema verified via create_schema() fallback.")
-        except Exception as _fb_err:
-            log.warning("DB schema init failed (non-fatal): %s", _fb_err)
 
     _redactor = SecretRedactor(strict=strict)
     _guard    = SemanticGuard(strict=strict)
