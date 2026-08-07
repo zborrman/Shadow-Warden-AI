@@ -387,3 +387,56 @@ class TestAgentTurnOverage:
         row = self._overage(monkeypatch, "enterprise", turns_used=100_000)
         assert row["overage_turns"] == 0
         assert row["turn_charge_usd"] == 0.0
+
+
+# ── The published HTML, not just the source ───────────────────────────────────
+
+class TestPublishedSiteIsCurrent:
+    """
+    `landing/` is what Vercel actually serves — `vercel.json` sets
+    `buildCommand: null` and `outputDirectory: "landing"`, so the Astro source in
+    `site/` is never built at deploy time. Editing `site/` therefore changes the
+    source and leaves production untouched: the live pricing page served $19/$69
+    for two days after the corrected prices merged to main.
+
+    CI regenerates the directory on merge (`.github/workflows/deploy-site.yml`).
+    This test is the backstop for the day that workflow silently stops running —
+    it reads the published bytes and asserts they quote the canonical prices.
+    """
+
+    _LANDING = _SITE.parent / "landing"
+
+    def _published(self, page: str) -> str:
+        path = self._LANDING / page / "index.html"
+        if not path.exists():
+            pytest.skip(f"landing/{page}/ not present in this checkout")
+        return path.read_text(encoding="utf-8", errors="ignore")
+
+    @pytest.mark.parametrize("tier", ["community_business", "pro"])
+    def test_published_price_page_quotes_the_canonical_monthly_price(self, tier):
+        html = self._published("price")
+        price = f"${TIER_PRICE_USD_MONTH[tier]:g}"
+        assert price in html, (
+            f"landing/price/ does not quote {price} for {tier}. "
+            "The published site is stale — rebuild site/ and regenerate landing/."
+        )
+
+    @pytest.mark.parametrize("tier", ["individual", "community_business", "pro"])
+    def test_published_price_page_quotes_the_derived_annual_price(self, tier):
+        html = self._published("price")
+        annual = annual_price_usd(tier)
+        assert annual is not None
+        assert f"{annual:.2f}" in html, (
+            f"landing/price/ does not quote the ${annual:.2f} annual price for {tier}."
+        )
+
+    def test_published_page_carries_no_retired_price(self):
+        """The two numbers the live site was still serving after the fix."""
+        html = self._published("price")
+        # "$19" alone is not a safe marker — the Event Streaming add-on
+        # legitimately costs $19/mo. Only strings that can be a tier price.
+        for retired in ("$69<", "billed $194", "billed $705", "10,000 req / month"):
+            assert retired not in html, (
+                f"landing/price/ still carries the retired {retired!r} — "
+                "the published build predates the canonical price list."
+            )

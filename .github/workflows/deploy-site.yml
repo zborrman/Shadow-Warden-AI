@@ -11,6 +11,13 @@ on:
 permissions:
   contents: write
 
+# Two merges landing close together would race on the landing/ commit below.
+# Queue rather than cancel: a cancelled run leaves landing/ stale, which is the
+# exact failure this job exists to prevent.
+concurrency:
+  group: site-publish
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -39,3 +46,41 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site/dist
           cname: shadow-warden-ai.com
+
+      # ── Publish to Vercel ────────────────────────────────────────────────
+      # www.shadow-warden-ai.com is served by Vercel, and vercel.json sets
+      # `buildCommand: null` with `outputDirectory: "landing"` — Vercel does not
+      # build the Astro site, it serves the pre-built landing/ directory that
+      # lives in this repo. Nothing regenerated it, so editing site/ changed the
+      # source and left the published HTML untouched: on 2026-08-07 the live
+      # pricing page still showed $19/$69 two days after the corrected prices
+      # had merged to main.
+      #
+      # This step closes that gap. It is the deploy for Vercel in the same sense
+      # that the step above is the deploy for Pages.
+      - name: Regenerate landing/ (the directory Vercel serves)
+        working-directory: .
+        run: |
+          set -euo pipefail
+          rm -rf landing
+          cp -r site/dist landing
+
+          if git diff --quiet -- landing; then
+            echo "landing/ already matches a fresh build — nothing to publish."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add landing
+
+          # [skip ci] is belt-and-braces: this workflow's path filter is
+          # `site/**`, so a landing-only commit cannot retrigger it anyway.
+          git commit -m "chore(site): regenerate landing/ from site/ [skip ci]"
+
+          # The push event checks out a detached SHA, so name the branch
+          # explicitly. Rebase first in case another merge landed meanwhile.
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+          echo "Published $(git diff --name-only HEAD~1 -- landing | wc -l) changed file(s) to landing/."
