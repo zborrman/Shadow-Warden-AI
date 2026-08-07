@@ -2492,6 +2492,10 @@ async def _run_filter_pipeline(
             content    = payload.content,
             flags      = guard_result.flags,
             risk_level = guard_result.risk_level,
+            # Attribution for the per-tenant fairness share only — the engine
+            # still charges its spend to the platform cost centre, because a
+            # rule learned from one tenant's attack protects every tenant.
+            tenant_id  = tenant_id,
         )
         log.info(json.dumps({"event": "evolution_queued", "request_id": rid}))
 

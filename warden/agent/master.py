@@ -280,8 +280,9 @@ async def _post_approval_request(token: str, action: str, context: str) -> None:
 # ── FinOps: cost attribution + budget-aware model choice ─────────────────────
 # MasterAgent is the most expensive path in the product (Opus, fanned out across
 # sub-agents, included in the Pro plan) and until FM-7 it recorded no cost at
-# all — its spend was invisible to per-tenant margin. Both helpers are fail-open:
-# a FinOps fault must never stop a SOC investigation.
+# all — its spend was invisible to per-tenant margin. Both helpers degrade
+# rather than raise, and count the bypass: a FinOps fault must never stop a SOC
+# investigation, but it must not be silent either.
 
 def _pick_model(tenant_id: str, agent_type: SubAgent) -> str:
     """Most capable model in `_MODEL_LADDER` the tenant's LLM budget still affords."""

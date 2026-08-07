@@ -176,11 +176,22 @@ async def _generate_probes(attack_class: str, n: int) -> list[str]:
         import anthropic  # noqa: PLC0415
         client = anthropic.AsyncAnthropic(api_key=_ANTHROPIC)
         prompt = _GENERATION_PROMPT.format(n=n, attack_class=attack_class)
+        # Platform-internal: budgeted + costed against the platform centre.
+        from warden.finops.llm_budget import (
+            choose_platform_model,
+            record_platform_cost,
+        )
+        model = choose_platform_model(
+            ["claude-sonnet-4-6", _MODEL],
+            agent="red_team",
+            est_output_tokens=2048,
+        ).model
         response = await client.messages.create(
-            model=_MODEL,
+            model=model,
             max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
+        record_platform_cost("red_team", "generate_probes", model, response.usage)
         raw = response.content[0].text.strip()  # type: ignore[union-attr]
         start = raw.find("[")
         end   = raw.rfind("]") + 1

@@ -227,6 +227,47 @@ def _record_cost(model: str, usage: object) -> None:
         record_failopen("evolution_cost", Reason.BACKEND_ERROR, exc)
 
 
+def _tenant_share_max() -> int:
+    """
+    Max evolution calls one tenant may take from a single rate window.
+
+    Without this, the global cap is first-come-first-served: one free-tier
+    attacker generating novel blocked prompts consumes the whole window and
+    paying tenants get no new rules from their own traffic. The share is a
+    fraction of the global cap, floored at one so a tenant is never shut out.
+    """
+    rate_max = int(os.getenv("EVOLUTION_RATE_MAX", str(EVOLUTION_RATE_MAX)))
+    share = float(os.getenv("EVOLUTION_TENANT_SHARE", "0.5"))
+    return max(1, int(rate_max * max(0.0, min(1.0, share))))
+
+
+def _is_tenant_share_exceeded(tenant_id: str) -> bool:
+    """
+    True when *tenant_id* has already used its slice of the current window.
+
+    Same fixed-window counter as the global gate, keyed per tenant with the
+    same TTL, so the two reset together. Without Redis there is no fairness
+    gate — availability of the detection loop outranks fairness between
+    tenants — and each such bypass is counted.
+    """
+    if not tenant_id:
+        return False
+    r = _get_redis()
+    if r is None:
+        return False
+    rate_window = int(os.getenv("EVOLUTION_RATE_WINDOW", str(EVOLUTION_RATE_WINDOW)))
+    key = f"{_RATE_KEY}:tenant:{tenant_id}"
+    try:
+        count = r.incr(key)
+        if count == 1:
+            r.expire(key, rate_window)
+        return int(count) > _tenant_share_max()
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("evolution_tenant_share", Reason.REDIS_UNAVAILABLE, exc)
+        return False
+
+
 def _is_rate_limited() -> bool:
     """Return True when the EvolutionEngine is over its Claude Opus API budget.
 
@@ -486,6 +527,7 @@ class EvolutionEngine:
         content:    str,
         flags:      list[SemanticFlag],
         risk_level: RiskLevel,
+        tenant_id:  str = "",
     ) -> EvolutionResult | None:
         """
         Analyse a blocked attack and generate a new detection rule.
@@ -495,6 +537,7 @@ class EvolutionEngine:
           • corpus cap (MAX_CORPUS_RULES) is reached
           • this exact content was already processed (dedup by SHA-256)
           • the call-rate cap (EVOLUTION_RATE_MAX / EVOLUTION_RATE_WINDOW) is exceeded
+          • this tenant has used its share of the window (EVOLUTION_TENANT_SHARE)
           • today's spend has reached EVOLUTION_DAILY_BUDGET_USD
           • the Claude API call fails               (error logged, not raised)
         """
@@ -528,6 +571,18 @@ class EvolutionEngine:
             log.warning(
                 "EvolutionEngine: rate limit reached (%d calls per %ds window) — skipping.",
                 EVOLUTION_RATE_MAX, EVOLUTION_RATE_WINDOW,
+            )
+            return None
+
+        # ── 4a. Per-tenant fairness share ───────────────────────────────
+        # Checked after the global gate so a quiet system still lets any single
+        # tenant through, and before the LLM call so an unfair request costs
+        # nothing.
+        if _is_tenant_share_exceeded(tenant_id):
+            EVOLUTION_SKIPPED_TOTAL.labels(reason="tenant_share").inc()
+            log.info(
+                "EvolutionEngine: tenant %s over its window share (%d) — skipping.",
+                tenant_id[:12], _tenant_share_max(),
             )
             return None
 

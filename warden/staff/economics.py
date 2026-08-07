@@ -64,6 +64,7 @@ class ActionCost:
     input_tokens: int
     output_tokens: int
     cost_usd: float
+    cached_tokens: int = 0
     ts: int = field(default_factory=lambda: int(time.time()))
 
 
@@ -85,12 +86,34 @@ _STAFF_DDL = """
 register("staff_economics", "staff_economics", _STAFF_DDL)
 
 
+def _ensure_columns(con: sqlite3.Connection) -> None:
+    """
+    Add columns that post-date the original table.
+
+    `ALTER TABLE … ADD COLUMN` is not idempotent — it errors when the column is
+    already there — so it cannot live in the registered DDL, which is replayed
+    whenever its checksum changes. Same suppress-per-connect pattern as
+    `marketplace/agent.py`.
+
+    `cached_tokens` is what makes prompt-cache savings *reportable*: the rate
+    already discounts them to 10% of the input rate, but without the count
+    stored we can apply the saving and never show it.
+    """
+    for col, defn in [("cached_tokens", "INTEGER NOT NULL DEFAULT 0")]:
+        try:
+            con.execute(f"ALTER TABLE staff_action_costs ADD COLUMN {col} {defn}")
+            con.commit()
+        except Exception:   # the column is already there
+            pass
+
+
 @contextmanager
 def _conn(path: str = _DB_PATH) -> Generator[sqlite3.Connection, None, None]:
     """Yield a SQLite or Turso connection for the staff economics database."""
     with open_db(
         "staff_economics", path, turso_name="staff", module_default_path=_DB_PATH
     ) as con:
+        _ensure_columns(con)
         yield con
 
 
@@ -127,15 +150,17 @@ class TokenCostTracker:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost,
+            cached_tokens=cached_tokens,
         )
         try:
             with _conn(self._db_path) as conn:
                 conn.execute(
                     "INSERT INTO staff_action_costs "
-                    "(tenant_id,agent_id,action,model,input_tokens,output_tokens,cost_usd,ts) "
-                    "VALUES (?,?,?,?,?,?,?,?)",
+                    "(tenant_id,agent_id,action,model,input_tokens,output_tokens,"
+                    " cached_tokens,cost_usd,ts) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
                     (tenant_id, agent_id, action, model,
-                     input_tokens, output_tokens, cost, entry.ts),
+                     input_tokens, output_tokens, cached_tokens, cost, entry.ts),
                 )
             log.debug(
                 "ECONOMICS: tenant=%s agent=%s action=%s model=%s cost=$%.6f",
@@ -224,6 +249,58 @@ class TokenCostTracker:
 
     def get_total_cost(self, tenant_id: str, days: int = 30) -> float:
         return self.get_report(tenant_id, days).get("total_cost_usd", 0.0)
+
+    def get_turns_since(
+        self, tenant_id: str, since_ts: int, agent_prefix: str = "master"
+    ) -> int:
+        """
+        Count agent turns for a tenant since a timestamp.
+
+        One row = one model call = one billable turn. `agent_prefix` selects the
+        sold surface — MasterAgent records itself as `master:<sub_agent>`, so the
+        default counts exactly what "MasterAgent included in Pro" covers and
+        leaves platform-internal spend (evolution, healer) out of the customer's
+        allowance. Fail-open: an unreadable DB counts as zero turns used, which
+        never over-bills.
+        """
+        try:
+            with _conn(self._db_path) as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS n FROM staff_action_costs "
+                    "WHERE tenant_id = ? AND ts >= ? AND agent_id LIKE ?",
+                    (tenant_id, int(since_ts), f"{agent_prefix}%"),
+                ).fetchone()
+            return int(row["n"] if row else 0)
+        except Exception as exc:
+            record_failopen("staff_economics", Reason.BACKEND_ERROR, exc)
+            return 0
+
+    def get_cache_savings_since(self, tenant_id: str, since_ts: int) -> float:
+        """
+        USD saved by prompt-cache reads since a timestamp.
+
+        Cached input tokens bill at `CACHE_READ_DISCOUNT` of the fresh input
+        rate; the saving is the difference, rated per row against that row's own
+        model. Rows written before `cached_tokens` existed default to 0 and
+        contribute nothing — they under-report the saving rather than invent it.
+        """
+        try:
+            with _conn(self._db_path) as conn:
+                rows = conn.execute(
+                    "SELECT model, SUM(cached_tokens) AS cached FROM staff_action_costs "
+                    "WHERE tenant_id = ? AND ts >= ? GROUP BY model",
+                    (tenant_id, int(since_ts)),
+                ).fetchall()
+            return round(
+                sum(
+                    rate_usage(r["model"], 0, 0, int(r["cached"] or 0)).cache_savings_usd
+                    for r in rows
+                ),
+                6,
+            )
+        except Exception as exc:
+            record_failopen("staff_economics", Reason.BACKEND_ERROR, exc)
+            return 0.0
 
     def get_cost_since(self, tenant_id: str, since_ts: int) -> float:
         """

@@ -43,7 +43,7 @@ ALLOW_UNAUTHENTICATED=true WARDEN_API_KEY="" REDIS_URL="memory://" \
 | Var | Default | Notes |
 |-----|---------|-------|
 | `X402_GATE_ENABLED` | `false` | Enable per-search payment gate |
-| `MARKETPLACE_SEARCH_FEE_USD` | `0.000001` | Per-search USDC cost |
+| `MARKETPLACE_SEARCH_FEE_USD` | `0.001` | Per-search USDC cost (= 1 prepaid credit) |
 | `MARKETPLACE_X402_DB_PATH` | `/tmp/warden_x402_marketplace.db` | Gate DB |
 | `MARKETPLACE_TAKE_RATE` | `0.015` | Platform commission (1.5%) |
 | `PLATFORM_WALLET_ADDRESS` | `` | Settlement wallet (v2) |

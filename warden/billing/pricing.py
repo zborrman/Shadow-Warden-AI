@@ -69,6 +69,41 @@ ANNUAL_DISCOUNT: float = 0.15
 # "what we may spend serving it" are one decision, not two.
 TARGET_GROSS_MARGIN: float = 0.75
 
+# ── Metered marketplace pricing ───────────────────────────────────────────────
+# One marketplace search costs one credit. There are two ways to pay for it —
+# a prepaid credit (no wallet needed) and an x402 nanopayment — and they must
+# quote the SAME number. They did not: the x402 gate defaulted to $0.000001
+# while a credit cost $0.001, a 1000x gap for identical work, so which rail an
+# agent happened to use decided what the search was worth.
+CREDIT_USD: float = 0.001
+MARKETPLACE_SEARCH_FEE_USD: float = CREDIT_USD
+
+# Metered price of one agent turn beyond a plan's included allowance
+# (see AGENT_TURN_ALLOWANCE below). An Opus turn costs us about $0.12.
+AGENT_TURN_OVERAGE_USD: float = 0.15
+
+# Included agent turns per month, by tier. Sized from the tier's own LLM budget
+# at Opus rates and rounded to a number a customer can reason about: "MasterAgent
+# included" really means "this many Opus turns included", and leaving that
+# implicit is how an unbounded cost gets sold as a feature.
+#
+# 0 means the agent surface is not sold on that tier at all. These must line up
+# with `master_agent_enabled` in the feature gate — an allowance published for a
+# tier that cannot call the agent is a promise the product does not keep.
+AGENT_TURN_ALLOWANCE: dict[str, int | None] = {
+    "trial":              0,      # the Pro trial explicitly excludes MasterAgent
+    "starter":            0,
+    "individual":         0,
+    "community_business": 0,
+    "pro":                200,
+    "enterprise":         None,   # None = unlimited (negotiated)
+}
+
+
+def agent_turn_allowance(tier: str) -> int | None:
+    """Included agent turns per month. None = unlimited; 0 = feature not sold."""
+    return AGENT_TURN_ALLOWANCE.get(canonical_tier(tier), 0)
+
 
 def monthly_price_usd(tier: str) -> float | None:
     """List price per month, or None for an unpriced/custom tier."""

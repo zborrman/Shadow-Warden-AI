@@ -5,19 +5,19 @@ Overage billing — automatic charge triggers when quotas are exceeded.
 
 Strategy per tier
 ─────────────────
-  Individual ($5/mo)
-    Hard stop — no overage. HTTP 402 with upgrade link.
-    Upsell: "Upgrade to Business for 10× storage and file sharing."
+  Starter / Individual / Community Business
+    Hard stop — no overage. HTTP 402 with an upgrade link.
 
-  Business ($49/mo)
-    Soft limit — overage enabled. No service interruption.
-    Charges: +$5.00 per 50 GB storage OR bandwidth pack (auto-charged).
-    Lemon Squeezy: redirect to upgrade checkout or fire overage webhook.
+  Pro ($99.99/mo)
+    Soft limit — overage enabled, no service interruption.
+    $0.50 per 1 000 excess requests · $0.10/GB storage and bandwidth.
 
-  MCP ($199/mo)
-    Soft limit — overage enabled at lower unit price ($0.04/GB).
-    Expansion pack: +$40.00 per 1 TB storage block (purchasable in advance).
-    Lemon Squeezy: redirect to expansion pack checkout URL.
+  Enterprise ($249/mo)
+    Soft limit at the custom-SLA rate: $0.10 per 1 000 requests, $0.04/GB.
+
+  Tier names and prices come from warden/billing/pricing.py. The tiers this
+  module used to describe — "Business $49" and "MCP $199" — were retired; the
+  upgrade links it built pointed at plans that no longer exist.
 
 Referral Growth Mechanics
 ──────────────────────────
@@ -139,24 +139,32 @@ def resolve_overage(
     }
 
 
+# Upgrade ladder over the canonical tiers. The old map sent every tier to
+# "business" or "mcp", plan names that were retired — the CTA on a 402 led to a
+# checkout that could not exist.
+_NEXT_TIER = {
+    "starter":            "individual",
+    "individual":         "community_business",
+    "community_business": "pro",
+    "pro":                "enterprise",
+    "enterprise":         "enterprise",   # top of the ladder — contact sales
+}
+
+
 def get_upgrade_url(tier: str, metric: str) -> str:
-    """
-    Return upgrade CTA URL for hard-quota 402 responses.
-    Links to Lemon Squeezy checkout for the next tier.
-    """
-    next_tier = "business" if tier == "individual" else "mcp"
+    """Upgrade CTA URL for hard-quota 402 responses (next canonical tier)."""
+    from warden.billing.pricing import canonical_tier
+    current   = canonical_tier(tier)
+    next_tier = _NEXT_TIER.get(current, "pro")
     base_url  = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
-    return f"{base_url}/billing/upgrade?from={tier}&to={next_tier}&reason={metric}"
+    return f"{base_url}/billing/upgrade?from={current}&to={next_tier}&reason={metric}"
 
 
 def get_overage_pack_url(tier: str, metric: str) -> str:
-    """
-    Return URL to purchase an overage expansion pack.
-
-    Business: $5 for 50 GB.  MCP: $40 for 1 TB.
-    """
+    """URL to buy a capacity pack instead of upgrading a plan."""
+    from warden.billing.pricing import canonical_tier
     base_url = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
-    return f"{base_url}/billing/overage-pack?tier={tier}&metric={metric}"
+    return f"{base_url}/billing/overage-pack?tier={canonical_tier(tier)}&metric={metric}"
 
 
 # ── Referral system ───────────────────────────────────────────────────────────

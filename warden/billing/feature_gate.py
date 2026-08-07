@@ -7,7 +7,7 @@ Tiers (aligned with Lemon Squeezy monetization)
 ────────────────────────────────────────────────
   starter            $0/mo      — Developers / Testing    1 000 req/mo
   individual         $5/mo      — Solo Devs / Hobbyists   5 000 req/mo  (+$9/mo XAI add-on)
-  community_business $39.99/mo  — SMB one-click           10 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
+  community_business $39.99/mo  — SMB one-click           15 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
   pro                $99.99/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
   enterprise         $249/mo    — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
 
@@ -90,9 +90,14 @@ from typing import Any
 
 from fastapi import Depends, HTTPException, Request
 
+from warden.billing.pricing import (
+    AGENT_TURN_OVERAGE_USD,
+    TIER_PRICE_USD_MONTH,
+    agent_turn_allowance,
+    canonical_tier,
+)
 from warden.billing.pricing import ANNUAL_DISCOUNT as _ANNUAL_DISCOUNT
 from warden.billing.pricing import ANNUAL_PRICING as _ANNUAL_PRICING
-from warden.billing.pricing import TIER_PRICE_USD_MONTH, canonical_tier
 
 log = logging.getLogger("warden.billing.feature_gate")
 
@@ -369,7 +374,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
 
     # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
     "community_business": {
-        "req_per_month":               10_000,
+        "req_per_month":               15_000,
         "overage_enabled":             False,
         "trial_eligible":              True,    # can activate 14-day Pro trial
         # Core (always on)
@@ -655,11 +660,23 @@ class FeatureGate:
         """Canonical list price of this tier (None = custom/unpriced)."""
         return TIER_PRICE_USD_MONTH.get(self.tier)
 
+    def agent_turns_per_month(self) -> int | None:
+        """
+        Included MasterAgent turns per month. None = unlimited, 0 = not sold.
+
+        Published rather than implicit: "MasterAgent included" is really "this
+        many Opus turns included", and an unpublished allowance is an unbounded
+        cost sold as a feature.
+        """
+        return agent_turn_allowance(self.tier)
+
     def as_dict(self) -> dict[str, Any]:
         """Return all limits as a serializable dict (for /billing/tiers endpoint)."""
         d = dict(self.limits)
         d["tier"] = self.tier
         d["usd_per_month"]   = self.monthly_price_usd()
+        d["agent_turns_per_month"]  = self.agent_turns_per_month()
+        d["agent_turn_overage_usd"] = AGENT_TURN_OVERAGE_USD
         d["overage_prices"]  = OVERAGE_PRICES.get(self.tier, {})
         d["annual_pricing"]  = ANNUAL_PRICING.get(self.tier, {})
         d["annual_discount"] = ANNUAL_DISCOUNT

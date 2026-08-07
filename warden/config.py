@@ -1169,6 +1169,12 @@ class Settings:
     ls_variant_power_bundle: str = field(
         default_factory=lambda: _env("LS_VARIANT_POWER_BUNDLE", "")
     )
+    ls_variant_pqc_pack: str = field(
+        default_factory=lambda: _env("LS_VARIANT_PQC_PACK", "")
+    )
+    ls_variant_sovereign_pack: str = field(
+        default_factory=lambda: _env("LS_VARIANT_SOVEREIGN_PACK", "")
+    )
 
     # ── Compliance posture (warden/compliance/posture_service.py) ───────────────
     compliance_cache_ttl: int = field(
@@ -1229,7 +1235,7 @@ class Settings:
     # NB: kept as raw strings (not bool/float) — agent_card.py serialises these
     # verbatim into the public JSON discovery document, matching prior behaviour.
     marketplace_search_fee_usd: str = field(
-        default_factory=lambda: _env("MARKETPLACE_SEARCH_FEE_USD", "0.000001")
+        default_factory=lambda: _env("MARKETPLACE_SEARCH_FEE_USD", "0.001")
     )
     x402_gate_enabled: str = field(
         default_factory=lambda: _env("X402_GATE_ENABLED", "false")
