@@ -91,7 +91,7 @@ guard); all 16 `/filter` e2e + batch tests green.
   router in `warden/api/filter.py` that calls the service.
 - Stage instances come from `runtime` (published in Phase 1), so the service has no
   `main` dependency.
-- Invariants preserved verbatim: x402 fail-open, GDPR content-never-logged, all 32
+- Invariants preserved verbatim: x402 fail-open, GDPR content-never-logged, all 37
   Playwright assertions, `<link rel="agent-protocol">`, Decimal clearing math.
 - Verification: existing `/filter` end-to-end tests unchanged; add
   `test_pipeline_service.py` calling the service directly.
@@ -174,11 +174,11 @@ safe to land incrementally):**
 | 4 Registration + guard | wiring + lint | low | own PR |
 
 Each phase is independently shippable, changes **no external API**, and is gated by
-the existing CI (4305 tests, ≥75% coverage, ruff + mypy, Docker smoke, 32 Playwright).
+the existing CI (4305 tests, ≥75% coverage, ruff + mypy, Docker smoke, 37 Playwright).
 Do phases in order — Phase 1 unblocks 2–4 by making `runtime` the shared-state seam.
 
 ## 8. Invariants the refactor must never touch
 
-`<link rel="agent-protocol">` · `clearing.py` Decimal math · x402 fail-open · all 32
+`<link rel="agent-protocol">` · `clearing.py` Decimal math · x402 fail-open · all 37
 Playwright assertions · GDPR content-never-logged · Digital-Staff STAFF-01…05 ·
 `resolve_key` fail-closed signing · `net_guard` SSRF filter on outbound URLs.

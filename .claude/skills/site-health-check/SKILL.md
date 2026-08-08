@@ -16,13 +16,14 @@ Runs a structured audit of the Shadow Warden AI frontend for both human and AI-a
 
 ## Steps
 
-### 1. Playwright Smoke Tests (32 assertions)
+### 1. Playwright Smoke Tests (37 assertions)
 
 ```bash
 cd site && npm run build && npx playwright test --reporter=list
 ```
 
-All 32 assertions must pass. Any failure blocks deploy.
+All 37 assertions must pass (the `chromium` project; the `mobile` project re-runs
+29 of them and skips 8). Any failure blocks deploy.
 
 ### 2. Agent Discovery Endpoints
 
@@ -111,7 +112,7 @@ Output a summary table:
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| Playwright (32) | PASS / FAIL | # failed |
+| Playwright (37) | PASS / FAIL | # failed |
 | ADP /.well-known/agent.json | PASS / FAIL | HTTP status |
 | llms.txt | PASS / FAIL | First line |
 | WebMCP attributes | PASS / FAIL | Match count |
@@ -123,7 +124,7 @@ If any check FAILS, open a GitHub PR with the fix before deploying. Never deploy
 ## Integration with Autonomous Security Loop
 
 The `Heartbeat` step in `workflows/autonomous-security-loop.md` runs:
-1. Playwright 32 tests
+1. Playwright 37 tests
 2. `ruff check` + `mypy`
 
 After those pass, this skill adds the Agentic Web checks (steps 2–5 above) as a post-heartbeat gate. If the Agentic Web gate fails, the loop treats it as DEGRADED (not UNHEALTHY) — it logs the failure and continues without blocking the security audit.

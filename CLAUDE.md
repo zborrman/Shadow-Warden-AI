@@ -25,14 +25,16 @@ The project runs a nightly autonomous audit cycle at 02:00 UTC via `.github/work
 **Blueprint:** `workflows/autonomous-security-loop.md`  
 **Memory log:** `memory/progress.md`
 
-Sequence: Heartbeat (Playwright 32 tests + ruff + mypy) → if unhealthy: git worktree isolation → Maker sub-agent drafts fix → Checker sub-agent audits → verification (ruff + mypy + Playwright + pytest) → PR auto-opened.
+Sequence: Heartbeat (Playwright 37 tests + ruff + mypy) → if unhealthy: git worktree isolation → Maker sub-agent drafts fix → Checker sub-agent audits → verification (ruff + mypy + Playwright + pytest) → PR auto-opened.
 
 **Manual trigger:**
 ```bash
 claude --print "$(cat workflows/autonomous-security-loop.md)"
 ```
 
-**Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 32 Playwright assertions, GDPR content-never-logged rule.
+**Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 37 Playwright assertions, GDPR content-never-logged rule.
+The assertion count is ratcheted: the heartbeat's `E2E_MIN_ASSERTIONS` floor (37) makes
+a *deleted* spec read as unhealthy, which `unexpected == 0` alone never caught.
 
 ## Digital Staff Invariants (STAFF-01…STAFF-05)
 

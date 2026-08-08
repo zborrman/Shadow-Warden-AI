@@ -55,7 +55,7 @@ curl -s http://localhost:9090/api/v1/query \
 If all Playwright tests pass AND no BLOCK count exceeds 50 AND P99 < 200ms:
 
 ```bash
-echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) — System Healthy. All 32 E2E tests passed. No anomalies." \
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) — System Healthy. All 37 E2E tests passed. No anomalies." \
   >> memory/progress.md
 exit 0
 ```
@@ -136,7 +136,10 @@ CONSTRAINTS (DO NOT VIOLATE):
 - Never modify warden/marketplace/clearing.py take-rate Decimal math
 - Never remove <link rel='agent-protocol'> from BaseLayout.astro
 - Never break /.well-known/agent.json endpoint
-- Never change the 32 Playwright test selectors (use evaluate() for hidden checkboxes)
+- Never change the 37 Playwright test selectors (use evaluate() for hidden checkboxes)
+- Never delete a Playwright spec to make a run go green — the heartbeat asserts the
+  chromium project still runs at least `E2E_MIN_ASSERTIONS` (37) tests and reports
+  `playwright_assertion_loss` if the suite shrinks. Raise the floor when specs are added.
 - x402 PAYMENT-SIGNATURE header name is canonical — do not rename
 
 YOUR TASK:
@@ -241,7 +244,7 @@ gh pr create \
 
 **Issue detected:** $ISSUE_TYPE
 **Loop rounds:** $round / $MAX_MAKER_CHECKER_ROUNDS
-**All checks passed:** ruff ✓ mypy ✓ Playwright 32/32 ✓ pytest ✓
+**All checks passed:** ruff ✓ mypy ✓ Playwright 37/37 ✓ pytest ✓
 
 ## Changes
 $(cat FIX_SUMMARY.md)
@@ -314,6 +317,6 @@ Status values: `System Healthy` · `Loop Started` · `Worktree Created` · `Make
 | `site/src/layouts/BaseLayout.astro` | `<link rel="agent-protocol">` |
 | `warden/marketplace/clearing.py` | Decimal take-rate math |
 | `warden/marketplace/x402_gate.py` | Fail-open pattern + PAYMENT-SIGNATURE header |
-| `site/tests/e2e/marketplace.spec.ts` | All 32 test assertions (fix the app, not the test) |
+| `site/tests/e2e/marketplace.spec.ts` | All 37 test assertions (fix the app, not the test) |
 | `warden/analytics/logger.py` | GDPR: content never logged |
 | `docker-compose.yml` | `stop_grace_period: 30s` on warden service |
