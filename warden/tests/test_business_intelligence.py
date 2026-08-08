@@ -313,15 +313,23 @@ class TestService:
             _cleanup(paths)
 
     def test_usage_summary_with_events(self):
+        """Uses the schema `build_entry()` actually writes.
+
+        This test passed for months while production reported zero traffic,
+        because it fabricated a journal in a schema the gateway has never
+        produced — `timestamp`/`verdict`/`processing_ms` instead of
+        `ts`/`risk_level`/`elapsed_ms`. The test agreed with the bug, so the
+        bug was invisible from here. See test_bi_usage_summary.py.
+        """
         env, paths = _env()
         import json
         logs_path = paths[4]
         now_prefix = "2026-01"
         entries = [
-            {"tenant_id": "t1", "timestamp": f"{now_prefix}-15T10:00:00Z", "verdict": "ALLOW", "processing_ms": 10},
-            {"tenant_id": "t1", "timestamp": f"{now_prefix}-15T11:00:00Z", "verdict": "BLOCK", "processing_ms": 20},
-            {"tenant_id": "t1", "timestamp": f"{now_prefix}-16T09:00:00Z", "verdict": "ALLOW", "processing_ms": 15},
-            {"tenant_id": "other", "timestamp": f"{now_prefix}-16T09:00:00Z", "verdict": "ALLOW", "processing_ms": 5},
+            {"tenant_id": "t1", "ts": f"{now_prefix}-15T10:00:00+00:00", "risk_level": "low",   "elapsed_ms": 10},
+            {"tenant_id": "t1", "ts": f"{now_prefix}-15T11:00:00+00:00", "risk_level": "block", "elapsed_ms": 20},
+            {"tenant_id": "t1", "ts": f"{now_prefix}-16T09:00:00+00:00", "risk_level": "low",   "elapsed_ms": 15},
+            {"tenant_id": "other", "ts": f"{now_prefix}-16T09:00:00+00:00", "risk_level": "low", "elapsed_ms": 5},
         ]
         with open(logs_path, "w") as f:
             for e in entries:
@@ -329,8 +337,12 @@ class TestService:
         env["LOGS_PATH"] = logs_path
         try:
             with mock.patch.dict(os.environ, env):
+                import warden.analytics.logger as journal
                 import warden.business_intelligence.repository as repo
                 import warden.business_intelligence.service as svc
+                # `logger.LOGS_PATH` is resolved at import; reload it too or the
+                # env override above is read by nobody.
+                importlib.reload(journal)
                 importlib.reload(repo)
                 importlib.reload(svc)
                 result = svc.get_usage_summary("t1", now_prefix)

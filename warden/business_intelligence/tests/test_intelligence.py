@@ -188,8 +188,14 @@ class TestService:
         with mock.patch.dict(os.environ, env):
             import importlib
 
+            import warden.analytics.logger as journal
             import warden.business_intelligence.repository as repo
             import warden.business_intelligence.service as svc
+            # BI no longer resolves its own journal path — it asks
+            # `logger.load_entries()`, and `logger.LOGS_PATH` is bound at
+            # import. Without reloading it too, the LOGS_PATH set above is read
+            # by nobody and this reads whatever journal the session already had.
+            importlib.reload(journal)
             importlib.reload(repo)
             importlib.reload(svc)
             result = svc.get_usage_summary(_tid())

@@ -484,6 +484,79 @@ def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | No
         return None
 
 
+def usage_summary(
+    period_start: datetime,
+    period_end: datetime,
+    *,
+    tenant_id: str,
+) -> dict[str, Any] | None:
+    """Per-tenant usage over a calendar month, for `business_intelligence`.
+
+    Tenant matching mirrors the scan it replaces: the tenant's own rows plus
+    rows written before a tenant was attributed (empty or `default`).
+
+    "Categories" are detection **flags**. BI previously read `category` and
+    `type`, neither of which the journal has ever written, so every row landed
+    in a bucket called `unknown`; flags are the nearest thing that exists.
+    """
+    if not covers(period_start):
+        return None
+    try:
+        from sqlalchemy import text
+
+        args = {"start": period_start, "end": period_end, "tid": tenant_id}
+        with _engine().connect() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT
+                        COUNT(*)                                          AS total,
+                        COUNT(*) FILTER (
+                            WHERE upper(risk_level) IN ('HIGH', 'BLOCK'))  AS blocked,
+                        AVG(elapsed_ms)                                    AS avg_ms
+                    FROM warden_core.filter_events
+                    WHERE ts >= :start AND ts < :end
+                      AND (tenant_id = :tid OR tenant_id IN ('', 'default'))
+                """),
+                args,
+            ).fetchone()
+            if row is None:
+                return None
+
+            daily_rows = conn.execute(
+                text("""
+                    SELECT to_char(ts, 'YYYY-MM-DD') AS day, COUNT(*) AS n
+                    FROM warden_core.filter_events
+                    WHERE ts >= :start AND ts < :end
+                      AND (tenant_id = :tid OR tenant_id IN ('', 'default'))
+                    GROUP BY day ORDER BY day
+                """),
+                args,
+            ).fetchall()
+
+            flag_rows = conn.execute(
+                text("""
+                    SELECT flag, COUNT(*) AS n
+                    FROM warden_core.filter_events, UNNEST(flags) AS flag
+                    WHERE ts >= :start AND ts < :end
+                      AND (tenant_id = :tid OR tenant_id IN ('', 'default'))
+                    GROUP BY flag ORDER BY n DESC LIMIT 5
+                """),
+                args,
+            ).fetchall()
+
+        d = dict(row._mapping)
+        return {
+            "total": int(d["total"] or 0),
+            "blocked": int(d["blocked"] or 0),
+            "avg_ms": round(float(d["avg_ms"]), 2) if d["avg_ms"] is not None else 0.0,
+            "categories": [(r[0], int(r[1])) for r in flag_rows],
+            "daily": [(r[0], int(r[1])) for r in daily_rows],
+        }
+    except Exception as exc:
+        log.debug("filter_events usage_summary unavailable: %s", exc)
+        return None
+
+
 def compliance_report_stats(since: datetime) -> dict[str, Any] | None:
     """The eight figures `api/compliance_report.py` puts in front of a regulator.
 

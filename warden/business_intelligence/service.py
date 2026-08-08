@@ -13,7 +13,6 @@ Data sources (all read-only):
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -29,7 +28,9 @@ log = logging.getLogger("warden.business_intelligence.service")
 _SEP_DB   = data_path("warden_sep.db", "SEP_DB_PATH")
 _VENDOR_DB = data_path("warden_vendor.db", "VENDOR_GOV_DB_PATH")
 _COST_DB  = data_path("warden_costs.db", "COST_ALLOC_DB_PATH")
-_LOGS_PATH = data_path("warden_logs.json", "LOGS_PATH")
+# No journal path here on purpose. This module used to resolve its own
+# (`warden_logs.json`, a name the journal has never had) and silently read
+# nothing. `warden.analytics.logger` owns where the journal lives.
 
 
 def _open(db_path: str) -> sqlite3.Connection:
@@ -45,6 +46,76 @@ def _cache_key(*parts: str) -> str:
 
 # ── AI Usage Analytics ─────────────────────────────────────────────────────────
 
+def _month_bounds(period_month: str) -> tuple[datetime, datetime]:
+    """`"YYYY-MM"` → [first instant of the month, first instant of the next)."""
+    start = datetime.strptime(period_month, "%Y-%m").replace(tzinfo=UTC)
+    end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return start, end
+
+
+def _usage_from_mirror(tenant_id: str, period_month: str) -> dict | None:
+    try:
+        from warden.analytics.events_store import usage_summary
+
+        start, end = _month_bounds(period_month)
+        return usage_summary(start, end, tenant_id=tenant_id)
+    except Exception as exc:
+        log.debug("BI usage: mirror unavailable, scanning journal: %s", exc)
+        return None
+
+
+def _usage_from_journal(tenant_id: str, period_month: str) -> dict:
+    """Fallback scan — via `logger.load_entries()`, not a path of our own.
+
+    This module used to open `data_path("warden_logs.json", "LOGS_PATH")`
+    directly. With `LOGS_PATH` unset, as it is in production, that resolves to
+    `warden_logs.json` — a file that has never existed; the journal is
+    `logs.json`. The `except FileNotFoundError: pass` turned that into zeros
+    rather than an error, so BI's usage summary reported no traffic at all.
+
+    Three more field names were wrong underneath it (`timestamp` for `ts`,
+    `verdict` for `risk_level`, `processing_ms` for `elapsed_ms`), so fixing
+    only the filename would still have produced zeros. `logger` owns the
+    journal's location and schema; there is no second resolver here now.
+    """
+    from warden.analytics.logger import load_entries
+
+    start, end = _month_bounds(period_month)
+    total = blocked = 0
+    latencies: list[float] = []
+    categories: dict[str, int] = {}
+    daily: dict[str, int] = {}
+
+    for ev in load_entries():
+        if ev.get("tenant_id", "") not in ("", "default", tenant_id):
+            continue
+        ts = str(ev.get("ts", ""))
+        try:
+            when = datetime.fromisoformat(ts)
+        except ValueError:
+            continue
+        if not (start <= when < end):
+            continue
+        total += 1
+        if str(ev.get("risk_level", "")).upper() in ("BLOCK", "HIGH"):
+            blocked += 1
+        ms = ev.get("elapsed_ms")
+        if isinstance(ms, (int, float)):
+            latencies.append(float(ms))
+        for flag in ev.get("flags") or []:
+            categories[flag] = categories.get(flag, 0) + 1
+        day = ts[:10]
+        daily[day] = daily.get(day, 0) + 1
+
+    return {
+        "total": total,
+        "blocked": blocked,
+        "avg_ms": round(sum(latencies) / len(latencies), 2) if latencies else 0.0,
+        "categories": sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5],
+        "daily": sorted(daily.items()),
+    }
+
+
 def get_usage_summary(tenant_id: str, period_month: str | None = None) -> dict:
     if not period_month:
         period_month = datetime.now(UTC).strftime("%Y-%m")
@@ -53,44 +124,14 @@ def get_usage_summary(tenant_id: str, period_month: str | None = None) -> dict:
     if cached:
         return cached
 
-    total = blocked = 0
-    latencies: list[float] = []
-    categories: dict[str, int] = {}
-    daily: dict[str, int] = {}
-
-    try:
-        with open(_LOGS_PATH) as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    ev = json.loads(line)
-                except Exception:
-                    continue
-                if ev.get("tenant_id", "") not in ("", tenant_id):
-                    continue
-                ts = ev.get("timestamp", "")
-                if not ts.startswith(period_month):
-                    continue
-                total += 1
-                verdict = ev.get("verdict", "ALLOW")
-                if verdict in ("BLOCK", "HIGH"):
-                    blocked += 1
-                ms = ev.get("processing_ms", 0.0)
-                if isinstance(ms, (int, float)):
-                    latencies.append(float(ms))
-                cat = ev.get("category") or ev.get("type", "unknown")
-                categories[cat] = categories.get(cat, 0) + 1
-                day = ts[:10] if len(ts) >= 10 else "unknown"
-                daily[day] = daily.get(day, 0) + 1
-    except FileNotFoundError:
-        pass
-
-    avg_ms = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
+    agg = _usage_from_mirror(tenant_id, period_month) or _usage_from_journal(
+        tenant_id, period_month
+    )
+    total, blocked = agg["total"], agg["blocked"]
+    avg_ms = agg["avg_ms"]
     block_rate = round(blocked / total * 100, 2) if total else 0.0
-    top_cats = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
-    daily_trend = [{"date": d, "count": c} for d, c in sorted(daily.items())]
+    top_cats = agg["categories"]
+    daily_trend = [{"date": d, "count": c} for d, c in agg["daily"]]
 
     result: dict = {
         "tenant_id": tenant_id,
