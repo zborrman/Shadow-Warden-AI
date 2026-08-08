@@ -282,7 +282,7 @@ Target after the 7-phase track: **≈ 91/100**, with no category below 76.
 ## 4. Invariants every phase must preserve
 
 GDPR content-never-logged (down to GSAM `FORBIDDEN_FIELD_HINTS`); fail-open detection / fail-CLOSED
-credentials split; STAFF-01…05; the CPT 25%-drift poisoning gate; all 32 Playwright assertions;
+credentials split; STAFF-01…05; the CPT 25%-drift poisoning gate; all 37 Playwright assertions;
 `<link rel="agent-protocol">`; clearing.py Decimal math; x402 fail-open. Each phase ships pure-function
 math with property-based tests, then wiring — mirroring how SAC (FE-52) and GSAM v7.7 landed.
 

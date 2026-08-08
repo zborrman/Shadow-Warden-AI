@@ -38,7 +38,7 @@ be installed on whatever machine is running the session.
 | `terraform` (MCP) | `infra/terraform/main.tf` | Any change under `infra/terraform/`. Get explicit confirmation before `create_run` / `apply_run`. |
 | `stripe-best-practices`, `stripe-docs`, `explain-error` | `warden/stripe_billing.py`, `warden/tests/test_stripe_billing_v25.py` | Billing work. Note this repo runs **two** providers — Stripe and Lemon Squeezy (`warden/lemon_billing.py`, `site/src/config/lemonsqueezy.ts`); confirm which path you are in before changing either. |
 | `mcp-server-dev:build-mcp-server` | `warden/mcp/gateway.py`, `.mcp.json` | Extending the paid MCP gateway or the ACP protocol surface. |
-| `playwright` (MCP) | `site/playwright.config.ts` | Driving a browser directly. The 32 site assertions are a protected loop invariant — never weaken one to make a run go green. |
+| `playwright` (MCP) | `site/playwright.config.ts` | Driving a browser directly. The 37 site assertions are a protected loop invariant — never weaken one to make a run go green. |
 | `dataviz` | Recharts in `dashboard/` + `portal/`, Streamlit `warden/analytics/pages/`, Grafana | **Before** writing any chart, stat tile, or dashboard layout, in any of the three frontends. |
 | `web-perf`, `chrome-devtools` | `site/` (Astro) | Core Web Vitals, Lighthouse, render-blocking and layout-shift work. `site-health-check` already wraps the Lighthouse pass — reach for these when you need to go deeper. |
 | `impeccable`, `ui-ux-pro-max`, `frontend-design` | `DESIGN.md`, `.impeccable/`, `packages/ui/` | UI/UX design and polish across `site/`, `dashboard/`, `portal/`. Pair with `shadow-warden-design` so the tokens stay ours. |
