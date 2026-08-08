@@ -35,13 +35,20 @@ if [ $# -gt 0 ]; then
     exec gosu wardenuser "$@"
 fi
 
-# ── Database migrations (run once per startup, idempotent) ───────────────────
-if [ -n "${DATABASE_URL:-}" ]; then
-    echo "[entrypoint] running alembic migrations..."
-    cd /warden
-    alembic -c warden/alembic.ini upgrade head && echo "[entrypoint] migrations complete" \
-        || echo "[entrypoint] WARNING: migrations failed (continuing anyway)"
-fi
+# ── Database migrations: NOT here. ───────────────────────────────────────────
+# `warden/db/migrate.py::upgrade_to_head()` runs the Alembic tree from the
+# FastAPI lifespan, under a Postgres advisory lock (D-1). This file used to run
+# it too, and got it wrong for four months: `cd /warden` then
+# `alembic -c warden/alembic.ini` resolves to /warden/warden/alembic.ini, but
+# WORKDIR *is* /warden and the file is /warden/alembic.ini — so every boot
+# printed "No 'script_location' key found in configuration" and swallowed it
+# with `|| echo "WARNING: migrations failed (continuing anyway)"`.
+#
+# That fail-open is why the D-1 audit concluded "alembic upgrade head appears
+# nowhere": something did invoke it, on every single boot, and had been failing
+# silently since the block was added in b3d02377 (2026-04-06). Do not restore
+# it. A second migrator would also run in ARQ_MODE, where no lifespan exists
+# and no schema authority belongs.
 
 # ── ARQ worker mode (set ARQ_MODE=1 in docker-compose to run background tasks) ─
 if [ "${ARQ_MODE:-0}" = "1" ]; then
