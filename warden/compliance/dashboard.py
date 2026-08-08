@@ -31,7 +31,7 @@ override them with their own actuarial figures via environment variables.
 from __future__ import annotations
 
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from warden.config import settings
@@ -61,45 +61,72 @@ class ComplianceDashboard:
         self._monitor = agent_monitor   # warden.agent_monitor.AgentMonitor | None
         self._audit   = audit_trail     # warden.audit_trail.AuditTrail | None
 
+    @staticmethod
+    def _mirror_metrics(since: datetime) -> tuple | None:
+        """(total, blocked, flag_counts, secret_counts, attack_cost, tokens,
+        shadow_ban_count, high_blocks, secrets_total) from the Postgres
+        mirror, or ``None`` when it cannot answer this window — caller falls
+        back to the NDJSON journal scan.
+        """
+        try:
+            from warden.analytics import events_store
+        except Exception:
+            return None
+
+        s = events_store.summary(since)
+        if s is None:
+            return None
+        flag_counts = Counter(dict(events_store.top_flags(since, limit=10) or []))
+        secret_counts = Counter(events_store.secret_type_counts(since) or {})
+        secrets_total = sum(secret_counts.values())
+        high_blocks = s["high"] + s["block"]
+        return (
+            s["total"], s["blocked"], flag_counts, secret_counts,
+            s["attack_cost_usd"], s["total_payload_tokens"],
+            s["shadow_ban_count"], high_blocks, secrets_total,
+        )
+
     def get_metrics(self, days: float = 30) -> dict:
-        from warden.analytics.logger import load_entries  # noqa: PLC0415
+        now   = datetime.now(UTC)
+        since = now - timedelta(days=days)
 
-        now     = datetime.now(UTC)
-        entries = load_entries(days=days)
-        total   = len(entries)
-        blocked = sum(1 for e in entries if not e.get("allowed", True))
+        mirrored = self._mirror_metrics(since)
+        if mirrored is not None:
+            (total, blocked, flag_counts, secret_counts, total_attack_cost,
+             total_tokens, shadow_ban_count, high_blocks, secrets_total) = mirrored
+        else:
+            from warden.analytics.logger import load_entries  # noqa: PLC0415
 
-        flag_counts: Counter[str] = Counter()
-        secret_counts: Counter[str] = Counter()
-        total_attack_cost = 0.0
-        total_tokens      = 0
+            entries = load_entries(days=days)
+            total   = len(entries)
+            blocked = sum(1 for e in entries if not e.get("allowed", True))
 
-        for e in entries:
-            for f in e.get("flags", []):
-                flag_counts[f] += 1
-            for s in e.get("secrets_found", []):
-                secret_counts[s] += 1
-            total_attack_cost += e.get("attack_cost_usd", 0.0)
-            total_tokens      += e.get("payload_tokens", 0)
+            flag_counts = Counter[str]()
+            secret_counts = Counter[str]()
+            total_attack_cost = 0.0
+            total_tokens      = 0
 
-        # ── Shadow ban metrics ────────────────────────────────────────────────
-        # We infer shadow-ban events from ERS critical-level entities in logs.
-        # Approximation: requests flagged as shadow-banned are those that would
-        # have been blocked but were instead served fake responses.
-        # We use the "ers_shadow_ban" flag if present, else fall back to 0.
-        shadow_ban_count = sum(1 for e in entries if "shadow_ban" in e.get("flags", []))
+            for e in entries:
+                for f in e.get("flags", []):
+                    flag_counts[f] += 1
+                for s2 in e.get("secrets_found", []):
+                    secret_counts[s2] += 1
+                total_attack_cost += e.get("attack_cost_usd", 0.0)
+                total_tokens      += e.get("payload_tokens", 0)
+
+            # We infer shadow-ban events from the "shadow_ban" flag.
+            shadow_ban_count = sum(1 for e in entries if "shadow_ban" in e.get("flags", []))
+            # One HIGH/BLOCK = one averted incident.
+            high_blocks = sum(1 for e in entries if e.get("risk_level") in ("high", "block"))
+            secrets_total = sum(1 for e in entries for _ in e.get("secrets_found", []))
+
         shadow_ban_tokens_saved = shadow_ban_count * _AVG_SHADOW_BAN_TOKENS
         shadow_ban_cost_saved   = shadow_ban_tokens_saved * _LLM_COST_PER_TOKEN
 
-        # ── Breach cost avoided ───────────────────────────────────────────────
-        # One HIGH/BLOCK = one averted incident.
         # Annualised: (blocked / days * 365) events per year avoided.
-        high_blocks     = sum(1 for e in entries if e.get("risk_level") in ("high", "block"))
         breach_per_event = _BREACH_COST_USD / max(_BREACH_PER_YEAR * 365, 1)
         breach_avoided  = round(high_blocks * breach_per_event, 2)
 
-        # ── Secret / credential protection ───────────────────────────────────
-        secrets_total   = sum(1 for e in entries for _ in e.get("secrets_found", []))
         credential_cost = round(secrets_total * _CREDENTIAL_EXPOSURE_USD, 2)
 
         # ── Evolution engine ──────────────────────────────────────────────────

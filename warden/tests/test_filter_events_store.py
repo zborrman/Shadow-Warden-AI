@@ -89,6 +89,7 @@ def test_append_still_works_when_mirror_explodes(monkeypatch, tmp_path):
         lambda since: events_store.hourly_series(since),
         lambda since: events_store.top_flags(since),
         lambda since: events_store.blocked_flag_counts(since),
+        lambda since: events_store.secret_type_counts(since),
     ],
 )
 def test_readers_return_none_without_postgres(monkeypatch, call):
@@ -287,6 +288,7 @@ def test_readers_refuse_a_window_the_mirror_cannot_cover(monkeypatch):
     assert events_store.hourly_series(now - timedelta(days=30)) is None
     assert events_store.top_flags(now - timedelta(days=30)) is None
     assert events_store.blocked_flag_counts(now - timedelta(days=30)) is None
+    assert events_store.secret_type_counts(now - timedelta(days=30)) is None
 
 
 def test_an_empty_mirror_covers_nothing(monkeypatch):

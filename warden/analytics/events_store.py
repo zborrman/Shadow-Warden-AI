@@ -369,7 +369,9 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
                             COUNT(*) FILTER (WHERE upper(risk_level) = 'HIGH')  AS high,
                             COUNT(*) FILTER (WHERE upper(risk_level) = 'BLOCK') AS block,
                             COUNT(*) FILTER (WHERE masked)               AS masked,
+                            COUNT(*) FILTER (WHERE 'shadow_ban' = ANY(flags)) AS shadow_ban_count,
                             COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
+                            COALESCE(SUM(payload_tokens), 0)             AS total_payload_tokens,
                             AVG(elapsed_ms)                              AS avg_elapsed_ms
                         FROM warden_core.filter_events
                         WHERE ts >= :since AND tenant_id = :tid
@@ -386,7 +388,9 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
                             COUNT(*) FILTER (WHERE upper(risk_level) = 'HIGH')  AS high,
                             COUNT(*) FILTER (WHERE upper(risk_level) = 'BLOCK') AS block,
                             COUNT(*) FILTER (WHERE masked)               AS masked,
+                            COUNT(*) FILTER (WHERE 'shadow_ban' = ANY(flags)) AS shadow_ban_count,
                             COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
+                            COALESCE(SUM(payload_tokens), 0)             AS total_payload_tokens,
                             AVG(elapsed_ms)                              AS avg_elapsed_ms
                         FROM warden_core.filter_events
                         WHERE ts >= :since
@@ -481,6 +485,30 @@ def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | No
             return [(r[0], int(r[1])) for r in conn.execute(text(sql), {"since": since, "lim": limit})]
     except Exception as exc:
         log.debug("filter_events top_flags unavailable: %s", exc)
+        return None
+
+
+def secret_type_counts(since: datetime) -> dict[str, int] | None:
+    """Secret/PII type → occurrences in the window (every type, not top-N).
+
+    `secrets_found` holds type *names* only (see revision 0013's own note) —
+    never the secret value — so this is as safe to aggregate as `flags`.
+    """
+    if not covers(since):
+        return None
+    try:
+        from sqlalchemy import text
+
+        sql = """
+            SELECT secret_type, COUNT(*) AS n
+            FROM warden_core.filter_events, UNNEST(secrets_found) AS secret_type
+            WHERE ts >= :since
+            GROUP BY secret_type ORDER BY n DESC
+        """
+        with _engine().connect() as conn:
+            return {r[0]: int(r[1]) for r in conn.execute(text(sql), {"since": since})}
+    except Exception as exc:
+        log.debug("filter_events secret_type_counts unavailable: %s", exc)
         return None
 
 

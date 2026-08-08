@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -282,6 +283,31 @@ class TestComplianceDashboard:
         m = ComplianceDashboard().get_metrics(days=1)
         assert "assumptions" in m
         assert "llm_cost_per_token_usd" in m["assumptions"]
+
+    def test_falls_back_to_journal_when_mirror_unavailable(self, populated_logs):
+        """`_mirror_metrics` returns None with no Postgres configured (test env),
+        so get_metrics must still read the NDJSON journal — the same None ⇒
+        fallback contract every other D-3 reader keeps.
+        """
+        from datetime import UTC, datetime, timedelta
+
+        from warden.compliance.dashboard import ComplianceDashboard
+        since = datetime.now(UTC) - timedelta(days=1)
+        assert ComplianceDashboard._mirror_metrics(since) is None
+        m = ComplianceDashboard().get_metrics(days=1)
+        assert m["traffic"]["total_requests"] == 20
+
+    def test_uses_mirror_when_available(self, populated_logs, monkeypatch):
+        """When the mirror can answer, its numbers — not the journal's — win."""
+        from warden.compliance.dashboard import ComplianceDashboard
+
+        mirrored = (5, 2, Counter({"jailbreak": 5}), Counter({"aws_secret": 1}), 0.01, 100, 1, 2, 1)
+        monkeypatch.setattr(ComplianceDashboard, "_mirror_metrics", staticmethod(lambda since: mirrored))
+        m = ComplianceDashboard().get_metrics(days=1)
+        assert m["traffic"]["total_requests"] == 5
+        assert m["traffic"]["blocked_requests"] == 2
+        assert m["traffic"]["total_payload_tokens"] == 100
+        assert m["threat_mitigation"]["secrets_redacted"] == 1
 
     def test_agent_security_with_monitor(self, populated_logs, monitor):
         from warden.compliance.dashboard import ComplianceDashboard
