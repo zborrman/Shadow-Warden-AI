@@ -221,10 +221,13 @@ def backfill_from_journal(days: float | None = None, *, batch: int = 500) -> dic
     mirroring is active and safe to re-run. Deliberately synchronous and
     batched: this is an operator action, not a request path.
 
+    Finishes by materialising `filter_events_hourly` over the range it just
+    wrote — see :func:`refresh_hourly_aggregate` for why that is not optional.
+
     Returns counts; never raises, because a failed backfill must leave the
     journal and the existing mirror exactly as they were.
     """
-    out = {"read": 0, "written": 0, "failed": 0}
+    out = {"read": 0, "written": 0, "failed": 0, "aggregate_refreshed": 0}
     if not available():
         return out
     try:
@@ -248,8 +251,52 @@ def backfill_from_journal(days: float | None = None, *, batch: int = 500) -> dic
         return out
 
     reset_coverage_cache()
+    if out["written"]:
+        out["aggregate_refreshed"] = 1 if refresh_hourly_aggregate() else 0
     log.info("filter_events backfill %s", out)
     return out
+
+
+def refresh_hourly_aggregate() -> bool:
+    """Materialise `filter_events_hourly` over its whole range. Never raises.
+
+    Timescale refreshes a continuous aggregate through a policy, and revision
+    `0013` gives this one `start_offset => 3 hours`. That is right for the live
+    path and useless for a backfill: rows written with older timestamps sit
+    outside every window the policy will ever refresh, so they are never
+    materialised. Measured on the first production backfill (2026-08-08) —
+    3 311 rows landed in the hypertable and `filter_events_hourly` stayed at
+    **zero buckets**, so `hourly_series()`, the dashboard read path, returned
+    an empty list for everything older than three hours while `summary()` and
+    `top_flags()` (which read the hypertable directly) were correct. A backfill
+    that leaves the aggregate empty is half a backfill.
+
+    `refresh_continuous_aggregate` cannot run inside a transaction block, hence
+    the explicit AUTOCOMMIT connection rather than `engine.begin()`.
+    """
+    if not available():
+        return False
+    try:
+        from sqlalchemy import text
+
+        with _engine().connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.execute(
+                text("CALL refresh_continuous_aggregate('warden_core.filter_events_hourly', NULL, NULL)")
+            )
+        log.info("filter_events_hourly refreshed over full range")
+        return True
+    except Exception as exc:
+        # Not counted as a mirror failure: the rows are in the hypertable and
+        # every reader except hourly_series() is already correct. Loud, because
+        # the fix is one operator call and the symptom otherwise looks like
+        # "the dashboard has no history".
+        log.warning(
+            "filter_events_hourly refresh failed (%s) — rows are mirrored but the "
+            "hourly aggregate is stale; run CALL refresh_continuous_aggregate("
+            "'warden_core.filter_events_hourly', NULL, NULL)",
+            exc,
+        )
+        return False
 
 
 # ── GDPR erasure ──────────────────────────────────────────────────────────────

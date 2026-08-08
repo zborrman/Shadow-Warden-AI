@@ -246,7 +246,9 @@ def test_an_empty_mirror_covers_nothing(monkeypatch):
 
 def test_backfill_is_a_noop_without_postgres(monkeypatch):
     monkeypatch.setattr("warden.db.connection.DATABASE_URL", "", raising=False)
-    assert events_store.backfill_from_journal() == {"read": 0, "written": 0, "failed": 0}
+    assert events_store.backfill_from_journal() == {
+        "read": 0, "written": 0, "failed": 0, "aggregate_refreshed": 0,
+    }
 
 
 def test_backfill_never_raises_when_the_backend_fails(monkeypatch, tmp_path):
@@ -265,6 +267,103 @@ def test_backfill_never_raises_when_the_backend_fails(monkeypatch, tmp_path):
     monkeypatch.setattr(events_store, "_engine", _boom)
     out = events_store.backfill_from_journal()
     assert out["failed"] >= 1 and out["written"] == 0
+
+
+# ── continuous-aggregate refresh after a backfill ─────────────────────────────
+#
+# The refresh policy on `filter_events_hourly` has start_offset => 3 hours, so
+# backfilled rows with older timestamps are never materialised by it. Measured
+# in production: 3 311 rows mirrored, the aggregate stayed at zero buckets, and
+# hourly_series() — the dashboard path — returned nothing beyond three hours.
+
+def test_backfill_refreshes_the_hourly_aggregate(monkeypatch, tmp_path):
+    from warden.analytics import logger
+
+    logs = tmp_path / "logs.json"
+    logs.write_text(
+        json.dumps({"ts": "2026-01-01T00:00:00+00:00", "request_id": "a"}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(logger, "LOGS_PATH", logs, raising=False)
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+
+    written: list[object] = []
+
+    class _Conn:
+        def execute(self, *a, **k):
+            written.append(a)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class _Engine:
+        def begin(self):
+            return _Conn()
+
+    monkeypatch.setattr(events_store, "_engine", lambda: _Engine())
+    refreshed: list[bool] = []
+    monkeypatch.setattr(
+        events_store, "refresh_hourly_aggregate", lambda: refreshed.append(True) or True
+    )
+
+    out = events_store.backfill_from_journal()
+    assert out["written"] == 1
+    assert out["aggregate_refreshed"] == 1, "a backfill that skips the refresh is half a backfill"
+    assert refreshed == [True]
+
+
+def test_backfill_does_not_refresh_when_nothing_was_written(monkeypatch):
+    """No rows, no refresh — the aggregate cannot have gone stale."""
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    monkeypatch.setattr(events_store, "_engine", lambda: (_ for _ in ()).throw(RuntimeError("down")))
+    called: list[int] = []
+    monkeypatch.setattr(events_store, "refresh_hourly_aggregate", lambda: called.append(1) or True)
+
+    assert events_store.backfill_from_journal()["aggregate_refreshed"] == 0
+    assert called == []
+
+
+def test_refresh_runs_outside_a_transaction(monkeypatch):
+    """CALL refresh_continuous_aggregate() is rejected inside a transaction block."""
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    opts: list[dict] = []
+    stmts: list[str] = []
+
+    class _Conn:
+        def execute(self, stmt, *a, **k):
+            stmts.append(str(stmt))
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class _Raw:
+        def execution_options(self, **kw):
+            opts.append(kw)
+            return _Conn()
+
+    monkeypatch.setattr(events_store, "_engine", lambda: type("E", (), {"connect": lambda s: _Raw()})())
+
+    assert events_store.refresh_hourly_aggregate() is True
+    assert opts == [{"isolation_level": "AUTOCOMMIT"}]
+    assert "refresh_continuous_aggregate" in stmts[0]
+
+
+def test_refresh_failure_never_raises(monkeypatch):
+    """The rows are already mirrored; a stale aggregate must not undo that."""
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    monkeypatch.setattr(events_store, "_engine", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    assert events_store.refresh_hourly_aggregate() is False
+
+
+def test_refresh_is_a_noop_without_postgres(monkeypatch):
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "", raising=False)
+    assert events_store.refresh_hourly_aggregate() is False
 
 
 # ── community_stats (public_stats.py's single query) ──────────────────────────
