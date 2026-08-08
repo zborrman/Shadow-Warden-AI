@@ -3,7 +3,7 @@
 #  Lightweight FastAPI service that exposes structured HTTP endpoints over the
 #  NDJSON event log written by the warden gateway.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /analytics
 
