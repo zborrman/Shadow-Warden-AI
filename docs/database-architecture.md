@@ -511,14 +511,34 @@ Three things this check surfaced that the roadmap did not predict:
   callable only as `docker exec … python -c`. Note also that a 30-day window
   is *not* yet covered and correctly falls back: the journal itself only
   reaches 2026-07-10, so `covers()` is true for 14 days and false for 30.
-- **1c** — migrate readers in one batch, chosen by tolerance for loss: the
-  dashboards and trend views (`analytics/dashboard.py`, `compliance/dashboard.py`,
-  `api/xai.py`, `api/public_stats.py`), then BI. Each keeps the `None` ⇒
+- **1c** — 🟡 **in progress.** Migrate readers, chosen by tolerance for loss:
+  the dashboards and trend views, then BI. Each keeps the `None` ⇒
   `load_entries()` fallback.
+
+  | Reader | State |
+  |---|---|
+  | `api/public_stats.py` | ✅ #292 |
+  | `compliance/dashboard.py` | ✅ #299 |
+  | `analytics/dashboard.py` | open |
+  | `api/xai.py` | open — **check before migrating**: it calls `build_chain()` per record, which may want stage-level detail the metadata-only mirror deliberately does not carry. If so, record why it cannot move rather than forcing it |
+  | BI | open |
+
   **Explicitly excluded, and this is a decision, not a backlog:**
   `financial/metrics_reader.py`, billing, and the GDPR/Art.30 paths stay on
   NDJSON. A mirror that is allowed to swallow a failed write cannot back a
   number someone is invoiced against.
+
+  **Ownership (2026-08-08).** Two sessions migrated `compliance/dashboard.py`
+  independently the same morning — #299 landed, #300 was closed as superseded
+  twenty minutes later, and earlier the same day an unrelated docs change was
+  swept into #289's CI commit from a shared working tree. So, written down
+  rather than assumed:
+
+  - **Phase 1c — the remaining journal readers above: claimed.**
+  - **Phase 2 — D-6, SEP + communities → Postgres: unclaimed**, and the larger
+    piece.
+
+  Claim a phase here before starting it, not after opening the PR.
 - **1d** — ❌ **dropped after measurement — the premise was false.** F5 and this
   plan both said `logs.json` "has no rotation — only GDPR `purge_before()`" and
   that read cost "grows linearly and forever". It does not.
