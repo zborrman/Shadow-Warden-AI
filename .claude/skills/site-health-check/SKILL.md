@@ -19,11 +19,14 @@ Runs a structured audit of the Shadow Warden AI frontend for both human and AI-a
 ### 1. Playwright Smoke Tests (37 assertions)
 
 ```bash
-cd site && npm run build && npx playwright test --reporter=list
+# npm ci first: run the lockfile-pinned local binary, never let npx resolve
+# `playwright` from the registry for a production check.
+cd site && npm ci && npm run build && ./node_modules/.bin/playwright test --reporter=list
 ```
 
-All 37 assertions must pass (the `chromium` project; the `mobile` project re-runs
-29 of them and skips 8). Any failure blocks deploy.
+All 37 test cases must pass (the `chromium` project; the `mobile` project re-runs
+29 of them and skips 8). Any failure blocks deploy. The count is ratcheted by
+`E2E_MIN_TESTS` in the loop workflow — a shrinking suite fails just like a red one.
 
 ### 2. Agent Discovery Endpoints
 

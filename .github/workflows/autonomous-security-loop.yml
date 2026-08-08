@@ -22,10 +22,12 @@ env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   LOOP_DATE: ${{ github.run_started_at }}
   # Ratchet for the "never weaken a Playwright assertion" invariant. `unexpected == 0`
-  # alone goes green when a spec is *deleted*, so the heartbeat also asserts the
-  # chromium project still runs at least this many tests. Raise it when specs are
-  # added; lowering it is a deliberate decision, not a way to make a run go green.
-  E2E_MIN_ASSERTIONS: '37'
+  # alone goes green when a spec is *deleted*, so both the heartbeat and the post-fix
+  # verification assert the chromium project still executes at least this many test
+  # cases. (Test cases, not `expect()` calls — a case carries several assertions.)
+  # Raise it when specs are added; lowering it is a deliberate decision, not a way to
+  # make a run go green.
+  E2E_MIN_TESTS: '37'
 
 jobs:
   # ── Step 1: Heartbeat ────────────────────────────────────────────────────────
@@ -59,15 +61,25 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
         run: |
           npx playwright test --project=chromium --reporter=json,html 2>&1 || true
-          PASS=$(python3 -c "import json; d=json.load(open('playwright-results.json')); \
-            print('true' if d['stats']['unexpected']==0 else 'false')" 2>/dev/null || echo 'false')
-          FAILED=$(python3 -c "import json; d=json.load(open('playwright-results.json')); \
-            print(d['stats']['unexpected'])" 2>/dev/null || echo '0')
-          TOTAL=$(python3 -c "import json; d=json.load(open('playwright-results.json')); \
-            s=d['stats']; print(s['expected']+s['unexpected']+s['flaky'])" 2>/dev/null || echo '0')
-          printf 'pass=%s\n' "$PASS" >> "$GITHUB_OUTPUT"
-          printf 'failed_count=%s\n' "$FAILED" >> "$GITHUB_OUTPUT"
-          printf 'total_count=%s\n' "$TOTAL" >> "$GITHUB_OUTPUT"
+          # One parse, so `report_ok` distinguishes "suite reported failures" from
+          # "no parseable report at all" — the two need different classifications.
+          python3 - >> "$GITHUB_OUTPUT" <<'PY'
+          import json
+
+          try:
+              s = json.load(open("playwright-results.json"))["stats"]
+              failed = int(s["unexpected"])
+              total = int(s["expected"]) + failed + int(s["flaky"])
+              print("report_ok=true")
+              print(f"pass={'true' if failed == 0 else 'false'}")
+              print(f"failed_count={failed}")
+              print(f"total_count={total}")
+          except Exception:
+              print("report_ok=false")
+              print("pass=false")
+              print("failed_count=0")
+              print("total_count=0")
+          PY
 
       - name: Run ruff
         id: ruff
@@ -96,18 +108,23 @@ jobs:
 
       - name: Evaluate health
         id: health
+        env:
+          # Step outputs reach the shell through the environment, never through
+          # `${{ }}` interpolated into the script source.
+          E2E_PASS: ${{ steps.e2e.outputs.pass }}
+          E2E_FAILED: ${{ steps.e2e.outputs.failed_count }}
+          E2E_TOTAL: ${{ steps.e2e.outputs.total_count }}
+          E2E_REPORT_OK: ${{ steps.e2e.outputs.report_ok }}
+          RUFF_ERRORS: ${{ steps.ruff.outputs.errors }}
+          MYPY_ERRORS: ${{ steps.mypy.outputs.errors }}
         run: |
-          E2E_PASS="${{ steps.e2e.outputs.pass }}"
-          RUFF_ERRORS="${{ steps.ruff.outputs.errors }}"
-          MYPY_ERRORS="${{ steps.mypy.outputs.errors }}"
-          E2E_FAILED="${{ steps.e2e.outputs.failed_count }}"
-          E2E_TOTAL="${{ steps.e2e.outputs.total_count }}"
-
           # A deleted spec cannot fail, so a shrinking suite must read as unhealthy.
-          E2E_COUNT_OK=true
-          if [ "$E2E_TOTAL" -lt "$E2E_MIN_ASSERTIONS" ] 2>/dev/null; then
-            E2E_COUNT_OK=false
-          fi
+          # Fail closed: a missing or non-numeric total counts as below the floor.
+          E2E_COUNT_OK=false
+          case "$E2E_TOTAL" in
+            ''|*[!0-9]*) E2E_COUNT_OK=false ;;
+            *) [ "$E2E_TOTAL" -ge "$E2E_MIN_TESTS" ] && E2E_COUNT_OK=true ;;
+          esac
 
           if [ "$E2E_PASS" = "true" ] && [ "$E2E_COUNT_OK" = "true" ] \
              && [ "$RUFF_ERRORS" = "0" ] && [ "$MYPY_ERRORS" = "0" ]; then
@@ -116,12 +133,17 @@ jobs:
             echo "issue_detail=All checks passed" >> $GITHUB_OUTPUT
           else
             echo "healthy=false" >> $GITHUB_OUTPUT
-            if [ "$E2E_PASS" != "true" ]; then
+            if [ "$E2E_REPORT_OK" != "true" ]; then
+              echo "issue_type=playwright_failure" >> $GITHUB_OUTPUT
+              echo "issue_detail=No parseable Playwright report — the run did not complete" >> $GITHUB_OUTPUT
+            elif [ "$E2E_COUNT_OK" != "true" ]; then
+              # Checked before generic failure: a shrunken suite is the more
+              # serious finding even when the surviving tests also fail.
+              echo "issue_type=playwright_test_loss" >> $GITHUB_OUTPUT
+              echo "issue_detail=E2E suite ran $E2E_TOTAL tests, below the protected floor of $E2E_MIN_TESTS" >> $GITHUB_OUTPUT
+            elif [ "$E2E_PASS" != "true" ]; then
               echo "issue_type=playwright_failure" >> $GITHUB_OUTPUT
               echo "issue_detail=$E2E_FAILED Playwright tests failed" >> $GITHUB_OUTPUT
-            elif [ "$E2E_COUNT_OK" != "true" ]; then
-              echo "issue_type=playwright_assertion_loss" >> $GITHUB_OUTPUT
-              echo "issue_detail=E2E suite ran $E2E_TOTAL tests, below the protected floor of $E2E_MIN_ASSERTIONS" >> $GITHUB_OUTPUT
             elif [ "$RUFF_ERRORS" != "0" ]; then
               echo "issue_type=ruff_failure" >> $GITHUB_OUTPUT
               echo "issue_detail=$RUFF_ERRORS ruff errors" >> $GITHUB_OUTPUT
@@ -133,9 +155,10 @@ jobs:
 
       - name: Update memory — healthy
         if: steps.health.outputs.healthy == 'true'
+        env:
+          E2E_TOTAL: ${{ steps.e2e.outputs.total_count }}
         run: |
           TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          E2E_TOTAL="${{ steps.e2e.outputs.total_count }}"
           echo "$TS — System Healthy. E2E $E2E_TOTAL/$E2E_TOTAL. ruff clean. mypy clean." >> memory/progress.md
           git config user.email "loop@shadow-warden-ai.com"
           git config user.name "Shadow Warden Loop"
@@ -379,7 +402,25 @@ jobs:
         working-directory: site
         env:
           PLAYWRIGHT_BASE_URL: https://shadow-warden-ai.com
-        run: npx playwright test --project=chromium --reporter=list
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-verify.json
+        run: |
+          npx playwright test --project=chromium --reporter=json,list
+          # The same floor as the heartbeat, re-checked against the *fixed* tree:
+          # deleting a spec is the one way a Maker fix could turn this step green
+          # without the app actually working.
+          python3 - <<'PY'
+          import json, os, sys
+
+          s = json.load(open("playwright-verify.json"))["stats"]
+          total = int(s["expected"]) + int(s["unexpected"]) + int(s["flaky"])
+          floor = int(os.environ["E2E_MIN_TESTS"])
+          if total < floor:
+              sys.exit(
+                  f"E2E suite ran {total} tests, below the protected floor of {floor} "
+                  "- a fix must never delete a spec to go green"
+              )
+          print(f"E2E test count OK: {total} >= {floor}")
+          PY
 
       - name: Verify — pytest (fast)
         env:

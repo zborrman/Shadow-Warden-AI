@@ -33,8 +33,9 @@ claude --print "$(cat workflows/autonomous-security-loop.md)"
 ```
 
 **Protected invariants the loop never touches:** `<link rel="agent-protocol">`, clearing.py Decimal math, x402 fail-open, all 37 Playwright assertions, GDPR content-never-logged rule.
-The assertion count is ratcheted: the heartbeat's `E2E_MIN_ASSERTIONS` floor (37) makes
-a *deleted* spec read as unhealthy, which `unexpected == 0` alone never caught.
+That suite is ratcheted: the `E2E_MIN_TESTS` floor (37 executed chromium test cases)
+is enforced in both the heartbeat and the post-fix verification, so a *deleted* spec
+reads as unhealthy — which `unexpected == 0` alone never caught.
 
 ## Digital Staff Invariants (STAFF-01…STAFF-05)
 

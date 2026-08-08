@@ -137,9 +137,10 @@ CONSTRAINTS (DO NOT VIOLATE):
 - Never remove <link rel='agent-protocol'> from BaseLayout.astro
 - Never break /.well-known/agent.json endpoint
 - Never change the 37 Playwright test selectors (use evaluate() for hidden checkboxes)
-- Never delete a Playwright spec to make a run go green — the heartbeat asserts the
-  chromium project still runs at least `E2E_MIN_ASSERTIONS` (37) tests and reports
-  `playwright_assertion_loss` if the suite shrinks. Raise the floor when specs are added.
+- Never delete a Playwright spec to make a run go green — both the heartbeat and the
+  post-fix verification assert the chromium project still executes at least
+  `E2E_MIN_TESTS` (37) test cases. The heartbeat reports `playwright_test_loss` and the
+  verification step fails outright. Raise the floor when specs are added.
 - x402 PAYMENT-SIGNATURE header name is canonical — do not rename
 
 YOUR TASK:
