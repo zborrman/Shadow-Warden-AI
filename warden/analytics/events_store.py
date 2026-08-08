@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 log = logging.getLogger("warden.analytics.events_store")
@@ -429,3 +429,116 @@ def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | No
     except Exception as exc:
         log.debug("filter_events top_flags unavailable: %s", exc)
         return None
+
+
+def community_stats(
+    retention_floor: datetime,
+    *,
+    now: datetime,
+    trend_days: int = 7,
+    flag_days: int = 30,
+    recent_limit: int = 10,
+) -> dict[str, Any] | None:
+    """Everything `api/public_stats.py`'s public dashboard needs, in one round trip.
+
+    That endpoint is unauthenticated and previously called `load_entries()` with
+    no window at all — a full-journal scan on every hit from the open internet.
+    ``retention_floor`` should be ``now - GDPR_LOG_RETENTION_DAYS``: the oldest
+    timestamp the journal can ever hold post-purge, which is what "all-time"
+    means in practice for a store with a retention policy. ``covers()`` refuses
+    the call otherwise, exactly like every other reader here.
+
+    ``recent`` preserves the source's existing order — oldest-within-the-window
+    first, not most-recent-first. That ordering predates this migration and is
+    reproduced deliberately rather than "fixed" as a side effect of moving the
+    query to SQL.
+    """
+    if not covers(retention_floor):
+        return None
+    try:
+        from sqlalchemy import text
+
+        trend_floor = now - timedelta(days=trend_days)
+        flag_floor = now - timedelta(days=flag_days)
+
+        with _engine().connect() as conn:
+            totals = conn.execute(
+                text("""
+                    SELECT
+                        COUNT(DISTINCT tenant_id)
+                            FILTER (WHERE tenant_id NOT IN ('', 'default'))    AS members,
+                        COUNT(*)                                                AS total,
+                        COUNT(*) FILTER (WHERE NOT allowed)                     AS blocked
+                    FROM warden_core.filter_events
+                """)
+            ).fetchone()
+
+            trend_rows = conn.execute(
+                text("""
+                    SELECT
+                        to_char(ts, 'YYYY-MM-DD')                                       AS day,
+                        COUNT(*) FILTER (
+                            WHERE NOT allowed OR risk_level = 'BLOCK')                  AS block,
+                        COUNT(*) FILTER (
+                            WHERE allowed AND risk_level <> 'BLOCK'
+                              AND risk_level IN ('HIGH', 'CRITICAL'))                   AS high,
+                        COUNT(*) FILTER (
+                            WHERE allowed AND risk_level <> 'BLOCK'
+                              AND risk_level NOT IN ('HIGH', 'CRITICAL'))               AS allow
+                    FROM warden_core.filter_events
+                    WHERE ts >= :trend_floor
+                    GROUP BY day
+                """),
+                {"trend_floor": trend_floor},
+            ).fetchall()
+
+            flag_rows = conn.execute(
+                text("""
+                    SELECT flag, COUNT(*) AS n
+                    FROM warden_core.filter_events, UNNEST(flags) AS flag
+                    WHERE ts >= :flag_floor
+                    GROUP BY flag ORDER BY n DESC LIMIT 5
+                """),
+                {"flag_floor": flag_floor},
+            ).fetchall()
+
+            recent_rows = conn.execute(
+                text("""
+                    SELECT ts, allowed, risk_level, flags
+                    FROM warden_core.filter_events
+                    WHERE ts >= :trend_floor
+                    ORDER BY ts ASC
+                    LIMIT :lim
+                """),
+                {"trend_floor": trend_floor, "lim": recent_limit},
+            ).fetchall()
+    except Exception as exc:
+        log.debug("filter_events community_stats unavailable: %s", exc)
+        return None
+
+    total = int(totals[1] or 0)
+    blocked = int(totals[2] or 0)
+
+    trend = {r[0]: {"block": int(r[1]), "high": int(r[2]), "allow": int(r[3])} for r in trend_rows}
+    for i in range(trend_days):
+        day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        trend.setdefault(day, {"block": 0, "high": 0, "allow": 0})
+
+    recent = []
+    for ts, allowed, risk_level, flags in recent_rows:
+        rl = (risk_level or "UNKNOWN").upper()
+        verdict = "BLOCK" if not allowed else ("HIGH" if rl in ("HIGH", "CRITICAL") else "ALLOW")
+        recent.append({
+            "verdict": verdict, "risk_level": rl,
+            "date": ts.strftime("%Y-%m-%d"), "flags": list(flags or [])[:2],
+        })
+
+    return {
+        "members": int(totals[0] or 0),
+        "total_events": total,
+        "blocked_total": blocked,
+        "block_rate_pct": round(blocked / total * 100, 1) if total else 0.0,
+        "trend_7d": [{"date": d, **v} for d, v in sorted(trend.items())],
+        "top_threats": [{"type": f, "count": int(n)} for f, n in flag_rows if n > 0],
+        "recent": recent,
+    }

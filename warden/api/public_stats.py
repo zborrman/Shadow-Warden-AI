@@ -138,10 +138,36 @@ async def public_community_stats() -> JSONResponse:
     Anonymised, aggregated stats for the public Storytelling Dashboard.
     No authentication required. No PII, no tenant identifiers — metadata only.
     """
-    entries = _load_entries()
-    data = _build_stats(entries)
+    data = _mirror_stats()
+    if data is None:
+        # No window at all — the whole journal, every hit, from the open
+        # internet. Exactly the cost D-3's mirror exists to remove; this is
+        # the fallback for when the mirror cannot yet answer the question.
+        entries = _load_entries()
+        data = _build_stats(entries)
     # 60-second browser cache — fresh enough for a live feel
     return JSONResponse(data, headers={"Cache-Control": "public, max-age=60"})
+
+
+def _mirror_stats() -> dict | None:
+    try:
+        from warden.analytics.events_store import community_stats
+        from warden.analytics.logger import LOG_RETENTION_DAYS
+
+        now = datetime.now(UTC)
+        # GDPR_LOG_RETENTION_DAYS is the only retention authority (D-3); the
+        # journal can never hold anything older than this, so it is what
+        # "all-time" means for a store that gets purged.
+        retention_floor = now - timedelta(days=LOG_RETENTION_DAYS)
+        data = community_stats(retention_floor, now=now)
+        if data is None:
+            return None
+        data["total_entries"] = _sep_count()
+        data["generated_at"] = now.isoformat()
+        return data
+    except Exception as exc:
+        log.debug("public_stats: mirror unavailable: %s", exc)
+        return None
 
 
 @router.get(
