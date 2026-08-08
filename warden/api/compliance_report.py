@@ -53,21 +53,55 @@ _DATA_RESIDENCY = settings.compliance_report_data_residency
 # ── Data aggregation ──────────────────────────────────────────────────────────
 
 def _aggregate_logs(days: int) -> dict:
-    """Read log entries from the analytics logger and aggregate for compliance."""
+    """Aggregate the /filter journal for the compliance report.
+
+    Three of these figures used to read fields the journal has never written,
+    and therefore reported zero to a regulator on every run:
+
+      * `verdict`    — the entry key is `risk_level`; `blocked` was always 0,
+                       and `allowed = total - blocked` therefore claimed that
+                       100% of traffic was allowed.
+      * `latency_ms` — the entry key is `elapsed_ms`; `avg_ms` was always 0.0.
+      * `"INJECTION"` — flags are lower-case (`prompt_injection`), so the
+                       substring test never matched and `inj_hits` was always 0.
+
+    Measured against 3 377 production entries on 2026-08-08: reported
+    blocked 0 / injection 0 / avg 0.0 ms against a truth of 3 100 / 3 100 /
+    652.4 ms. `build_entry()` is the authority on these names, and
+    `test_compliance_report_fields.py` now pins them.
+
+    `blocked` keeps its original meaning — HIGH **or** BLOCK severity, not
+    `not allowed`. A HIGH-risk request that was permitted still counts, which
+    is what the surrounding report text describes.
+    """
     since = datetime.now(UTC) - timedelta(days=days)
+
+    # D-3: one grouped query when the mirror covers the window; the journal
+    # scan below is the authority and still answers otherwise. Note the scan
+    # was unwindowed — `load_entries()` with no `days` — so this also stops a
+    # request-path endpoint re-parsing the entire file on every call.
+    stats = _aggregate_from_mirror(since)
+    if stats is not None:
+        return stats
+
     try:
         from warden.analytics.logger import load_entries
-        entries = [e for e in load_entries() if _entry_after(e, since)]
+        entries = [e for e in load_entries(days=days) if _entry_after(e, since)]
     except Exception:
         entries = []
 
     total    = len(entries)
-    blocked  = sum(1 for e in entries if e.get("verdict") in ("BLOCK", "HIGH"))
+    blocked  = sum(
+        1 for e in entries if str(e.get("risk_level", "")).upper() in ("BLOCK", "HIGH")
+    )
     allowed  = total - blocked
     pii_hits = sum(1 for e in entries if bool(e.get("secrets_found", [])))
-    inj_hits = sum(1 for e in entries if "INJECTION" in str(e.get("flags", [])))
+    inj_hits = sum(
+        1 for e in entries
+        if any("injection" in str(f).lower() for f in e.get("flags", []) or [])
+    )
     avg_ms   = (
-        sum(e.get("latency_ms", 0) for e in entries) / total
+        sum(e.get("elapsed_ms") or 0 for e in entries) / total
         if total else 0.0
     )
     anon_rate = round(pii_hits / total * 100, 1) if total else 0.0
@@ -88,6 +122,17 @@ def _aggregate_logs(days: int) -> dict:
         "anon_rate":  anon_rate,
         "categories": dict(sorted(categories.items(), key=lambda x: x[1], reverse=True)[:10]),
     }
+
+
+def _aggregate_from_mirror(since: datetime) -> dict | None:
+    """The same eight figures from Postgres, or ``None`` to use the scan."""
+    try:
+        from warden.analytics.events_store import compliance_report_stats
+
+        return compliance_report_stats(since)
+    except Exception as exc:
+        log.debug("compliance report: mirror unavailable, scanning journal: %s", exc)
+        return None
 
 
 def _entry_after(entry: dict, since: datetime) -> bool:
