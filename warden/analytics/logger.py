@@ -21,6 +21,7 @@ import threading
 from collections import OrderedDict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from warden.storage import s3 as _s3_storage
 
@@ -203,6 +204,58 @@ def load_entries(days: float | None = None) -> list[dict]:
             entries.append(entry)
 
     return entries
+
+
+def journal_stats() -> dict:
+    """Size, entry count and age of the oldest entry in `logs.json`.
+
+    `purge_old_entries()` is what bounds this file — it runs daily as the
+    `run_gdpr_retention` cron and trims to `GDPR_LOG_RETENTION_DAYS`. That makes
+    the bound a *scheduled job*, and a scheduled job that stops has no symptom:
+    the file simply keeps growing, every analytics reader keeps scanning more of
+    it, and personal data outlives its retention period. `run_retention_purge()`
+    returning 0 looks the same on a broken day as on a quiet one.
+
+    So the bound is measured here instead of assumed. `bounded` is False when
+    the oldest entry is older than the retention window plus a day of slack for
+    the cron's own schedule — at which point retention has demonstrably not run,
+    whatever the logs say.
+
+    Reads the file once and holds no entries in memory: an operator probe must
+    not cost more than the scan it is watching.
+    """
+    out: dict[str, Any] = {
+        "exists": False, "bytes": 0, "entries": 0,
+        "oldest_ts": None, "oldest_age_days": None,
+        "retention_days": LOG_RETENTION_DAYS, "bounded": True,
+    }
+    if not LOGS_PATH.exists():
+        return out
+    out["exists"] = True
+    try:
+        out["bytes"] = LOGS_PATH.stat().st_size
+        oldest: str | None = None
+        count = 0
+        with LOGS_PATH.open("r", encoding="utf-8") as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                count += 1
+                if oldest is None:
+                    try:
+                        oldest = json.loads(raw).get("ts")
+                    except json.JSONDecodeError:
+                        continue
+        out["entries"] = count
+        out["oldest_ts"] = oldest
+        if oldest:
+            age = (datetime.now(UTC) - datetime.fromisoformat(oldest)).total_seconds() / 86400
+            out["oldest_age_days"] = round(age, 2)
+            out["bounded"] = age <= LOG_RETENTION_DAYS + 1
+    except Exception as exc:
+        log.debug("journal_stats unavailable: %s", exc)
+    return out
 
 
 # ── GDPR data-subject helpers ────────────────────────────────────────────────

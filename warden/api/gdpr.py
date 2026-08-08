@@ -341,6 +341,17 @@ async def run_retention_purge() -> int:
     Called daily by the GDPR retention cronjob.
     Removes log entries older than GDPR_LOG_RETENTION_DAYS (default 30).
     Returns the number of records removed.
+
+    This call *is* the journal's rotation — it is what bounds `logs.json` to a
+    retention window instead of letting it grow with total history, and it ages
+    the D-3 mirror out in the same operation.
+
+    A failure here therefore has two consequences at once: personal data is kept
+    past its retention period (a compliance event, not a degraded report), and
+    the file every analytics reader scans starts growing without limit. It used
+    to return 0 on any exception — indistinguishable from a healthy day with
+    nothing old enough to purge, which is what most days look like. It is now
+    counted, so the silence is visible.
     """
     try:
         from warden.analytics.logger import purge_old_entries  # noqa: PLC0415
@@ -349,7 +360,17 @@ async def run_retention_purge() -> int:
         log.info("GDPR auto-retention: removed %d entries older than %d days", removed, RETENTION_DAYS)
         return removed
     except Exception as exc:
-        log.error("GDPR auto-retention failed: %s", exc)
+        try:
+            from warden.observability import Reason, record_failopen  # noqa: PLC0415
+
+            record_failopen("gdpr_retention_purge", Reason.BACKEND_ERROR, exc)
+        except Exception:
+            log.debug("could not record the retention failure as a counter")
+        log.error(
+            "GDPR auto-retention failed: %s — entries past GDPR_LOG_RETENTION_DAYS "
+            "are being retained and logs.json is no longer bounded",
+            exc,
+        )
         return 0
 
 

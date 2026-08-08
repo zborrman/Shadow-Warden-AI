@@ -1661,11 +1661,25 @@ async def health_pipeline(deep: bool = False) -> dict:
     except Exception as _pqc_err:
         log.debug("pqc self-check unavailable in health: %r", _pqc_err)
 
+    # The NDJSON journal's only bound is the daily `run_gdpr_retention` cron.
+    # A cron that stops has no symptom: the file grows, every analytics reader
+    # scans more of it, and personal data outlives its retention period —
+    # silently, because a purge that removed nothing looks like a quiet day.
+    # Reported as its own key, and deliberately not folded into
+    # `degraded_stages`: an over-long journal is a compliance and cost problem,
+    # not a reason to pull a healthy gateway out of the load balancer.
+    journal: dict = {"bounded": True, "detail": "stats unavailable"}
+    try:
+        journal = await asyncio.to_thread(event_logger.journal_stats)
+    except Exception as _j_err:
+        log.debug("journal stats unavailable in health: %r", _j_err)
+
     result = {
         "status":          "degraded" if degraded else "ok",
         "stages":          stages,
         "turso":           turso,
         "pqc":             pqc,
+        "journal":         journal,
         "degraded_stages": degraded,
     }
     if canary is not None:
