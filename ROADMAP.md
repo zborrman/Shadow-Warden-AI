@@ -32,6 +32,10 @@ We publish an updated priority snapshot every quarter. The `📋 Planned` items 
 | BL-28 | Per-tenant LLM budget + soft model gate; evolution daily spend ceiling; `GET /billing/margin` | ✅ |
 | BL-29 | `scripts/finops_report.py` — unit economics, model cost and node capacity from the code's own price book | ✅ |
 | BL-30 | Monetization plan published — `docs/monetization-plan.md` | ✅ |
+| BL-31 | Community Business quota 10k → 15k; x402 search fee aligned to the credit price ($0.001, one constant) | ✅ |
+| BL-32 | Agent-turn allowance published — Pro includes 200 turns/mo, then $0.15/turn; metered in `_calculate_overage()` | ✅ |
+| BL-33 | Overage collection loop closed — idempotent `billing_overage_charges` ledger, `OVERAGE_CHARGE_ENFORCED` gate | ✅ |
+| BL-34 | Platform LLM cost centre — rag_evolver / nemo_bridge / red-team budgeted and costed; Evolution per-tenant fairness share | ✅ |
 
 ---
 
@@ -505,6 +509,10 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-22 | AI Vendor Governance Register — DPA tracking + expiry alerts | v4.23 | Individual+ | ✅ |
 | BL-23 | AI Cost Allocation — per-department/vendor spend tracking | v4.24 | Community+ | ✅ |
 | BL-24 | AI Budget Dashboard — real-time spend + approval workflow | v4.24 | Community+ | ✅ |
+| BL-31 | Community Business quota raised to 15 000 req/mo; marketplace search priced identically on both rails ($0.001 — x402 and prepaid credits read one constant, closing a 1000× gap) | v7.9 | All | ✅ |
+| BL-32 | Published agent-turn allowance — Pro includes 200 MasterAgent turns/mo, metered at $0.15/turn beyond; a test asserts the allowance fits inside the tier's own LLM budget and is only published where `master_agent_enabled` | v7.9 | Pro+ | ✅ |
+| BL-33 | Overage collection loop — `warden/billing/overage_ledger.py` settles idempotently per (tenant, period); presenting the charge is gated behind `OVERAGE_CHARGE_ENFORCED` (default false) and a failure is recorded as `failed`, never as charged | v7.9 | Pro+ | ✅ |
+| BL-34 | Platform LLM cost centre + Evolution fairness — `choose_platform_model()` budgets rag_evolver / nemo_bridge / red-team against `PLATFORM_LLM_MONTHLY_BUDGET_USD`; `EVOLUTION_TENANT_SHARE` stops one free-tier attacker consuming the whole evolution window; `cached_tokens` column makes cache savings reportable on `GET /billing/margin` | v7.9 | All | ✅ |
 | BL-25 | Canonical price list (FM-7) — `warden/billing/pricing.py` owns tier prices, tier aliases and **derived** annual pricing; `feature_gate`, `/billing/tiers` and `finops/margin` re-export from it. Closed a three-way drift that sold a year of Pro at $703 against a $1,019.90 list — a 41% discount on a plan advertised at 15%. Ratchet: `test_pricing_coherence.py` | v7.9 | — | ✅ |
 | BL-26 | Overage rating repair (FM-7) — `_calculate_overage()` read a `per_1k_requests_usd` key that never existed in `OVERAGE_PRICES` (which stores cents), so **every** request overage on every tier had rated at $0.00 and reported itself disabled since BL-19 shipped | v7.9 | Pro+ | ✅ |
 | BL-27 | LLM COGS attribution (FM-7) — MasterAgent (all four call sites) and the Evolution Engine now record token spend; `TokenCostTracker` takes `cached_tokens` and gains `get_cost_since()`; `warden_llm_cost_usd_total` Prometheus counter; `claude-opus-4-6` added to the price book plus a model-family fallback (it had been rating as Sonnet, 5× under) | v7.9 | — | ✅ |

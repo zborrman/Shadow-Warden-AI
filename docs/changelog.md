@@ -62,6 +62,38 @@ Track C / **FM-7**. Full analysis: `docs/monetization-plan.md`.
   Business **$39.99/mo**, Pro **$99.99/mo**. Annual: $51 / $407.90 / $1,019.90 /
   $2,539.80. Historical changelog entries were deliberately left unedited.
 
+**Slice 2 — acting on the plan's open decisions**
+
+- **BL-31 — Ladder and rails.** Community Business quota raised 10 000 → **15 000
+  req/mo**, moving its unit revenue from $0.0040 to $0.0027/request and closing
+  most of the inversion against Pro. The marketplace search fee is now one
+  constant: x402 and prepaid credits both charge **$0.001**, where x402 had been
+  charging $0.000001 — a 1 000× gap for identical work, decided by whichever
+  payment rail the agent happened to use.
+- **BL-32 — The agent allowance is published.** "MasterAgent included in Pro"
+  now reads **200 agent turns/month, then $0.15/turn**, metered alongside
+  request overage. Two tests keep it honest: the allowance must fit inside the
+  tier's own LLM budget at Opus rates, and it may only be published for a tier
+  whose `master_agent_enabled` is true.
+- **BL-33 — Overage is actually collectable.** New
+  `warden/billing/overage_ledger.py` records each charge idempotently per
+  (tenant, period), so a cron re-run cannot double-charge. Presenting the charge
+  to a provider is gated behind `OVERAGE_CHARGE_ENFORCED` (default **false**) —
+  off, charges are stored as `computed` with the full audit trail and no money
+  moves. A charge that cannot be presented is stored as `failed`, never
+  silently as charged. `overage.py` also stopped describing the retired $49
+  Business / $199 MCP tiers and building upgrade links to plans that no longer
+  exist.
+- **BL-34 — The last uncapped LLM paths.** `rag_evolver`, `nemo_bridge` and the
+  red-team runner now route through `choose_platform_model()` and record to a
+  platform cost centre with its own budget (`PLATFORM_LLM_MONTHLY_BUDGET_USD`,
+  default $50); they had no plan to derive an allowance from and were simply
+  uncapped. The Evolution Engine gained a per-tenant fairness share
+  (`EVOLUTION_TENANT_SHARE`, default 50% of a window) so one free-tier attacker
+  can no longer consume the whole evolution budget. `staff_action_costs` gained
+  a `cached_tokens` column, and `GET /billing/margin` now reports what prompt
+  caching saved.
+
 ---
 
 ## v6.6 — Five New Modules + Production Assembly (2026-06-16)

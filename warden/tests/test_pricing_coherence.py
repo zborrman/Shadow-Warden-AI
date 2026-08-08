@@ -276,3 +276,167 @@ class TestSitePricesMatchTheTable:
         for name, tier in _SITE_TIER_NAMES.items():
             for m in re.finditer(rf"\*\*{re.escape(name)}\*\*:\s*\$([\d.]+)/month", src):
                 assert float(m.group(1)) == TIER_PRICE_USD_MONTH[tier], f"{name} stale in llms.txt"
+
+
+# ── Metered pricing: one price per unit of work ───────────────────────────────
+
+class TestMeteredPricing:
+    """
+    A search cost $0.000001 on the x402 rail and $0.001 as a prepaid credit —
+    a 1000x gap for identical work, decided by which rail the agent happened to
+    use. Both now read the same constant.
+    """
+
+    def test_x402_and_credits_charge_the_same_for_a_search(self):
+        from decimal import Decimal
+
+        from warden.billing.pricing import CREDIT_USD, MARKETPLACE_SEARCH_FEE_USD
+        from warden.marketplace.credits import _CREDIT_MICROS
+        from warden.marketplace.x402_gate import _SEARCH_FEE_USD
+
+        assert MARKETPLACE_SEARCH_FEE_USD == CREDIT_USD
+        assert Decimal(str(MARKETPLACE_SEARCH_FEE_USD)) == _SEARCH_FEE_USD
+        assert int(round(CREDIT_USD * 1_000_000)) == _CREDIT_MICROS
+
+    def test_settings_default_matches_the_canonical_fee(self):
+        from warden.billing.pricing import MARKETPLACE_SEARCH_FEE_USD
+        from warden.config import Settings
+        assert float(Settings().marketplace_search_fee_usd) == MARKETPLACE_SEARCH_FEE_USD
+
+
+# ── Agent-turn allowance (published, not implicit) ────────────────────────────
+
+class TestAgentTurnAllowance:
+    def test_pro_publishes_an_allowance(self):
+        assert FeatureGate.for_tier("pro").agent_turns_per_month() > 0
+
+    def test_enterprise_is_unlimited_and_free_tiers_have_none(self):
+        assert FeatureGate.for_tier("enterprise").agent_turns_per_month() is None
+        assert FeatureGate.for_tier("starter").agent_turns_per_month() == 0
+
+    @pytest.mark.parametrize("tier", ["starter", "individual", "community_business",
+                                      "pro", "enterprise"])
+    def test_an_allowance_is_published_only_where_the_agent_is_enabled(self, tier):
+        """Publishing turns for a tier that cannot call the agent is a promise
+        the product does not keep — and publishing none where it can is the
+        unbounded-cost problem this whole allowance exists to close."""
+        gate = FeatureGate.for_tier(tier)
+        turns = gate.agent_turns_per_month()
+        enabled = bool(gate.get("master_agent_enabled"))
+        assert (turns is None or turns > 0) == enabled, (
+            f"{tier}: master_agent_enabled={enabled} but turn allowance={turns}"
+        )
+
+    def test_the_allowance_fits_inside_the_tier_llm_budget(self):
+        """
+        The published turn count must be affordable within the tier's own
+        inference allowance at the model it is sold with. A published allowance
+        the plan cannot fund is the same unbounded promise, just written down.
+        """
+        from warden.finops.llm_budget import tier_llm_budget_usd
+        from warden.finops.rating import rate_usage
+
+        opus_turn = rate_usage("claude-opus-4-8", 2_000, 800, 20_000).total_usd
+        for tier in ("pro",):
+            turns = FeatureGate.for_tier(tier).agent_turns_per_month()
+            budget = tier_llm_budget_usd(tier)
+            assert turns * opus_turn <= budget, f"{tier} sells more turns than it funds"
+
+    @pytest.mark.asyncio
+    async def test_catalog_publishes_the_allowance_and_its_overage_rate(self):
+        from warden.billing.pricing import AGENT_TURN_OVERAGE_USD
+        from warden.billing.router import get_billing_tiers
+        payload = await get_billing_tiers()
+        pro = next(t for t in payload["tiers"] if t["pricing"]["label"] == "Pro")
+        assert pro["agent_turns_per_month"] == FeatureGate.for_tier("pro").agent_turns_per_month()
+        assert pro["agent_turn_overage_usd"] == AGENT_TURN_OVERAGE_USD
+
+
+# ── Agent-turn overage metering ───────────────────────────────────────────────
+
+class TestAgentTurnOverage:
+    @staticmethod
+    def _overage(monkeypatch, plan: str, turns_used: int) -> dict:
+        import warden.billing.quota_middleware as qm
+        import warden.lemon_billing as lb
+        from warden.billing.router import _calculate_overage
+
+        monkeypatch.setattr(qm, "get_quota_usage", lambda _t: {"used": 0, "limit": 50_000})
+        monkeypatch.setattr(lb, "get_lemon_billing",
+                            lambda: type("F", (), {"get_plan": lambda _s, _t: plan})())
+        monkeypatch.setattr(
+            "warden.staff.economics.TokenCostTracker.get_turns_since",
+            lambda _self, _t, _since, agent_prefix="master": turns_used,
+        )
+        return _calculate_overage("t1")
+
+    def test_turns_within_the_allowance_are_free(self, monkeypatch):
+        row = self._overage(monkeypatch, "pro", turns_used=10)
+        assert row["overage_turns"] == 0
+        assert row["turn_charge_usd"] == 0.0
+
+    def test_turns_beyond_the_allowance_are_metered(self, monkeypatch):
+        from warden.billing.pricing import AGENT_TURN_OVERAGE_USD
+        allowance = FeatureGate.for_tier("pro").agent_turns_per_month()
+        row = self._overage(monkeypatch, "pro", turns_used=allowance + 20)
+        assert row["overage_turns"] == 20
+        assert row["turn_charge_usd"] == pytest.approx(20 * AGENT_TURN_OVERAGE_USD)
+        assert row["charge_usd"] == pytest.approx(row["request_charge_usd"] + row["turn_charge_usd"])
+
+    def test_enterprise_turns_are_never_metered(self, monkeypatch):
+        row = self._overage(monkeypatch, "enterprise", turns_used=100_000)
+        assert row["overage_turns"] == 0
+        assert row["turn_charge_usd"] == 0.0
+
+
+# ── The published HTML, not just the source ───────────────────────────────────
+
+class TestPublishedSiteIsCurrent:
+    """
+    `landing/` is what Vercel actually serves — `vercel.json` sets
+    `buildCommand: null` and `outputDirectory: "landing"`, so the Astro source in
+    `site/` is never built at deploy time. Editing `site/` therefore changes the
+    source and leaves production untouched: the live pricing page served $19/$69
+    for two days after the corrected prices merged to main.
+
+    CI regenerates the directory on merge (`.github/workflows/deploy-site.yml`).
+    This test is the backstop for the day that workflow silently stops running —
+    it reads the published bytes and asserts they quote the canonical prices.
+    """
+
+    _LANDING = _SITE.parent / "landing"
+
+    def _published(self, page: str) -> str:
+        path = self._LANDING / page / "index.html"
+        if not path.exists():
+            pytest.skip(f"landing/{page}/ not present in this checkout")
+        return path.read_text(encoding="utf-8", errors="ignore")
+
+    @pytest.mark.parametrize("tier", ["community_business", "pro"])
+    def test_published_price_page_quotes_the_canonical_monthly_price(self, tier):
+        html = self._published("price")
+        price = f"${TIER_PRICE_USD_MONTH[tier]:g}"
+        assert price in html, (
+            f"landing/price/ does not quote {price} for {tier}. "
+            "The published site is stale — rebuild site/ and regenerate landing/."
+        )
+
+    @pytest.mark.parametrize("tier", ["individual", "community_business", "pro"])
+    def test_published_price_page_quotes_the_derived_annual_price(self, tier):
+        html = self._published("price")
+        annual = annual_price_usd(tier)
+        assert annual is not None
+        assert f"{annual:.2f}" in html, (
+            f"landing/price/ does not quote the ${annual:.2f} annual price for {tier}."
+        )
+
+    def test_published_page_carries_no_retired_price(self):
+        """The two numbers the live site was still serving after the fix."""
+        html = self._published("price")
+        # "$19" alone is not a safe marker — the Event Streaming add-on
+        # legitimately costs $19/mo. Only strings that can be a tier price.
+        for retired in ("$69<", "billed $194", "billed $705", "10,000 req / month"):
+            assert retired not in html, (
+                f"landing/price/ still carries the retired {retired!r} — "
+                "the published build predates the canonical price list."
+            )

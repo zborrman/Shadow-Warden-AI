@@ -114,7 +114,7 @@ PLAN_QUOTAS: dict[str, int | None] = {
 PLAN_PRICES: dict[str, float] = {
     "trial":              0.00,   # $0 for 14 days
     "starter":            0.00,
-    "individual":         5.00,   # + $0.000001/search via x402 metered billing
+    "individual":         5.00,   # + $0.001/search via x402 metered billing
     "community_business": 39.99,  # + 1.5% take rate on cleared M2M transactions
     "pro":                99.99,  # + sponsored listings boost included
     "enterprise":        249.00,  # + PQC + Sovereign + dedicated Opus routing
@@ -661,7 +661,7 @@ class MeterUsageAggregator:
     Lemon Squeezy's usage-based billing API (POST /v1/usage-records).
 
     Usage model for Individual tier:
-      - Per-call fee: $0.000001 (MARKETPLACE_SEARCH_FEE_USD)
+      - Per-call fee: $0.001 (MARKETPLACE_SEARCH_FEE_USD) — same as one prepaid credit
       - Flush to LS after _METER_FLUSH_EVENTS events OR _METER_FLUSH_SECS seconds
       - Fail-open: flush errors are logged, not raised
 

@@ -467,8 +467,9 @@ def _report_search_usage(tenant_id: str) -> None:
     Fail-open: any exception is logged and swallowed.
     """
     try:
+        from warden.billing.pricing import MARKETPLACE_SEARCH_FEE_USD
         from warden.lemon_billing import get_meter_aggregator  # noqa: PLC0415
-        get_meter_aggregator().record(tenant_id, 0.000001)
+        get_meter_aggregator().record(tenant_id, MARKETPLACE_SEARCH_FEE_USD)
     except Exception as exc:
         log.debug("_report_search_usage fail-open: %s", exc)
 

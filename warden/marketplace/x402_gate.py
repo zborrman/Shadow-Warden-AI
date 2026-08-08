@@ -32,6 +32,7 @@ from decimal import Decimal
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from warden.billing.pricing import MARKETPLACE_SEARCH_FEE_USD
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -41,7 +42,11 @@ log = logging.getLogger("warden.marketplace.x402_gate")
 _x402_audit_log = logging.getLogger("warden.x402.audit")
 
 _X402_ENABLED      = os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
-_SEARCH_FEE_USD    = Decimal(os.getenv("MARKETPLACE_SEARCH_FEE_USD", "0.000001"))
+# Same price as one prepaid credit — the payment rail an agent picks must not
+# change what a search is worth. See warden/billing/pricing.py.
+_SEARCH_FEE_USD    = Decimal(
+    os.getenv("MARKETPLACE_SEARCH_FEE_USD", str(MARKETPLACE_SEARCH_FEE_USD))
+)
 _DB_PATH           = data_path("warden_x402_marketplace.db", "MARKETPLACE_X402_DB_PATH")
 _PAYMENT_ADDR      = os.getenv("MARKETPLACE_X402_PAYMENT_ADDRESS", "0x0000000000000000000000000000000000000000")
 _db_lock           = threading.RLock()

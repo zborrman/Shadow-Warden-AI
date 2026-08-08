@@ -669,32 +669,55 @@ async def sova_overage_billing(ctx: dict) -> dict:
     tenants     = list_all_tenants()
     overage_rows = []
 
+    from warden.billing.overage_ledger import charge_enforced, settle
     from warden.billing.router import _calculate_overage  # noqa: PLC0415
+
+    # The previous version of this job computed a number, logged it, and
+    # stopped — collection was left to an admin endpoint nothing called. It now
+    # settles each charge through the idempotent ledger, so a re-run cannot
+    # double-charge and a failure is recorded as failed instead of vanishing.
+    settled = {"charged": 0, "computed": 0, "failed": 0, "skipped": 0, "repeat": 0}
 
     for tenant_id in tenants:
         try:
             row = _calculate_overage(tenant_id)
-            if row["overage_requests"] > 0:
-                overage_rows.append(row)
-                log.info(
-                    "overage billing: tenant=%s overage=%d charge=$%.4f",
-                    tenant_id, row["overage_requests"], row["charge_usd"],
-                )
+            if row["charge_usd"] <= 0:
+                continue
+            result = settle(row)
+            key = "repeat" if result.get("idempotent") else result["status"]
+            settled[key] = settled.get(key, 0) + 1
+            row["settlement_status"] = result["status"]
+            overage_rows.append(row)
+            log.info(
+                "overage billing: tenant=%s requests=%d turns=%d charge=$%.4f status=%s",
+                tenant_id, row["overage_requests"], row.get("overage_turns", 0),
+                row["charge_usd"], result["status"],
+            )
         except Exception as exc:
-            log.debug("overage billing: tenant=%s error=%s", tenant_id, exc)
+            log.warning("overage billing: tenant=%s error=%s", tenant_id, exc)
 
     total_charge = sum(r["charge_usd"] for r in overage_rows)
+    if settled.get("failed"):
+        log.error(
+            "overage billing: %d charge(s) FAILED to present — operator action required",
+            settled["failed"],
+        )
 
     if overage_rows:
         lines = [
-            f"• `{r['tenant_id']}` ({r['plan']}) — {r['overage_requests']:,} overage → ${r['charge_usd']:.2f}"
+            f"• `{r['tenant_id']}` ({r['plan']}) — "
+            f"{r['overage_requests']:,} req + {r.get('overage_turns', 0):,} turns "
+            f"→ ${r['charge_usd']:.2f} [{r['settlement_status']}]"
             for r in overage_rows[:10]
         ]
+        mode = "COLLECTING" if charge_enforced() else "DRY RUN (OVERAGE_CHARGE_ENFORCED=false)"
         await _slack(
-            f"*Overage Billing Summary* [{_ts()}]\n"
+            f"*Overage Billing Summary* [{_ts()}] — {mode}\n"
             + "\n".join(lines)
             + (f"\n_...and {len(overage_rows) - 10} more_" if len(overage_rows) > 10 else "")
-            + f"\n_Total projected overage charge: ${total_charge:.2f}_"
+            + f"\n_Total: ${total_charge:.2f} · "
+            + " · ".join(f"{k}={v}" for k, v in settled.items() if v)
+            + "_"
         )
 
     return {
@@ -703,6 +726,8 @@ async def sova_overage_billing(ctx: dict) -> dict:
         "tenants":      len(tenants),
         "overage_count": len(overage_rows),
         "total_charge_usd": total_charge,
+        "enforced":     charge_enforced(),
+        "settlement":   settled,
     }
 
 

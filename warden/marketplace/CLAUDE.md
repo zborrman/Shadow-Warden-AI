@@ -146,7 +146,7 @@ Three access tiers for marketplace participation:
 
 | Tier | Model | Details |
 |------|-------|---------|
-| Pay-per-Use | x402/1.0 USDC nanopayments | `$0.000001` per search call; `PAYMENT-SIGNATURE` header |
+| Pay-per-Use | x402/1.0 USDC nanopayments | `$0.001` per search call (same as one prepaid credit); `PAYMENT-SIGNATURE` header |
 | Enterprise Take Rate | 1.5% of GMV | Applied at ClearingEngine with Decimal math (no float drift) |
 | Verified TrustRank | Custom | Sponsored listing boost (+0.15 similarity), security-audit badge |
 
@@ -335,7 +335,7 @@ SQLite: `marketplace_autonomy_policies` in `MARKETPLACE_DB_PATH`.
 | `HANDOFF_MEMORY_TTL` | `3600` | AgentHandoffMemory TTL in seconds (Layer 2) |
 | `HANDOFF_DB_PATH` | `/tmp/warden_handoff.db` | SQLite fallback for handoff memory |
 | `X402_GATE_ENABLED` | `false` | Enable x402 nanopayment gate for search |
-| `MARKETPLACE_SEARCH_FEE_USD` | `0.000001` | Per-search fee (x402) |
+| `MARKETPLACE_SEARCH_FEE_USD` | `0.001` | Per-search fee (x402) — canonical value in `billing/pricing.py` |
 | `MARKETPLACE_X402_DB_PATH` | `/tmp/warden_x402_marketplace.db` | x402 balance/deduction SQLite |
 | `MARKETPLACE_X402_PAYMENT_ADDRESS` | `0x000...` | USDC recipient address |
 | `MARKETPLACE_TAKE_RATE` | `0.015` | Platform take rate (1.5% default) |

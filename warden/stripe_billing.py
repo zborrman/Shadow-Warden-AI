@@ -249,6 +249,120 @@ class StripeBilling:
         )
         return session.url
 
+    # ── Enterprise invoicing ──────────────────────────────────────────────────
+
+    def create_enterprise_invoice(
+        self,
+        tenant_id:      str,
+        customer_email: str,
+        company_name:   str = "",
+        annual:         bool = True,
+        seats:          int = 1,
+        po_number:      str = "",
+        days_until_due: int = 30,
+        auto_send:      bool = False,
+    ) -> dict:
+        """
+        Raise a Stripe invoice for an Enterprise agreement.
+
+        Why an invoice and not a checkout link
+        ──────────────────────────────────────
+        Enterprise buying is a procurement process, not a card payment: the
+        buyer needs an invoice addressed to their company, carrying their PO
+        number, payable by bank transfer on net terms, from a vendor they have
+        onboarded. A merchant-of-record checkout cannot produce that — under an
+        MoR the *processor* is the seller of record, so the contract, the
+        invoice and the tax position all belong to it rather than to us. That is
+        exactly the trade an MoR makes, and it is the right trade for self-serve
+        plans; it is the wrong one here. See `docs/billing-strategy.md`.
+
+        The amount comes from the canonical price list, never from a number
+        typed into a sales email.
+
+        Returns the invoice id, status, total and hosted URL. Raises
+        RuntimeError when Stripe is unconfigured, ValueError on bad input.
+        """
+        if not self._enabled:
+            raise RuntimeError("Stripe not configured (STRIPE_SECRET_KEY missing).")
+        if not customer_email or "@" not in customer_email:
+            raise ValueError("A billing email is required to raise an invoice.")
+        if seats < 1:
+            raise ValueError("seats must be at least 1.")
+
+        from warden.billing.pricing import annual_price_usd, monthly_price_usd
+
+        unit_usd = annual_price_usd("enterprise") if annual else monthly_price_usd("enterprise")
+        if not unit_usd:
+            raise RuntimeError("Enterprise has no list price in warden.billing.pricing.")
+        period = "annual" if annual else "monthly"
+
+        import stripe as _stripe  # noqa: PLC0415
+
+        row = self._conn.execute(
+            "SELECT stripe_customer_id FROM subscriptions WHERE tenant_id=?",
+            (tenant_id,),
+        ).fetchone()
+        customer_id = row["stripe_customer_id"] if row else None
+        if not customer_id:
+            customer = _stripe.Customer.create(
+                email=customer_email,
+                name=company_name or None,
+                metadata={"tenant_id": tenant_id, "plan": "enterprise"},
+            )
+            customer_id = customer.id
+
+        invoice = _stripe.Invoice.create(
+            customer=customer_id,
+            collection_method="send_invoice",     # net terms, not card-on-file
+            days_until_due=days_until_due,
+            auto_advance=False,                   # finalise explicitly below
+            metadata={
+                "tenant_id": tenant_id,
+                "plan":      "enterprise",
+                "period":    period,
+                "po_number": po_number,
+            },
+        )
+        # Built as a dict and splatted, matching create_checkout_session above:
+        # the shipped stripe stubs do not describe every accepted field.
+        item_params: dict = {
+            "customer":    customer_id,
+            "invoice":     invoice.id,
+            "currency":    "usd",
+            "unit_amount": int(round(unit_usd * 100)),
+            "quantity":    seats,
+            "description": (
+                f"Shadow Warden AI — Enterprise ({period}), {seats} seat(s)"
+                + (f" · PO {po_number}" if po_number else "")
+            ),
+        }
+        _stripe.InvoiceItem.create(**item_params)
+
+        # Finalising turns the draft into a real, numbered invoice with a hosted
+        # payment page. Sending is separate and deliberate: a draft can be
+        # corrected, a sent invoice is a document the buyer's AP system has.
+        invoice = _stripe.Invoice.finalize_invoice(invoice.id)
+        if auto_send:
+            invoice = _stripe.Invoice.send_invoice(invoice.id)
+
+        log.info(
+            "Stripe: enterprise invoice %s raised (tenant=%s %s seats=%d total=$%.2f sent=%s)",
+            invoice.id, tenant_id, period, seats, unit_usd * seats, auto_send,
+        )
+        return {
+            "invoice_id":   invoice.id,
+            "status":       invoice.status,
+            "period":       period,
+            "seats":        seats,
+            "unit_usd":     unit_usd,
+            "total_usd":    round(unit_usd * seats, 2),
+            "due_in_days":  days_until_due,
+            "po_number":    po_number,
+            "hosted_url":   getattr(invoice, "hosted_invoice_url", None),
+            "pdf_url":      getattr(invoice, "invoice_pdf", None),
+            "sent":         auto_send,
+        }
+
     # ── Billing Portal ────────────────────────────────────────────────────────
 
     def create_portal_session(self, tenant_id: str, return_url: str) -> str:

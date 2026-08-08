@@ -9,6 +9,7 @@ Endpoints
   GET  /billing/status                   — current plan + subscription details
   GET  /billing/quota                    — monthly request usage for a tenant
   GET  /billing/margin                   — plan revenue vs. month-to-date LLM cost
+  POST /billing/enterprise/quote         — [Admin] price / invoice an Enterprise deal
   GET  /billing/upgrade                  — redirect to Lemon Squeezy checkout
   POST /billing/trial/start              — activate 14-day Pro trial (Individual+ only)
   GET  /billing/trial/status             — trial status + days remaining
@@ -34,6 +35,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
@@ -92,7 +94,7 @@ async def get_billing_tiers():
     labels = {
         "trial":              ("Trial",              "$0 for 14 days — no credit card required"),
         "starter":            ("Free",               ""),
-        "individual":         ("Individual",         "+ $0.000001/search via x402 metered billing"),
+        "individual":         ("Individual",         "+ $0.001/search via x402 metered billing"),
         "community_business": ("Community Business", "+ 1.5% take rate on cleared M2M transactions"),
         "pro":                ("Pro",                "Sponsored listing boost (+0.15) included"),
         "enterprise":         ("Enterprise",         "PQC + Sovereign + dedicated Opus routing"),
@@ -186,6 +188,86 @@ async def get_billing_margin(
     tenant_id = _require_tenant(x_tenant_id)
     from warden.finops.llm_budget import margin_report, resolve_tier
     return margin_report(tenant_id, resolve_tier(tenant_id) or "starter")
+
+
+# ── Enterprise quote ──────────────────────────────────────────────────────────
+
+class EnterpriseQuoteRequest(BaseModel):
+    tenant_id:      str
+    customer_email: str
+    company_name:   str  = ""
+    seats:          int  = 1
+    annual:         bool = True
+    po_number:      str  = ""
+    raise_invoice:  bool = False
+
+
+@router.post(
+    "/enterprise/quote",
+    summary="[Admin] Quote — and optionally invoice — an Enterprise agreement",
+)
+async def enterprise_quote(
+    body:        EnterpriseQuoteRequest,
+    x_admin_key: str | None = Header(default=None),
+):
+    """
+    Price an Enterprise deal from the canonical list, and optionally raise a
+    Stripe invoice for it.
+
+    Enterprise has no self-serve checkout by design: it is a procurement
+    process — company-addressed invoice, PO number, net terms, bank transfer —
+    which a merchant-of-record checkout structurally cannot produce. This
+    endpoint is the sales-side equivalent, so the number in a quote comes from
+    `warden.billing.pricing` rather than from whatever was typed into an email.
+
+    Admin-gated: it prices a deal and can create a real invoice.
+    `raise_invoice=false` (the default) quotes only.
+    """
+    _require_admin(x_admin_key)
+    from warden.billing.pricing import annual_price_usd, monthly_price_usd
+
+    unit = annual_price_usd("enterprise") if body.annual else monthly_price_usd("enterprise")
+    if not unit:
+        raise HTTPException(500, "Enterprise has no list price configured.")
+    if body.seats < 1:
+        raise HTTPException(400, "seats must be at least 1.")
+
+    quote: dict[str, Any] = {
+        "tenant_id":   body.tenant_id,
+        "plan":        "enterprise",
+        "period":      "annual" if body.annual else "monthly",
+        "seats":       body.seats,
+        "unit_usd":    unit,
+        "total_usd":   round(unit * body.seats, 2),
+        "po_number":   body.po_number,
+        "payment":     "invoice · net-30 · bank transfer or card",
+        "invoice":     None,
+    }
+
+    if not body.raise_invoice:
+        return quote
+
+    try:
+        from warden.stripe_billing import get_stripe_billing
+        quote["invoice"] = get_stripe_billing().create_enterprise_invoice(
+            tenant_id=body.tenant_id,
+            customer_email=body.customer_email,
+            company_name=body.company_name,
+            annual=body.annual,
+            seats=body.seats,
+            po_number=body.po_number,
+        )
+    except RuntimeError as exc:
+        # Stripe unconfigured is an operator state, not a client error: the
+        # quote is still valid and correct, so return it with the reason rather
+        # than failing the whole call.
+        quote["invoice_error"] = str(exc)
+        log.warning("billing/enterprise/quote: invoice not raised — %s", exc)
+    except Exception as exc:
+        log.error("billing/enterprise/quote: invoice failed — %s", exc)
+        raise HTTPException(502, f"Invoice creation failed: {type(exc).__name__}") from exc
+
+    return quote
 
 
 # ── Upgrade redirect ──────────────────────────────────────────────────────────
@@ -646,7 +728,9 @@ def _calculate_overage(tenant_id: str) -> dict:
         used, limit = 0, 0
 
     overage = max(0, used - limit)
-    charge  = round(overage / 1_000 * rate_per_k, 4) if rate_per_k else 0.0
+    request_charge = round(overage / 1_000 * rate_per_k, 4) if rate_per_k else 0.0
+
+    turns = _agent_turn_overage(tenant_id, tier)
 
     return {
         "tenant_id":          tenant_id,
@@ -655,6 +739,49 @@ def _calculate_overage(tenant_id: str) -> dict:
         "quota_used":         used,
         "overage_requests":   overage,
         "rate_per_1k_usd":    rate_per_k,
-        "charge_usd":         charge,
-        "overage_enabled":    bool(rate_per_k),
+        "request_charge_usd": request_charge,
+        # Agent turns are metered separately: they are a different unit with a
+        # different cost driver (one Opus turn costs ~$0.12, a filtered request
+        # ~$0.000001), so blending them into a single rate would hide both.
+        "turn_allowance":     turns["allowance"],
+        "turns_used":         turns["used"],
+        "overage_turns":      turns["overage"],
+        "rate_per_turn_usd":  turns["rate"],
+        "turn_charge_usd":    turns["charge"],
+        "charge_usd":         round(request_charge + turns["charge"], 4),
+        "overage_enabled":    bool(rate_per_k) or turns["allowance"] not in (None, 0),
+    }
+
+
+def _agent_turn_overage(tenant_id: str, tier: str) -> dict:
+    """
+    Agent turns used this month against the tier's published allowance.
+
+    Resilient: any read failure reports zero usage. Under-billing on an
+    infrastructure fault is the correct direction — we never invent a charge we
+    cannot evidence.
+    """
+    from warden.billing.pricing import AGENT_TURN_OVERAGE_USD, agent_turn_allowance
+
+    allowance = agent_turn_allowance(tier)
+    blank = {"allowance": allowance, "used": 0, "overage": 0,
+             "rate": AGENT_TURN_OVERAGE_USD, "charge": 0.0}
+    if allowance is None or allowance == 0:
+        # Unlimited (Enterprise) or the feature is not sold on this tier.
+        return blank
+    try:
+        from warden.finops.llm_budget import month_start_ts
+        from warden.staff.economics import get_tracker
+        used = get_tracker().get_turns_since(tenant_id, month_start_ts())
+    except Exception as exc:
+        log.warning("billing/overage: turn count unavailable (charging 0): %s", exc)
+        return blank
+
+    over = max(0, used - allowance)
+    return {
+        "allowance": allowance,
+        "used":      used,
+        "overage":   over,
+        "rate":      AGENT_TURN_OVERAGE_USD,
+        "charge":    round(over * AGENT_TURN_OVERAGE_USD, 4),
     }

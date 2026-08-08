@@ -320,11 +320,12 @@ class TestReportSearchUsageTask(unittest.TestCase):
             _report_search_usage("tenant-xyz")  # must not raise
 
     def test_enqueues_record_via_aggregator(self):
+        from warden.billing.pricing import MARKETPLACE_SEARCH_FEE_USD
         from warden.marketplace.api import _report_search_usage
         mock_agg = MagicMock()
         with patch("warden.lemon_billing.get_meter_aggregator", return_value=mock_agg):
             _report_search_usage("tenant-xyz")
-        mock_agg.record.assert_called_once_with("tenant-xyz", 0.000001)
+        mock_agg.record.assert_called_once_with("tenant-xyz", MARKETPLACE_SEARCH_FEE_USD)
 
 
 # ── 13. MeterUsageAggregator uses ls_sub_item_id ─────────────────────────────

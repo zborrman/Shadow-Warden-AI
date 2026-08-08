@@ -118,6 +118,34 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "docs_url":       "/docs/addons/community-seats",
     },
 
+    # ── Enterprise capabilities, sold self-serve ─────────────────────────────
+    # PQC and Sovereign used to be reachable only by buying Enterprise — a plan
+    # with no self-serve checkout, because Enterprise is a procurement process
+    # (see docs/billing-strategy.md). That made the two most differentiated
+    # features in the product unpurchasable by anyone who could actually click
+    # "buy". As add-ons they are payable by card at Pro, while Enterprise keeps
+    # them bundled.
+
+    "pqc_pack": {
+        "display_name":   "Post-Quantum Cryptography",
+        "description":    "Hybrid Ed25519 + ML-DSA-65 signatures and X25519 + ML-KEM-768 key exchange for community keypairs and transfer proofs. Harvest-now-decrypt-later protection without an Enterprise contract.",
+        "usd_per_month":  19,
+        "min_tier":       "pro",
+        "ls_variant_id":  settings.ls_variant_pqc_pack,
+        "unlocks":        ["pqc_enabled"],
+        "docs_url":       "/docs/addons/pqc",
+    },
+
+    "sovereign_pack": {
+        "display_name":   "Sovereign AI Cloud",
+        "description":    "Per-tenant data-residency routing across 8 jurisdictions, MASQUE tunnels with TOFU pinning, transfer-rules matrix, and HMAC-signed sovereignty attestations retained for 7 years.",
+        "usd_per_month":  25,
+        "min_tier":       "pro",
+        "ls_variant_id":  settings.ls_variant_sovereign_pack,
+        "unlocks":        ["sovereign_enabled"],
+        "docs_url":       "/docs/addons/sovereign",
+    },
+
     "obsidian_business_pack": {
         "display_name":   "Obsidian Business Pack",
         "description":    "Full Obsidian plugin feature set: Dataview security dashboard, offline publish queue, XAI pipeline visualizer, scheduled scan, and sidebar reputation panel.",

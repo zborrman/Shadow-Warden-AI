@@ -112,18 +112,28 @@ class TestGetBandwidthUsage:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestGetUpgradeUrl:
-    def test_individual_to_business(self):
+    def test_individual_upgrades_to_community_business(self):
+        """The old map sent Individual to "business", a plan that was retired —
+        the CTA on a 402 led to a checkout that cannot exist."""
         from warden.billing.overage import get_upgrade_url
         url = get_upgrade_url("individual", "bandwidth")
         assert "from=individual" in url
-        assert "to=business" in url
+        assert "to=community_business" in url
         assert "reason=bandwidth" in url
 
-    def test_business_to_mcp(self):
+    def test_legacy_tier_names_resolve_before_the_ladder_is_walked(self):
         from warden.billing.overage import get_upgrade_url
+        # "business" is a legacy alias for pro, whose next step is enterprise.
         url = get_upgrade_url("business", "storage")
-        assert "from=business" in url
-        assert "to=mcp" in url
+        assert "from=pro" in url
+        assert "to=enterprise" in url
+
+    def test_every_step_of_the_ladder_names_a_real_tier(self):
+        from warden.billing.feature_gate import TIER_LIMITS
+        from warden.billing.overage import get_upgrade_url
+        for tier in ("starter", "individual", "community_business", "pro", "enterprise"):
+            target = get_upgrade_url(tier, "requests").split("to=")[1].split("&")[0]
+            assert target in TIER_LIMITS, f"{tier} upgrades to unknown plan {target!r}"
 
     def test_uses_portal_base_url_env(self):
         os.environ["PORTAL_BASE_URL"] = "https://custom.example.com"
@@ -144,16 +154,16 @@ class TestGetUpgradeUrl:
 
 
 class TestGetOveragePackUrl:
-    def test_returns_url_with_tier(self):
+    def test_returns_url_with_the_canonical_tier(self):
         from warden.billing.overage import get_overage_pack_url
         url = get_overage_pack_url("business", "bandwidth")
-        assert "tier=business" in url
+        assert "tier=pro" in url          # "business" is a legacy alias for pro
         assert "metric=bandwidth" in url
 
-    def test_mcp_overage_url(self):
+    def test_legacy_mcp_resolves_to_enterprise(self):
         from warden.billing.overage import get_overage_pack_url
         url = get_overage_pack_url("mcp", "storage")
-        assert "tier=mcp" in url
+        assert "tier=enterprise" in url
 
 
 class TestGenerateReferralCode:

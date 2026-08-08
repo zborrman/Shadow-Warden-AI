@@ -253,8 +253,8 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 |------|-------|-------------|--------------|
 | **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
 | **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
-| **Community Business** *(SMB)* | $39.99/mo | 10,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
-| **Pro** | $99.99/mo | 50,000 | + MasterAgent, Shadow AI Discovery add-on eligible (+$15/mo) |
+| **Community Business** *(SMB)* | $39.99/mo | 15,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
+| **Pro** | $99.99/mo | 50,000 | + MasterAgent (200 agent turns/mo, then $0.15/turn), Shadow AI Discovery add-on eligible (+$15/mo) |
 | **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
 
 **Add-ons** (billed via Lemon Squeezy):

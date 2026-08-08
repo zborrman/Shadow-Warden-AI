@@ -358,12 +358,23 @@ Return ONLY valid Colang code, no markdown fencing."""
 
         try:
             client = anthropic.Anthropic(api_key=self._api_key)
+            # Platform-internal: budgeted + costed against the platform centre.
+            from warden.finops.llm_budget import (
+                choose_platform_model,
+                record_platform_cost,
+            )
+            model = choose_platform_model(
+                ["claude-sonnet-4-6", "claude-opus-4-6"],
+                agent="nemo_bridge",
+                est_output_tokens=1024,
+            ).model
             message = client.messages.create(
-                model="claude-opus-4-6",
+                model=model,
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
                 system=self._COLANG_SYSTEM_PROMPT,
             )
+            record_platform_cost("nemo_bridge", "synthesize_colang", model, message.usage)
             colang_code = message.content[0].text.strip()  # type: ignore[union-attr]
             colang_code = re.sub(r"^```.*\n", "", colang_code, flags=re.MULTILINE)
             colang_code = colang_code.replace("```", "").strip()

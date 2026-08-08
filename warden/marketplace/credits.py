@@ -30,6 +30,7 @@ import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 
+from warden.billing.pricing import CREDIT_USD
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -207,7 +208,9 @@ def _db_deduct_credits(tenant_id: str, amount: int) -> bool:
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
-_CREDIT_MICROS = 1_000  # 1 credit = $0.001 = 1000 µUSD
+# 1 credit = $0.001 = 1000 µUSD. Derived from the canonical price so the credit
+# rail and the x402 rail cannot drift apart on what one search costs.
+_CREDIT_MICROS = int(round(CREDIT_USD * 1_000_000))
 
 
 def _mirror_credit_grant(tenant_id: str, credits: int) -> None:

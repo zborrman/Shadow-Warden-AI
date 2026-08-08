@@ -70,9 +70,18 @@ _MTD_TTL_S: float = 60.0
 _mtd_cache: dict[str, tuple[float, float]] = {}   # tenant_id → (value, expires_at)
 
 
-def _month_start_ts() -> int:
+def month_start_ts() -> int:
+    """Unix timestamp of 00:00 UTC on the 1st of the current month.
+
+    Public because billing meters the same window: the LLM allowance and the
+    agent-turn allowance must reset together, not on two different clocks.
+    """
     now = datetime.now(UTC)
     return int(now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+
+# Kept as a private alias for callers written before this became public API.
+_month_start_ts = month_start_ts
 
 
 def tier_llm_budget_usd(tier: str) -> float | None:
@@ -145,9 +154,16 @@ class BudgetStatus:
     state: str                    # ok | warn | over | uncapped
 
 
-def budget_status(tenant_id: str, tier: str) -> BudgetStatus:
-    """Where a tenant stands against its monthly LLM allowance."""
-    budget = tier_llm_budget_usd(tier)
+def budget_status(
+    tenant_id: str, tier: str, budget_override: float | None = None
+) -> BudgetStatus:
+    """
+    Where a tenant stands against its monthly LLM allowance.
+
+    `budget_override` replaces the tier-derived allowance — used by internal
+    cost centres (see `choose_platform_model`), which have a budget but no plan.
+    """
+    budget = tier_llm_budget_usd(tier) if budget_override is None else budget_override
     spent = mtd_spend_usd(tenant_id)
     if budget is None:
         return BudgetStatus(tenant_id, tier, None, spent, None, None, "uncapped")
@@ -182,6 +198,7 @@ def choose_model(
     est_output_tokens: int = 1_000,
     cached_tokens: int = 0,
     agent: str = "agent",
+    budget_override: float | None = None,
 ) -> ModelChoice:
     """
     Pick a model from `candidates` (ordered least → most capable) given the
@@ -196,7 +213,7 @@ def choose_model(
 
     most_capable = candidates[-1]
     try:
-        status = budget_status(tenant_id, tier)
+        status = budget_status(tenant_id, tier, budget_override)
 
         if status.budget_usd is None:
             return ModelChoice(most_capable, False, "uncapped", status,
@@ -245,16 +262,86 @@ def _count_downgrade(tier: str, agent: str, chosen: str) -> None:
         LLM_BUDGET_DOWNGRADE_TOTAL.labels(tier=tier, agent=agent, chosen_model=chosen).inc()
 
 
+# ── Platform cost centre ──────────────────────────────────────────────────────
+# Some LLM work serves the platform, not one customer: rule evolution, Colang
+# synthesis, red-team runs. It has no plan to derive an allowance from, so it
+# gets its own budget and its own cost centre — otherwise it is either
+# uncapped (which is how it was) or wrongly charged to whichever tenant
+# happened to trigger it.
+
+PLATFORM_TENANT: str = "system:platform"
+PLATFORM_LLM_MONTHLY_BUDGET_USD: float = float(
+    os.getenv("PLATFORM_LLM_MONTHLY_BUDGET_USD", "50")
+)
+
+
+def choose_platform_model(
+    candidates: list[str],
+    agent: str,
+    est_input_tokens: int = 4_000,
+    est_output_tokens: int = 1_000,
+    cached_tokens: int = 0,
+) -> ModelChoice:
+    """
+    Pick a model for platform-internal work against the platform budget.
+
+    Same soft, additive contract as `choose_model`: never blocks, never drops
+    below `candidates[0]`, resolves to the most capable model on any fault.
+    """
+    return choose_model(
+        PLATFORM_TENANT,
+        "platform",
+        candidates,
+        est_input_tokens=est_input_tokens,
+        est_output_tokens=est_output_tokens,
+        cached_tokens=cached_tokens,
+        agent=agent,
+        budget_override=PLATFORM_LLM_MONTHLY_BUDGET_USD,
+    )
+
+
+def record_platform_cost(agent: str, action: str, model: str, usage: object) -> None:
+    """Attribute one platform LLM call to the platform cost centre (fail-open)."""
+    try:
+        from warden.staff.economics import get_tracker
+        get_tracker().record(
+            PLATFORM_TENANT, agent, action, model,
+            int(getattr(usage, "input_tokens", 0) or 0),
+            int(getattr(usage, "output_tokens", 0) or 0),
+            int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        )
+        invalidate_cache(PLATFORM_TENANT)
+    except Exception as exc:
+        record_failopen(_STAGE, Reason.BACKEND_ERROR, exc)
+
+
+def cache_savings_mtd_usd(tenant_id: str) -> float:
+    """USD that prompt caching saved this tenant this month (0.0 on any fault)."""
+    try:
+        from warden.staff.economics import get_tracker
+        return get_tracker().get_cache_savings_since(tenant_id, month_start_ts())
+    except Exception as exc:
+        record_failopen(_STAGE, Reason.BACKEND_ERROR, exc)
+        return 0.0
+
+
 def margin_report(tenant_id: str, tier: str) -> dict:
     """
     Revenue vs. cost for one tenant this month — the number the business
     actually runs on. Gross margin here is revenue minus *inference* cost only;
     infrastructure is a fixed cost shared across tenants, not a per-tenant COGS.
+
+    `cache_savings_mtd_usd` is what prompt caching already took off that cost.
+    It is reported rather than left implicit because it is large — on a typical
+    agent turn caching removes about 80% of input spend — and an invisible
+    saving is one nobody defends when someone proposes dropping the cache.
     """
     price = monthly_price_usd(tier)
     status = budget_status(tenant_id, tier)
     gross = None if price is None else round(price - status.spent_usd, 4)
     margin = None if not price else round(gross / price, 4)  # type: ignore[operator]
+    saved = cache_savings_mtd_usd(tenant_id)
+    cost_without_cache = round(status.spent_usd + saved, 6)
     return {
         "tenant_id":            tenant_id,
         "tier":                 tier,
@@ -266,4 +353,9 @@ def margin_report(tenant_id: str, tier: str) -> dict:
         "gross_profit_usd":     gross,
         "gross_margin":         margin,
         "target_gross_margin":  TARGET_GROSS_MARGIN,
+        "cache_savings_mtd_usd": saved,
+        "llm_cost_without_cache_usd": cost_without_cache,
+        "cache_saving_pct": (
+            round(saved / cost_without_cache, 4) if cost_without_cache > 0 else 0.0
+        ),
     }

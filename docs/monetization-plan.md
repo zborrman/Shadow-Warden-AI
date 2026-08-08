@@ -37,7 +37,7 @@ All five are fixed. The wider plan is in §5.
 tier                      $/mo        $/yr      req/mo       $/req   LLM budget   max $/req
 starter                  $0.00           -       1,000           -        $0.50           -
 individual               $5.00      $51.00       5,000   $0.001000        $1.25   $0.000500
-community_business      $39.99     $407.90      10,000   $0.003999       $10.00   $0.001999
+community_business      $39.99     $407.90      15,000   $0.002666       $10.00   $0.001333
 pro                     $99.99   $1,019.90      50,000   $0.002000       $25.00   $0.001000
 enterprise             $249.00   $2,539.80   unlimited           -            -           -
 ```
@@ -59,10 +59,13 @@ margin.
 208 Opus turns per month is the real ceiling on "MasterAgent included in Pro".
 That is a fine product promise — but only once something is counting.
 
-**Pricing inversion worth noting:** Community Business earns $0.0040/request
-while Pro earns $0.0020. Pro gives away 500 requests per dollar against
-Community Business's 250. Pro is the volume plan, so some inversion is
-intended; a 2× gap is larger than intended and is a repricing candidate (§5.1).
+**Pricing inversion, partly closed.** Community Business now earns
+$0.0027/request against Pro's $0.0020 — the gap narrowed from 2.00× to 1.33×
+when its quota went from 10 000 to 15 000 requests. It is **not** fully
+monotone: Individual still earns $0.0010/request, the *cheapest* rate on the
+ladder, so the $5 plan gives a better per-request deal than the $99.99 one.
+Closing that needs a decision about Individual's quota (5 000 → ~2 500 would
+make the ladder monotone), which is a customer-facing cut and is left open.
 
 ---
 
@@ -165,37 +168,50 @@ throttling target.
 
 ## 5. Roadmap
 
-### 5.1 Pricing (decision-required)
+### 5.1 Pricing — done in slice 2
 
-| Item | Recommendation |
+| Item | Decision taken |
 |------|----------------|
-| Pro's request allowance | 50 000 req at $99.99 gives 2× worse unit revenue than Community Business. Either cut Pro to 35 000 req or lift CB to 15 000 to make the ladder monotone. |
-| Marketplace search fee | x402 charges **$0.000001**/search; a prepaid credit charges **$0.001** for the same action — a 1 000× gap for identical work. One of the two is wrong. Recommend aligning x402 to the credit price and keeping credits as the no-wallet convenience path. |
-| Agent surface metering | "MasterAgent included" is really "208 Opus turns included". Publish it as an allowance with a metered overage (suggested $0.15/turn beyond it) rather than leaving it implicit. |
-| Annual enterprise | Now $2 539.80. Confirm against any signed contracts before the next renewal cycle. |
+| Community Business quota | Raised 10 000 → **15 000 req**. Unit revenue moves from $0.0040 to $0.0027/request, narrowing the gap to Pro from 2.00× to 1.33×. |
+| Marketplace search fee | x402 aligned to the credit price: both rails now charge **$0.001** per search from one constant in `pricing.py`. Credits stay the no-wallet path. |
+| Agent surface metering | Published: Pro includes **200 agent turns/month**, then **$0.15/turn**. The allowance is checked against the tier's own LLM budget by a test, so it can never be set above what the plan funds. Tiers without `master_agent_enabled` publish no allowance. |
 
-### 5.2 Metering and billing
+### 5.2 Metering and billing — done in slice 2
 
-- Extend the DDL for `staff_action_costs` with a `cached_tokens` column so cache
-  savings are reportable, not just applied.
-- Overage now *rates* correctly, but the monthly cron still only computes and
-  Slacks the number — actual collection is delegated to a `/billing/overage/record`
-  call that nothing invokes automatically. Close that loop before counting the
-  revenue.
-- `overage.py` still describes the retired $49 Business / $199 MCP tiers and
-  `get_upgrade_url()` routes to plan names that no longer exist. Repoint it at
-  `pricing.py`.
+- `staff_action_costs` gained a `cached_tokens` column (idempotent `ALTER`,
+  same pattern as `marketplace/agent.py`), so cache savings are now stored, not
+  just applied. Pre-existing rows default to 0 and under-report rather than
+  invent a saving.
+- **The collection loop is closed.** `warden/billing/overage_ledger.py` records
+  every charge idempotently per (tenant, period) and the monthly cron settles
+  through it. Presenting the charge to a provider is gated behind
+  `OVERAGE_CHARGE_ENFORCED` (default **false**): off, every charge is stored
+  with status `computed` — same audit trail, no money moved. A charge that
+  cannot be presented is stored as `failed`, never silently as charged.
+- `overage.py` now resolves tiers through `pricing.canonical_tier` and walks a
+  real upgrade ladder. It previously described the retired $49 Business / $199
+  MCP plans and built CTA links to checkouts that cannot exist.
 
-### 5.3 COGS
+### 5.3 COGS — done in slice 2
 
-- Route the remaining hardcoded `claude-opus-4-6` callers (`rag_evolver`,
-  `nemo_bridge`, red-team) through the budget gate's ladder.
-- Give the Evolution Engine a per-tenant fairness slice: today one free-tier
-  attacker can consume the whole global evolution budget, starving paying
-  tenants of new rules.
-- Report `cache_savings_usd` on `/billing/margin`. On the representative turn in
-  §2, prompt caching takes input spend from $0.33 to $0.06 — an **82% saving on
-  input** that nothing currently surfaces.
+- `rag_evolver`, `nemo_bridge` and the red-team runner route through
+  `choose_platform_model()` and record to a **platform cost centre** with its
+  own budget (`PLATFORM_LLM_MONTHLY_BUDGET_USD`, default $50). They have no
+  plan to derive an allowance from, so without this they were simply uncapped.
+- The Evolution Engine has a **per-tenant fairness share**: one tenant may take
+  at most `EVOLUTION_TENANT_SHARE` (default 50%) of a rate window, so a single
+  free-tier attacker can no longer consume the whole global budget and starve
+  paying tenants of new rules.
+- `GET /billing/margin` now reports `cache_savings_mtd_usd`,
+  `llm_cost_without_cache_usd` and `cache_saving_pct`.
+
+### 5.3b Still open — human-owned
+
+| Item | Why it cannot be closed in code |
+|------|--------------------------------|
+| **Annual Enterprise = $2 539.80** | Enterprise has no self-serve checkout (`enterprise: { once: 'contact' }`); every Enterprise deal is a sales contract. The list price is now correct and derived, but reconciling it against signed agreements needs whoever holds them. |
+| **Lemon Squeezy variant IDs on the site are placeholders** | `site/src/config/lemonsqueezy.ts` still ships the sequential dummy IDs (`100002`…`200006`) its own header says to replace after creating the products. If they were never swapped for real IDs, **every self-serve checkout button on the marketing site is dead** — a bigger revenue blocker than any price in this document. Verifying needs access to the LS dashboard. |
+| **Full ladder monotonicity** | Individual still earns the cheapest rate per request ($0.0010). Making the ladder monotone means cutting Individual's quota, which is a customer-facing reduction — a pricing decision, not a fix. |
 
 ### 5.4 Infrastructure efficiency
 

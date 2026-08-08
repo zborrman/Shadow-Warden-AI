@@ -533,12 +533,24 @@ async def _call_claude(user_prompt: str) -> list[dict]:
         if not api_key:
             return []
         client = anthropic.AsyncAnthropic(api_key=api_key)
+        # Platform-internal work: budgeted and costed against the platform cost
+        # centre rather than routed to Opus unconditionally and charged to nobody.
+        from warden.finops.llm_budget import (
+            choose_platform_model,
+            record_platform_cost,
+        )
+        model = choose_platform_model(
+            ["claude-sonnet-4-6", "claude-opus-4-6"],
+            agent="rag_evolver",
+            est_output_tokens=2048,
+        ).model
         msg = await client.messages.create(
-            model      = "claude-opus-4-6",
+            model      = model,
             max_tokens = 2048,
             system     = _RAG_EVOLUTION_SYSTEM_PROMPT,
             messages   = [{"role": "user", "content": user_prompt}],
         )
+        record_platform_cost("rag_evolver", "evolve_rules", model, msg.usage)
         raw = msg.content[0].text if msg.content else ""  # type: ignore[union-attr]
         return _parse_llm_response(raw)
     except Exception as exc:
