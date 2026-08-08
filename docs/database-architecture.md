@@ -420,7 +420,7 @@ shipped seams that nothing has switched on.
 
 | Slice | Roadmap said | Verified today |
 |---|---|---|
-| D-1 | ✅ done | Code correct: `upgrade_to_head()` runs from the lifespan (`main.py:511`), `create_schema()` deleted (`8220f6c6`), authority frozen by `test_one_postgres_schema_authority.py`. **Production effect unverified** — see 8.2 Phase 0 |
+| D-1 | ✅ done | Confirmed in code **and in production** (2026-08-08): `alembic_version` = `0013`, all three objects exist, `/monitors` answers 200 off 548 k probe rows. Full result in 8.2 Phase 0 |
 | D-1b / D-2 / D-4 / D-7 | ✅ / ❌ dropped | Confirmed, no open work |
 | D-3 | 🟡 "~24 readers left" | **Effectively 0% adopted.** Flag absent from compose, no backfill run, no reader migrated |
 | D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
@@ -437,13 +437,45 @@ Also open, smaller: `workers/x402_settlement.py` holds the one raw
 Each phase is independently mergeable and ordered by *what unblocks what*, not
 by size.
 
-**Phase 0 — verify D-1 in production. No code. Blocks everything else.**
-D-1's entire value is that three tables now exist where they did not. That has
-not been confirmed on the VPS. Run against prod: `alembic current`; `\d` on
-`warden_core.monitors`, `warden_core.probe_results`, `marketplace_embeddings`;
-and `GET /monitors` must answer 200, not 500. Until this passes, "D-1 done"
-describes the repository, not the deployment — which is the exact failure shape
-D-1 was written to fix.
+**Phase 0 — verify D-1 in production. ✅ PASSED, 2026-08-08.**
+D-1's entire value is that three objects now exist where they did not, and that
+had never been checked on the VPS. Measured against the running deployment
+(`8220f6c6`, container up 10 h):
+
+| Check | Result |
+|---|---|
+| `alembic_version` | `0013` — head |
+| `warden_core.monitors` | exists, **6 rows** |
+| `warden_core.probe_results` | exists, hypertable, **548 424 rows** |
+| `marketplace_embeddings` (pgvector) | exists in `public`, `vector` extension loaded, 0 rows |
+| `warden_core.filter_events` | exists, hypertable, **0 rows** |
+| `portal_users.totp_secret` / `totp_enabled` (D-1b) | both present |
+| `GET /monitors/` | **200** — 6 monitors returned |
+| `/monitors/{id}`, `/{id}/status`, `/{id}/uptime`, `/{id}/history`, `/error-budget` | all **200** |
+
+The uptime feature is not merely schema-present: it has been collecting for
+weeks and reports 99.93–100 % on five of six monitors. `upgrade_to_head()` is
+confirmed running from the lifespan (alembic runtime lines at boot,
+`current_revision()` → `0013` in the live container).
+
+Three things this check surfaced that the roadmap did not predict:
+
+1. **`entrypoint.sh` still runs its own `alembic upgrade head`, and it fails on
+   every boot** — `FAILED: No 'script_location' key found in configuration`
+   (it runs `alembic -c warden/alembic.ini` after `cd /warden`, but the file is
+   at `/warden/alembic.ini`), swallowed by `|| echo "WARNING: migrations failed
+   (continuing anyway)"`. Migrations only apply because the lifespan hook does
+   the work. This is a sixth schema mechanism, it is dead, and its fail-open
+   `|| echo` is the exact pattern D-1 exists to remove — **delete the block**,
+   the lifespan is the authority.
+2. **`filter_events` holds 0 rows**, which is the F5/D-3 finding stated as a
+   production fact rather than a code reading: the mirror has genuinely never
+   run. `marketplace_embeddings` is likewise empty — the table is restored but
+   nothing populates it yet.
+3. **`GET /monitors/status` returns 500, not 404.** There is no such route; the
+   segment is captured by `/monitors/{monitor_id}` and the handler fails on the
+   UUID cast instead of rejecting it. Minor, but it is a 500 on unauthenticated
+   input shape.
 
 **Phase 1 — make D-3 real.** Four slices, low risk each:
 
