@@ -519,9 +519,26 @@ Three things this check surfaced that the roadmap did not predict:
   |---|---|
   | `api/public_stats.py` | ✅ #292 |
   | `compliance/dashboard.py` | ✅ #299 |
-  | `analytics/dashboard.py` | open |
+  | `api/compliance_report.py` | ✅ #302 — and the migration was the smaller half: the endpoint counted over three keys the journal never writes (`verdict`, `latency_ms`, upper-case `"INJECTION"`), so the regulator-facing report claimed 0 blocked / 0 injections / 0.0 ms against a truth of 3 100 / 3 100 / 652.4 ms |
+  | `analytics/dashboard.py` | ❌ **stays on the journal — decided, not pending.** See below |
   | `api/xai.py` | open — **check before migrating**: it calls `build_chain()` per record, which may want stage-level detail the metadata-only mirror deliberately does not carry. If so, record why it cannot move rather than forcing it |
   | BI | open |
+
+  **`analytics/dashboard.py` is row-shaped, and that is the whole answer.** It
+  is a Streamlit page that materialises a pandas DataFrame and performs ~26
+  row-level operations on it: groupbys at 10-minute, hourly and daily buckets,
+  flag and secret explosions, cost aggregations, and a table of raw events. It
+  needs the rows, not eight aggregates. Migrating it means either fetching
+  every row over SQL — the same volume, from a store that is metadata-only —
+  or rewriting the page as ~10 separate aggregate queries.
+
+  And the cost it would save is not the cost that mattered. The readers worth
+  moving were on the **request path**: `/public/community` was unauthenticated
+  and re-parsed the whole journal on every hit from the open internet, and
+  `api/compliance_report.py` did the same behind auth. This is an operator page
+  behind a login, one scan per human page-load, bounded by the retention window
+  (see 1d). Rewriting a UI for that is effort spent where the profile is
+  already fine.
 
   **Explicitly excluded, and this is a decision, not a backlog:**
   `financial/metrics_reader.py`, billing, and the GDPR/Art.30 paths stay on
