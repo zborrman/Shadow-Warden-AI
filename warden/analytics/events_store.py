@@ -484,6 +484,84 @@ def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | No
         return None
 
 
+def compliance_metrics(since: datetime) -> dict[str, Any] | None:
+    """Every journal-derived figure `compliance/dashboard.py` needs, in one trip.
+
+    `ComplianceDashboard.get_metrics()` pulled the whole window into memory and
+    made eight passes over it in Python — a Counter over `flags`, another over
+    `secrets_found`, four sums and two filtered counts. All eight are one
+    grouped query each here.
+
+    Note `high_blocks` counts HIGH **and** BLOCK together, which is what the
+    ROI arithmetic downstream means by "an averted incident" — not the
+    `summary()` split, where they are separate columns.
+
+    Returns ``None`` when the mirror cannot cover the window, and the caller
+    falls back to its `load_entries()` scan.
+    """
+    if not covers(since):
+        return None
+    try:
+        from sqlalchemy import text
+
+        with _engine().connect() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT
+                        COUNT(*)                                            AS total,
+                        COUNT(*) FILTER (WHERE NOT allowed)                  AS blocked,
+                        COUNT(*) FILTER (
+                            WHERE upper(risk_level) IN ('HIGH', 'BLOCK'))    AS high_blocks,
+                        COUNT(*) FILTER (WHERE 'shadow_ban' = ANY(flags))    AS shadow_ban,
+                        COALESCE(SUM(attack_cost_usd), 0)                    AS attack_cost_usd,
+                        COALESCE(SUM(payload_tokens), 0)                     AS payload_tokens,
+                        COALESCE(SUM(COALESCE(array_length(secrets_found, 1), 0)), 0)
+                                                                             AS secrets_total
+                    FROM warden_core.filter_events
+                    WHERE ts >= :since
+                """),
+                {"since": since},
+            ).fetchone()
+            if row is None:
+                return None
+
+            flag_rows = conn.execute(
+                text("""
+                    SELECT flag, COUNT(*) AS n
+                    FROM warden_core.filter_events, UNNEST(flags) AS flag
+                    WHERE ts >= :since
+                    GROUP BY flag ORDER BY n DESC LIMIT 10
+                """),
+                {"since": since},
+            ).fetchall()
+
+            secret_rows = conn.execute(
+                text("""
+                    SELECT s, COUNT(*) AS n
+                    FROM warden_core.filter_events, UNNEST(secrets_found) AS s
+                    WHERE ts >= :since
+                    GROUP BY s ORDER BY n DESC
+                """),
+                {"since": since},
+            ).fetchall()
+
+        d = dict(row._mapping)
+        return {
+            "total": int(d["total"] or 0),
+            "blocked": int(d["blocked"] or 0),
+            "high_blocks": int(d["high_blocks"] or 0),
+            "shadow_ban": int(d["shadow_ban"] or 0),
+            "attack_cost_usd": float(d["attack_cost_usd"] or 0.0),
+            "payload_tokens": int(d["payload_tokens"] or 0),
+            "secrets_total": int(d["secrets_total"] or 0),
+            "flag_counts": {r[0]: int(r[1]) for r in flag_rows},
+            "secret_counts": {r[0]: int(r[1]) for r in secret_rows},
+        }
+    except Exception as exc:
+        log.debug("filter_events compliance_metrics unavailable: %s", exc)
+        return None
+
+
 def community_stats(
     retention_floor: datetime,
     *,

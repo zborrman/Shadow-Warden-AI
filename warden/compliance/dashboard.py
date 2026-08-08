@@ -30,11 +30,14 @@ override them with their own actuarial figures via environment variables.
 """
 from __future__ import annotations
 
+import logging
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from warden.config import settings
+
+log = logging.getLogger("warden.compliance.dashboard")
 
 # ── ROI model constants ───────────────────────────────────────────────────────
 
@@ -61,45 +64,94 @@ class ComplianceDashboard:
         self._monitor = agent_monitor   # warden.agent_monitor.AgentMonitor | None
         self._audit   = audit_trail     # warden.audit_trail.AuditTrail | None
 
-    def get_metrics(self, days: float = 30) -> dict:
-        from warden.analytics.logger import load_entries  # noqa: PLC0415
+    # ── Journal aggregates: SQL when the mirror can answer, scan otherwise ────
 
-        now     = datetime.now(UTC)
+    @staticmethod
+    def _metrics_from_mirror(since: datetime) -> dict | None:
+        try:
+            from warden.analytics.events_store import compliance_metrics
+
+            return compliance_metrics(since)
+        except Exception as exc:
+            log.debug("compliance metrics: mirror unavailable, scanning journal: %s", exc)
+            return None
+
+    @staticmethod
+    def _metrics_from_journal(days: float) -> dict:
+        """The original in-memory aggregation, unchanged in arithmetic.
+
+        Kept as the fallback rather than deleted: `logs.json` is the authority,
+        and this runs whenever the mirror is off, still filling, or asked for a
+        window older than it holds.
+        """
+        from warden.analytics.logger import load_entries
+
         entries = load_entries(days=days)
-        total   = len(entries)
-        blocked = sum(1 for e in entries if not e.get("allowed", True))
-
         flag_counts: Counter[str] = Counter()
         secret_counts: Counter[str] = Counter()
         total_attack_cost = 0.0
-        total_tokens      = 0
-
+        total_tokens = 0
         for e in entries:
             for f in e.get("flags", []):
                 flag_counts[f] += 1
             for s in e.get("secrets_found", []):
                 secret_counts[s] += 1
             total_attack_cost += e.get("attack_cost_usd", 0.0)
-            total_tokens      += e.get("payload_tokens", 0)
+            total_tokens += e.get("payload_tokens", 0)
+
+        return {
+            "total": len(entries),
+            "blocked": sum(1 for e in entries if not e.get("allowed", True)),
+            # The journal writes these lower-case; compare case-insensitively so
+            # this agrees with the SQL path, which normalises (see revision 0014).
+            "high_blocks": sum(
+                1 for e in entries if str(e.get("risk_level", "")).upper() in ("HIGH", "BLOCK")
+            ),
+            "shadow_ban": sum(1 for e in entries if "shadow_ban" in e.get("flags", [])),
+            "attack_cost_usd": total_attack_cost,
+            "payload_tokens": total_tokens,
+            "secrets_total": sum(len(e.get("secrets_found", []) or []) for e in entries),
+            "flag_counts": dict(flag_counts),
+            "secret_counts": dict(secret_counts),
+        }
+
+    def get_metrics(self, days: float = 30) -> dict:
+        now = datetime.now(UTC)
+
+        # D-3: ask Postgres for the eight aggregates instead of pulling the
+        # window into memory and making eight passes over it. `None` means the
+        # mirror is off, empty, or does not cover this window — the journal is
+        # the authority and the scan below is still correct, so the caller never
+        # has to know which path answered.
+        agg = self._metrics_from_mirror(now - timedelta(days=days))
+        if agg is None:
+            agg = self._metrics_from_journal(days)
+
+        total             = agg["total"]
+        blocked           = agg["blocked"]
+        flag_counts       = Counter(agg["flag_counts"])
+        secret_counts     = Counter(agg["secret_counts"])
+        total_attack_cost = agg["attack_cost_usd"]
+        total_tokens      = agg["payload_tokens"]
 
         # ── Shadow ban metrics ────────────────────────────────────────────────
         # We infer shadow-ban events from ERS critical-level entities in logs.
         # Approximation: requests flagged as shadow-banned are those that would
         # have been blocked but were instead served fake responses.
         # We use the "ers_shadow_ban" flag if present, else fall back to 0.
-        shadow_ban_count = sum(1 for e in entries if "shadow_ban" in e.get("flags", []))
+        shadow_ban_count = agg["shadow_ban"]
         shadow_ban_tokens_saved = shadow_ban_count * _AVG_SHADOW_BAN_TOKENS
         shadow_ban_cost_saved   = shadow_ban_tokens_saved * _LLM_COST_PER_TOKEN
 
         # ── Breach cost avoided ───────────────────────────────────────────────
         # One HIGH/BLOCK = one averted incident.
         # Annualised: (blocked / days * 365) events per year avoided.
-        high_blocks     = sum(1 for e in entries if e.get("risk_level") in ("high", "block"))
+        high_blocks     = agg["high_blocks"]
         breach_per_event = _BREACH_COST_USD / max(_BREACH_PER_YEAR * 365, 1)
         breach_avoided  = round(high_blocks * breach_per_event, 2)
 
         # ── Secret / credential protection ───────────────────────────────────
-        secrets_total   = sum(1 for e in entries for _ in e.get("secrets_found", []))
+        secrets_total   = agg["secrets_total"]
         credential_cost = round(secrets_total * _CREDENTIAL_EXPOSURE_USD, 2)
 
         # ── Evolution engine ──────────────────────────────────────────────────
@@ -107,7 +159,7 @@ class ComplianceDashboard:
         rules_path  = Path(settings.dynamic_rules_path)
         if rules_path.exists():
             try:
-                import json  # noqa: PLC0415
+                import json
                 data = json.loads(rules_path.read_text())
                 rules_count = len([r for r in data.get("rules", []) if r.get("status") == "active"])
             except Exception:
