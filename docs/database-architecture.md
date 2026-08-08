@@ -521,8 +521,42 @@ Three things this check surfaced that the roadmap did not predict:
   | `compliance/dashboard.py` | ✅ #299 |
   | `api/compliance_report.py` | ✅ #302 — and the migration was the smaller half: the endpoint counted over three keys the journal never writes (`verdict`, `latency_ms`, upper-case `"INJECTION"`), so the regulator-facing report claimed 0 blocked / 0 injections / 0.0 ms against a truth of 3 100 / 3 100 / 652.4 ms. **`_aggregate_logs()` feeds five surfaces**, not one — `/compliance/smb-report`, the Art. 30 ROPA, `/compliance/hipaa`, `/compliance/nis2` and `/compliance/posture` — all of which carried the same figures. Confirmed live on 2026-08-08 before the fix deployed: smb-report, hipaa and nis2 each returned `allowed 3390, blocked 0, inj_hits 0, avg_ms 0.0` **while the same JSON payload listed `prompt_injection: 8300` in its own category breakdown**. The document contradicted itself in one response and nothing noticed, because no reader compares the two |
   | `analytics/dashboard.py` | ❌ **stays on the journal — decided, not pending.** See below |
-  | `api/xai.py` | open — **check before migrating**: it calls `build_chain()` per record, which may want stage-level detail the metadata-only mirror deliberately does not carry. If so, record why it cannot move rather than forcing it |
+  | `api/xai.py` | ❌ **cannot move, and the reason is not the mirror.** See below |
   | BI | open |
+
+  **`api/xai.py` — the check said no, and found something larger.** The mirror
+  cannot feed `build_chain()`, which was the expected answer. The unexpected
+  part is that **the journal cannot either**: of the 27 fields `build_chain()`
+  reads, **20 are never written by `build_entry()`** — `beta0`, `beta1`,
+  `topology_noise`, `obfuscation_layers`, `obfuscation_types`,
+  `semantic_score`, `hyperbolic_distance`, `brain_score`, `closest_example`,
+  `causal_p_high_risk`, `causal_do_operator`, `causal_backdoor_nodes`,
+  `phish_score`, `se_score`, `ers_score`, `shadow_ban_strategy`, `action`,
+  `processing_ms`, `xai_rationale`, `entities_detected`. Every one resolves
+  through `record.get(...)` to a default, so the chain is built from absent
+  evidence.
+
+  Measured live on 2026-08-08, `GET /xai/dashboard?hours=168`, 338 records:
+
+  | Stage | Result |
+  |---|---|
+  | `topology`, `brain`, `causal`, `ers` | **SKIP on 338 of 338** — four of the nine stages, and precisely the ML/math core (TDA, MiniLM, the Bayesian arbiter, ERS) |
+  | `obfuscation`, `secrets`, `phish` | **PASS on 338 of 338**, including all 313 that were blocked |
+  | `semantic_rules`, `decision` | the only two carrying signal — and the only two derived from fields the journal actually writes (`flags`, `allowed`/`risk_level`) |
+
+  So the explainability surface reports that four stages never ran and three
+  always passed, for a request that was blocked. `primary_cause` can only ever
+  resolve to `semantic_rules` or `decision`. This is the same shape as the
+  compliance-report defect one row above and as D-1's missing tables: a shipped
+  feature reading something nothing writes, producing output plausible enough
+  that no one checked.
+
+  **It is not a data-layer fix and is not scheduled here.** Either
+  `build_entry()` starts recording the stage-level metadata — which is
+  GDPR-safe, since these are scores and counts, never content — or XAI stops
+  claiming stages it has no evidence for. That is a detection/XAI decision
+  (Track B), and the mirror will carry the fields for free once the journal
+  does, because `_params()` projects whatever `build_entry()` produces.
 
   **`analytics/dashboard.py` is row-shaped, and that is the whole answer.** It
   is a Streamlit page that materialises a pandas DataFrame and performs ~26
