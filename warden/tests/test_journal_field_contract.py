@@ -97,7 +97,10 @@ def _journal_schema() -> set[str]:
                         keys.add(tgt.slice.value)
         if keys:
             return keys
-    pytest.fail("could not read build_entry()'s keys — the guard is not guarding")
+    # `raise`, not `pytest.fail()`: CI's lint job installs mypy without pytest,
+    # so `pytest.fail` is untyped there and does not read as NoReturn — the
+    # function then looks like it can fall off the end and mypy fails the build.
+    raise AssertionError("could not read build_entry()'s keys — the guard is not guarding")
 
 
 def _is_consumer(path: Path, src: str) -> bool:
