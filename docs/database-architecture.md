@@ -311,7 +311,7 @@ managed primary.
 | **D-1** | **Schema authority — make Alembic actually run.** Apply `alembic upgrade head` under a Postgres advisory lock; reconcile init.sql / `create_schema()` / Alembic into one path; verify `monitors`, `probe_results`, `marketplace_embeddings` are created. Ratchet: no `CREATE TABLE` for Postgres outside `migrations/`. | 1–2 d | Low | **F1 — restores two dead features** |
 | **D-1b** | ✅ **done** — `data/init.sql` folded into revision `0012`. Six tables lived only there (`waitlist`, `cert_applications` are live code paths). It also found a **second broken feature**: init.sql patched `portal_users` with `totp_secret`/`totp_enabled` via `ALTER TABLE IF EXISTS`, which is a **no-op on a fresh volume** — `portal_users` does not exist at Postgres-init time; the app's `create_schema()` creates it later, without those columns, and no migration added them. `portal_router.py` uses them in 8 places, so portal MFA failed with *column does not exist*. Guarded by `test_alembic_is_a_superset_of_init_sql`. | — | — | F1 |
 | **D-2** | ✅ **done** — Postgres memory capped at 2 GB. It was the only service without a limit, and this image's `timescaledb-tune` sizes from the memory it *believes* it has: measured unbounded on the 16 GB host it picked `shared_buffers=3494 MB` / `effective_cache_size=10 GB`, while warden is separately allowed 8 GB on the same box. The tuner reads the cgroup, so the limit alone is the whole fix (explicit `-c` flags produced identical settings and were dropped). | — | — | F6 |
-| **D-3** | 🟡 **seam shipped** — `warden_core.filter_events` hypertable + `filter_events_hourly` continuous aggregate (rev `0013`), `warden/analytics/events_store.py` (opt-in mirror off `FILTER_EVENTS_MIRROR`, readers return `None` ⇒ caller keeps its scan), and `financial/metrics_reader.py` migrated as the reference consumer. **GDPR: the mirror is inside the erasure path** — `logger.purge_before()`/`purge_old_entries()` purge it in the same call, and `GDPR_LOG_RETENTION_DAYS` stays the single retention authority (the migration installs no Timescale retention policy on purpose). **Remaining:** the other ~24 readers still scan NDJSON — mechanical, one caller at a time, each with the same `None`-fallback shape. | ~1 d done, ~2 d left | Low | F5, F8 |
+| **D-3** | 🟡 **seam shipped** — `warden_core.filter_events` hypertable + `filter_events_hourly` continuous aggregate (rev `0013`), `warden/analytics/events_store.py` (opt-in mirror off `FILTER_EVENTS_MIRROR`, readers return `None` ⇒ caller keeps its scan), and `financial/metrics_reader.py` migrated as the reference consumer. **GDPR: the mirror is inside the erasure path** — `logger.purge_before()`/`purge_old_entries()` purge it in the same call, and `GDPR_LOG_RETENTION_DAYS` stays the single retention authority (the migration installs no Timescale retention policy on purpose). **Remaining is larger than "the readers" (re-measured 2026-08-07, see §8): the mirror has never run.** `FILTER_EVENTS_MIRROR` is not in `docker-compose.yml`, so the flag cannot be flipped in production at all; no backfill has been run, so `covers()` is false for every window and every reader falls back regardless; and **zero readers are on the mirror** — `metrics_reader.py` was deliberately reverted on review (a financial number must not come from a store that is allowed to drop writes), so the reference consumer is now a comment explaining why it is *not* one. | ~1 d done, ~2 d left | Low | F5, F8 |
 | **D-4** | ✅ **done** — `warden/auth/user_store.py` is now the one account store behind both front doors. `portal_users` (Postgres) is authoritative when configured; the SQLite table stays as the fallback read and the sole store when `DATABASE_URL` is unset, because `auth/router.py` must keep working air-gapped and auth here is fail-closed. Both routers hash with the same `bcrypt`, so accounts move **without a password reset**: a SQLite-only account is promoted on its next *verified* login, and `import_sqlite_users()` does the rest in bulk. Uniqueness now spans both stores, so a site signup can no longer shadow a portal account. **Not unified:** the session mechanisms (`sw_session` JWT cookie vs. the portal's access/refresh tokens) — a separate concern, not needed to fix the data split. | — | — | F2, GDPR erasure correctness |
 | **D-5** | ⛔ **blocked, and the premise was partly wrong — see §6b.** A readiness check found both Track F prerequisites unmet (`LEDGER_DUAL_WRITE` has never run; FT-6 Phase C not started), *and* that the atomicity gap D-5 was meant to buy is mostly **not cross-file**: clearing/listing/credits/escrow already share one `marketplace` file. The real gap was cross-*transaction* inside that file, and it has been fixed in SQLite — no migration required. | — | **High** | F4 (placement half) |
 | **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness):** moving the SEP cluster (`warden_sep.db`, 31 tables / ~15 modules) and these two files to Postgres. | ~1 d done | Med | F3 |
@@ -406,3 +406,117 @@ but it opens each under its own matching key, which is correct.
 
 The win in this architecture is **subtraction**, and every recommendation runs
 on infrastructure the project already pays for.
+
+---
+
+## 8. Execution plan (re-measured 2026-08-07)
+
+§6 records what each slice *decided*. This section records what is left to
+**run**, measured against `origin/main` rather than carried over from the
+roadmap rows — the two had drifted, and the drift was all in one direction:
+shipped seams that nothing has switched on.
+
+### 8.1 State of the roadmap, verified against `origin/main`
+
+| Slice | Roadmap said | Verified today |
+|---|---|---|
+| D-1 | ✅ done | Confirmed in code **and in production** (2026-08-08): `alembic_version` = `0013`, all three objects exist, `/monitors` answers 200 off 548 k probe rows. Full result in 8.2 Phase 0 |
+| D-1b / D-2 / D-4 / D-7 | ✅ / ❌ dropped | Confirmed, no open work |
+| D-3 | 🟡 "~24 readers left" | **Effectively 0% adopted.** Flag absent from compose, no backfill run, no reader migrated |
+| D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
+| D-6 | 🟡 correctness done | Volume untouched: `warden_sep.db` (8 `sep_*` tables, 11 modules), `warden_communities.db`, `warden_community_registry.db` all still SQLite |
+| D-8 | open question to Track B | Unanswered; ClickHouse still in compose, still write-only, still holding a 2 GB budget |
+| F8 | noted, unscheduled | Unchanged — `soc2_collector` opens 5 peer DBs, `business_intelligence` 3, `smb_suite` 3 |
+
+Also open, smaller: `workers/x402_settlement.py` holds the one raw
+`sqlite3.connect` in the ratchet baseline that is not the legitimate
+`Connection.backup()` pair.
+
+### 8.2 Phases
+
+Each phase is independently mergeable and ordered by *what unblocks what*, not
+by size.
+
+**Phase 0 — verify D-1 in production. ✅ PASSED, 2026-08-08.**
+D-1's entire value is that three objects now exist where they did not, and that
+had never been checked on the VPS. Measured against the running deployment
+(`8220f6c6`, container up 10 h):
+
+| Check | Result |
+|---|---|
+| `alembic_version` | `0013` — head |
+| `warden_core.monitors` | exists, **6 rows** |
+| `warden_core.probe_results` | exists, hypertable, **548 424 rows** |
+| `marketplace_embeddings` (pgvector) | exists in `public`, `vector` extension loaded, 0 rows |
+| `warden_core.filter_events` | exists, hypertable, **0 rows** |
+| `portal_users.totp_secret` / `totp_enabled` (D-1b) | both present |
+| `GET /monitors/` | **200** — 6 monitors returned |
+| `/monitors/{id}`, `/{id}/status`, `/{id}/uptime`, `/{id}/history`, `/error-budget` | all **200** |
+
+The uptime feature is not merely schema-present: it has been collecting for
+weeks and reports 99.93–100 % on five of six monitors. `upgrade_to_head()` is
+confirmed running from the lifespan (alembic runtime lines at boot,
+`current_revision()` → `0013` in the live container).
+
+Three things this check surfaced that the roadmap did not predict:
+
+1. **`entrypoint.sh` still runs its own `alembic upgrade head`, and it fails on
+   every boot** — `FAILED: No 'script_location' key found in configuration`
+   (it runs `alembic -c warden/alembic.ini` after `cd /warden`, but the file is
+   at `/warden/alembic.ini`), swallowed by `|| echo "WARNING: migrations failed
+   (continuing anyway)"`. Migrations only apply because the lifespan hook does
+   the work. This is a sixth schema mechanism, it is dead, and its fail-open
+   `|| echo` is the exact pattern D-1 exists to remove — **delete the block**,
+   the lifespan is the authority.
+2. **`filter_events` holds 0 rows**, which is the F5/D-3 finding stated as a
+   production fact rather than a code reading: the mirror has genuinely never
+   run. `marketplace_embeddings` is likewise empty — the table is restored but
+   nothing populates it yet.
+3. **`GET /monitors/status` returns 500, not 404.** There is no such route; the
+   segment is captured by `/monitors/{monitor_id}` and the handler fails on the
+   UUID cast instead of rejecting it. Minor, but it is a 500 on unauthenticated
+   input shape.
+
+**Phase 1 — make D-3 real.** Four slices, low risk each:
+
+- **1a** — merge `chore/pass-filter-events-mirror-env` (one line: pass
+  `FILTER_EVENTS_MIRROR` through to the warden container). Without it the flag
+  cannot be set in production, so every later slice is theoretical.
+- **1b** — flip the flag, run `backfill_from_journal(days=90)` as an operator
+  action, then check `coverage_start()` moved and `mirror_failure_count()` is
+  0. Add the backfill as a `scripts/` entry point; it is currently only callable
+  from a Python REPL.
+- **1c** — migrate readers in one batch, chosen by tolerance for loss: the
+  dashboards and trend views (`analytics/dashboard.py`, `compliance/dashboard.py`,
+  `api/xai.py`, `api/public_stats.py`), then BI. Each keeps the `None` ⇒
+  `load_entries()` fallback.
+  **Explicitly excluded, and this is a decision, not a backlog:**
+  `financial/metrics_reader.py`, billing, and the GDPR/Art.30 paths stay on
+  NDJSON. A mirror that is allowed to swallow a failed write cannot back a
+  number someone is invoiced against.
+- **1d** — rotate `logs.json`. After 1c it is the last thing keeping read cost
+  linear in total history.
+
+**Phase 2 — D-6, move SEP + communities to Postgres.** The largest remaining
+slice and the first one that moves multi-writer data. One Alembic revision for
+the schema, then module-by-module cutover in separate PRs using the same
+`None`-fallback shape Phase 1 exercises. Order matters: `sep_stix_chain` and
+`sep_transfers` go **last** — the chain is `prev_hash`-linked and
+`verify_chain()` re-hashes from canonical JSON, so a partial migration there is
+an audit failure, not a bug.
+
+**Phase 3 — D-8, answer the ClickHouse question (Track B owns it).** One
+decision: does the raw GSAM observation stream earn a container when every read
+surface deliberately queries the SQLite rollup? Fold it into a Timescale
+hypertable (−1 container, −2 GB, −1 dialect) or record "keep, and why" and close
+F7. Leaving it undecided keeps paying for it.
+
+**Phase 4 — F8, give cross-module reads a contract.** Replace "open the peer's
+file and assume its columns" with a read API owned by the writing module,
+starting with `soc2_collector`. `open_db_readonly()` made this safe against
+phantom file creation; it did nothing about schema coupling.
+
+**Phase 5 — D-5, and only after Track F.** Gate: `LEDGER_DUAL_WRITE` has run
+long enough to produce a reconciliation baseline **and** FT-6 Phase C has cut
+reads over. Starting earlier means two concurrent migrations on one money
+dataset and destroys the ability to reconcile either.
