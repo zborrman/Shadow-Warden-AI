@@ -265,3 +265,75 @@ def test_backfill_never_raises_when_the_backend_fails(monkeypatch, tmp_path):
     monkeypatch.setattr(events_store, "_engine", _boom)
     out = events_store.backfill_from_journal()
     assert out["failed"] >= 1 and out["written"] == 0
+
+
+# ── community_stats (public_stats.py's single query) ──────────────────────────
+
+def test_community_stats_refuses_a_window_the_mirror_cannot_cover(monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    events_store.reset_coverage_cache()
+    now = datetime.now(UTC)
+    monkeypatch.setattr(events_store, "coverage_start", lambda: now - timedelta(hours=1))
+    assert events_store.community_stats(now - timedelta(days=7), now=now) is None
+
+
+def test_community_stats_excludes_the_default_tenant_sentinel(monkeypatch):
+    """`_params()` substitutes tenant_id="default" for any falsy value, so a
+    naive `COUNT(DISTINCT tenant_id) WHERE tenant_id <> ''` would count entries
+    that arrived with no tenant at all as a real, distinct member. That inflated
+    `members` by exactly one in an early version of this query, caught by
+    comparing against the NDJSON-scan reference implementation."""
+    from datetime import UTC, datetime, timedelta
+
+    monkeypatch.setattr("warden.db.connection.DATABASE_URL", "postgresql://x/y", raising=False)
+    events_store.reset_coverage_cache()
+    now = datetime.now(UTC)
+    monkeypatch.setattr(events_store, "coverage_start", lambda: now - timedelta(days=30))
+
+    class _Row(tuple):
+        pass
+
+    class _FakeResult:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def fetchone(self):
+            return self._rows[0] if self._rows else None
+
+        def fetchall(self):
+            return self._rows
+
+    calls: list[str] = []
+
+    class _FakeConn:
+        def execute(self, stmt, params=None):
+            sql = str(stmt)
+            calls.append(sql)
+            if "COUNT(DISTINCT tenant_id)" in sql:
+                assert "'default'" in sql, (
+                    "the members query no longer excludes the 'default' sentinel "
+                    "that _params() substitutes for a missing tenant_id"
+                )
+                return _FakeResult([(0, 0, 0)])
+            if "to_char(ts" in sql:
+                return _FakeResult([])
+            if "UNNEST(flags)" in sql:
+                return _FakeResult([])
+            return _FakeResult([])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class _FakeEngine:
+        def connect(self):
+            return _FakeConn()
+
+    monkeypatch.setattr(events_store, "_engine", lambda: _FakeEngine())
+    result = events_store.community_stats(now - timedelta(days=7), now=now)
+    assert result is not None
+    assert any("COUNT(DISTINCT tenant_id)" in c for c in calls)
