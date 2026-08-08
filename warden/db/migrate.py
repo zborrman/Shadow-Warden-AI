@@ -5,9 +5,20 @@ Why this module exists
 ──────────────────────
 `warden/db/migrations/` has held a real revision chain (0001 → 0010 → 0011)
 since the uptime-monitoring and pgvector features shipped — and **nothing ever
-ran it**. `alembic upgrade head` appears nowhere in CI, `entrypoint.sh`, the
-Dockerfile, or the deploy workflow. Postgres schema in production came from two
-other places instead:
+ran it to completion**.
+
+The original audit said `alembic upgrade head` appeared nowhere in CI,
+`entrypoint.sh`, the Dockerfile or the deploy workflow. That was wrong in one
+place, and the correction is worth keeping: `entrypoint.sh` *did* invoke it,
+on every boot, since `b3d02377` (2026-04-06) — with a path that could never
+resolve (`cd /warden` + `-c warden/alembic.ini`, while the ini is at
+`/warden/alembic.ini`), behind `|| echo "WARNING: migrations failed (continuing
+anyway)"`. So the tree was invoked on ~every boot for four months, failed every
+time with `No 'script_location' key found in configuration`, and the `|| echo`
+reduced each failure to one ignorable log line. Removed in the same change that
+verified D-1 in production; the lifespan call below is the only invocation.
+
+Postgres schema in production came from two other places instead:
 
   * `data/init.sql`  — applied once by the Postgres entrypoint on *first*
     container init only (so it never picks up later changes), and
@@ -39,9 +50,13 @@ Safety properties
     boot forever. Exactly one process runs the upgrade.
   * **No-op without Postgres.** Empty `DATABASE_URL` returns `skipped` — the
     SQLite-only / air-gapped deployment is unchanged.
-  * **Fail-soft with a fallback.** If the upgrade raises, the caller falls back
-    to `create_schema()`, which is precisely today's behaviour — so the worst
-    case of this change is "no worse than before", loudly logged.
+  * **Fail-soft, and now without a second path.** `create_schema()` was the
+    fallback when this landed; it was deleted in `8220f6c6` once production
+    reached `0013` cleanly. A failure here is logged loudly and the gateway
+    continues — the filter pipeline has no Postgres dependency, so refusing to
+    boot would trade a reporting outage for a security one. The features that
+    need these tables now fail on their own, which is the only signal and the
+    correct one.
 """
 from __future__ import annotations
 

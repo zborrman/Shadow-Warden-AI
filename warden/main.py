@@ -487,11 +487,13 @@ async def lifespan(app: FastAPI):
     log.info("Warden gateway starting — initialising filter pipeline…")
 
     # ── DB schema — Alembic is the authority (D-1) ────────────────────
-    # Until D-1 the tree under warden/db/migrations was never executed (not in
-    # CI, entrypoint.sh, the Dockerfile, or the deploy), so the tables that live
-    # only there — warden_core.monitors, probe_results, marketplace_embeddings —
-    # existed in no deployment while /monitors stayed mounted. Every revision is
-    # IF NOT EXISTS, so this adopts the live schema rather than recreating it.
+    # Until D-1 the tree under warden/db/migrations was never executed to
+    # completion, so the tables that live only there — warden_core.monitors,
+    # probe_results, marketplace_embeddings — existed in no deployment while
+    # /monitors stayed mounted. entrypoint.sh did call it on every boot, with an
+    # unresolvable -c path behind a `|| echo ... continuing anyway`; that block
+    # is gone and this is the only invocation. Every revision is IF NOT EXISTS,
+    # so this adopts the live schema rather than recreating it.
     #
     # The `create_schema()` fallback that shipped alongside this is gone.
     # Production reached revision 0013 cleanly on 2026-08-06 — monitors,
