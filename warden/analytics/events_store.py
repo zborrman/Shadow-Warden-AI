@@ -484,6 +484,75 @@ def top_flags(since: datetime, *, limit: int = 10) -> list[tuple[str, int]] | No
         return None
 
 
+def compliance_report_stats(since: datetime) -> dict[str, Any] | None:
+    """The eight figures `api/compliance_report.py` puts in front of a regulator.
+
+    Its scan was **unwindowed** — `load_entries()` with no `days`, filtered in
+    Python afterwards — so a request-path endpoint re-parsed the entire journal
+    on every call.
+
+    `blocked` is HIGH **or** BLOCK severity, not `NOT allowed`: a HIGH-risk
+    request that was permitted still counts, which is what the report's own
+    text describes. `allowed` is the remainder, so the two always sum to
+    `total`.
+    """
+    if not covers(since):
+        return None
+    try:
+        from sqlalchemy import text
+
+        with _engine().connect() as conn:
+            row = conn.execute(
+                text("""
+                    SELECT
+                        COUNT(*)                                             AS total,
+                        COUNT(*) FILTER (
+                            WHERE upper(risk_level) IN ('HIGH', 'BLOCK'))     AS blocked,
+                        COUNT(*) FILTER (
+                            WHERE COALESCE(array_length(secrets_found, 1), 0) > 0)
+                                                                              AS pii_hits,
+                        COUNT(*) FILTER (
+                            WHERE EXISTS (
+                                SELECT 1 FROM UNNEST(flags) AS f
+                                WHERE lower(f) LIKE '%injection%'))            AS inj_hits,
+                        AVG(elapsed_ms)                                       AS avg_ms
+                    FROM warden_core.filter_events
+                    WHERE ts >= :since
+                """),
+                {"since": since},
+            ).fetchone()
+            if row is None:
+                return None
+
+            cat_rows = conn.execute(
+                text("""
+                    SELECT flag, COUNT(*) AS n
+                    FROM warden_core.filter_events, UNNEST(flags) AS flag
+                    WHERE ts >= :since
+                    GROUP BY flag ORDER BY n DESC LIMIT 10
+                """),
+                {"since": since},
+            ).fetchall()
+
+        d = dict(row._mapping)
+        total = int(d["total"] or 0)
+        blocked = int(d["blocked"] or 0)
+        pii_hits = int(d["pii_hits"] or 0)
+        return {
+            "total": total,
+            "blocked": blocked,
+            "allowed": total - blocked,
+            "pii_hits": pii_hits,
+            "inj_hits": int(d["inj_hits"] or 0),
+            "avg_ms": round(float(d["avg_ms"]), 1) if d["avg_ms"] is not None else 0.0,
+            "anon_rate": round(pii_hits / total * 100, 1) if total else 0.0,
+            "categories": {r[0]: int(r[1]) for r in cat_rows},
+        }
+    except Exception as exc:
+        log.debug("filter_events compliance_report_stats unavailable: %s", exc)
+        return None
+
+
 def compliance_metrics(since: datetime) -> dict[str, Any] | None:
     """Every journal-derived figure `compliance/dashboard.py` needs, in one trip.
 
