@@ -59,7 +59,16 @@ class TestCommunityBusinessTier:
     def test_req_quota(self):
         from warden.billing.feature_gate import FeatureGate
         gate = FeatureGate.for_tier("community_business")
-        assert gate.quota_req_per_month() == 10_000
+        assert gate.quota_req_per_month() == 15_000
+
+    def test_quota_exceeds_the_tier_below(self):
+        """The ladder invariant, which a bare number does not capture: a paid
+        upgrade must buy more requests than the tier under it."""
+        from warden.billing.feature_gate import FeatureGate
+        assert (
+            FeatureGate.for_tier("community_business").quota_req_per_month()
+            > FeatureGate.for_tier("individual").quota_req_per_month()
+        )
 
     def test_meets_minimum_above_individual(self):
         from warden.billing.feature_gate import FeatureGate
@@ -78,7 +87,7 @@ class TestCommunityBusinessTier:
         gate = FeatureGate.for_tier("community_business")
         d = gate.as_dict()
         assert d["tier"] == "community_business"
-        assert d["req_per_month"] == 10_000
+        assert d["req_per_month"] == gate.quota_req_per_month()
 
     def test_shadow_ai_monitor_flag(self):
         from warden.billing.feature_gate import TIER_LIMITS
