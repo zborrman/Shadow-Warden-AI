@@ -519,7 +519,7 @@ Three things this check surfaced that the roadmap did not predict:
   |---|---|
   | `api/public_stats.py` | ✅ #292 |
   | `compliance/dashboard.py` | ✅ #299 |
-  | `api/compliance_report.py` | ✅ #302 — and the migration was the smaller half: the endpoint counted over three keys the journal never writes (`verdict`, `latency_ms`, upper-case `"INJECTION"`), so the regulator-facing report claimed 0 blocked / 0 injections / 0.0 ms against a truth of 3 100 / 3 100 / 652.4 ms |
+  | `api/compliance_report.py` | ✅ #302 — and the migration was the smaller half: the endpoint counted over three keys the journal never writes (`verdict`, `latency_ms`, upper-case `"INJECTION"`), so the regulator-facing report claimed 0 blocked / 0 injections / 0.0 ms against a truth of 3 100 / 3 100 / 652.4 ms. **`_aggregate_logs()` feeds five surfaces**, not one — `/compliance/smb-report`, the Art. 30 ROPA, `/compliance/hipaa`, `/compliance/nis2` and `/compliance/posture` — all of which carried the same figures. Confirmed live on 2026-08-08 before the fix deployed: smb-report, hipaa and nis2 each returned `allowed 3390, blocked 0, inj_hits 0, avg_ms 0.0` **while the same JSON payload listed `prompt_injection: 8300` in its own category breakdown**. The document contradicted itself in one response and nothing noticed, because no reader compares the two |
   | `analytics/dashboard.py` | ❌ **stays on the journal — decided, not pending.** See below |
   | `api/xai.py` | open — **check before migrating**: it calls `build_chain()` per record, which may want stage-level detail the metadata-only mirror deliberately does not carry. If so, record why it cannot move rather than forcing it |
   | BI | open |
