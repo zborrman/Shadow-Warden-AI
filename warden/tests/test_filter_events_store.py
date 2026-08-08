@@ -17,6 +17,7 @@ Postgres present:
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -207,6 +208,59 @@ def test_migration_defines_no_content_column():
             f"filter_events gained a `{forbidden}` column — the journal is "
             "metadata-only (GDPR)."
         )
+
+
+# ── risk_level casing ─────────────────────────────────────────────────────────
+#
+# The journal writes `block` / `high` / `low`; every SQL comparison built on the
+# mirror used 'BLOCK' / 'HIGH'. Measured in production 2026-08-08: the hourly
+# aggregate reported high=0, block=0 against a truth of 1013 and 2027. `total`
+# and `blocked` were right the whole time, because neither depends on the case —
+# which is why nothing looked broken.
+
+def test_risk_level_is_stored_upper_case():
+    assert events_store._params({"risk_level": "block"})["risk_level"] == "BLOCK"
+    assert events_store._params({"risk_level": "high"})["risk_level"] == "HIGH"
+    assert events_store._params({})["risk_level"] == "LOW"
+
+
+def test_every_risk_level_comparison_is_case_insensitive():
+    """Guards the whole module, not just the four sites fixed in 0014.
+
+    A new reader that writes `risk_level = 'HIGH'` would silently count zero, so
+    this fails on the literal rather than waiting for a dashboard to show a flat
+    line.
+    """
+    src = Path(events_store.__file__).read_text(encoding="utf-8")
+    offenders = [
+        line.strip()
+        for line in src.splitlines()
+        if "risk_level" in line
+        and re.search(r"risk_level\s*(=|<>|!=|\bIN\b|\bNOT\s+IN\b)", line)
+        and "upper(risk_level)" not in line
+    ]
+    assert not offenders, (
+        "case-sensitive risk_level comparison — the journal writes lower-case:\n  "
+        + "\n  ".join(offenders)
+    )
+
+
+def test_migration_0014_normalises_and_rebuilds_the_aggregate():
+    rev = (
+        Path(__file__).resolve().parent.parent
+        / "db" / "migrations" / "versions" / "0014_filter_events_risk_case.py"
+    ).read_text(encoding="utf-8")
+    assert "SET risk_level = upper(risk_level)" in rev, "existing rows are not normalised"
+    assert "DROP MATERIALIZED VIEW IF EXISTS warden_core.filter_events_hourly" in rev, (
+        "a continuous aggregate stores its own query text — it must be rebuilt, "
+        "not patched in place"
+    )
+    assert "upper(risk_level) = 'HIGH'" in rev and "upper(risk_level) = 'BLOCK'" in rev
+    assert "refresh_continuous_aggregate" in rev, (
+        "a freshly created aggregate holds nothing and its policy only reaches "
+        "back 3 hours — it must be materialised here"
+    )
+    assert "add_continuous_aggregate_policy" in rev, "CASCADE dropped the refresh policy"
 
 
 # ── Coverage floor ────────────────────────────────────────────────────────────

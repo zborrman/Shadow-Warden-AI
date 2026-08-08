@@ -159,13 +159,19 @@ def _params(entry: dict) -> dict[str, Any]:
     Only the known metadata fields are carried across — an unexpected key in the
     entry is dropped rather than stored, so the mirror cannot silently start
     holding something the GDPR review never approved.
+
+    `risk_level` is upper-cased on the way in. The journal writes it lower-case
+    (`block`, `high`, `low`) while every SQL comparison built on this table used
+    the upper-case literals, so the severity counters matched nothing and
+    reported 0 — see revision `0014`. Readers use `upper(risk_level)` regardless,
+    so rows written by an older build still count; this keeps new ones canonical.
     """
     return {
         "ts": entry.get("ts"),
         "request_id": entry.get("request_id") or "",
         "tenant_id": entry.get("tenant_id") or "default",
         "allowed": bool(entry.get("allowed", True)),
-        "risk_level": entry.get("risk_level") or "LOW",
+        "risk_level": (entry.get("risk_level") or "LOW").upper(),
         "flags": list(entry.get("flags") or []),
         "secrets_found": list(entry.get("secrets_found") or []),
         "payload_len": int(entry.get("payload_len") or 0),
@@ -360,8 +366,8 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
                             COUNT(*)                                     AS total,
                             COUNT(*) FILTER (WHERE allowed)              AS allowed,
                             COUNT(*) FILTER (WHERE NOT allowed)          AS blocked,
-                            COUNT(*) FILTER (WHERE risk_level = 'HIGH')  AS high,
-                            COUNT(*) FILTER (WHERE risk_level = 'BLOCK') AS block,
+                            COUNT(*) FILTER (WHERE upper(risk_level) = 'HIGH')  AS high,
+                            COUNT(*) FILTER (WHERE upper(risk_level) = 'BLOCK') AS block,
                             COUNT(*) FILTER (WHERE masked)               AS masked,
                             COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
                             AVG(elapsed_ms)                              AS avg_elapsed_ms
@@ -377,8 +383,8 @@ def summary(since: datetime, *, tenant_id: str | None = None) -> dict[str, Any] 
                             COUNT(*)                                     AS total,
                             COUNT(*) FILTER (WHERE allowed)              AS allowed,
                             COUNT(*) FILTER (WHERE NOT allowed)          AS blocked,
-                            COUNT(*) FILTER (WHERE risk_level = 'HIGH')  AS high,
-                            COUNT(*) FILTER (WHERE risk_level = 'BLOCK') AS block,
+                            COUNT(*) FILTER (WHERE upper(risk_level) = 'HIGH')  AS high,
+                            COUNT(*) FILTER (WHERE upper(risk_level) = 'BLOCK') AS block,
                             COUNT(*) FILTER (WHERE masked)               AS masked,
                             COALESCE(SUM(attack_cost_usd), 0)            AS attack_cost_usd,
                             AVG(elapsed_ms)                              AS avg_elapsed_ms
@@ -525,13 +531,13 @@ def community_stats(
                     SELECT
                         to_char(ts, 'YYYY-MM-DD')                                       AS day,
                         COUNT(*) FILTER (
-                            WHERE NOT allowed OR risk_level = 'BLOCK')                  AS block,
+                            WHERE NOT allowed OR upper(risk_level) = 'BLOCK')           AS block,
                         COUNT(*) FILTER (
-                            WHERE allowed AND risk_level <> 'BLOCK'
-                              AND risk_level IN ('HIGH', 'CRITICAL'))                   AS high,
+                            WHERE allowed AND upper(risk_level) <> 'BLOCK'
+                              AND upper(risk_level) IN ('HIGH', 'CRITICAL'))            AS high,
                         COUNT(*) FILTER (
-                            WHERE allowed AND risk_level <> 'BLOCK'
-                              AND risk_level NOT IN ('HIGH', 'CRITICAL'))               AS allow
+                            WHERE allowed AND upper(risk_level) <> 'BLOCK'
+                              AND upper(risk_level) NOT IN ('HIGH', 'CRITICAL'))        AS allow
                     FROM warden_core.filter_events
                     WHERE ts >= :trend_floor
                     GROUP BY day
