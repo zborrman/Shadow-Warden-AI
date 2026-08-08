@@ -519,8 +519,37 @@ Three things this check surfaced that the roadmap did not predict:
   `financial/metrics_reader.py`, billing, and the GDPR/Art.30 paths stay on
   NDJSON. A mirror that is allowed to swallow a failed write cannot back a
   number someone is invoiced against.
-- **1d** — rotate `logs.json`. After 1c it is the last thing keeping read cost
-  linear in total history.
+- **1d** — ❌ **dropped after measurement — the premise was false.** F5 and this
+  plan both said `logs.json` "has no rotation — only GDPR `purge_before()`" and
+  that read cost "grows linearly and forever". It does not.
+  `purge_old_entries()` **is** the rotation: it trims to
+  `GDPR_LOG_RETENTION_DAYS`, and `run_gdpr_retention` is registered as a
+  **02:00 UTC cron** in `warden/workers/settings.py` — verified loaded in the
+  production worker, and verified working: on 2026-08-08 the oldest entry was
+  **29 days** old against a 30-day window, in a **1.09 MB** file. Read cost is
+  bounded by the retention window, not by total history. Building a second
+  rotation mechanism on top of a working one is precisely the pattern the rest
+  of this track has spent its time deleting (`create_schema()` beside Alembic,
+  the entrypoint's alembic step beside the lifespan's).
+
+  **What was real, and was fixed instead.** The bound is a *scheduled job*, and
+  a scheduled job that stops has no symptom: the file simply grows, every
+  reader scans more of it, and personal data outlives its retention period.
+  `run_retention_purge()` returned `0` on any exception — indistinguishable
+  from a healthy day with nothing old enough to purge, which is what most days
+  look like. It now records a `gdpr_retention_purge` fail-open counter, so the
+  silence is alertable. And `logger.journal_stats()` measures the bound rather
+  than assuming it — size, entry count, age of the oldest entry, and a
+  `bounded` flag that goes false once the oldest entry outlives the retention
+  window plus a day of slack for the cron's own schedule. Surfaced as the
+  `journal` key on `GET /health/pipeline`, deliberately **not** folded into
+  `degraded_stages`: an over-long journal is a compliance and cost problem, not
+  a reason to pull a healthy gateway out of the load balancer — the same
+  posture as the `pqc` key.
+
+  Note this leaves the *scale* argument to D-3, where it belongs: at Pro-tier
+  volume 30 days is ~50 k entries (~17 MB) re-parsed per dashboard hit. The fix
+  for that is moving readers to SQL (1c), not rotating the file.
 
 **Phase 2 — D-6, move SEP + communities to Postgres.** The largest remaining
 slice and the first one that moves multi-writer data. One Alembic revision for
