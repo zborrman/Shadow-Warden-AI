@@ -123,6 +123,12 @@ services:
       # warden has no env_file, so without this passthrough the .env value never
       # reaches the container and the flip is a silent no-op.
       - MARKETPLACE_REQUIRE_SIGNED_OFFERS=${MARKETPLACE_REQUIRE_SIGNED_OFFERS:-false}
+      # D-3. Mirrors each /filter decision into the warden_core.filter_events
+      # hypertable so reporting can query SQL instead of re-parsing the whole
+      # NDJSON journal. Off by default, fail-open, journal stays authoritative.
+      # Same no-env_file trap as the flags above: without this line the .env
+      # value never reaches the container and the flip silently does nothing.
+      - FILTER_EVENTS_MIRROR=${FILTER_EVENTS_MIRROR:-false}
       # Shared secret proving a request came through the Vercel edge rewrite
       # (www.* → Vercel → api.*), so get_client_ip trusts the forwarded real
       # client IP. Must equal VERCEL_PROXY_SECRET in the Vercel project env.
