@@ -479,13 +479,38 @@ Three things this check surfaced that the roadmap did not predict:
 
 **Phase 1 — make D-3 real.** Four slices, low risk each:
 
-- **1a** — merge `chore/pass-filter-events-mirror-env` (one line: pass
-  `FILTER_EVENTS_MIRROR` through to the warden container). Without it the flag
-  cannot be set in production, so every later slice is theoretical.
-- **1b** — flip the flag, run `backfill_from_journal(days=90)` as an operator
-  action, then check `coverage_start()` moved and `mirror_failure_count()` is
-  0. Add the backfill as a `scripts/` entry point; it is currently only callable
-  from a Python REPL.
+- **1a** — ✅ **done** (#290): `FILTER_EVENTS_MIRROR` is passed through to the
+  warden container. Without it the flag could not be set in production at all,
+  so every later slice was theoretical.
+- **1b** — ✅ **done in production, 2026-08-08.** `FILTER_EVENTS_MIRROR=true` in
+  `/opt/shadow-warden/.env` (previous `.env` backed up), warden recreated,
+  `backfill_from_journal(days=90)` → **read 3 311, written 3 311, failed 0**;
+  the coverage floor moved from "the moment of the flip" back to the journal's
+  own start, `2026-07-10T08:39Z`, and `mirror_failure_count()` is 0. Verified
+  end to end: one live `/filter` call lands a row immediately (3 311 → 3 312,
+  correctly `blocked` / `risk_level=block` / `prompt_injection`), and
+  `/public/community` — the reader migrated in #292 — now reports
+  `total_events: 3312`, i.e. it is being served from Postgres rather than the
+  NDJSON scan.
+
+  **The failure this surfaced, and it would have been silent.** The backfill
+  wrote 3 311 rows into the hypertable and `filter_events_hourly` stayed at
+  **zero buckets**. Revision `0013` gives the aggregate a refresh policy with
+  `start_offset => 3 hours`, which is correct for the live path and useless for
+  a backfill: rows written with older timestamps fall outside every window the
+  policy will ever refresh. So `summary()` and `top_flags()` (straight off the
+  hypertable) were right while `hourly_series()` — the dashboard read path —
+  returned an empty list for everything older than three hours. Fixed in code
+  rather than in a runbook: `backfill_from_journal()` now calls
+  `refresh_hourly_aggregate()` when it wrote anything, under an AUTOCOMMIT
+  connection because `CALL refresh_continuous_aggregate` is rejected inside a
+  transaction block. After the manual refresh production holds 122 buckets
+  spanning 07-10 → 08-08, summing to exactly the 3 311 mirrored rows.
+
+  **Still open from 1b:** the backfill has no `scripts/` entry point — it is
+  callable only as `docker exec … python -c`. Note also that a 30-day window
+  is *not* yet covered and correctly falls back: the journal itself only
+  reaches 2026-07-10, so `covers()` is true for 14 days and false for 30.
 - **1c** — migrate readers in one batch, chosen by tolerance for loss: the
   dashboards and trend views (`analytics/dashboard.py`, `compliance/dashboard.py`,
   `api/xai.py`, `api/public_stats.py`), then BI. Each keeps the `None` ⇒
