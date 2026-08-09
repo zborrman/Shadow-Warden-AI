@@ -180,4 +180,69 @@ For a SOC 2 Type II audit covering a 6-12 month period:
 
 ---
 
-*Shadow Warden AI · soc2-evidence.md · v1.1 · 2026-04-10*
+---
+
+## Field audit — `soc2_collector.py` reads a log that does not exist (2026-08-09)
+
+`warden/compliance/soc2_collector.py` reads 17 fields off journal entries and
+**15 of them have never been written**. `timestamp` decides the outcome:
+`_iter_log_window()` filters on it, so it yields nothing and every control in
+every TSC section reports zero. #307 made the bundle declare that
+(`evidence_status`); this is the audit of what it would take to make it true.
+
+**The finding is not "the journal is missing fields".** It is that the collector
+was written against a **structured security-event log** — one line per notable
+event, carrying `event_type`, `stage`, `status`, `blocked`, `risk_score`,
+`agent_id` — and pointed at `logs.json`, which is the **per-request decision
+journal**: one line per request, metadata only. Different logs, different
+shapes. `secrets_redacted` is the tell: it genuinely exists, as an application
+log line at `main.py:2064` (`log.warning(json.dumps({"event":
+"secrets_redacted", ...}))`), just not in the file the collector opens.
+
+### Per field
+
+| Field | Source today | Verdict |
+|---|---|---|
+| `timestamp` | `ts` in the journal | **rename** |
+| `blocked` | `not allowed` | **derive** |
+| `action` | `allowed` | **derive** |
+| `secrets_redacted` | `secrets_found` (list) | **derive** |
+| `redacted_count` | `len(secrets_found)` | **derive** |
+| `risk_score` | `semantic_score`, recorded as of #308; or `risk_level` | **available now** |
+| `agent_id` | `warden/agent/*` — not on the `/filter` path | different source |
+| `event_type` | `agent_monitor.py` | different source |
+| `stage` | nothing writes it as a log field | different source |
+| `status` | unclear; no producer found | needs a definition first |
+| `pqc_signed` | **nowhere in the codebase** | feature must emit it first |
+| `pqc_verified` | **nowhere** | ” |
+| `pqc_auth_failed` | **nowhere** | ” |
+| `pqc_fail_reason` | **nowhere** | ” |
+| `e2ee_activated` | **nowhere** | ” |
+
+### What that means for the controls
+
+Six fields are a rewrite of the collector against the journal it actually has —
+mechanical, and it makes the Security, Availability, Processing-Integrity and
+Privacy sections carry real numbers.
+
+The five that exist **nowhere** are the uncomfortable half. They back
+**CC6.7 Encryption in Transit** and the **C1 Confidentiality** section, and no
+code anywhere emits them — so those controls have never had an evidence source,
+in any run, since the collector was written. That is not a logging bug to fix;
+it is a control whose evidence has to be produced before it can be collected.
+Until then the honest state is the one #307 now reports: unavailable.
+
+### Recommended order
+
+1. Rewrite the collector against the real journal for the six derivable
+   fields — roughly a day, and it retires `evidence_status: unavailable` for
+   four of five TSC sections.
+2. Decide, per control, whether the `pqc_*` / `e2ee_activated` evidence is worth
+   emitting, or whether those control claims should be withdrawn from the
+   bundle. **Do not** leave them asserted with no source.
+3. `agent_id` / `event_type` / `stage` need a second reader over the agent
+   subsystem's own records, not more fields on `/filter`.
+
+---
+
+*Shadow Warden AI · soc2-evidence.md · v1.2 · 2026-08-09*
