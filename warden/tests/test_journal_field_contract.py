@@ -150,12 +150,33 @@ def _keys_read(src: str, *, whole_file: bool) -> set[str]:
     if whole_file:
         return _get_keys(tree)
 
+    funcs = [
+        n for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    bodies = {f.name: ast.unparse(f) for f in funcs}
+
+    # A function handles entries if it obtains them itself, or if it calls one
+    # that does. `compliance/soc2_collector.py` is why the second half exists:
+    # its `_iter_log_window()` generator opens the journal and every collector
+    # iterates *that*, so a direct-only scan saw 1 of its 15 invented fields.
+    handlers = {
+        name for name, body in bodies.items()
+        if any(marker in body for marker in _ENTRY_SOURCE_MARKERS)
+    }
+    for _ in range(3):        # transitive closure; depth 3 is plenty here
+        grown = {
+            name for name, body in bodies.items()
+            if any(f"{h}(" in body for h in handlers)
+        }
+        if grown <= handlers:
+            break
+        handlers |= grown
+
     out: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            body = ast.unparse(node)
-            if any(marker in body for marker in _ENTRY_SOURCE_MARKERS):
-                out |= _get_keys(node)
+    for f in funcs:
+        if f.name in handlers:
+            out |= _get_keys(f)
     return out
 
 
@@ -220,10 +241,14 @@ def test_the_fixed_defects_stay_fixed():
     entries drop out of the baseline when that lands.
     """
     findings = _scan()
-    for rel, ghost in (
-        ("api/compliance_report.py", "verdict"),
-        ("api/compliance_report.py", "latency_ms"),
+    for rel, ghost, pr in (
+        ("api/compliance_report.py", "verdict", "#302"),
+        ("api/compliance_report.py", "latency_ms", "#302"),
+        ("business_intelligence/service.py", "timestamp", "#304"),
+        ("business_intelligence/service.py", "processing_ms", "#304"),
+        ("financial/cost_allocation.py", "verdict", "this PR"),
+        ("portal_router.py", "timestamp", "this PR"),
     ):
         assert ghost not in findings.get(rel, []), (
-            f"{rel} reads `{ghost}` again — it was fixed in #302"
+            f"{rel} reads `{ghost}` again — it was fixed in {pr}"
         )

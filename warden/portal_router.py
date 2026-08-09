@@ -784,7 +784,10 @@ async def stats_daily(
     from collections import defaultdict
     buckets: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "blocked": 0, "allowed": 0})
     for e in entries:
-        ts = e.get("timestamp", "")[:10]  # YYYY-MM-DD
+        # `ts`, not `timestamp` — the journal has never written the latter, so
+        # this sliced an empty string, hit the `continue` below on every entry,
+        # and the endpoint returned [] for every tenant on every call.
+        ts = str(e.get("ts", ""))[:10]  # YYYY-MM-DD
         if not ts:
             continue
         buckets[ts]["total"] += 1

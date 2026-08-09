@@ -190,7 +190,12 @@ def import_from_logs(
                     continue
                 try:
                     entry = json.loads(line)
-                    if entry.get("verdict") in ("HIGH", "BLOCK"):
+                    # `risk_level`, not `verdict` — the journal has never
+                    # written a `verdict` key, so this imported nothing and
+                    # returned 0 on every run. Compared case-insensitively:
+                    # the journal writes lower-case, revision 0014 stores
+                    # upper-case in the mirror.
+                    if str(entry.get("risk_level", "")).upper() in ("HIGH", "BLOCK"):
                         record_cost(
                             tenant_id=tenant_id,
                             amount_usd=0.002,
