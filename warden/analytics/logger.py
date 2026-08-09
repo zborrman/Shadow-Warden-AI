@@ -76,6 +76,29 @@ def build_entry(
     entities_detected: list[str]         = (),   # type: ignore[assignment]  # entity TYPES found (not values!)
     entity_count:      int               = 0,    # total entity occurrences
     masked:            bool              = False, # True when masking was actually applied
+    # ── Stage scores (XAI) ───────────────────────────────────────────────────
+    # `xai/chain.py` reconstructs a 9-stage causal chain per record. It read 27
+    # fields; this record carried 7, so topology, brain, causal and ers reported
+    # SKIP on every request ever explained and `primary_cause` could only ever
+    # land on semantic_rules or decision.
+    #
+    # These are the ones the /filter handler actually has in scope at the point
+    # it logs. All are scalars or type names — never content, never decoded
+    # text, never a corpus example. `closest_example` is deliberately absent for
+    # exactly that reason: it is a stored prompt, and this record is
+    # metadata-only by design (see docs/dpia.md).
+    #
+    # Omitted because the value does not exist at the log site, not because it
+    # was overlooked: beta0/beta1/topology_noise (no topology result is kept in
+    # this handler), hyperbolic_distance, shadow_ban_strategy, causal_do_operator,
+    # causal_backdoor_nodes, xai_rationale.
+    semantic_score:     float | None      = None,  # ML brain cosine score
+    obfuscation_layers: int               = 0,     # decode depth actually used
+    obfuscation_types:  list[str]         = (),    # type: ignore[assignment]
+    causal_p_high_risk: float | None      = None,  # arbiter P(HIGH_RISK|evidence)
+    phish_score:        float | None      = None,  # max URL phishing score
+    se_score:           float | None      = None,  # social-engineering risk
+    ers_score:          float | None      = None,  # entity reputation score
 ) -> dict:
     entry = {
         "ts":              datetime.now(UTC).isoformat(),
@@ -96,6 +119,29 @@ def build_entry(
         entry["entities_detected"] = list(entities_detected)
         entry["entity_count"]      = entity_count
         entry["masked"]            = masked
+
+    # Stage scores. Written only when the stage produced one, so a record stays
+    # honest about which stages ran: a missing key means "no score", which is
+    # what `build_chain()` renders as SKIP. An unconditional 0.0 would be a
+    # different claim entirely — that the stage ran and found nothing.
+    # Written out one by one rather than looped over pairs: this function *is*
+    # the journal's schema, and `test_journal_field_contract.py` reads it as
+    # such. A key assigned through a loop variable is invisible to that guard,
+    # which would then report every consumer of these fields as reading
+    # something the journal does not write.
+    if semantic_score is not None:
+        entry["semantic_score"] = round(float(semantic_score), 4)
+    if causal_p_high_risk is not None:
+        entry["causal_p_high_risk"] = round(float(causal_p_high_risk), 4)
+    if phish_score is not None:
+        entry["phish_score"] = round(float(phish_score), 4)
+    if se_score is not None:
+        entry["se_score"] = round(float(se_score), 4)
+    if ers_score is not None:
+        entry["ers_score"] = round(float(ers_score), 4)
+    if obfuscation_layers or obfuscation_types:
+        entry["obfuscation_layers"] = int(obfuscation_layers)
+        entry["obfuscation_types"]  = list(obfuscation_types)
     return entry
 
 
