@@ -6,9 +6,6 @@
     "api/tenant_impact.py": [
       "shadow_banned"
     ],
-    "compliance/soc2_collector.py": [
-      "timestamp"
-    ],
     "financial/cost_allocation.py": [
       "verdict"
     ],
@@ -30,5 +27,5 @@
       "xai_rationale"
     ]
   },
-  "total": 17
+  "total": 16
 }

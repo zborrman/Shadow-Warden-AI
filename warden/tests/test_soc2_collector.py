@@ -34,22 +34,31 @@ def logs_with_events(tmp_path, monkeypatch):
     monkeypatch.setenv("SECRETS_INV_DB_PATH", str(tmp_path / "secrets_inv.db"))
     now_ts = time.time()
 
+    # Journal entries carry `ts`; the collectors filter on it. This fixture
+    # used to write `timestamp`, i.e. the same key the collectors wrongly read,
+    # so it agreed with the bug and passed while production collected nothing.
+    #
+    # The `stage` / `pqc_*` / `event_type` / `status` / `agent_id` keys below are
+    # still synthetic: no producer emits them anywhere in the codebase, which is
+    # exactly what docs/soc2-evidence.md records as the open decision. These
+    # cases therefore prove the collector's arithmetic, not that the evidence
+    # exists.
     lines = [
         # Confused deputy block
-        {"timestamp": now_ts - 10, "stage": "confused_deputy", "blocked": True,
-         "action": "BLOCK", "request_id": "req-123", "risk_score": 0.92},
+        {"ts": now_ts - 10, "stage": "confused_deputy", "blocked": True,
+         "action": "BLOCK", "request_id": "req-123", "semantic_score": 0.92},
         # PQC auth failure
-        {"timestamp": now_ts - 20, "pqc_auth_failed": True,
+        {"ts": now_ts - 20, "pqc_auth_failed": True,
          "agent_id": "did:shadow:abc123", "pqc_fail_reason": "invalid hybrid sig"},
         # GDPR export
-        {"timestamp": now_ts - 30, "event_type": "gdpr_export_request",
+        {"ts": now_ts - 30, "event_type": "gdpr_export_request",
          "request_id": "gdpr-456", "tenant_id": "tenant_a", "status": "ok"},
         # E2EE activation
-        {"timestamp": now_ts - 40, "event_type": "e2ee_session_start", "session_id": "sess-789"},
+        {"ts": now_ts - 40, "event_type": "e2ee_session_start", "session_id": "sess-789"},
         # PQC signing op
-        {"timestamp": now_ts - 50, "pqc_signed": True},
-        # PII redacted
-        {"timestamp": now_ts - 60, "redacted_count": 3},
+        {"ts": now_ts - 50, "pqc_signed": True},
+        # PII redacted — three secret types, as the redactor records them
+        {"ts": now_ts - 60, "secrets_found": ["aws_key", "email", "phone"]},
     ]
     logs_path.write_text("\n".join(json.dumps(e) for e in lines) + "\n")
     return logs_path

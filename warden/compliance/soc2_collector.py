@@ -78,7 +78,7 @@ def _iter_log_window(since_ts: float, until_ts: float):
                     entry = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                ts = _parse_ts(entry.get("timestamp"))
+                ts = _parse_ts(entry.get("ts"))
                 if ts is None or not (since_ts <= ts < until_ts):
                     continue
                 yield entry
@@ -108,11 +108,25 @@ def _iter_log_window(since_ts: float, until_ts: float):
 # from presenting absence as a finding: it measures the journal itself and says
 # so in the bundle.
 
+# What the collectors still cannot source, after the rewrite against the real
+# journal (#309's audit, step 1). The window filter now reads `ts`, the
+# redaction counter reads `secrets_found`, and the risk score reads
+# `semantic_score` — so those three left this list.
+#
+# What remains splits in two, and the difference matters when reading a bundle:
+#
+#   * `stage`, `event_type`, `agent_id`, `status` — the values exist, in the
+#     agent subsystem's own records. They need a second reader, not more fields
+#     on /filter.
+#   * `pqc_signed`, `pqc_verified`, `pqc_auth_failed`, `pqc_fail_reason`,
+#     `e2ee_activated` — these appear NOWHERE in the codebase. They back
+#     CC6.7 Encryption in Transit and the C1 Confidentiality section, and no
+#     code has ever emitted them. Those controls do not have a broken evidence
+#     path; they have never had one.
 _REQUIRED_ENTRY_FIELDS = (
-    "stage", "blocked", "action", "risk_score", "status", "event_type",
-    "agent_id", "pqc_signed", "pqc_verified", "pqc_auth_failed",
-    "pqc_fail_reason", "secrets_redacted", "redacted_count",
-    "e2ee_activated", "timestamp",
+    "stage", "status", "event_type", "agent_id",
+    "pqc_signed", "pqc_verified", "pqc_auth_failed", "pqc_fail_reason",
+    "e2ee_activated",
 )
 
 
@@ -188,7 +202,7 @@ def _collect_security(since_ts: float, until_ts: float) -> dict[str, Any]:
 
     for entry in _iter_log_window(since_ts, until_ts):
         total_requests += 1
-        ts = _parse_ts(entry.get("timestamp")) or 0
+        ts = _parse_ts(entry.get("ts")) or 0
 
         if entry.get("stage") == "confused_deputy" and (
             entry.get("blocked") or entry.get("action") == "BLOCK"
@@ -196,7 +210,10 @@ def _collect_security(since_ts: float, until_ts: float) -> dict[str, Any]:
             confused_deputy_blocks.append({
                 "request_id": _pseudo(str(entry.get("request_id", ""))),
                 "ts": ts,
-                "risk_score": entry.get("risk_score"),
+                # `semantic_score` — the ML brain's score, recorded by
+                # build_entry() as of #308. `risk_score` was never a journal
+                # key, so this was None on every row it ever produced.
+                "risk_score": entry.get("semantic_score"),
             })
 
         if entry.get("pqc_auth_failed"):
@@ -356,7 +373,7 @@ def _collect_privacy(since_ts: float, until_ts: float) -> dict[str, Any]:
     pii_redacted_total = 0
 
     for entry in _iter_log_window(since_ts, until_ts):
-        ts = _parse_ts(entry.get("timestamp")) or 0
+        ts = _parse_ts(entry.get("ts")) or 0
         etype = entry.get("event_type", "")
 
         if etype in ("gdpr_export", "gdpr_export_request", "gdpr_data_export"):
@@ -370,9 +387,12 @@ def _collect_privacy(since_ts: float, until_ts: float) -> dict[str, Any]:
         if entry.get("e2ee_activated") or etype in ("e2ee_enable", "e2ee_session_start"):
             e2ee_activation_count += 1
 
-        pii_redacted_total += int(entry.get("redacted_count", 0) or 0)
-        if entry.get("secrets_redacted"):
-            pii_redacted_total += 1
+        # `secrets_found` is the list of secret/PII *type names* the redactor
+        # matched — the journal's real record of a redaction. `redacted_count`
+        # and `secrets_redacted` were never journal keys, so this counter sat
+        # at 0 for every audit period ever collected.
+        _found = entry.get("secrets_found") or []
+        pii_redacted_total += len(_found)
 
     return {
         "tsc": "P1-P8",

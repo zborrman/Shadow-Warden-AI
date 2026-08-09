@@ -42,17 +42,23 @@ def _window(hours_back: float = 1.0) -> tuple[float, float]:
     return (now - timedelta(hours=hours_back)).timestamp(), (now + timedelta(hours=1)).timestamp()
 
 
-def test_traffic_the_collectors_cannot_read_is_reported_as_unavailable(journal):
+def test_traffic_with_incomplete_evidence_is_reported_as_partial(journal):
+    """After the collector rewrite the window yields, but 9 fields still do not
+    exist -- so the honest state is `partial`, not `ok` and not `unavailable`."""
     now = datetime.now(UTC).isoformat()
     journal([
         {"ts": now, "request_id": "r1", "allowed": False, "risk_level": "block"},
         {"ts": now, "request_id": "r2", "allowed": True, "risk_level": "low"},
     ])
     cov = sc._journal_coverage(*_window())
-    assert cov["status"] == "unavailable"
+    assert cov["status"] == "partial"
     assert cov["entries_in_window"] == 2
-    assert cov["entries_visible_to_collectors"] == 0
-    assert "timestamp" in cov["missing_entry_fields"]
+    assert cov["entries_visible_to_collectors"] == 2, (
+        "the window filter no longer reads a key the journal lacks"
+    )
+    # The pqc/e2ee set has no producer anywhere; those controls stay unevidenced.
+    assert "pqc_signed" in cov["missing_entry_fields"]
+    assert "timestamp" not in cov["missing_entry_fields"]
 
 
 def test_an_empty_window_is_not_reported_as_a_defect(journal):
@@ -74,7 +80,7 @@ def test_the_bundle_carries_the_verdict_where_an_auditor_will_see_it(journal, tm
     journal([{"ts": now.isoformat(), "request_id": "r1", "allowed": False, "risk_level": "block"}])
     monkeypatch.setattr(sc, "_archive_dir", lambda: tmp_path / "arch")
     bundle = sc.collect_daily_evidence(date=now)
-    assert bundle["evidence_status"] == "unavailable"
+    assert bundle["evidence_status"] == "partial"
     assert bundle["evidence_coverage"]["reason"]
     assert bundle["schema_version"] == "SOC2Collector-v2", (
         "the bundle gained a field an auditor must read — bump the schema version"
