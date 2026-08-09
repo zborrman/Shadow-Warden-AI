@@ -89,10 +89,14 @@ class TestCostAllocation:
             log_file.write(json.dumps({"risk_level": "block", "request_id": "r1"}) + "\n")
             log_file.write(json.dumps({"risk_level": "low",   "request_id": "r2"}) + "\n")
             log_file.write(json.dumps({"risk_level": "high",  "request_id": "r3"}) + "\n")
+            # Upper-case too: revision 0014 normalises the mirror, and a
+            # restored/backfilled journal can carry either spelling. Without
+            # this row the `.upper()` in import_from_logs is never exercised.
+            log_file.write(json.dumps({"risk_level": "BLOCK", "request_id": "r4"}) + "\n")
             log_path = log_file.name
         from warden.financial.cost_allocation import import_from_logs
         count = import_from_logs(tid, logs_path=log_path, db_path=db)
-        assert count == 2
+        assert count == 3   # block + high + BLOCK
 
     def test_import_from_missing_logs(self):
         from warden.financial.cost_allocation import import_from_logs

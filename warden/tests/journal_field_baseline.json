@@ -6,8 +6,18 @@
     "api/tenant_impact.py": [
       "shadow_banned"
     ],
-    "financial/cost_allocation.py": [
-      "verdict"
+    "compliance/soc2_collector.py": [
+      "action",
+      "agent_id",
+      "blocked",
+      "e2ee_activated",
+      "event_type",
+      "pqc_auth_failed",
+      "pqc_fail_reason",
+      "pqc_signed",
+      "pqc_verified",
+      "stage",
+      "status"
     ],
     "financial/metrics_reader.py": [
       "shadow_banned"
@@ -27,5 +37,5 @@
       "xai_rationale"
     ]
   },
-  "total": 16
+  "total": 26
 }

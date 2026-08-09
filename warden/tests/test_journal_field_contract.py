@@ -233,6 +233,52 @@ def test_no_new_journal_fields_read_that_are_never_written():
     )
 
 
+def test_scan_follows_helpers_through_three_levels_and_async():
+    """Pure analysis, no repo state — the scoping rule itself.
+
+    The first draft counted `.get()` only inside functions that obtain entries
+    directly. `compliance/soc2_collector.py` opens the journal in one generator
+    and iterates it from every collector, so that draft saw 1 of its 15
+    invented fields. This pins the transitive walk, and pins that `async def`
+    consumers are not skipped — several journal readers are coroutines.
+    """
+    src = '''
+def _iter_log():
+    with open(LOGS_PATH) as f:
+        yield {}
+
+def _level_one():
+    for entry in _iter_log():
+        entry.get("alpha")
+
+def _level_two():
+    _level_one()
+    for entry in []:
+        entry.get("beta")
+
+async def _level_three():
+    _level_two()
+    for entry in []:
+        entry.get("gamma")
+
+def _unrelated(record):
+    record.get("delta")
+'''
+    found = _keys_read(src, whole_file=False)
+    assert {"alpha", "beta", "gamma"} <= found, f"transitive walk stopped early: {found}"
+    assert "delta" not in found, "a function that never touches entries was scanned"
+
+
+def test_soc2_collector_is_wired_into_the_scan():
+    """Separate from the analysis above: is the real module actually reached?"""
+    path = _REPO / "compliance" / "soc2_collector.py"
+    src = path.read_text(encoding="utf-8")
+    assert _is_consumer(path, src), (
+        "soc2_collector is no longer recognised as a journal consumer — it opens "
+        "the journal in _iter_log_window()"
+    )
+
+
 def test_the_fixed_defects_stay_fixed():
     """Named regressions, so a fix cannot quietly come undone under the baseline.
 
