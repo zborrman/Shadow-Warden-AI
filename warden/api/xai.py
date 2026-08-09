@@ -249,10 +249,35 @@ async def dashboard(
         for sid, cnt in cause_counter.most_common(5)
     ]
 
+    # A stage that reports SKIP on every single record is not a stage that did
+    # not fire — it is a stage whose evidence the journal never carried.
+    # `build_chain()` reads 27 fields off an entry and `build_entry()` writes 7
+    # of them, so `topology`, `brain`, `causal` and `ers` resolve to SKIP for
+    # every request ever explained, and `primary_cause` can only ever land on
+    # `semantic_rules` or `decision`.
+    #
+    # Recording the stage metadata is a separate decision. Until then this says
+    # so, rather than letting a flat SKIP column read as a finding.
+    unscored = sorted(
+        sid for sid, c in stage_verdicts.items()
+        if entries and c["SKIP"] == len(entries)
+    )
+    data_quality = {
+        "complete": not unscored,
+        "stages_without_evidence": unscored,
+        "note": (
+            "These stages report SKIP on every record because the /filter journal "
+            "does not record their scores — not because they did not run. Their "
+            "rates below are absence of data, and primary-cause attribution is "
+            "restricted to the stages that are recorded."
+        ) if unscored else "",
+    }
+
     return {
         "tenant_id":        tenant_id,
         "hours":            hours,
         "total":            len(entries),
+        "data_quality":     data_quality,
         "verdict_dist":     dict(verdict_dist),
         "risk_dist":        dict(risk_dist),
         "top_flags":        [{"flag": f, "count": c} for f, c in flag_counter.most_common(10)],

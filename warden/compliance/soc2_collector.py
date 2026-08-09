@@ -90,6 +90,96 @@ def _iter_log_window(since_ts: float, until_ts: float):
 
 # ── TSC 1: Security (CC1–CC8) ─────────────────────────────────────────────────
 
+# ── Is this evidence, or an empty file? ───────────────────────────────────────
+#
+# Every collector below reads fields off journal entries, and 15 of the 17 it
+# reads have never been written by `build_entry()` — `stage`, `blocked`,
+# `action`, `risk_score`, `status`, `event_type`, `agent_id`, the `pqc_*` set,
+# `secrets_redacted`, `redacted_count`, `e2ee_activated`, and `timestamp`.
+#
+# `timestamp` is the one that decides the outcome: `_iter_log_window()` filters
+# on it, so it yields nothing and every collector reports zeroes. A SOC 2
+# evidence bundle full of zeroes is indistinguishable from a quiet, clean day —
+# which is the worst possible failure mode for an audit artifact, because it is
+# the reading an auditor would prefer.
+#
+# Making the collectors work is a separate decision (record the fields in the
+# journal, or stop claiming the evidence). What this does is stop the artifact
+# from presenting absence as a finding: it measures the journal itself and says
+# so in the bundle.
+
+_REQUIRED_ENTRY_FIELDS = (
+    "stage", "blocked", "action", "risk_score", "status", "event_type",
+    "agent_id", "pqc_signed", "pqc_verified", "pqc_auth_failed",
+    "pqc_fail_reason", "secrets_redacted", "redacted_count",
+    "e2ee_activated", "timestamp",
+)
+
+
+def _journal_coverage(since_ts: float, until_ts: float) -> dict[str, Any]:
+    """Compare what the journal holds against what the collectors can see.
+
+    Reads `ts` — the key the journal actually writes — purely to establish how
+    much traffic the window contained. That number versus what
+    `_iter_log_window()` yields is the whole signal.
+    """
+    in_window = 0
+    present: set[str] = set()
+    try:
+        with open(_logs_path()) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts = _parse_ts(entry.get("ts"))
+                if ts is None or not (since_ts <= ts < until_ts):
+                    continue
+                in_window += 1
+                present |= {f for f in _REQUIRED_ENTRY_FIELDS if f in entry}
+    except FileNotFoundError:
+        return {
+            "status": "unavailable",
+            "reason": "journal file not found",
+            "entries_in_window": 0,
+            "entries_visible_to_collectors": 0,
+            "missing_entry_fields": list(_REQUIRED_ENTRY_FIELDS),
+        }
+    except Exception as exc:
+        log.warning("journal coverage probe failed: %s", exc)
+        return {"status": "unknown", "reason": str(exc)[:120]}
+
+    visible = sum(1 for _ in _iter_log_window(since_ts, until_ts))
+    missing = [f for f in _REQUIRED_ENTRY_FIELDS if f not in present]
+
+    if in_window and not visible:
+        status, reason = "unavailable", (
+            f"{in_window} requests in this window, none readable by the collectors — "
+            "the journal does not carry the fields they filter and score on"
+        )
+    elif missing and in_window:
+        status, reason = "partial", (
+            f"{len(missing)} of {len(_REQUIRED_ENTRY_FIELDS)} evidence fields are "
+            "absent from the journal; the controls that depend on them report zero "
+            "because the data does not exist, not because nothing happened"
+        )
+    elif not in_window:
+        status, reason = "no_traffic", "no requests in this window"
+    else:
+        status, reason = "ok", ""
+
+    return {
+        "status": status,
+        "reason": reason,
+        "entries_in_window": in_window,
+        "entries_visible_to_collectors": visible,
+        "missing_entry_fields": missing,
+    }
+
+
 def _collect_security(since_ts: float, until_ts: float) -> dict[str, Any]:
     """CC6-CC7: Confused-Deputy blocks + PQC auth failures logged per request."""
     confused_deputy_blocks: list[dict] = []
@@ -359,10 +449,15 @@ def collect_daily_evidence(date: datetime | None = None) -> dict[str, Any]:
     until_ts = (date + timedelta(days=1)).timestamp()
 
     t0 = time.perf_counter()
+    coverage = _journal_coverage(since_ts, until_ts)
     evidence: dict[str, Any] = {
-        "schema_version": "SOC2Collector-v1",
+        "schema_version": "SOC2Collector-v2",
         "generated_at":   datetime.now(UTC).isoformat(),
         "period_start":   date.isoformat(),
+        # An auditor reads this before the numbers. Anything other than "ok"
+        # means the zeroes below are absence of data, not absence of events.
+        "evidence_status": coverage["status"],
+        "evidence_coverage": coverage,
         "period_end":     (date + timedelta(days=1)).isoformat(),
         "tsc_evidence": {
             "security":             _collect_security(since_ts, until_ts),
@@ -384,6 +479,13 @@ def collect_daily_evidence(date: datetime | None = None) -> dict[str, Any]:
             json.dump(evidence, f, indent=2, default=str)
         os.replace(tmp_path, dest)
         log.info("SOC2 evidence written → %s (%.1f ms)", dest.name, evidence["collection_ms"])
+        if coverage["status"] in ("unavailable", "partial"):
+            # An empty bundle written on schedule looks like a healthy control.
+            # Say plainly, once per run, that it is not one.
+            log.error(
+                "SOC2 evidence for %s is %s: %s",
+                dest.name, coverage["status"], coverage["reason"],
+            )
     except Exception:
         import contextlib
         with contextlib.suppress(OSError):
