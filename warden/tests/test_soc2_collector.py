@@ -209,7 +209,11 @@ class TestCollectDailyEvidence:
 
         with open(expected) as f:
             loaded = json.load(f)
-        assert loaded["schema_version"] == "SOC2Collector-v1"
+        # v2 adds evidence_status / evidence_coverage — the fields that tell an
+        # auditor whether the zeroes below are absence of events or absence
+        # of data. See test_evidence_declares_absence.py.
+        assert loaded["schema_version"] == "SOC2Collector-v2"
+        assert "evidence_status" in loaded
         assert "tsc_evidence" in loaded
 
     def test_all_five_tsc_present(self, logs_with_events):
