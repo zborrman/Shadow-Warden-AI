@@ -150,12 +150,33 @@ def _keys_read(src: str, *, whole_file: bool) -> set[str]:
     if whole_file:
         return _get_keys(tree)
 
+    funcs = [
+        n for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    bodies = {f.name: ast.unparse(f) for f in funcs}
+
+    # A function handles entries if it obtains them itself, or if it calls one
+    # that does. `compliance/soc2_collector.py` is why the second half exists:
+    # its `_iter_log_window()` generator opens the journal and every collector
+    # iterates *that*, so a direct-only scan saw 1 of its 15 invented fields.
+    handlers = {
+        name for name, body in bodies.items()
+        if any(marker in body for marker in _ENTRY_SOURCE_MARKERS)
+    }
+    for _ in range(3):        # transitive closure; depth 3 is plenty here
+        grown = {
+            name for name, body in bodies.items()
+            if any(f"{h}(" in body for h in handlers)
+        }
+        if grown <= handlers:
+            break
+        handlers |= grown
+
     out: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            body = ast.unparse(node)
-            if any(marker in body for marker in _ENTRY_SOURCE_MARKERS):
-                out |= _get_keys(node)
+    for f in funcs:
+        if f.name in handlers:
+            out |= _get_keys(f)
     return out
 
 
@@ -212,6 +233,52 @@ def test_no_new_journal_fields_read_that_are_never_written():
     )
 
 
+def test_scan_follows_helpers_through_three_levels_and_async():
+    """Pure analysis, no repo state — the scoping rule itself.
+
+    The first draft counted `.get()` only inside functions that obtain entries
+    directly. `compliance/soc2_collector.py` opens the journal in one generator
+    and iterates it from every collector, so that draft saw 1 of its 15
+    invented fields. This pins the transitive walk, and pins that `async def`
+    consumers are not skipped — several journal readers are coroutines.
+    """
+    src = '''
+def _iter_log():
+    with open(LOGS_PATH) as f:
+        yield {}
+
+def _level_one():
+    for entry in _iter_log():
+        entry.get("alpha")
+
+def _level_two():
+    _level_one()
+    for entry in []:
+        entry.get("beta")
+
+async def _level_three():
+    _level_two()
+    for entry in []:
+        entry.get("gamma")
+
+def _unrelated(record):
+    record.get("delta")
+'''
+    found = _keys_read(src, whole_file=False)
+    assert {"alpha", "beta", "gamma"} <= found, f"transitive walk stopped early: {found}"
+    assert "delta" not in found, "a function that never touches entries was scanned"
+
+
+def test_soc2_collector_is_wired_into_the_scan():
+    """Separate from the analysis above: is the real module actually reached?"""
+    path = _REPO / "compliance" / "soc2_collector.py"
+    src = path.read_text(encoding="utf-8")
+    assert _is_consumer(path, src), (
+        "soc2_collector is no longer recognised as a journal consumer — it opens "
+        "the journal in _iter_log_window()"
+    )
+
+
 def test_the_fixed_defects_stay_fixed():
     """Named regressions, so a fix cannot quietly come undone under the baseline.
 
@@ -220,10 +287,14 @@ def test_the_fixed_defects_stay_fixed():
     entries drop out of the baseline when that lands.
     """
     findings = _scan()
-    for rel, ghost in (
-        ("api/compliance_report.py", "verdict"),
-        ("api/compliance_report.py", "latency_ms"),
+    for rel, ghost, pr in (
+        ("api/compliance_report.py", "verdict", "#302"),
+        ("api/compliance_report.py", "latency_ms", "#302"),
+        ("business_intelligence/service.py", "timestamp", "#304"),
+        ("business_intelligence/service.py", "processing_ms", "#304"),
+        ("financial/cost_allocation.py", "verdict", "this PR"),
+        ("portal_router.py", "timestamp", "this PR"),
     ):
         assert ghost not in findings.get(rel, []), (
-            f"{rel} reads `{ghost}` again — it was fixed in #302"
+            f"{rel} reads `{ghost}` again — it was fixed in {pr}"
         )

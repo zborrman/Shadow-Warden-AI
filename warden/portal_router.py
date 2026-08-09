@@ -784,7 +784,15 @@ async def stats_daily(
     from collections import defaultdict
     buckets: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "blocked": 0, "allowed": 0})
     for e in entries:
-        ts = e.get("timestamp", "")[:10]  # YYYY-MM-DD
+        # `ts`, not `timestamp` — the journal has never written the latter, so
+        # this sliced an empty string, hit the `continue` below on every entry,
+        # and the endpoint returned [] for every tenant on every call.
+        #
+        # Only a string is sliced. `str(epoch_float)[:10]` would produce a
+        # truthy non-date like "1754821234", which passes the guard below and
+        # becomes a junk bucket key in the chart — worse than skipping the row.
+        _raw_ts = e.get("ts")
+        ts = _raw_ts[:10] if isinstance(_raw_ts, str) else ""  # YYYY-MM-DD
         if not ts:
             continue
         buckets[ts]["total"] += 1
