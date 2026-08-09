@@ -125,8 +125,11 @@ def _build_impact(
 
     # ── Dollar impact ─────────────────────────────────────────────────────────
     dollar_saved      = blocked * COST_PER_INCIDENT_USD
+    # `shadow_ban` is a detection flag, not a top-level key — `shadow_banned`
+    # has never been written by build_entry(), so this summed nothing and the
+    # figure was always $0.00 with no way to tell that from "no shadow bans".
     inference_saved   = sum(e.get("attack_cost_usd", 0.0) for e in entries
-                            if e.get("shadow_banned"))
+                            if "shadow_ban" in (e.get("flags") or []))
     annual_projection = round(dollar_saved * (365 / max(period_days, 1)), 2)
 
     # ── Threat breakdown ──────────────────────────────────────────────────────
