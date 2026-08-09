@@ -28,7 +28,7 @@ New in v0.4
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from warden.brain.poison import DataPoisoningGuard
@@ -2272,6 +2272,10 @@ async def _run_filter_pipeline(
                     _sess = _agent_monitor.get_session(session_id)
                     if _sess:
                         _session_blocks = int(_sess.get("block_count", 0))
+            # Bound before the stage runs so the analytics record below can read
+            # it unconditionally — the arbiter sits inside a try block and the
+            # name would otherwise be unbound on the failure path.
+            _causal_result = None
             # PhishGuard se_risk: run a lightweight pre-check here so the Causal
             # Arbiter can incorporate the SE signal in the same pass (avoids a
             # second arbitrate() call later).
@@ -2370,6 +2374,7 @@ async def _run_filter_pipeline(
         except Exception as _pe:
             log.debug("Poison detection error (non-fatal): %s", _pe)
 
+    _phish_result = None   # bound before the stage, same reason as _causal_result
     # ── Stage 2d: PhishGuard & SE-Arbiter ────────────────────────────
     # Runs on the decoded/redacted text (analysis_text) for inbound scanning.
     # Integrates se_risk into the Causal Arbiter score retroactively via a
@@ -2616,6 +2621,36 @@ async def _run_filter_pipeline(
             log.debug("causal online_update skipped: %r", _exc)
 
     # ── Analytics logging ─────────────────────────────────────────────
+    # Stage scores for XAI. Every one is computed above in this same handler —
+    # they were simply never written down, which is why /xai/dashboard reported
+    # SKIP on four of nine stages for every record ever explained.
+    #
+    # Collected in their own guarded block, and by name: several of these
+    # stages sit in try blocks or behind short-circuits, so on some paths the
+    # local is never bound at all. A NameError raised while assembling the log
+    # record would cost the record itself — the analytics write is best-effort,
+    # but it must not become best-effort *because of the scores*.
+    # `Any` rather than `object`: the values are floats, ints and a list of
+    # strings, and mypy checks a `**` splat against each parameter's own type.
+    _stage_scores: dict[str, Any] = {}
+    for _name, _src, _attr in (
+        ("semantic_score",     "brain_result",       "score"),
+        ("causal_p_high_risk", "_causal_result",     "risk_probability"),
+        ("phish_score",        "_phish_result",      "max_url_score"),
+        ("se_score",           "_phish_result",      "se_risk"),
+        ("ers_score",          "auth",               "ers_score"),
+    ):
+        with suppress(Exception):
+            _obj = locals().get(_src)
+            _val = getattr(_obj, _attr, None) if _obj is not None else None
+            if _val is not None:
+                _stage_scores[_name] = float(_val)
+    with suppress(Exception):
+        _layers = list(getattr(locals().get("obfuscation_result"), "layers_found", ()) or ())
+        if _layers:
+            _stage_scores["obfuscation_layers"] = len(_layers)
+            _stage_scores["obfuscation_types"]  = _layers
+
     try:
         _tokens = event_logger.estimate_tokens(payload.content)
         entry = event_logger.build_entry(
@@ -2633,6 +2668,7 @@ async def _run_filter_pipeline(
             entities_detected = _mask_detected,
             entity_count      = _mask_count,
             masked            = False,   # proxy sets True when tokens are actually replaced
+            **_stage_scores,
         )
         entry["tenant_id"] = tenant_id   # needed for billing aggregation
         if background_tasks is not None:

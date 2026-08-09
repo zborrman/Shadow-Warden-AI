@@ -6,13 +6,6 @@
     "api/tenant_impact.py": [
       "shadow_banned"
     ],
-    "business_intelligence/service.py": [
-      "category",
-      "processing_ms",
-      "timestamp",
-      "type",
-      "verdict"
-    ],
     "compliance/soc2_collector.py": [
       "timestamp"
     ],
@@ -29,20 +22,13 @@
       "brain_score",
       "causal_backdoor_nodes",
       "causal_do_operator",
-      "causal_p_high_risk",
       "closest_example",
-      "ers_score",
       "hyperbolic_distance",
-      "obfuscation_layers",
-      "obfuscation_types",
-      "phish_score",
       "processing_ms",
-      "se_score",
-      "semantic_score",
       "shadow_ban_strategy",
       "topology_noise",
       "xai_rationale"
     ]
   },
-  "total": 29
+  "total": 17
 }
