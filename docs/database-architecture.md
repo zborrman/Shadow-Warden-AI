@@ -622,8 +622,40 @@ Three things this check surfaced that the roadmap did not predict:
   volume 30 days is ~50 k entries (~17 MB) re-parsed per dashboard hit. The fix
   for that is moving readers to SQL (1c), not rotating the file.
 
-**Phase 2 — D-6, move SEP + communities to Postgres.** The largest remaining
-slice and the first one that moves multi-writer data. One Alembic revision for
+**Phase 2 — D-6, move SEP + communities to Postgres. ⚠️ Re-measured
+2026-08-10: the premise is wrong, do not execute as written.**
+
+Before writing the schema revision I looked at what is actually in the target
+files on the production VPS:
+
+| File | Production state |
+|---|---|
+| `warden_sep.db` | **does not exist** — the 8-table, ~15-module SEP cluster has never been written to |
+| `warden_communities.db` | 7 tables, **5 rows** |
+| `warden_community_registry.db` | 5 tables, **2 rows** |
+| `warden_entity_store.db` | **does not exist** |
+| `warden_quota.db` | **does not exist** |
+
+So this phase, described below as "the largest remaining slice and the first
+one that moves multi-writer data", would migrate **seven rows** and create
+schema for a subsystem that has no production data at all. The Class-B
+classification in §4 is about *code structure* — many writers, shared tables —
+and that is still true; the risk framing built on top of it is not, because
+there is nothing to move.
+
+That does not make the phase pointless, it makes it **cheap and differently
+shaped**. The useful version is: settle the placement question *now, while it
+costs nothing*, so the subsystem is born in the right engine instead of being
+migrated once it has users. No data migration, no dual-write, no cutover
+window — just the Alembic revision and the module seams, landed ahead of
+demand. The `sep_stix_chain` ordering caveat below still applies, but as a
+design constraint rather than a migration hazard.
+
+The alternative — defer until the subsystem has traffic — is also defensible,
+and is the cheaper choice today. What is **not** defensible is executing the
+plan as written and reporting it as a major data-layer migration.
+
+Original framing, kept for context: One Alembic revision for
 the schema, then module-by-module cutover in separate PRs using the same
 `None`-fallback shape Phase 1 exercises. Order matters: `sep_stix_chain` and
 `sep_transfers` go **last** — the chain is `prev_hash`-linked and
