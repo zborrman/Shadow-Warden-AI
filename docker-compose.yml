@@ -546,6 +546,9 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
       - ./docker/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Self-telemetry containment — without this the server writes ~2 GiB of
+      # logs about itself while holding zero observation rows. See the file.
+      - ./docker/clickhouse/config.d/logging.xml:/etc/clickhouse-server/config.d/logging.xml:ro
     ulimits:
       nofile:
         soft: 262144

@@ -178,6 +178,12 @@ surface testable without an OLAP dependency). The observation stands; the
 question — "does the raw stream earn its container, or should it fold into a
 Timescale hypertable?" — is put to Track B rather than answered here.
 
+**Re-measured 2026-08-10 — it is not write-only, it is write-*never*, and the
+volume is entirely self-inflicted.** See 8.2 Phase 3 for the numbers and the
+decision. In short: `gsam.gsam_observations` holds **0 rows**, the SQLite
+rollup file every read surface queries is **0 bytes**, and 100% of the 1.74 GiB
+of active parts is ClickHouse logging about itself.
+
 ### F8 — Cross-module reads bypass every contract
 
 `compliance/soc2_collector.py` opens 5 peer DB files directly;
@@ -261,10 +267,12 @@ domain: fold `push/oauth/webhooks/notif` → `warden_platform.db`, and
   Alembic becomes the only Postgres schema authority, and it is actually
   executed. (F1 — do this first; it is the one item that restores working
   features.)
-- **ClickHouse** — *candidate*, Track B's decision (F7). If retired, the GSAM
-  observation stream folds into a Timescale hypertable on the Postgres you
-  already run, and continuous aggregates replace `gsam/rollup.py`'s hand-rolled
-  hourly upsert: −1 container, −2 GB RAM budget, −1 OLAP dialect.
+- **ClickHouse** — ~~*candidate*~~ **kept, gated** (D-8 answered 2026-08-10; see
+  8.2 Phase 3). The fold-into-Timescale option was costed at −1 container,
+  −2 GB, −1 dialect; measurement showed the 2 GB was ClickHouse's own log
+  tables, not GSAM data, and that the stream has never carried a single row.
+  Self-telemetry is now contained, and the question reopens on the first
+  non-zero `gsam_agent_stats` row — with a real workload to size it against.
 - **`logs.json` as a read source** — it stays as the write-side journal (the
   GDPR purge machinery works and is audited); all 25 readers move to a
   `filter_events` hypertable + continuous aggregates. (F5)
@@ -316,7 +324,7 @@ managed primary.
 | **D-5** | ⛔ **blocked, and the premise was partly wrong — see §6b.** A readiness check found both Track F prerequisites unmet (`LEDGER_DUAL_WRITE` has never run; FT-6 Phase C not started), *and* that the atomicity gap D-5 was meant to buy is mostly **not cross-file**: clearing/listing/credits/escrow already share one `marketplace` file. The real gap was cross-*transaction* inside that file, and it has been fixed in SQLite — no migration required. | — | **High** | F4 (placement half) |
 | **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness):** moving the SEP cluster (`warden_sep.db`, 31 tables / ~15 modules) and these two files to Postgres. | ~1 d done | Med | F3 |
 | **D-7** | ❌ **dropped after measurement — do not re-propose.** See §6a. | — | — | — |
-| **D-8** | **ClickHouse question to Track B** — fold the GSAM stream into a hypertable, or keep. Decision, then ≤2 d. | — | — | F7 |
+| **D-8** | ✅ **answered 2026-08-10** — measured 0 observation rows and a 0-byte rollup, so neither fold nor retire had evidence. Kept, self-telemetry contained (−2 GB), reopened by the first non-zero `gsam_agent_stats` row. See 8.2 Phase 3. | — | — | F7 |
 
 Suggested order: **D-1 → D-2 → D-3 → D-4 → D-6 → D-7 → D-5 (with Track F) → D-8 (Track B).**
 D-1 first because it is the only slice that restores functionality users are
@@ -425,7 +433,7 @@ shipped seams that nothing has switched on.
 | D-3 | 🟡 "~24 readers left" | **Effectively 0% adopted.** Flag absent from compose, no backfill run, no reader migrated |
 | D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
 | D-6 | 🟡 correctness done | Volume untouched: `warden_sep.db` (8 `sep_*` tables, 11 modules), `warden_communities.db`, `warden_community_registry.db` all still SQLite |
-| D-8 | open question to Track B | Unanswered; ClickHouse still in compose, still write-only, still holding a 2 GB budget |
+| D-8 | open question to Track B | ✅ **answered 2026-08-10** — and the premise was wrong twice over: the stream is not write-only but write-*never* (0 rows), and the 2 GB was ClickHouse's own logs, not GSAM's data. Kept + contained + trigger-gated; see 8.2 Phase 3 |
 | F8 | noted, unscheduled | Unchanged — `soc2_collector` opens 5 peer DBs, `business_intelligence` 3, `smb_suite` 3 |
 
 Also open, smaller: `workers/x402_settlement.py` holds the one raw
@@ -630,11 +638,60 @@ the schema, then module-by-module cutover in separate PRs using the same
 `verify_chain()` re-hashes from canonical JSON, so a partial migration there is
 an audit failure, not a bug.
 
-**Phase 3 — D-8, answer the ClickHouse question (Track B owns it).** One
-decision: does the raw GSAM observation stream earn a container when every read
-surface deliberately queries the SQLite rollup? Fold it into a Timescale
-hypertable (−1 container, −2 GB, −1 dialect) or record "keep, and why" and close
-F7. Leaving it undecided keeps paying for it.
+**Phase 3 — D-8, answer the ClickHouse question. ✅ ANSWERED, 2026-08-10.**
+
+The phase asked: does the raw GSAM observation stream earn a container when
+every read surface deliberately queries the SQLite rollup? Measured on the VPS
+before deciding, the same way Phase 0 and Phase 2 were:
+
+| Measured | Value |
+|---|---|
+| `gsam.gsam_observations` | **0 rows** |
+| `gsam.billing_session_ledger` + its MV | **do not exist** — `ensure_schema()` runs from `insert_rows()`, so this proves not one batch was ever inserted |
+| `/warden/data/gsam.db` (the SQLite rollup every read surface queries) | **0 bytes** |
+| `GET /gsam/health` | `flushed:0 · dropped:0 · spool_bytes:0 · clickhouse_reachable:true · degraded:false` |
+| Container cost | 677 MB image · **2.1 GB volume** · 660 MiB RSS against a 2 GiB limit |
+
+So there is **no stream to size**. The pipe is connected, healthy, and empty:
+GSAM's only producer is the SAC guard at the agent-dispatch chokepoint, and
+production drives no agents. Neither "fold into a hypertable" nor "keep, it
+earns its container" can be argued on evidence, because the evidence is zero
+in both directions.
+
+What *is* real is the cost, and it turned out not to be the stream's at all.
+Of the 1.74 GiB of active parts, **100% is ClickHouse logging about itself** —
+`text_log` 802 MiB / 21.5 M rows, `trace_log` 346 MiB / 23.5 M rows,
+`asynchronous_metric_log` 334 MiB / 730 M rows, `metric_log` 299 MiB. The
+application tables contribute nothing. It was also failing background merges on
+that data: `Code: 241. Memory limit (total) exceeded: would use 1.82 GiB,
+maximum: 1.80 GiB`. A container storing zero product rows was consuming ~2.8 GB
+of a VPS whose disk headroom is tight enough that the Playwright base image was
+dropped for it, and OOM-ing to compact its own idleness.
+
+**Decision — keep the container, contain the self-telemetry, and gate the
+fold/retire question on a trigger.** Three parts:
+
+1. `docker/clickhouse/config.d/logging.xml` removes `text_log`, `trace_log`,
+   `metric_log` and `asynchronous_metric_log`, and puts a 7-day TTL on the two
+   that are kept (`query_log`, `error_log` — the ones that answer "did the
+   ingest arrive, and what failed"). This is a defect fix that is correct
+   whichever way D-8 eventually goes, so it does not wait on the decision.
+2. **Not folded into Timescale.** The plan costed the fold as −1 container,
+   −2 GB, −1 dialect; the 2 GB was self-telemetry, so the real saving is one
+   container and one dialect. Against that, a per-tool-call observation stream
+   is exactly the high-cardinality, high-write-rate shape that would sit on the
+   *same* Postgres serving the request path. Trading a container for
+   request-path risk is a bad trade to make speculatively, for a workload whose
+   volume nobody has yet observed.
+3. **Not retired either**, because after (1) an idle ClickHouse costs an image
+   and an idle process, and `GSAM_CLICKHOUSE_ENABLED=false` remains a one-env-var
+   retirement whenever we want it.
+
+**Trigger to reopen:** the first non-zero row count in `gsam_agent_stats`. At
+that point there is a real stream to measure, and the fold-vs-keep question can
+be answered on volume, cardinality and query shape instead of on architecture
+taste. Until then F7 is closed as *observed, contained, and gated* — not as
+"keep, and why", because that verdict would also have been evidence-free.
 
 **Phase 4 — F8, give cross-module reads a contract.** Replace "open the peer's
 file and assume its columns" with a read API owned by the writing module,
