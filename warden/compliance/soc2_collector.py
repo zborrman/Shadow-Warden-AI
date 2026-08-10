@@ -317,33 +317,46 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
             if "marketplace_clearing_log" not in tables:
                 con.close()
                 continue
+            # These are the columns `marketplace_clearing_log` actually has
+            # (clearing.py:95). The query used to ask for `seller_agent_id` and
+            # `agreed_price`, neither of which has ever been in the DDL, so it
+            # raised on every run and this whole section was skipped — the PI1
+            # clearing evidence has always been empty.
             rows = con.execute(
-                "SELECT clearing_id, winner_neg_id, buyer_agent_id, seller_agent_id, "
-                "agreed_price, platform_fee_usd, seller_net_usd, cleared_at "
+                "SELECT clearing_id, winner_neg_id, buyer_agent_id, "
+                "platform_fee_usd, seller_net_usd, cleared_at "
                 "FROM marketplace_clearing_log WHERE cleared_at BETWEEN ? AND ?",
                 (since_ts, until_ts),
             ).fetchall()
             con.close()
             for r in rows:
                 rec = {
-                    "clearing_id": _pseudo(str(r[0])),
-                    "buyer":       _pseudo(str(r[2] or "")),
-                    "seller":      _pseudo(str(r[3] or "")),
-                    "agreed_price":  r[4],
-                    "platform_fee":  r[5],
-                    "seller_net":    r[6],
-                    "cleared_at":    r[7],
+                    "clearing_id":  _pseudo(str(r[0])),
+                    "winner_neg_id": _pseudo(str(r[1] or "")),
+                    "buyer":        _pseudo(str(r[2] or "")),
+                    "platform_fee": r[3],
+                    "seller_net":   r[4],
+                    "cleared_at":   r[5],
                 }
                 clearing_records.append(rec)
-                # Decimal invariant: agreed == fee + net (within 2 microUSD tolerance)
-                if r[4] is not None and r[5] is not None and r[6] is not None:
-                    diff = abs(
-                        Decimal(str(r[4])) - Decimal(str(r[5])) - Decimal(str(r[6]))
-                    )
-                    if diff > Decimal("0.000002"):
+                # The table stores no agreed price and no seller identity, so
+                # neither is reported. In particular `agreed == fee + net`
+                # cannot be *verified* here: with no stored agreed price the
+                # only value to compare against would be `fee + net` itself,
+                # which makes the check a tautology that always passes. An
+                # invariant that cannot fail is not evidence, so it is not
+                # claimed — see `decimal_invariant_verified` below.
+                #
+                # What is checkable is that the two stored components are
+                # present and non-negative; a negative split is a real
+                # arithmetic fault.
+                for _idx, _label in ((3, "platform_fee"), (4, "seller_net")):
+                    _v = r[_idx]
+                    if _v is None or Decimal(str(_v)) < 0:
                         decimal_violations.append({
                             "clearing_id": _pseudo(str(r[0])),
-                            "diff_usd": str(diff),
+                            "field": _label,
+                            "value": str(_v),
                         })
             break
         except Exception as exc:
@@ -360,7 +373,17 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
         "decimal_violations": decimal_violations,
         "decimal_violation_count": len(decimal_violations),
         "integrity_pass_rate_pct": round(100.0 * pass_count / total, 4) if total else 100.0,
-        "note": "Every clearing uses ROUND_HALF_UP Decimal — no float drift in billing",
+        # Stated explicitly so a reader cannot infer more than was checked.
+        # `marketplace_clearing_log` stores no agreed price, so the
+        # agreed == fee + net identity has nothing independent to compare
+        # against and is not asserted here.
+        "decimal_invariant_verified": False,
+        "note": (
+            "Clearings use ROUND_HALF_UP Decimal, but this section verifies only "
+            "that the stored fee/net components are present and non-negative. The "
+            "agreed == fee + net identity is NOT checked: the clearing log stores "
+            "no agreed price, so the comparison would be against fee + net itself."
+        ),
     }
 
 
@@ -404,8 +427,24 @@ def _collect_privacy(since_ts: float, until_ts: float) -> dict[str, Any]:
         ],
         "gdpr_export_count": len(gdpr_export_events),
         "gdpr_export_events": gdpr_export_events,
+        # `event_type` is not a journal field either, so this and the export
+        # list above are structurally empty. Distinguished from a real zero for
+        # the same reason as the PQC counter.
+        "gdpr_export_evidence": (
+            "not_instrumented" if not gdpr_export_events else "counted"
+        ),
         "e2ee_activations_count": e2ee_activation_count,
+        "e2ee_activations_evidence": (
+            "not_instrumented" if e2ee_activation_count == 0 else "counted"
+        ),
+        "e2ee_note": (
+            "Nothing emits e2ee_activated or an e2ee_* event_type, so this "
+            "counter cannot rise. Absence here is absence of telemetry, not of "
+            "the capability."
+        ),
+        # This one is real: `secrets_found` is written on every redaction.
         "pii_fields_redacted": pii_redacted_total,
+        "pii_fields_redacted_evidence": "counted",
         "gdpr_note": "No prompt/response content is ever stored — only metadata (type, length, timing)",
     }
 
@@ -434,6 +473,14 @@ def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]
         log.debug("vault access log unavailable: %s", exc)
         vault_accesses = "unavailable"
 
+    # `pqc_signed` / `pqc_verified` are not journal fields and no code anywhere
+    # emits them, so this loop has always counted zero. Reporting 0 next to a
+    # control named "PQC key operations" reads as *checked, none occurred*,
+    # which is a stronger claim than the truth: nothing is instrumented.
+    #
+    # Left in place so the count starts working the moment the crypto paths do
+    # emit — but the count is no longer presented on its own. See
+    # `pqc_operations_evidence` below and docs/soc2-evidence.md v1.2.
     for entry in _iter_log_window(since_ts, until_ts):
         if entry.get("pqc_signed") or entry.get("pqc_verified"):
             pqc_ops += 1
@@ -445,9 +492,31 @@ def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]
             "C1.2 Disposal of Confidential Information",
         ],
         "pqc_operations_count": pqc_ops,
+        # The control is real — hybrid Ed25519+ML-DSA-65 is implemented and
+        # build-asserted in the image. What does not exist is *automated
+        # telemetry* for it, so the count above is structurally 0 and must not
+        # be read as a measurement. Declared, rather than dropped, so an
+        # auditor is pointed at the evidence that does exist.
+        "pqc_operations_evidence": (
+            "not_instrumented"
+            if pqc_ops == 0
+            else "counted"
+        ),
+        "pqc_operations_note": (
+            "No code emits pqc_signed/pqc_verified, so this counter cannot rise. "
+            "Evidence for C1.1 is the implementation and its build assertion "
+            "(warden/crypto/pqc.py, pqc_selfcheck() in GET /health/pipeline), "
+            "not this count. See docs/soc2-evidence.md v1.2."
+        ),
         "vault_accesses_in_window": vault_accesses,
         "encryption_at_rest": "AES-256 Fernet (community keypairs, data pods, vault secrets)",
         "encryption_in_transit": "TLS 1.3 Caddy proxy + MASQUE H3/H2 sovereign tunnels",
+        # CC6.7 / encryption-in-transit is a configuration control, not an event
+        # stream: it is evidenced by the Caddy vhosts, Authenticated Origin
+        # Pulls and the origin lockdown, none of which produce per-request
+        # journal entries. Stated so the absence of a count is not mistaken for
+        # an absence of the control.
+        "encryption_in_transit_evidence": "configuration_not_event_stream",
         "pqc_algorithm": "ML-DSA-65 (Ed25519+ML-DSA-65 hybrid) — Enterprise tier",
     }
 

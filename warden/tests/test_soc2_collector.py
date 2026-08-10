@@ -75,17 +75,20 @@ def clearing_db(tmp_path, monkeypatch):
     con = sqlite3.connect(db)
     con.execute("""
         CREATE TABLE marketplace_clearing_log (
-            clearing_id TEXT, winner_neg_id TEXT, buyer_agent_id TEXT,
-            seller_agent_id TEXT, agreed_price REAL, platform_fee_usd REAL,
-            seller_net_usd REAL, cleared_at REAL
+            clearing_id      TEXT PRIMARY KEY,
+            winner_neg_id    TEXT NOT NULL,
+            buyer_agent_id   TEXT NOT NULL,
+            rejected_neg_ids TEXT NOT NULL,
+            cleared_at       REAL NOT NULL,
+            platform_fee_usd REAL NOT NULL DEFAULT 0.0,
+            seller_net_usd   REAL NOT NULL DEFAULT 0.0
         )
     """)
     now_ts = time.time()
     # Valid record: 1.000000 - 0.015000 = 0.985000
     con.execute(
-        "INSERT INTO marketplace_clearing_log VALUES (?,?,?,?,?,?,?,?)",
-        ("clr-001", "neg-001", "did:buyer:111", "did:seller:222",
-         1.000000, 0.015000, 0.985000, now_ts - 100),
+        "INSERT INTO marketplace_clearing_log VALUES (?,?,?,?,?,?,?)",
+        ("clr-001", "neg-001", "did:buyer:111", "[]", now_ts - 100, 0.015000, 0.985000),
     )
     con.commit()
     con.close()
@@ -103,17 +106,23 @@ def clearing_db_with_violation(tmp_path, monkeypatch):
     con = sqlite3.connect(db)
     con.execute("""
         CREATE TABLE marketplace_clearing_log (
-            clearing_id TEXT, winner_neg_id TEXT, buyer_agent_id TEXT,
-            seller_agent_id TEXT, agreed_price REAL, platform_fee_usd REAL,
-            seller_net_usd REAL, cleared_at REAL
+            clearing_id      TEXT PRIMARY KEY,
+            winner_neg_id    TEXT NOT NULL,
+            buyer_agent_id   TEXT NOT NULL,
+            rejected_neg_ids TEXT NOT NULL,
+            cleared_at       REAL NOT NULL,
+            platform_fee_usd REAL NOT NULL DEFAULT 0.0,
+            seller_net_usd   REAL NOT NULL DEFAULT 0.0
         )
     """)
     now_ts = time.time()
-    # Bad record: 1.0 - 0.015 = 0.99 (should be 0.985 — drift of 0.005)
+    # A negative seller_net is the arithmetic fault this schema can actually
+    # express. It cannot hold an agreed-vs-fee+net mismatch: there is no
+    # agreed_price column, which is why the collector no longer claims to
+    # verify that identity.
     con.execute(
-        "INSERT INTO marketplace_clearing_log VALUES (?,?,?,?,?,?,?,?)",
-        ("clr-bad", "neg-bad", "did:buyer:x", "did:seller:y",
-         1.000000, 0.015000, 0.990000, now_ts - 50),
+        "INSERT INTO marketplace_clearing_log VALUES (?,?,?,?,?,?,?)",
+        ("clr-bad", "neg-bad", "did:buyer:x", "[]", now_ts - 50, 0.015000, -0.990000),
     )
     con.commit()
     con.close()
