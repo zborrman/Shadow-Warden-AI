@@ -3,9 +3,6 @@
     "api/retention.py": [
       "timestamp"
     ],
-    "api/tenant_impact.py": [
-      "shadow_banned"
-    ],
     "compliance/soc2_collector.py": [
       "action",
       "agent_id",
@@ -18,9 +15,6 @@
       "pqc_verified",
       "stage",
       "status"
-    ],
-    "financial/metrics_reader.py": [
-      "shadow_banned"
     ],
     "xai/chain.py": [
       "action",
@@ -37,5 +31,5 @@
       "xai_rationale"
     ]
   },
-  "total": 26
+  "total": 24
 }

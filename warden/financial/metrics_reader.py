@@ -159,10 +159,16 @@ class MetricsReader:
         count = self._redis_shadow_ban_count()
         if count > 0:
             return count
-        # Fallback: count log entries flagged as shadow-banned (if logged that way)
+        # Fallback: count journal entries carrying the shadow-ban flag.
+        #
+        # This read `e.get("shadow_banned")`, a key `build_entry()` has never
+        # written, so the fallback always returned 0 — which is invisible,
+        # because 0 is also what "no shadow bans" looks like. A shadow ban is
+        # recorded as a detection *flag*, the same way `compliance/dashboard.py`
+        # has always counted it.
         return sum(
             1 for e in self._load_entries()
-            if e.get("shadow_banned") is True
+            if "shadow_ban" in (e.get("flags") or [])
         )
 
     def _redis_shadow_ban_count(self) -> int:
