@@ -237,9 +237,23 @@ Until then the honest state is the one #307 now reports: unavailable.
 1. Rewrite the collector against the real journal for the six derivable
    fields — roughly a day, and it retires `evidence_status: unavailable` for
    four of five TSC sections.
-2. Decide, per control, whether the `pqc_*` / `e2ee_activated` evidence is worth
-   emitting, or whether those control claims should be withdrawn from the
-   bundle. **Do not** leave them asserted with no source.
+2. ✅ **Decided (2026-08-10).** Neither — the third option was the right one.
+   The controls are **real**: hybrid Ed25519+ML-DSA-65 is implemented and
+   build-asserted in the image, TLS is Caddy + Authenticated Origin Pulls +
+   origin lockdown. Withdrawing the claims would understate the system.
+   Emitting the telemetry is a feature, not a fix.
+
+   What was wrong is the *presentation*: a `0` beside a control named "PQC key
+   operations" reads as **checked, none occurred**, which claims more than the
+   truth. Each such figure now carries an explicit evidence label —
+   `not_instrumented` vs `counted` — that tracks the data rather than being
+   hardcoded, plus a note naming the real evidence
+   (`warden/crypto/pqc.py`, `pqc_selfcheck()` in `GET /health/pipeline`).
+   `encryption_in_transit` is labelled `configuration_not_event_stream`: it is
+   evidenced by configuration, and never had a per-request event to count.
+
+   Emitting real `pqc_*` / `e2ee_*` telemetry remains open, and is now an
+   enhancement rather than a correctness gap.
 3. `agent_id` / `event_type` / `stage` need a second reader over the agent
    subsystem's own records, not more fields on `/filter`.
 

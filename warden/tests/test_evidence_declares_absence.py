@@ -108,3 +108,43 @@ def test_dashboard_flags_stages_that_are_skip_on_every_record():
     assert "stages_without_evidence" in src and "data_quality" in src, (
         "the XAI dashboard no longer declares which stages have no evidence"
     )
+
+
+# ── uninstrumented controls declare themselves ────────────────────────────────
+#
+# CC6.7 and C1 are implemented — hybrid PQC is build-asserted in the image, TLS
+# is Caddy + Authenticated Origin Pulls. What does not exist is telemetry for
+# them, so their counters are structurally 0. A 0 beside a control named "PQC
+# key operations" reads as *checked, none occurred*, which claims more than the
+# truth.
+
+def test_pqc_counter_declares_that_nothing_emits_it(journal):
+    journal([{"ts": datetime.now(UTC).isoformat(), "request_id": "r1"}])
+    out = sc._collect_confidentiality(*_window())
+    assert out["pqc_operations_count"] == 0
+    assert out["pqc_operations_evidence"] == "not_instrumented"
+    assert "cannot rise" in out["pqc_operations_note"]
+
+
+def test_encryption_in_transit_is_declared_a_configuration_control(journal):
+    journal([{"ts": datetime.now(UTC).isoformat(), "request_id": "r1"}])
+    out = sc._collect_confidentiality(*_window())
+    assert out["encryption_in_transit_evidence"] == "configuration_not_event_stream"
+
+
+def test_privacy_separates_measured_from_uninstrumented(journal):
+    """`secrets_found` is real; the e2ee and export counters are not."""
+    now = datetime.now(UTC).isoformat()
+    journal([{"ts": now, "request_id": "r1", "secrets_found": ["aws_key", "email"]}])
+    out = sc._collect_privacy(*_window())
+    assert out["pii_fields_redacted"] == 2
+    assert out["pii_fields_redacted_evidence"] == "counted"
+    assert out["e2ee_activations_evidence"] == "not_instrumented"
+    assert out["gdpr_export_evidence"] == "not_instrumented"
+
+
+def test_a_real_count_is_not_labelled_uninstrumented(journal):
+    """The label must track the data, or it is just a constant."""
+    now = datetime.now(UTC).isoformat()
+    journal([{"ts": now, "request_id": "r1", "pqc_signed": True}])
+    assert sc._collect_confidentiality(*_window())["pqc_operations_evidence"] == "counted"
