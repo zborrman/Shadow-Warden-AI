@@ -317,33 +317,46 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
             if "marketplace_clearing_log" not in tables:
                 con.close()
                 continue
+            # These are the columns `marketplace_clearing_log` actually has
+            # (clearing.py:95). The query used to ask for `seller_agent_id` and
+            # `agreed_price`, neither of which has ever been in the DDL, so it
+            # raised on every run and this whole section was skipped — the PI1
+            # clearing evidence has always been empty.
             rows = con.execute(
-                "SELECT clearing_id, winner_neg_id, buyer_agent_id, seller_agent_id, "
-                "agreed_price, platform_fee_usd, seller_net_usd, cleared_at "
+                "SELECT clearing_id, winner_neg_id, buyer_agent_id, "
+                "platform_fee_usd, seller_net_usd, cleared_at "
                 "FROM marketplace_clearing_log WHERE cleared_at BETWEEN ? AND ?",
                 (since_ts, until_ts),
             ).fetchall()
             con.close()
             for r in rows:
                 rec = {
-                    "clearing_id": _pseudo(str(r[0])),
-                    "buyer":       _pseudo(str(r[2] or "")),
-                    "seller":      _pseudo(str(r[3] or "")),
-                    "agreed_price":  r[4],
-                    "platform_fee":  r[5],
-                    "seller_net":    r[6],
-                    "cleared_at":    r[7],
+                    "clearing_id":  _pseudo(str(r[0])),
+                    "winner_neg_id": _pseudo(str(r[1] or "")),
+                    "buyer":        _pseudo(str(r[2] or "")),
+                    "platform_fee": r[3],
+                    "seller_net":   r[4],
+                    "cleared_at":   r[5],
                 }
                 clearing_records.append(rec)
-                # Decimal invariant: agreed == fee + net (within 2 microUSD tolerance)
-                if r[4] is not None and r[5] is not None and r[6] is not None:
-                    diff = abs(
-                        Decimal(str(r[4])) - Decimal(str(r[5])) - Decimal(str(r[6]))
-                    )
-                    if diff > Decimal("0.000002"):
+                # The table stores no agreed price and no seller identity, so
+                # neither is reported. In particular `agreed == fee + net`
+                # cannot be *verified* here: with no stored agreed price the
+                # only value to compare against would be `fee + net` itself,
+                # which makes the check a tautology that always passes. An
+                # invariant that cannot fail is not evidence, so it is not
+                # claimed — see `decimal_invariant_verified` below.
+                #
+                # What is checkable is that the two stored components are
+                # present and non-negative; a negative split is a real
+                # arithmetic fault.
+                for _idx, _label in ((3, "platform_fee"), (4, "seller_net")):
+                    _v = r[_idx]
+                    if _v is None or Decimal(str(_v)) < 0:
                         decimal_violations.append({
                             "clearing_id": _pseudo(str(r[0])),
-                            "diff_usd": str(diff),
+                            "field": _label,
+                            "value": str(_v),
                         })
             break
         except Exception as exc:
@@ -360,7 +373,17 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
         "decimal_violations": decimal_violations,
         "decimal_violation_count": len(decimal_violations),
         "integrity_pass_rate_pct": round(100.0 * pass_count / total, 4) if total else 100.0,
-        "note": "Every clearing uses ROUND_HALF_UP Decimal — no float drift in billing",
+        # Stated explicitly so a reader cannot infer more than was checked.
+        # `marketplace_clearing_log` stores no agreed price, so the
+        # agreed == fee + net identity has nothing independent to compare
+        # against and is not asserted here.
+        "decimal_invariant_verified": False,
+        "note": (
+            "Clearings use ROUND_HALF_UP Decimal, but this section verifies only "
+            "that the stored fee/net components are present and non-negative. The "
+            "agreed == fee + net identity is NOT checked: the clearing log stores "
+            "no agreed price, so the comparison would be against fee + net itself."
+        ),
     }
 
 
