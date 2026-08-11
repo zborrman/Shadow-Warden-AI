@@ -434,7 +434,7 @@ shipped seams that nothing has switched on.
 | D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
 | D-6 | 🟡 correctness done | Volume untouched: `warden_sep.db` (8 `sep_*` tables, 11 modules), `warden_communities.db`, `warden_community_registry.db` all still SQLite |
 | D-8 | open question to Track B | ✅ **answered 2026-08-10** — and the premise was wrong twice over: the stream is not write-only but write-*never* (0 rows), and the 2 GB was ClickHouse's own logs, not GSAM's data. Kept + contained + trigger-gated; see 8.2 Phase 3 |
-| F8 | noted, unscheduled | Unchanged — `soc2_collector` opens 5 peer DBs, `business_intelligence` 3, `smb_suite` 3 |
+| F8 | noted, unscheduled | 🟡 **first slice done 2026-08-11** — and 4 of `soc2_collector`'s 5 peer DBs turned out to be files **no module writes** (`warden_uptime.db`, `warden_secrets_inv.db`, `warden_marketplace_clearing.db`, `warden_m2m.db`). Replaced with writer-owned read contracts + a ghost-DB ratchet. `business_intelligence` (3) and `smb_suite` (3) still open |
 
 Also open, smaller: `workers/x402_settlement.py` holds the one raw
 `sqlite3.connect` in the ratchet baseline that is not the legitimate
@@ -725,10 +725,42 @@ be answered on volume, cardinality and query shape instead of on architecture
 taste. Until then F7 is closed as *observed, contained, and gated* — not as
 "keep, and why", because that verdict would also have been evidence-free.
 
-**Phase 4 — F8, give cross-module reads a contract.** Replace "open the peer's
-file and assume its columns" with a read API owned by the writing module,
-starting with `soc2_collector`. `open_db_readonly()` made this safe against
-phantom file creation; it did nothing about schema coupling.
+**Phase 4 — F8, give cross-module reads a contract. 🟡 first slice done,
+2026-08-11.** Replace "open the peer's file and assume its columns" with a read
+API owned by the writing module, starting with `soc2_collector`.
+`open_db_readonly()` made this safe against phantom file creation; it did
+nothing about schema coupling.
+
+Measured before writing any seam, and the coupling was worse than "assumes its
+columns" — **four of the five peer files `soc2_collector` opened are names no
+module has ever written**:
+
+| Reader asked for | Reality |
+|---|---|
+| `warden_uptime.db` / `uptime_checks` | appears nowhere else in the codebase except this collector's own test fixture. Uptime has been `warden_core.probe_results` (Timescale) since **D-1** — 548 k rows — so A1.1/A1.2 reported `0 checks, availability None` |
+| `warden_secrets_inv.db` / `access_log` | the secrets subsystem is `warden_secrets.db`, and it has **no access log at all** — nothing in the product records a vault access |
+| `warden_marketplace_clearing.db` | `marketplace/clearing.py` writes `marketplace_clearing_log` into `warden_marketplace.db` |
+| `warden_m2m.db` | the m2m store is `warden_m2m_store.db`, and it holds `m2m_orders`, not a clearing log |
+
+Same defect class as the journal ghost fields, one level up: not a key that is
+never written, a **database** that is never written. And the same reason it
+survived — a missing SQLite file read read-only yields empty, which is
+indistinguishable downstream from "measured, and there was nothing there".
+
+Fixed by giving each read a contract owned by the writer, not a path:
+`api/monitor.py::availability_window()` (Postgres, returns `None` rather than a
+zeroed dict when it cannot measure) and
+`secrets_gov/inventory.py::inventory_census()`. Where no source exists at all —
+vault accesses — the honest answer is #312's label (`not_instrumented`), not a
+0 that reads as *checked, none occurred*.
+
+Guarded by `warden/tests/test_no_ghost_database.py`: every `data_path("x.db")`
+must be claimed by a module that also writes. Baseline is **empty** — there are
+no known ghosts left, so any new one fails immediately.
+
+Still open in this phase: `business_intelligence/service.py` (3 peer files) and
+`integrations/smb_suite.py` (3). Those read real, written databases — the
+coupling there is schema, not existence, which is the milder half of F8.
 
 **Phase 5 — D-5, and only after Track F.** Gate: `LEDGER_DUAL_WRITE` has run
 long enough to produce a reconciliation baseline **and** FT-6 Phase C has cut

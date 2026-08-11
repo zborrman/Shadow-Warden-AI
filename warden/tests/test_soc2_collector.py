@@ -30,8 +30,13 @@ def logs_with_events(tmp_path, monkeypatch):
     arch = tmp_path / "archives"
     monkeypatch.setenv("LOGS_PATH", str(logs_path))
     monkeypatch.setenv("SOC2_ARCHIVE_DIR", str(arch))
-    monkeypatch.setenv("UPTIME_DB_PATH", str(tmp_path / "uptime.db"))
-    monkeypatch.setenv("SECRETS_INV_DB_PATH", str(tmp_path / "secrets_inv.db"))
+    # `UPTIME_DB_PATH` / `SECRETS_INV_DB_PATH` used to be set here. Both named
+    # SQLite files that no module has ever written — the fixture pointed them at
+    # tmp_path and so made the collector's reach for them look deliberate. F8:
+    # uptime comes from `warden_core.probe_results` via
+    # `api.monitor.availability_window()`, and there is no vault access log
+    # anywhere. See warden/tests/test_no_ghost_database.py.
+    monkeypatch.setenv("SECRETS_DB_PATH", str(tmp_path / "secrets.db"))
     now_ts = time.time()
 
     # Journal entries carry `ts`; the collectors filter on it. This fixture
@@ -68,7 +73,11 @@ def logs_with_events(tmp_path, monkeypatch):
 def clearing_db(tmp_path, monkeypatch):
     """Create a marketplace_clearing_log SQLite table with one valid record."""
     db = tmp_path / "clearing.db"
-    monkeypatch.setenv("MARKETPLACE_CLEARING_DB_PATH", str(db))
+    # MARKETPLACE_DB_PATH, not MARKETPLACE_CLEARING_DB_PATH: this fixture
+    # used to create the file the collector guessed at, which is what made a
+    # never-written database look live. `marketplace/clearing.py` writes
+    # `marketplace_clearing_log` into warden_marketplace.db.
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(db))
     monkeypatch.setenv("SOC2_ARCHIVE_DIR", str(tmp_path / "archives"))
     monkeypatch.setenv("LOGS_PATH", str(tmp_path / "empty.json"))
     (tmp_path / "empty.json").write_text("")
@@ -99,7 +108,11 @@ def clearing_db(tmp_path, monkeypatch):
 def clearing_db_with_violation(tmp_path, monkeypatch):
     """Clearing DB with a Decimal drift violation."""
     db = tmp_path / "clearing_bad.db"
-    monkeypatch.setenv("MARKETPLACE_CLEARING_DB_PATH", str(db))
+    # MARKETPLACE_DB_PATH, not MARKETPLACE_CLEARING_DB_PATH: this fixture
+    # used to create the file the collector guessed at, which is what made a
+    # never-written database look live. `marketplace/clearing.py` writes
+    # `marketplace_clearing_log` into warden_marketplace.db.
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", str(db))
     monkeypatch.setenv("SOC2_ARCHIVE_DIR", str(tmp_path / "archives"))
     monkeypatch.setenv("LOGS_PATH", str(tmp_path / "empty.json"))
     (tmp_path / "empty.json").write_text("")
@@ -297,3 +310,82 @@ class TestSovaSoc2DailyCollect:
         from warden.agent.scheduler import sova_soc2_daily_collect
         result = asyncio.run(sova_soc2_daily_collect({}))
         assert result["status"] in ("ok", "error")
+
+
+# ── F8: cross-module reads go through a contract ──────────────────────────────
+
+def test_availability_comes_from_the_probe_store_not_a_file(logs_with_events, monkeypatch):
+    """A1.1/A1.2 read `warden_uptime.db`, which nothing writes, while 548 k
+    probe rows sat in `warden_core.probe_results`. Prove the collector now
+    consumes the uptime module's contract and reports what it returns."""
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window",
+        lambda since, until, **kw: {
+            "source": "warden_core.probe_results",
+            "checks": 400,
+            "up_count": 399,
+            "availability_pct": 99.75,
+            "avg_response_ms": 41.5,
+        },
+    )
+    out = sc._collect_availability(time.time() - 3600, time.time())
+    assert out["uptime_checks_in_window"] == 400
+    assert out["availability_pct"] == 99.75
+    assert out["uptime_evidence"] == "counted"
+    assert out["uptime_source"] == "warden_core.probe_results"
+
+
+def test_availability_says_so_when_it_cannot_measure(logs_with_events, monkeypatch):
+    """`None` from the contract must not become a zero that reads as uptime
+    data — that is precisely how the original defect stayed invisible."""
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window", lambda since, until, **kw: None
+    )
+    out = sc._collect_availability(time.time() - 3600, time.time())
+    assert out["uptime_evidence"] == "not_available"
+    assert out["availability_pct"] is None
+    assert out["uptime_source"] is None
+
+
+def test_availability_distinguishes_empty_from_unavailable(logs_with_events, monkeypatch):
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window",
+        lambda since, until, **kw: {
+            "source": "warden_core.probe_results", "checks": 0, "up_count": 0,
+            "availability_pct": None, "avg_response_ms": None,
+        },
+    )
+    out = sc._collect_availability(time.time() - 3600, time.time())
+    assert out["uptime_evidence"] == "no_probes_in_window"
+
+
+def test_confidentiality_labels_the_missing_vault_access_log(logs_with_events, monkeypatch):
+    """There is no access log in any store, so a count of 0 would claim more
+    than the truth. It must be labelled, and the inventory that *does* exist
+    must be reported instead."""
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.secrets_gov.inventory.inventory_census",
+        lambda: {"secrets_under_management": 12, "vaults_registered": 2,
+                 "secrets_expired": 1},
+    )
+    out = sc._collect_confidentiality(time.time() - 3600, time.time())
+    assert out["vault_accesses_in_window"] == "not_instrumented"
+    assert out["secrets_under_management"] == 12
+    assert out["secrets_inventory_evidence"] == "counted"
+
+
+def test_confidentiality_when_the_inventory_cannot_be_read(logs_with_events, monkeypatch):
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr("warden.secrets_gov.inventory.inventory_census", lambda: None)
+    out = sc._collect_confidentiality(time.time() - 3600, time.time())
+    assert out["secrets_under_management"] is None
+    assert out["secrets_inventory_evidence"] == "not_available"
