@@ -37,6 +37,93 @@ _MONITOR_UPDATE_COLS = frozenset({"name", "interval_s", "is_active"})
 router = APIRouter(prefix="/monitors", tags=["uptime"])
 
 
+# ── Cross-module read contract (F8) ───────────────────────────────────────────
+
+def availability_window(
+    since_ts: float,
+    until_ts: float,
+    *,
+    tenant_id: str | None = None,
+) -> dict[str, Any] | None:
+    """Availability over a window, for callers outside the uptime subsystem.
+
+    Exists because `compliance/soc2_collector.py` used to open a
+    `warden_uptime.db` SQLite file and query an `uptime_checks` table — neither
+    of which any module has ever written. Uptime has lived in
+    `warden_core.probe_results` (Timescale) since D-1/migration 0010, so the
+    SOC 2 A1.1/A1.2 controls reported `0 checks / availability None` against
+    548 k rows sitting one engine away. That is the F8 failure exactly: the
+    reader hard-coded the writer's *storage* instead of asking it a question.
+
+    Returns ``None`` — never a zeroed dict — when Postgres is not configured or
+    not reachable, so a caller can label the difference between "measured, and
+    it was empty" and "could not measure". Synchronous on purpose: the callers
+    are collectors and report builders, not request handlers.
+    """
+    from datetime import UTC, datetime
+
+    try:
+        from warden.db.connection import DATABASE_URL, get_engine
+    except Exception:  # pragma: no cover - import shape differs in slim envs
+        return None
+    if not DATABASE_URL:
+        return None
+
+    since = datetime.fromtimestamp(since_ts, UTC)
+    until = datetime.fromtimestamp(until_ts, UTC)
+    params: dict[str, Any] = {"since": since, "until": until}
+
+    # Two whole literal statements rather than one with an interpolated WHERE
+    # fragment. The fragment was a fixed string and safe, but neither a reader
+    # nor `avoid-sqlalchemy-text` can tell that at a glance, and the repo's two
+    # existing exceptions are for genuinely dynamic SET clauses guarded by
+    # `sql_safety.safe_set_clause`. A duplicated line of SQL is cheaper than a
+    # suppression.
+    try:
+        with get_engine().connect() as conn:
+            if tenant_id:
+                params["tid"] = tenant_id
+                row = conn.execute(
+                    text("""
+                        SELECT COUNT(*)                      AS checks,
+                               COUNT(*) FILTER (WHERE is_up) AS up_count,
+                               AVG(latency_ms)               AS avg_latency_ms
+                        FROM warden_core.probe_results
+                        WHERE time >= :since AND time < :until
+                          AND tenant_id = :tid
+                    """),
+                    params,
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    text("""
+                        SELECT COUNT(*)                      AS checks,
+                               COUNT(*) FILTER (WHERE is_up) AS up_count,
+                               AVG(latency_ms)               AS avg_latency_ms
+                        FROM warden_core.probe_results
+                        WHERE time >= :since AND time < :until
+                    """),
+                    params,
+                ).fetchone()
+    except Exception as exc:
+        log.debug("availability_window unavailable (fail-open): %s", exc)
+        return None
+
+    if row is None:
+        return None
+    checks = int(row.checks or 0)
+    up_count = int(row.up_count or 0)
+    return {
+        "source": "warden_core.probe_results",
+        "checks": checks,
+        "up_count": up_count,
+        "availability_pct": round(100.0 * up_count / checks, 4) if checks else None,
+        "avg_response_ms": round(float(row.avg_latency_ms), 2)
+        if row.avg_latency_ms is not None
+        else None,
+    }
+
+
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 class MonitorCreate(BaseModel):

@@ -308,3 +308,34 @@ def _derive_status(meta) -> str:
         except ValueError:
             pass
     return "active"
+
+
+# ── Cross-module read contract (F8) ───────────────────────────────────────────
+
+def inventory_census() -> dict[str, int] | None:
+    """Platform-wide secret counts, for callers outside the secrets subsystem.
+
+    `compliance/soc2_collector.py` used to open a `warden_secrets_inv.db` file
+    and count an `access_log` table. Neither has ever existed — the inventory
+    lives in `warden_secrets.db`, written here, and it has no access log at
+    all. The collector could not have known that by looking at a filename,
+    which is the point of F8: give the reader a question to ask, not a path to
+    guess.
+
+    Returns ``None`` if the store cannot be read, so a caller can distinguish
+    "no secrets registered" from "could not look".
+    """
+    try:
+        with _conn() as con:
+            total = con.execute("SELECT COUNT(*) FROM secrets_inventory").fetchone()[0]
+            vaults = con.execute("SELECT COUNT(*) FROM secrets_vaults").fetchone()[0]
+            expired = con.execute(
+                "SELECT COUNT(*) FROM secrets_inventory WHERE status = 'expired'"
+            ).fetchone()[0]
+    except Exception:
+        return None
+    return {
+        "secrets_under_management": int(total),
+        "vaults_registered": int(vaults),
+        "secrets_expired": int(expired),
+    }

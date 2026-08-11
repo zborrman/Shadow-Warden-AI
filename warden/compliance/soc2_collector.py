@@ -44,7 +44,14 @@ def _logs_path() -> Path:
 
 
 def _clearing_db() -> str:
-    return data_path("warden_marketplace_clearing.db", "MARKETPLACE_CLEARING_DB_PATH")
+    """Where `marketplace_clearing_log` actually lives.
+
+    F8. This used to resolve `warden_marketplace_clearing.db` — a filename no
+    module has ever written. `marketplace/clearing.py`, which owns the DDL and
+    the INSERT, uses `warden_marketplace.db` / `MARKETPLACE_DB_PATH`, so this
+    now resolves the same pair rather than a second, invented one.
+    """
+    return data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -240,31 +247,24 @@ def _collect_security(since_ts: float, until_ts: float) -> dict[str, Any]:
 
 def _collect_availability(since_ts: float, until_ts: float) -> dict[str, Any]:
     """A1.1-A1.2: Uptime check records + live health probe."""
-    uptime_records: list[dict] = []
     db_pool_healthy: bool | None = None
 
+    # F8. This used to open `warden_uptime.db` and query an `uptime_checks`
+    # table. No module has ever written either — the name appears nowhere in
+    # the codebase except here and this collector's own test fixture, which
+    # created the file itself and so agreed with the bug. Uptime has lived in
+    # `warden_core.probe_results` since D-1, and production holds 548 k rows
+    # there, while A1.1/A1.2 reported `0 checks, availability None`.
+    #
+    # Ask the owning module instead of reaching into its storage.
+    window: dict[str, Any] | None
     try:
-        uptime_db = data_path("warden_uptime.db", "UPTIME_DB_PATH")
-        con = open_db_readonly(uptime_db)
-        tables = {r[0] for r in con.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()}
-        if "uptime_checks" in tables:
-            rows = con.execute(
-                "SELECT monitor_id, checked_at, status, response_ms FROM uptime_checks "
-                "WHERE checked_at BETWEEN ? AND ? ORDER BY checked_at",
-                (since_ts, until_ts),
-            ).fetchall()
-            for r in rows:
-                uptime_records.append({
-                    "monitor_id": r[0],
-                    "ts": r[1],
-                    "status": r[2],
-                    "response_ms": r[3],
-                })
-        con.close()
+        from warden.api.monitor import availability_window  # noqa: PLC0415
+
+        window = availability_window(since_ts, until_ts)
     except Exception as exc:
-        log.debug("uptime DB unavailable: %s", exc)
+        log.debug("availability read contract unavailable: %s", exc)
+        window = None
 
     try:
         import httpx
@@ -273,20 +273,22 @@ def _collect_availability(since_ts: float, until_ts: float) -> dict[str, Any]:
     except Exception:
         db_pool_healthy = None
 
-    total = len(uptime_records)
-    up_count = sum(1 for r in uptime_records if r.get("status") in ("UP", "ok", 1, "1"))
-    avg_ms = (
-        sum(r.get("response_ms") or 0 for r in uptime_records) / total
-        if total > 0 else None
-    )
-
     return {
         "tsc": "A1",
         "controls": ["A1.1 Performance Monitoring", "A1.2 Capacity Management"],
-        "uptime_checks_in_window": total,
-        "up_count": up_count,
-        "availability_pct": round(100.0 * up_count / total, 4) if total > 0 else None,
-        "avg_response_ms": round(avg_ms, 2) if avg_ms is not None else None,
+        "uptime_checks_in_window": window["checks"] if window else 0,
+        "up_count": window["up_count"] if window else 0,
+        "availability_pct": window["availability_pct"] if window else None,
+        "avg_response_ms": window["avg_response_ms"] if window else None,
+        # A zero here has two very different meanings — "the probe worker ran
+        # and everything was up" and "we could not reach the store at all" —
+        # and an auditor cannot tell them apart from the counts. Say which.
+        "uptime_evidence": (
+            "not_available"
+            if window is None
+            else ("no_probes_in_window" if window["checks"] == 0 else "counted")
+        ),
+        "uptime_source": window["source"] if window else None,
         "db_pool_healthy": db_pool_healthy,
     }
 
@@ -300,11 +302,11 @@ def _collect_processing_integrity(since_ts: float, until_ts: float) -> dict[str,
     clearing_records: list[dict] = []
     decimal_violations: list[dict] = []
 
-    candidate_dbs = [
-        _clearing_db(),
-        data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH"),
-        data_path("warden_m2m.db"),
-    ]
+    # `warden_m2m.db` was a third candidate here and is also a name nothing
+    # writes — the m2m store is `warden_m2m_store.db` (m2m_store/inventory.py),
+    # and it holds `m2m_orders`, not `marketplace_clearing_log`. Dropped rather
+    # than repointed: there is no clearing log there to find.
+    candidate_dbs = [_clearing_db()]
 
     for db_path in candidate_dbs:
         if not Path(db_path).exists():
@@ -454,24 +456,26 @@ def _collect_privacy(since_ts: float, until_ts: float) -> dict[str, Any]:
 def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]:
     """C1.1-C1.2: PQC key operations, Fernet vault accesses, encryption posture."""
     pqc_ops = 0
-    vault_accesses: int | str = 0
 
+    # F8. This used to open `warden_secrets_inv.db` and count an `access_log`
+    # table. Neither exists: the secrets subsystem lives in `warden_secrets.db`
+    # (`secrets_gov/inventory.py`, `policy.py`, `api/secrets.py`), and that file
+    # has `secrets_vaults` / `secrets_inventory` / `secrets_policy` and **no
+    # access log at all** — nothing in the product records a vault access.
+    #
+    # So this is not a repoint. There is no source to point at, and the honest
+    # answer is the one #312 established for the PQC counters: say
+    # `not_instrumented` rather than report a 0 that reads as "checked, none
+    # occurred". What does exist is the inventory itself, which is real
+    # evidence for C1.1 even though it is not an access trail.
+    vault_accesses: int | str = "not_instrumented"
+    census: dict[str, int] | None = None
     try:
-        inv_db = data_path("warden_secrets_inv.db", "SECRETS_INV_DB_PATH")
-        if Path(inv_db).exists():
-            con = open_db_readonly(inv_db)
-            tables = {r[0] for r in con.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()}
-            if "access_log" in tables:
-                vault_accesses = con.execute(
-                    "SELECT COUNT(*) FROM access_log WHERE accessed_at BETWEEN ? AND ?",
-                    (since_ts, until_ts),
-                ).fetchone()[0]
-            con.close()
+        from warden.secrets_gov.inventory import inventory_census  # noqa: PLC0415
+
+        census = inventory_census()
     except Exception as exc:
-        log.debug("vault access log unavailable: %s", exc)
-        vault_accesses = "unavailable"
+        log.debug("secrets inventory unavailable: %s", exc)
 
     # `pqc_signed` / `pqc_verified` are not journal fields and no code anywhere
     # emits them, so this loop has always counted zero. Reporting 0 next to a
@@ -509,6 +513,17 @@ def _collect_confidentiality(since_ts: float, until_ts: float) -> dict[str, Any]
             "not this count. See docs/soc2-evidence.md v1.2."
         ),
         "vault_accesses_in_window": vault_accesses,
+        "vault_accesses_note": (
+            "No module records secret access events — warden_secrets.db holds "
+            "secrets_vaults/secrets_inventory/secrets_policy and no access log. "
+            "The count that used to appear here was read from a "
+            "warden_secrets_inv.db that has never existed."
+        ),
+        # Real, countable evidence for C1.1 from the module that owns it.
+        "secrets_under_management": census["secrets_under_management"] if census else None,
+        "vaults_registered": census["vaults_registered"] if census else None,
+        "secrets_expired": census["secrets_expired"] if census else None,
+        "secrets_inventory_evidence": "counted" if census else "not_available",
         "encryption_at_rest": "AES-256 Fernet (community keypairs, data pods, vault secrets)",
         "encryption_in_transit": "TLS 1.3 Caddy proxy + MASQUE H3/H2 sovereign tunnels",
         # CC6.7 / encryption-in-transit is a configuration control, not an event
