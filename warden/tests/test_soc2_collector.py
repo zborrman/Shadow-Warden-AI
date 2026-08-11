@@ -389,3 +389,65 @@ def test_confidentiality_when_the_inventory_cannot_be_read(logs_with_events, mon
     out = sc._collect_confidentiality(time.time() - 3600, time.time())
     assert out["secrets_under_management"] is None
     assert out["secrets_inventory_evidence"] == "not_available"
+
+
+def test_a1_reports_the_worst_target_not_just_the_mean(logs_with_events, monkeypatch):
+    """A blended 76% that is really one dead monitor is as misleading as the
+    zeros this section used to report — it just errs the other way."""
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window",
+        lambda since, until, **kw: {
+            "source": "warden_core.probe_results",
+            "checks": 24151, "up_count": 18414,
+            "availability_pct": 76.2453, "avg_response_ms": 104.06,
+            "by_monitor": [
+                {"target": "Portal", "checks": 5724, "up_count": 0,
+                 "availability_pct": 0.0, "avg_response_ms": 4.0},
+                {"target": "Landing", "checks": 5724, "up_count": 5724,
+                 "availability_pct": 100.0, "avg_response_ms": 90.0},
+                {"target": "API Gateway", "checks": 5724, "up_count": 5716,
+                 "availability_pct": 99.86, "avg_response_ms": 181.0},
+            ],
+        },
+    )
+    out = sc._collect_availability(time.time() - 86400, time.time())
+    assert len(out["by_monitor"]) == 3
+    assert out["worst_monitor"]["target"] == "Portal"
+    assert out["worst_monitor"]["availability_pct"] == 0.0
+    # The blended number is still reported — it is not wrong, only incomplete.
+    assert out["availability_pct"] == 76.2453
+
+
+def test_a1_by_monitor_is_empty_not_missing_when_unmeasurable(logs_with_events, monkeypatch):
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window", lambda since, until, **kw: None
+    )
+    out = sc._collect_availability(time.time() - 86400, time.time())
+    assert out["by_monitor"] == []
+    assert out["worst_monitor"] is None
+
+
+def test_a1_worst_monitor_ignores_targets_with_no_percentage(logs_with_events, monkeypatch):
+    """A target with 0 checks has `availability_pct: None`; it is not the worst,
+    it is unmeasured, and sorting it to the front would invent a finding."""
+    from warden.compliance import soc2_collector as sc
+
+    monkeypatch.setattr(
+        "warden.api.monitor.availability_window",
+        lambda since, until, **kw: {
+            "source": "warden_core.probe_results", "checks": 10, "up_count": 9,
+            "availability_pct": 90.0, "avg_response_ms": 5.0,
+            "by_monitor": [
+                {"target": "Never probed", "checks": 0, "up_count": 0,
+                 "availability_pct": None, "avg_response_ms": None},
+                {"target": "Real", "checks": 10, "up_count": 9,
+                 "availability_pct": 90.0, "avg_response_ms": 5.0},
+            ],
+        },
+    )
+    out = sc._collect_availability(time.time() - 86400, time.time())
+    assert out["worst_monitor"]["target"] == "Real"

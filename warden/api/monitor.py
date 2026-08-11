@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import math
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,7 +26,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from sqlalchemy import text
 
 from warden.auth_guard import AuthResult, require_api_key
-from warden.db.connection import get_async_engine
+from warden.db.connection import DATABASE_URL, get_async_engine, get_engine
 from warden.db.sql_safety import safe_set_clause
 
 log = logging.getLogger("warden.api.monitor")
@@ -60,12 +61,6 @@ def availability_window(
     it was empty" and "could not measure". Synchronous on purpose: the callers
     are collectors and report builders, not request handlers.
     """
-    from datetime import UTC, datetime
-
-    try:
-        from warden.db.connection import DATABASE_URL, get_engine
-    except Exception:  # pragma: no cover - import shape differs in slim envs
-        return None
     if not DATABASE_URL:
         return None
 
@@ -121,7 +116,80 @@ def availability_window(
         "avg_response_ms": round(float(row.avg_latency_ms), 2)
         if row.avg_latency_ms is not None
         else None,
+        "by_monitor": _availability_by_monitor(since, until, tenant_id),
     }
+
+
+def _availability_by_monitor(
+    since: datetime, until: datetime, tenant_id: str | None
+) -> list[dict[str, Any]]:
+    """Per-target rows behind the blended figure.
+
+    The blended number alone is not usable evidence. Measured on 2026-08-11 the
+    platform reported **76.25%** over 24 151 checks — which reads as a serious
+    availability failure and is not one. Five of six monitors were at
+    99.86–100%; a sixth, `Portal`, was at **0.00% over 5 724 checks** because
+    its hostname has no DNS record at all, so every probe failed in 4 ms
+    without ever reaching the service.
+
+    One misconfigured target dragging the platform figure 24 points is the same
+    error shape as the zeros this collector used to report, pointing the other
+    way: a number that is arithmetically correct and tells the reader something
+    false. An auditor needs to see which target, not an average.
+    """
+    params: dict[str, Any] = {"since": since, "until": until}
+    try:
+        with get_engine().connect() as conn:
+            if tenant_id:
+                params["tid"] = tenant_id
+                rows = conn.execute(
+                    text("""
+                        SELECT COALESCE(m.name, pr.monitor_id::text) AS target,
+                               COUNT(*)                              AS checks,
+                               COUNT(*) FILTER (WHERE pr.is_up)      AS up_count,
+                               AVG(pr.latency_ms)                    AS avg_latency_ms
+                        FROM warden_core.probe_results pr
+                        LEFT JOIN warden_core.monitors m ON m.id = pr.monitor_id
+                        WHERE pr.time >= :since AND pr.time < :until
+                          AND pr.tenant_id = :tid
+                        GROUP BY 1
+                        ORDER BY 2 DESC
+                    """),
+                    params,
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    text("""
+                        SELECT COALESCE(m.name, pr.monitor_id::text) AS target,
+                               COUNT(*)                              AS checks,
+                               COUNT(*) FILTER (WHERE pr.is_up)      AS up_count,
+                               AVG(pr.latency_ms)                    AS avg_latency_ms
+                        FROM warden_core.probe_results pr
+                        LEFT JOIN warden_core.monitors m ON m.id = pr.monitor_id
+                        WHERE pr.time >= :since AND pr.time < :until
+                        GROUP BY 1
+                        ORDER BY 2 DESC
+                    """),
+                    params,
+                ).fetchall()
+    except Exception as exc:
+        log.debug("availability_by_monitor unavailable (fail-open): %s", exc)
+        return []
+
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        n = int(r.checks or 0)
+        up = int(r.up_count or 0)
+        out.append({
+            "target": r.target,
+            "checks": n,
+            "up_count": up,
+            "availability_pct": round(100.0 * up / n, 4) if n else None,
+            "avg_response_ms": round(float(r.avg_latency_ms), 2)
+            if r.avg_latency_ms is not None
+            else None,
+        })
+    return out
 
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
