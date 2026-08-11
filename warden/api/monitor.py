@@ -28,6 +28,7 @@ from sqlalchemy import text
 from warden.auth_guard import AuthResult, require_api_key
 from warden.db.connection import DATABASE_URL, get_async_engine, get_engine
 from warden.db.sql_safety import safe_set_clause
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.api.monitor")
 
@@ -101,6 +102,11 @@ def availability_window(
                     params,
                 ).fetchone()
     except Exception as exc:
+        # Counted, not just logged: a compliance collector that silently reads
+        # "could not measure" is how A1 sat at zero for months in the first
+        # place. `None` is the honest answer; the counter is how anyone learns
+        # it is being given.
+        record_failopen("uptime_availability", Reason.BACKEND_ERROR, exc)
         log.debug("availability_window unavailable (fail-open): %s", exc)
         return None
 
@@ -173,6 +179,7 @@ def _availability_by_monitor(
                     params,
                 ).fetchall()
     except Exception as exc:
+        record_failopen("uptime_availability_by_monitor", Reason.BACKEND_ERROR, exc)
         log.debug("availability_by_monitor unavailable (fail-open): %s", exc)
         return []
 
