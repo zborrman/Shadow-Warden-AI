@@ -71,9 +71,27 @@ def _bare(name: str) -> str:
     return name.rsplit(".", 1)[-1].lower()
 
 
+def _ddl_sources():
+    """Every file that may legitimately create a table — **excluding tests.**
+
+    This originally scanned the test tree too, and that was a hole in the guard
+    of exactly the kind it exists to close: `marketplace_escrows` (plural) is
+    created by `warden/tests/test_auto_responder.py` and by nothing else, while
+    the real table is `marketplace_escrow` (singular, escrow.py:82). Four
+    production modules query the plural name. Counting a fixture's DDL as proof
+    the table exists let the guard agree with the bug — the seventh time in this
+    work that a test asserted the shape production never had.
+    """
+    for path in _SRC.rglob("*.py"):
+        if "tests" in path.relative_to(_SRC).parts:
+            continue
+        yield path
+    yield from (_REPO / "data").glob("*.sql")
+
+
 def _known_tables() -> set[str]:
     known: set[str] = set()
-    for path in list(_SRC.rglob("*.py")) + list((_REPO / "data").glob("*.sql")):
+    for path in _ddl_sources():
         src = path.read_text(encoding="utf-8", errors="replace")
         known.update(_bare(n) for n in _CREATE.findall(src))
         if path.suffix == ".py":

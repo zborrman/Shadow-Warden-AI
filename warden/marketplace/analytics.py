@@ -344,9 +344,9 @@ def model_tier_distribution(
 ) -> dict:
     """Model router tier distribution derived from dispatch action types.
 
-    Reads action_type counts from marketplace_clearing_log for the period,
-    maps each to its routing tier (haiku/sonnet/opus), and estimates the
-    API cost saved vs. always using Opus.
+    Derived from purchase volume by a fixed action ratio, and always an
+    estimate -- see the note in the body. Nothing records a per-dispatch action
+    type, so this cannot be a measurement until something does.
 
     Returns:
         haiku         — count of haiku-tier dispatches
@@ -360,35 +360,30 @@ def model_tier_distribution(
     counts: dict[str, int] = {"haiku": 0, "sonnet": 0, "opus": 0}
     total = 0
 
+    # F8. The primary path here read `action_type` from `marketplace_clearing_log`
+    # -- a column that table has never had (clearing.py:95 defines clearing_id,
+    # winner_neg_id, buyer_agent_id, rejected_neg_ids, cleared_at,
+    # platform_fee_usd, seller_net_usd). The comment above it asserted
+    # "clearing_log has action_type", so the belief was written down and never
+    # checked against the DDL one module away. SQLite raised on every call, the
+    # `except` set rows=[], and the fallback ran 100% of the time -- meaning
+    # this has always been the ratio estimate below, never a measurement.
+    #
+    # Removed rather than repointed: no table records a per-dispatch action
+    # type, so there is nothing to point at. What is left is honest about being
+    # an estimate.
     try:
         with _conn(db_path) as con:
-            # clearing_log has action_type; fall back to purchases if clearing_log is missing
             try:
-                rows = con.execute(
-                    "SELECT action_type, COUNT(*) as cnt FROM marketplace_clearing_log "
-                    "WHERE cleared_at >= ? GROUP BY action_type",
+                n = int(con.execute(
+                    "SELECT COUNT(*) as cnt FROM marketplace_purchases WHERE purchased_at >= ?",
                     (since,),
-                ).fetchall()
+                ).fetchone()["cnt"])
             except Exception:
-                rows = []
-
-            if not rows:
-                # Fall back: derive from purchases (search+negotiate+clear) proportions
-                try:
-                    n = int(con.execute(
-                        "SELECT COUNT(*) as cnt FROM marketplace_purchases WHERE purchased_at >= ?",
-                        (since,),
-                    ).fetchone()["cnt"])
-                except Exception:
-                    n = 0
-                # Typical action ratio: ~60% search, ~30% negotiate, ~10% dispute/clear
-                counts = {"haiku": round(n * 0.60), "sonnet": round(n * 0.30), "opus": round(n * 0.10)}
-                total = n
-            else:
-                for r in rows:
-                    tier = _ACTION_TIER.get(r["action_type"] or "", "sonnet")
-                    counts[tier] = counts.get(tier, 0) + int(r["cnt"])
-                    total += int(r["cnt"])
+                n = 0
+            # Typical action ratio: ~60% search, ~30% negotiate, ~10% dispute/clear
+            counts = {"haiku": round(n * 0.60), "sonnet": round(n * 0.30), "opus": round(n * 0.10)}
+            total = n
     except Exception as exc:
         log.warning("model_tier_distribution failed: %s", exc)
 
@@ -407,7 +402,12 @@ def model_tier_distribution(
         "opus":        counts["opus"],
         "total":       total,
         "savings_pct": savings_pct,
-        "estimated":   total < 10,
+        # Always an estimate: the per-dispatch action type this was meant to
+        # count is not recorded anywhere, so these are derived from purchase
+        # volume by a fixed ratio. It read `total < 10` before, which advertised
+        # measurement the moment ten purchases existed.
+        "estimated":   True,
+        "estimate_basis": "purchase_volume_ratio",
     }
 
 

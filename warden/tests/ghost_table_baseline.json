@@ -1,1 +1,7 @@
-{}
+{
+  "marketplace_escrows": [
+    "warden/agent/scheduler.py",
+    "warden/marketplace/auto_responder.py",
+    "warden/marketplace/data_lifecycle.py"
+  ]
+}
