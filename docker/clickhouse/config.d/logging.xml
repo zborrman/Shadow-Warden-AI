@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!--
+  ClickHouse self-telemetry containment (D-8).
+
+  Measured on the VPS 2026-08-10: `gsam.gsam_observations` held **0 rows** —
+  the app's lazy DDL had never run, so the FM-2 billing ledger tables did not
+  even exist — while the container's volume held 1.74 GiB of active parts, of
+  which 100% was ClickHouse logging about itself:
+
+      system.text_log                 802 MiB   21 504 704 rows
+      system.trace_log                346 MiB   23 514 227 rows
+      system.asynchronous_metric_log  334 MiB  730 512 203 rows
+      system.metric_log               299 MiB    2 646 801 rows
+      system.query_log                 32 KiB           25 rows
+
+  It was also failing background merges on that data:
+
+      Code: 241. Memory limit (total) exceeded: would use 1.82 GiB
+      (attempt to allocate chunk of 4361216 bytes), maximum: 1.80 GiB
+
+  So the server was spending ~2 GiB of disk and a merge-thread OOM to record
+  its own idleness. These four tables have no consumer here: nothing in the
+  product reads them, and the server's log messages are already retained by
+  the Docker json-file driver (10 MB x 3, see docker-compose.yml).
+
+  query_log and error_log are kept — they are the two that answer "did the
+  ingest actually arrive, and what failed" when GSAM does start producing —
+  but with a 7-day TTL so neither can repeat this.
+-->
+<clickhouse>
+    <text_log remove="1" />
+    <trace_log remove="1" />
+    <metric_log remove="1" />
+    <asynchronous_metric_log remove="1" />
+
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+
+    <error_log>
+        <database>system</database>
+        <table>error_log</table>
+        <partition_by>toYYYYMM(event_date)</partition_by>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </error_log>
+</clickhouse>
