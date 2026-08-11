@@ -289,6 +289,20 @@ def _collect_availability(since_ts: float, until_ts: float) -> dict[str, Any]:
             else ("no_probes_in_window" if window["checks"] == 0 else "counted")
         ),
         "uptime_source": window["source"] if window else None,
+        # The blended figure alone is not usable evidence: on 2026-08-11 the
+        # platform read 76.25% because one of six monitors pointed at a
+        # hostname with no DNS record and failed every probe in 4 ms, while the
+        # other five ran 99.86-100%. An auditor needs the target, not the mean.
+        "by_monitor": window.get("by_monitor", []) if window else [],
+        "worst_monitor": (
+            min(
+                (m for m in window.get("by_monitor", []) if m["availability_pct"] is not None),
+                key=lambda m: m["availability_pct"],
+                default=None,
+            )
+            if window
+            else None
+        ),
         "db_pool_healthy": db_pool_healthy,
     }
 
