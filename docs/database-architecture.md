@@ -322,7 +322,7 @@ managed primary.
 | **D-3** | 🟡 **seam shipped** — `warden_core.filter_events` hypertable + `filter_events_hourly` continuous aggregate (rev `0013`), `warden/analytics/events_store.py` (opt-in mirror off `FILTER_EVENTS_MIRROR`, readers return `None` ⇒ caller keeps its scan), and `financial/metrics_reader.py` migrated as the reference consumer. **GDPR: the mirror is inside the erasure path** — `logger.purge_before()`/`purge_old_entries()` purge it in the same call, and `GDPR_LOG_RETENTION_DAYS` stays the single retention authority (the migration installs no Timescale retention policy on purpose). **Remaining is larger than "the readers" (re-measured 2026-08-07, see §8): the mirror has never run.** `FILTER_EVENTS_MIRROR` is not in `docker-compose.yml`, so the flag cannot be flipped in production at all; no backfill has been run, so `covers()` is false for every window and every reader falls back regardless; and **zero readers are on the mirror** — `metrics_reader.py` was deliberately reverted on review (a financial number must not come from a store that is allowed to drop writes), so the reference consumer is now a comment explaining why it is *not* one. | ~1 d done, ~2 d left | Low | F5, F8 |
 | **D-4** | ✅ **done** — `warden/auth/user_store.py` is now the one account store behind both front doors. `portal_users` (Postgres) is authoritative when configured; the SQLite table stays as the fallback read and the sole store when `DATABASE_URL` is unset, because `auth/router.py` must keep working air-gapped and auth here is fail-closed. Both routers hash with the same `bcrypt`, so accounts move **without a password reset**: a SQLite-only account is promoted on its next *verified* login, and `import_sqlite_users()` does the rest in bulk. Uniqueness now spans both stores, so a site signup can no longer shadow a portal account. **Not unified:** the session mechanisms (`sw_session` JWT cookie vs. the portal's access/refresh tokens) — a separate concern, not needed to fix the data split. | — | — | F2, GDPR erasure correctness |
 | **D-5** | ⛔ **blocked, and the premise was partly wrong — see §6b.** A readiness check found both Track F prerequisites unmet (`LEDGER_DUAL_WRITE` has never run; FT-6 Phase C not started), *and* that the atomicity gap D-5 was meant to buy is mostly **not cross-file**: clearing/listing/credits/escrow already share one `marketplace` file. The real gap was cross-*transaction* inside that file, and it has been fixed in SQLite — no migration required. | — | **High** | F4 (placement half) |
-| **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness):** moving the SEP cluster (`warden_sep.db`, 31 tables / ~15 modules) and these two files to Postgres. | ~1 d done | Med | F3 |
+| **D-6** | 🟡 **the correctness half is done.** The duplicate `communities` schema was not cosmetic: `/communities` is served by **two mounted routers over two different SQLite files** (`router.py` → `warden_community_registry.db` for create/get/members/entities/break-glass; `communities_v2.py` → `warden_communities.db` for join/settings/data/peers/analytics). Their routes do not collide, so both are live on disjoint halves of one API — and v2 has **no create endpoint**, so nothing ever wrote its table and **every v2 endpoint 404'd on every community the API could create**. Fixed by making the registry store canonical and bridging `community_factory`'s seven accessors onto it (reads + writes), projecting `visibility`/`join_policy` out of the registry's existing `settings` JSON — no schema change, no `ALTER` on a live table. Legacy rows still resolve. **Remaining (volume, not correctness): ⏸ deferred 2026-08-11.** Re-measured on the VPS: `warden_sep.db` does not exist, and communities + registry hold **7 rows** between them — the move is seven rows plus speculative schema for a subsystem with no users. Reopens on the first non-zero SEP row; see §8.2 Phase 2. `sep_stix_chain` is pinned to a single engine because its migration cost appears with the first entry rather than scaling with rows. | ~1 d done | Med | F3 |
 | **D-7** | ❌ **dropped after measurement — do not re-propose.** See §6a. | — | — | — |
 | **D-8** | ✅ **answered 2026-08-10** — measured 0 observation rows and a 0-byte rollup, so neither fold nor retire had evidence. Kept, self-telemetry contained (−2 GB), reopened by the first non-zero `gsam_agent_stats` row. See 8.2 Phase 3. | — | — | F7 |
 
@@ -432,7 +432,7 @@ shipped seams that nothing has switched on.
 | D-1b / D-2 / D-4 / D-7 | ✅ / ❌ dropped | Confirmed, no open work |
 | D-3 | 🟡 "~24 readers left" | **Effectively 0% adopted.** Flag absent from compose, no backfill run, no reader migrated |
 | D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
-| D-6 | 🟡 correctness done | Volume untouched: `warden_sep.db` (8 `sep_*` tables, 11 modules), `warden_communities.db`, `warden_community_registry.db` all still SQLite |
+| D-6 | 🟡 correctness done | ⏸ **placement deferred 2026-08-11** — re-measured: `warden_sep.db` does not exist, communities + registry hold **7 rows** between them, so the move is seven rows and speculative schema. Reopens on the first non-zero SEP row. `sep_stix_chain` pinned to one engine (`test_stix_chain_single_home.py`) — it is the only piece whose migration cost does not scale with rows |
 | D-8 | open question to Track B | ✅ **answered 2026-08-10** — and the premise was wrong twice over: the stream is not write-only but write-*never* (0 rows), and the 2 GB was ClickHouse's own logs, not GSAM's data. Kept + contained + trigger-gated; see 8.2 Phase 3 |
 | F8 | noted, unscheduled | 🟡 **first slice done 2026-08-11** — and 4 of `soc2_collector`'s 5 peer DBs turned out to be files **no module writes** (`warden_uptime.db`, `warden_secrets_inv.db`, `warden_marketplace_clearing.db`, `warden_m2m.db`). Replaced with writer-owned read contracts + a ghost-DB ratchet. `business_intelligence` (3) and `smb_suite` (3) still open |
 
@@ -652,16 +652,34 @@ and that is still true; the risk framing built on top of it is not, because
 there is nothing to move.
 
 That does not make the phase pointless, it makes it **cheap and differently
-shaped**. The useful version is: settle the placement question *now, while it
-costs nothing*, so the subsystem is born in the right engine instead of being
-migrated once it has users. No data migration, no dual-write, no cutover
-window — just the Alembic revision and the module seams, landed ahead of
-demand. The `sep_stix_chain` ordering caveat below still applies, but as a
-design constraint rather than a migration hazard.
+shaped**. What is **not** defensible is executing the plan as written and
+reporting it as a major data-layer migration.
 
-The alternative — defer until the subsystem has traffic — is also defensible,
-and is the cheaper choice today. What is **not** defensible is executing the
-plan as written and reporting it as a major data-layer migration.
+### Decision, 2026-08-11: deferred, with a trigger and one pinned exception
+
+Two options were put up — settle the placement now while it costs nothing, or
+defer until the subsystem has traffic. **Deferred**, on the same reasoning that
+closed D-8: building schema and rewriting ~15 modules for a subsystem with no
+users is speculative work, and if the design moves before the traffic arrives
+the schema is wrong anyway. Migrating seven rows later is not the expensive
+part of this.
+
+**Trigger to reopen:** the first non-zero row count in `warden_sep.db` or a
+`warden_communities.db` that has outgrown a hand-count. At that point the
+placement question can be answered against a real access pattern.
+
+**The one exception — `sep_stix_chain` must be born in its final engine.**
+Everything else here is cheap to move later precisely because row count is what
+makes a migration expensive. That table is the exception: it is a
+`prev_hash`-linked chain and `verify_chain()` re-hashes each bundle from
+canonical JSON, so moving it after it holds entries is an *audit* problem, not
+a volume problem — the cost does not scale with rows, it appears the moment the
+first entry exists. Whoever writes the first production STIX entry decides the
+engine permanently, so decide it deliberately rather than by default.
+
+Guarded by `warden/tests/test_stix_chain_single_home.py`, which fails if
+`sep_stix_chain` is ever declared in two engines at once. That is the state to
+avoid: a half-migrated tamper-evident chain is worse than either whole.
 
 Original framing, kept for context: One Alembic revision for
 the schema, then module-by-module cutover in separate PRs using the same
