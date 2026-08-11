@@ -120,8 +120,25 @@ def _fetch_transfer_stats(community_id: str) -> TransferStats:
     stats = TransferStats()
     try:
         conn = open_db_readonly(_SEP_DB_PATH)
+        # F8. This asked for three columns, and all three were wrong:
+        # `sep_transfers` has `source_community_id` / `target_community_id`
+        # (sep.py DDL), and it has no data-class column at all. Every call
+        # raised, the `except` below swallowed it, and community intelligence
+        # reported an all-zero TransferStats — indistinguishable from a
+        # community that has simply never transferred anything.
+        #
+        # Data class lives on `sep_pod_tags(entity_id, community_id)`, which is
+        # what the transfer's `source_entity_id` keys into, so the join below is
+        # the real source rather than an invented column.
         rows = conn.execute(
-            "SELECT status, target_data_class, target_community FROM sep_transfers WHERE source_community=?",
+            """SELECT t.status              AS status,
+                      t.target_community_id AS target_community_id,
+                      pt.data_class         AS data_class
+               FROM sep_transfers t
+               LEFT JOIN sep_pod_tags pt
+                      ON pt.entity_id    = t.source_entity_id
+                     AND pt.community_id = t.source_community_id
+               WHERE t.source_community_id = ?""",
             (community_id,),
         ).fetchall()
         stats.total = len(rows)
@@ -132,9 +149,9 @@ def _fetch_transfer_stats(community_id: str) -> TransferStats:
                 stats.rejected += 1
             else:
                 stats.accepted += 1
-            dc = r["target_data_class"] or "GENERAL"
+            dc = r["data_class"] or "GENERAL"
             stats.by_data_class[dc] = stats.by_data_class.get(dc, 0) + 1
-            tc = r["target_community"] or ""
+            tc = r["target_community_id"] or ""
             if tc:
                 target_counts[tc] = target_counts.get(tc, 0) + 1
         stats.top_target_communities = [

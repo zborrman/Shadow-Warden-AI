@@ -789,9 +789,50 @@ remain, so any new one fails on introduction:
   the un-narrowed version reported ~35 English sentences around 3 real defects,
   which is how a guard gets muted rather than fixed.
 
+**Third slice, 2026-08-11 — column level, and a hole in the guards themselves.**
+
+| Reader asked for | Reality |
+|---|---|
+| `sep_transfers.source_community` / `.target_community` / `.target_data_class` (`communities/intelligence.py`) | columns are `source_community_id` / `target_community_id`; there is **no data-class column** — it lives on `sep_pod_tags`. All three wrong in one query, so community intelligence reported an all-zero `TransferStats` |
+| `marketplace_clearing_log.action_type` (`marketplace/analytics.py`) | never existed. The comment above the query asserted it did. The `except` set `rows=[]`, so the "fallback estimate" ran **100% of the time** while the function advertised a measurement |
+
+Fixed: the transfer query now joins `sep_pod_tags` for the real data class, and
+the tier distribution is honest about being an estimate (`estimated` was
+`total < 10`, which claimed measurement as soon as ten purchases existed).
+
+**The guards were counting test fixtures as proof.** `test_no_ghost_table.py`
+(shipped in the previous slice) discovered `CREATE TABLE` across the whole tree
+— including `warden/tests/`. `marketplace_escrows` (plural) is created by
+`test_auto_responder.py` and **by nothing else**; the real table is
+`marketplace_escrow` (singular, `escrow.py:82`). So a fixture's invented schema
+was teaching the ratchet that an invented table was real — the seventh time in
+this work that a test agreed with the bug, and this time inside the guard
+written to catch exactly that. Both guards now exclude tests from DDL
+discovery.
+
+That exclusion immediately surfaced what the fixtures had been masking, now
+recorded in `ghost_table_baseline.json` / `ghost_column_baseline.json` as
+**real and unfixed**:
+
+- `marketplace_escrows` — read by `agent/scheduler.py`, written by
+  `marketplace/auto_responder.py` (`UPDATE … SET status='cancelled'`) and
+  `data_lifecycle.py`
+- `marketplace_negotiations.agreed_price` / `.buyer_agent_id` /
+  `.seller_agent_id`, `marketplace_clearing_log.seller_agent_id`,
+  `marketplace_purchases.asset_type` / `.created_at` / `.payment_method`
+
+These are money-path modules owned by Track M/F, and one of them *writes*.
+Repointing them changes behaviour on escrow state, so it is deliberately not
+done here — recorded, guarded against growth, and handed over. (`agreed_price`
+is the same column #312 found missing from the SOC 2 PI1 query; it is a pattern,
+not an isolated typo.)
+
+One entry is a known parser limit rather than a defect:
+`staff_action_costs.cached_tokens` is added by a dynamically built
+`ALTER TABLE` loop in `economics.py`, which a static scan cannot see.
+
 Still open in this phase: `business_intelligence/service.py` (3 peer files) and
-`integrations/smb_suite.py` (3). Those name real, written tables — the coupling
-there is column-level, which the next slice covers.
+`integrations/smb_suite.py` (3).
 
 **Phase 5 — D-5, and only after Track F.** Gate: `LEDGER_DUAL_WRITE` has run
 long enough to produce a reconciliation baseline **and** FT-6 Phase C has cut
