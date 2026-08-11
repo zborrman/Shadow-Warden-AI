@@ -758,9 +758,40 @@ Guarded by `warden/tests/test_no_ghost_database.py`: every `data_path("x.db")`
 must be claimed by a module that also writes. Baseline is **empty** — there are
 no known ghosts left, so any new one fails immediately.
 
+**Second slice, 2026-08-11 — the finer version of the same defect: the file is
+real, the *table* inside it is not.** Three more, all swallowed by a
+`try/except` that turned a loud `no such table` back into a plausible empty
+result:
+
+| Reader asked for | Reality | What it cost |
+|---|---|---|
+| `training_records` (`compliance/evidence_bundle.py`) | `ai_training_completions`, keyed on `community_id` | `training_records.json` was `[]` in **every SOC 2 evidence ZIP ever generated** — a customer-facing deliverable |
+| `vendor_records` (same file) | `ai_vendors` + `vendor_dpa_records` | `vendor_dpa_report.json` likewise `[]` |
+| `marketplace_kya` (`marketplace/api.py`) | `kya_agent_profiles` — and `marketplace/kya.py` declares a *third* name, `marketplace_kya_records`, that has never been created in prod | KYA distribution silently all-zero |
+
+Fixed the same way: `training_records.list_completions()` and
+`vendor_gov.registry.vendor_dpa_report()` are read contracts owned by the
+writers. The old vendor query was also `tenant_id=? OR tenant_id IS NULL`,
+which would have handed one tenant another's vendor list had the table existed;
+the contract is tenant-scoped and a test pins it.
+
+Also fixed alongside: `SELECT DATE(registered_at) … FROM marketplace_agents` —
+the column is `created_at`. **Column-level drift is not yet ratcheted**; that is
+the next slice, and this is its motivating case.
+
+Guarded by two ratchets, both with an **empty** baseline — no known ghosts
+remain, so any new one fails on introduction:
+
+- `warden/tests/test_no_ghost_database.py` — every `data_path("x.db")` must be
+  claimed by a module that also writes.
+- `warden/tests/test_no_ghost_table.py` — every table named in a SQL literal
+  must be produced by some `CREATE TABLE`. Judges `snake_case` identifiers only:
+  the un-narrowed version reported ~35 English sentences around 3 real defects,
+  which is how a guard gets muted rather than fixed.
+
 Still open in this phase: `business_intelligence/service.py` (3 peer files) and
-`integrations/smb_suite.py` (3). Those read real, written databases — the
-coupling there is schema, not existence, which is the milder half of F8.
+`integrations/smb_suite.py` (3). Those name real, written tables — the coupling
+there is column-level, which the next slice covers.
 
 **Phase 5 — D-5, and only after Track F.** Gate: `LEDGER_DUAL_WRITE` has run
 long enough to produce a reconciliation baseline **and** FT-6 Phase C has cut

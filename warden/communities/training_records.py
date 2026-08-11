@@ -344,3 +344,27 @@ def get_compliance_report(community_id: str, db_path: str = _DB_PATH) -> dict:
         "expired":           expired_count,
         "unique_employees":  unique_employees,
     }
+
+
+# ── Cross-module read contract (F8) ───────────────────────────────────────────
+
+def list_completions(community_id: str, db_path: str = _DB_PATH) -> list[dict]:
+    """Every recorded completion for a community, newest first.
+
+    `compliance/evidence_bundle.py` used to run
+    ``SELECT record_json FROM training_records`` — a table and a column that
+    have never existed here. The store is `ai_training_completions`, and its
+    scope key is `community_id`, not `tenant_id`. The bundle's whole
+    `training_records.json` section was therefore an empty list in every
+    evidence pack ever generated, because the read raised and was swallowed.
+    """
+    with _conn(db_path) as con:
+        rows = con.execute(
+            """SELECT completion_id, program_id, community_id, employee_id,
+                      score, passed, completed_at, expires_at, attestation
+               FROM ai_training_completions
+               WHERE community_id = ?
+               ORDER BY completed_at DESC""",
+            (community_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
