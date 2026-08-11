@@ -431,7 +431,7 @@ shipped seams that nothing has switched on.
 | D-1 | ✅ done | Confirmed in code **and in production** (2026-08-08): `alembic_version` = `0013`, all three objects exist, `/monitors` answers 200 off 548 k probe rows. Full result in 8.2 Phase 0 |
 | D-1b / D-2 / D-4 / D-7 | ✅ / ❌ dropped | Confirmed, no open work |
 | D-3 | 🟡 "~24 readers left" | **Effectively 0% adopted.** Flag absent from compose, no backfill run, no reader migrated |
-| D-5 | ⛔ blocked | Still blocked; `LEDGER_DUAL_WRITE` default false, FT-6 Phase C not started |
+| D-5 | ⛔ blocked | Still blocked, re-measured 2026-08-11: `LEDGER_DUAL_WRITE` never ran, no ledger DB file, and the money tables it would move **do not exist** in prod (0 rows everywhere). Separately: 7 of 8 posture flags — including all three this gate depends on — were **not passed through docker-compose**, so the gate could not be opened at all. Fixed; see §8.2 Phase 5 |
 | D-6 | 🟡 correctness done | ⏸ **placement deferred 2026-08-11** — re-measured: `warden_sep.db` does not exist, communities + registry hold **7 rows** between them, so the move is seven rows and speculative schema. Reopens on the first non-zero SEP row. `sep_stix_chain` pinned to one engine (`test_stix_chain_single_home.py`) — it is the only piece whose migration cost does not scale with rows |
 | D-8 | open question to Track B | ✅ **answered 2026-08-10** — and the premise was wrong twice over: the stream is not write-only but write-*never* (0 rows), and the 2 GB was ClickHouse's own logs, not GSAM's data. Kept + contained + trigger-gated; see 8.2 Phase 3 |
 | F8 | noted, unscheduled | 🟡 **first slice done 2026-08-11** — and 4 of `soc2_collector`'s 5 peer DBs turned out to be files **no module writes** (`warden_uptime.db`, `warden_secrets_inv.db`, `warden_marketplace_clearing.db`, `warden_m2m.db`). Replaced with writer-owned read contracts + a ghost-DB ratchet. `business_intelligence` (3) and `smb_suite` (3) still open |
@@ -852,7 +852,44 @@ One entry is a known parser limit rather than a defect:
 Still open in this phase: `business_intelligence/service.py` (3 peer files) and
 `integrations/smb_suite.py` (3).
 
-**Phase 5 — D-5, and only after Track F.** Gate: `LEDGER_DUAL_WRITE` has run
-long enough to produce a reconciliation baseline **and** FT-6 Phase C has cut
-reads over. Starting earlier means two concurrent migrations on one money
-dataset and destroys the ability to reconcile either.
+**Phase 5 — D-5, and only after Track F. ⛔ still gated, and the gate could not
+be opened. Measured 2026-08-11.**
+
+Gate: `LEDGER_DUAL_WRITE` has run long enough to produce a reconciliation
+baseline **and** FT-6 Phase C has cut reads over. Starting earlier means two
+concurrent migrations on one money dataset and destroys the ability to
+reconcile either.
+
+Measured on the production host before doing anything:
+
+| | |
+|---|---|
+| `LEDGER_DUAL_WRITE` | unset → default **false**; the journal has never run |
+| ledger DB file | **does not exist** under `data_dir()` |
+| `marketplace_purchases` / `marketplace_escrow` / `marketplace_negotiations` / `marketplace_listings` | **do not exist** in `warden_marketplace.db` — their DDL has never executed |
+| every table that does exist there | **0 rows** |
+
+So D-5 would migrate a dataset that is not there, for a subsystem with no
+traffic, and §6b already records that its headline benefit was delivered
+another way at a fraction of the risk. Same shape as Phase 2 and D-8. It stays
+gated.
+
+**What the measurement did turn up is worse than the phase itself.** Seven of
+the eight documented enforcement flags were **not passed through
+`docker-compose.yml`** — including all three the gate depends on:
+`LEDGER_DUAL_WRITE`, `AUTHORIZE_PAYMENT_ENFORCED` (FT-6's chokepoint) and
+`OVERAGE_CHARGE_ENFORCED` (FM-7's collection gate). `warden` has no `env_file`,
+so a flag missing from the service list is read from the image environment, not
+the host's: setting it in `.env` and restarting **looks** like a successful flip
+and does nothing.
+
+That is worse than "the flag is off". An operator who sets
+`LEDGER_DUAL_WRITE=true`, bakes for a week and sees no discrepancies would
+reasonably conclude the dual-write reconciled clean — when it never ran. The
+gate Phase 5 waits on was, until now, **unopenable**.
+
+`MARKETPLACE_REQUIRE_SIGNED_OFFERS` was the single flag already present, and its
+compose comment records that it was added after somebody hit precisely this.
+All seven are now passed through on `warden` **and** `arq-worker` (the money
+crons run there), defaults unchanged, guarded by
+`warden/tests/test_posture_flags_reach_the_container.py`.

@@ -123,6 +123,23 @@ services:
       # warden has no env_file, so without this passthrough the .env value never
       # reaches the container and the flip is a silent no-op.
       - MARKETPLACE_REQUIRE_SIGNED_OFFERS=${MARKETPLACE_REQUIRE_SIGNED_OFFERS:-false}
+      # ── Posture flags (money + compliance enforcement) ──────────────────
+      # Every one of these is documented as "opt in via .env", and none of them
+      # reached the container: warden has no `env_file`, so a flag that is not
+      # listed here is read from the image's environment, not the host's, and
+      # setting it in .env does nothing — silently. The flip looks applied and
+      # is not. MARKETPLACE_REQUIRE_SIGNED_OFFERS above was added for exactly
+      # this reason; these seven had the same hole.
+      #
+      # Defaults are unchanged (off), so adding them changes no behaviour. What
+      # changes is that the documented posture decisions become possible.
+      - LEDGER_DUAL_WRITE=${LEDGER_DUAL_WRITE:-false}
+      - AUTHORIZE_PAYMENT_ENFORCED=${AUTHORIZE_PAYMENT_ENFORCED:-false}
+      - OVERAGE_CHARGE_ENFORCED=${OVERAGE_CHARGE_ENFORCED:-false}
+      - KYB_ENFORCEMENT_ENABLED=${KYB_ENFORCEMENT_ENABLED:-false}
+      - SANCTIONS_SCREENING_ENABLED=${SANCTIONS_SCREENING_ENABLED:-false}
+      - KYA_VERIFIED_ONLY=${KYA_VERIFIED_ONLY:-false}
+      - X402_GATE_ENABLED=${X402_GATE_ENABLED:-false}
       # D-3. Mirrors each /filter decision into the warden_core.filter_events
       # hypertable so reporting can query SQL instead of re-parsing the whole
       # NDJSON journal. Off by default, fail-open, journal stays authoritative.
@@ -358,6 +375,15 @@ services:
       - WARDEN_ENV=${WARDEN_ENV:-dev}
       - WARDEN_DATA_DIR=${WARDEN_DATA_DIR:-/warden/data}
       - CONFIG_FAILCLOSED=${CONFIG_FAILCLOSED:-false}
+      # Same posture flags as warden — `sova_overage_billing` and the other
+      # money crons run in THIS container, so a flag set only on warden
+      # leaves the scheduled path on its default.
+      - MARKETPLACE_REQUIRE_SIGNED_OFFERS=${MARKETPLACE_REQUIRE_SIGNED_OFFERS:-false}
+      - LEDGER_DUAL_WRITE=${LEDGER_DUAL_WRITE:-false}
+      - AUTHORIZE_PAYMENT_ENFORCED=${AUTHORIZE_PAYMENT_ENFORCED:-false}
+      - OVERAGE_CHARGE_ENFORCED=${OVERAGE_CHARGE_ENFORCED:-false}
+      - KYB_ENFORCEMENT_ENABLED=${KYB_ENFORCEMENT_ENABLED:-false}
+      - SANCTIONS_SCREENING_ENABLED=${SANCTIONS_SCREENING_ENABLED:-false}
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-warden_user}:${DB_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-warden}
       - LOGS_PATH=/warden/data/logs.json
