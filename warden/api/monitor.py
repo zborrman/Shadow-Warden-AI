@@ -72,23 +72,39 @@ def availability_window(
     since = datetime.fromtimestamp(since_ts, UTC)
     until = datetime.fromtimestamp(until_ts, UTC)
     params: dict[str, Any] = {"since": since, "until": until}
-    tenant_clause = ""
-    if tenant_id:
-        tenant_clause = " AND tenant_id = :tid"
-        params["tid"] = tenant_id
 
+    # Two whole literal statements rather than one with an interpolated WHERE
+    # fragment. The fragment was a fixed string and safe, but neither a reader
+    # nor `avoid-sqlalchemy-text` can tell that at a glance, and the repo's two
+    # existing exceptions are for genuinely dynamic SET clauses guarded by
+    # `sql_safety.safe_set_clause`. A duplicated line of SQL is cheaper than a
+    # suppression.
     try:
         with get_engine().connect() as conn:
-            row = conn.execute(
-                text(f"""
-                    SELECT COUNT(*)                          AS checks,
-                           COUNT(*) FILTER (WHERE is_up)     AS up_count,
-                           AVG(latency_ms)                   AS avg_latency_ms
-                    FROM warden_core.probe_results
-                    WHERE time >= :since AND time < :until{tenant_clause}
-                """),
-                params,
-            ).fetchone()
+            if tenant_id:
+                params["tid"] = tenant_id
+                row = conn.execute(
+                    text("""
+                        SELECT COUNT(*)                      AS checks,
+                               COUNT(*) FILTER (WHERE is_up) AS up_count,
+                               AVG(latency_ms)               AS avg_latency_ms
+                        FROM warden_core.probe_results
+                        WHERE time >= :since AND time < :until
+                          AND tenant_id = :tid
+                    """),
+                    params,
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    text("""
+                        SELECT COUNT(*)                      AS checks,
+                               COUNT(*) FILTER (WHERE is_up) AS up_count,
+                               AVG(latency_ms)               AS avg_latency_ms
+                        FROM warden_core.probe_results
+                        WHERE time >= :since AND time < :until
+                    """),
+                    params,
+                ).fetchone()
     except Exception as exc:
         log.debug("availability_window unavailable (fail-open): %s", exc)
         return None
