@@ -343,3 +343,24 @@ def get_vendor_stats(tenant_id: str, db_path: str = _DB_PATH) -> dict:
         "total_dpas":       dpa_count,
         "expiring_dpas_30d": expiring,
     }
+
+
+# ── Cross-module read contract (F8) ───────────────────────────────────────────
+
+def vendor_dpa_report(tenant_id: str, db_path: str = _DB_PATH) -> list[dict]:
+    """Every active vendor with its DPA records attached.
+
+    `compliance/evidence_bundle.py` used to run
+    ``SELECT vendor_json FROM vendor_records`` — neither the table nor the
+    column exists; the store is `ai_vendors` + `vendor_dpa_records`. The
+    bundle's `vendor_dpa_report.json` was an empty list in every evidence pack
+    ever generated.
+    """
+    out: list[dict] = []
+    for vendor in list_vendors(tenant_id, db_path=db_path):
+        entry = vendor.to_dict()
+        entry["dpa_records"] = [
+            d.to_dict() for d in list_dpas(vendor.vendor_id, tenant_id, db_path=db_path)
+        ]
+        out.append(entry)
+    return out

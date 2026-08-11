@@ -1246,8 +1246,11 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
             # Daily agent activity (new registrations per day)
             try:
                 rows = con.execute(
-                    f"SELECT DATE(registered_at) as d, COUNT(*) as cnt FROM marketplace_agents "
-                    f"WHERE registered_at >= date('now', '-{period_days} days') "
+                    # `registered_at` does not exist on marketplace_agents; the
+                    # column is `created_at` (marketplace/agent.py:91). Same
+                    # swallowed failure as the KYA query above.
+                    f"SELECT DATE(created_at) as d, COUNT(*) as cnt FROM marketplace_agents "
+                    f"WHERE created_at >= date('now', '-{period_days} days') "
                     f"GROUP BY DATE(registered_at) ORDER BY d"
                 ).fetchall()
                 agent_activity = [{"date": r["d"], "count": int(r["cnt"])} for r in rows]
@@ -1256,8 +1259,16 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
 
             # KYA distribution
             try:
+                # `marketplace_kya` is a third name for this data and matches
+                # nothing: the table in this database is `kya_agent_profiles`
+                # (DDL in app_factory.py, owner warden/kya/profile.py), while
+                # marketplace/kya.py declares a `marketplace_kya_records` that
+                # has never been created in production. The read raised and the
+                # `except` below swallowed it, so the KYA breakdown has always
+                # been all-zeroes.
                 rows = con.execute(
-                    "SELECT kya_status, COUNT(*) as cnt FROM marketplace_kya GROUP BY kya_status"
+                    "SELECT kya_status, COUNT(*) as cnt FROM kya_agent_profiles "
+                    "GROUP BY kya_status"
                 ).fetchall()
                 for r in rows:
                     s = str(r["kya_status"]).upper()

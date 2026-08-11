@@ -30,8 +30,10 @@ import zipfile
 from datetime import UTC, datetime
 from typing import Any
 
+from warden.communities.training_records import list_completions
 from warden.config import settings
 from warden.db.connect import open_db_readonly
+from warden.vendor_gov.registry import vendor_dpa_report
 
 log = logging.getLogger("warden.compliance.evidence_bundle")
 
@@ -82,28 +84,26 @@ def _collect_posture_sync(tenant_id: str) -> dict[str, Any]:
 
 
 def _collect_training(tenant_id: str) -> list[dict[str, Any]]:
+    """F8. This ran `SELECT record_json FROM training_records` — a table and a
+    column that have never existed. The store is `ai_training_completions`
+    (`communities/training_records.py`), keyed on `community_id`. The read
+    raised, the `except` swallowed it, and `training_records.json` was `[]` in
+    every evidence pack ever generated.
+    """
     try:
-        con = open_db_readonly(_TRAINING_DB_PATH)
-        rows = con.execute(
-            "SELECT record_json FROM training_records WHERE tenant_id=? ORDER BY completed_at DESC",
-            (tenant_id,),
-        ).fetchall()
-        con.close()
-        return [json.loads(r[0]) for r in rows]
+        return list_completions(tenant_id, db_path=_TRAINING_DB_PATH)
     except Exception as exc:
         log.warning("Training records collect failed: %s", exc)
         return []
 
 
 def _collect_vendor_dpa(tenant_id: str) -> list[dict[str, Any]]:
+    """F8. This ran `SELECT vendor_json FROM vendor_records`; neither exists.
+    The store is `ai_vendors` + `vendor_dpa_records` (`vendor_gov/registry.py`),
+    so `vendor_dpa_report.json` was `[]` in every pack too.
+    """
     try:
-        con = open_db_readonly(_VENDOR_DB_PATH)
-        rows = con.execute(
-            "SELECT vendor_json FROM vendor_records WHERE tenant_id=? OR tenant_id IS NULL",
-            (tenant_id,),
-        ).fetchall()
-        con.close()
-        return [json.loads(r[0]) for r in rows]
+        return vendor_dpa_report(tenant_id, db_path=_VENDOR_DB_PATH)
     except Exception as exc:
         log.warning("Vendor DPA collect failed: %s", exc)
         return []
