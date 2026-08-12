@@ -789,6 +789,20 @@ jobs:
   # Generates a Software Bill of Materials (SBOM) and signs the container image
   # with cosign (keyless, OIDC). Runs only on push to main after docker-build passes.
   #
+  # ⚠️ SCOPE — read this before treating a green run as production coverage.
+  # What is signed and attested is the image THIS job builds and pushes to GHCR.
+  # Production does not run that image: the `deploy` job SSHes to the VPS,
+  # `git pull`s, and runs `docker compose build`, so the container serving
+  # traffic is a separate build of the same commit, produced on the host, with
+  # no signature, no SBOM and no provenance of its own.
+  #
+  # Same source, different artefact. The chain below is real and it verifies —
+  # it just does not cover what ships. Closing that means pinning the compose
+  # service to `image: ghcr.io/...@sha256:...` and running `cosign verify` on
+  # the host before `up`, which needs registry auth on the VPS and a rollback
+  # story: an ops migration, not a workflow edit.
+  # Guarded by warden/tests/test_sbom_scope.py so the claim cannot drift.
+  #
   # Required GitHub Secrets: none (keyless signing uses GitHub OIDC token)
   # Required GitHub Vars:    none
   # Required: GHCR write permission (packages: write)
@@ -854,6 +868,32 @@ jobs:
       # of the image from GHCR to scan it.
       - name: Prune docker build cache
         run: docker builder prune -af || true
+
+      # The action downloads a syft release on every run, and a transient
+      # `HTTP status=000` on that download failed the whole job on 2026-08-11 —
+      # leaving main with a signed image and no bill of materials, and the SLSA
+      # job (which `needs:` this one) skipped with it. A flaky external download
+      # is not a reason to lose supply-chain evidence, so install syft with
+      # retries first and let the action reuse it.
+      #
+      # Retry in plain bash rather than a retry action: this is the job that
+      # exists to prove supply-chain integrity, and pulling in another
+      # third-party action to run it would be a strange way to do that.
+      - name: Install syft (retried)
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if curl -fsSL --retry 5 --retry-all-errors --retry-delay 5                  https://raw.githubusercontent.com/anchore/syft/main/install.sh                  | sh -s -- -b "$RUNNER_TEMP/syft" v1.42.3; then
+              echo "syft installed on attempt $attempt"
+              "$RUNNER_TEMP/syft/syft" version
+              echo "$RUNNER_TEMP/syft" >> "$GITHUB_PATH"
+              exit 0
+            fi
+            echo "syft install attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
+          echo "::error::syft could not be installed after 3 attempts - refusing to publish an image with no bill of materials"
+          exit 1
 
       - name: Generate SBOM (Syft / SPDX)
         uses: anchore/sbom-action@v0

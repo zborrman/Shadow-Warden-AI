@@ -25,12 +25,40 @@ Shadow Warden AI is designed to defend against the following threat actors and a
 | LLM02 | Insecure Output Handling | OutputGuard + OutputSanitizer |
 | LLM03 | Training Data Poisoning | EvolutionEngine corpus validation + CanaryGuard |
 | LLM04 | Model Denial of Service | TopologicalGatekeeper (< 2ms noise filter) + ERS shadow ban |
-| LLM05 | Supply Chain Vulnerabilities | Immutable Docker image + CPU-only torch (no CUDA supply chain) |
+| LLM05 | Supply Chain Vulnerabilities | Immutable Docker image + CPU-only torch (no CUDA supply chain); cosign keyless signature + signed in-toto SBOM attestation + SLSA provenance on the GHCR image — ⚠️ **see "What the attestation covers" below: production runs a different artefact** |
 | LLM06 | Sensitive Information Disclosure | SecretRedactor + Encrypted PII Vault |
 | LLM07 | Insecure Plugin Design | Zero-Trust Agent Sandbox (capability manifests) |
 | LLM08 | Excessive Agency | AgentMonitor (7 session patterns) + kill-switch API |
 | LLM09 | Overreliance | CausalArbiter (uncertainty quantification) |
 | LLM10 | Resource Exhaustion | WalletShield (token budget per user per window) |
+
+### What the attestation covers (and what it does not)
+
+The `sbom-sign` CI job builds `warden/`, pushes it to GHCR, signs it keylessly
+via GitHub OIDC, attaches a **signed** in-toto SPDX attestation (not the
+deprecated unsigned `cosign attach sbom`), and verifies that attestation before
+the job goes green. `slsa-provenance` then generates SLSA provenance for the
+same digest. All of that is real and it verifies.
+
+**It does not cover the container serving production traffic.** The `deploy`
+job SSHes to the VPS, `git pull`s and runs `docker compose build`; the `warden`
+compose service has a `build:` stanza and no `image:`, so the running container
+is a *separate build of the same commit*, produced on the host, with no
+signature, no SBOM and no provenance of its own.
+
+Same source, different artefact. Anyone reading a green "SBOM + Image Signing"
+as production coverage is reading it wrong.
+
+**Closing it** means pinning the compose service to
+`image: ghcr.io/…@sha256:…` and running `cosign verify` on the host before
+`up`. That needs registry credentials on the VPS and a rollback path for a
+digest that fails verification — an ops migration, not a workflow edit, and an
+owner decision rather than a drive-by.
+
+Until then the honest claim is: **the source is attested; the running binary is
+not.** Pinned by `warden/tests/test_sbom_scope.py`, which fails the moment the
+compose service stops being host-built, so the statement above cannot quietly
+go stale.
 
 ---
 
