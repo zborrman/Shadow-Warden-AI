@@ -18,7 +18,7 @@ This document records the result of a full check cycle and the prioritized plan 
 
 **State of the working tree:** clean. **Branch position:** local `deeng/de6-p1-batch9` is **2 commits behind `origin/main`**; its own work (DE-6 P1 batches 17–19) is already merged to main as **#190**, and **#189 (FT-5 AML structuring monitor)** also landed on main. The local branch should be retired/synced — do not keep developing on it.
 
-**Roadmap staleness noticed:** `docs/unified-modernization-roadmap.md` still lists FT-5 "AML-on-journal-stream" and R2–R6 as open; both are in fact **done** (#189 on main; resilience plan R1–R6 all marked DONE). Reconcile the registry (P1-4).
+**Roadmap staleness noticed:** `docs/unified-modernization-roadmap.md` still lists FT-5 "AML-on-journal-stream" and R2–R6 as open; both are in fact **done** (#189 on main; resilience plan R1–R6 all marked DONE). Reconcile the registry (P1-4). — ✅ **resolved 2026-08-12:** FT-5 now reads `🟢 4/4 DONE` and the roadmap has no R-track rows at all, so there is nothing left to mark. This note is kept because it was the finding; see P1-4 for what turned out to be wrong about the other half.
 
 ---
 
@@ -53,8 +53,40 @@ Run `pytest warden/tests/test_production_readiness.py` and `bash scripts/pre_dep
 ### P1-3 · Restore drill (resilience R6 — "DONE, gap found")
 The resilience plan flags a gap discovered during the restore drill. Close it: execute one real encrypted-snapshot → `pg_restore`/SQLite restore into a scratch environment and confirm data integrity before launch. A backup you have never restored is not a backup.
 
-### P1-4 · Reconcile the modernization registry
-Update `docs/unified-modernization-roadmap.md`: mark FT-5 AML (#189) and R2–R6 done; correct FT-5 to 3/4 (AML landed, only continuous-assurance items remain). Retire the merged `deeng/de6-p1-batch9` branch. Keeps the single-source-of-truth honest.
+### P1-4 · Reconcile the modernization registry — ✅ done, and half of it was wrong
+
+**Registry half: already reconciled.** `docs/unified-modernization-roadmap.md`
+now reads `FT-5 · 🟢 4/4 DONE`, and it contains no R-track rows at all, so
+there was never anything there to mark done. Re-measured 2026-08-12; this item
+had been describing work that no longer existed.
+
+**Branch half: the premise was wrong.** `deeng/de6-p1-batch9` is described
+above as "merged". It is **not** — `git merge-base --is-ancestor
+origin/deeng/de6-p1-batch9 origin/main` fails, and the branch still carries five
+commits (batches 17–19 plus a CLAUDE.md edit) that are not in main's history.
+
+What *is* true is that its substance landed on main by another path: the
+`raw_sqlite_connect` ratchet — the measure of DE-6 P1 completion — reads
+`total: 3` on both tips, and the migrated files carry the same `open_db()` call
+counts on both sides. The branch is redundant, not unmerged work.
+
+It is also ~550 files and ~39 000 deletions behind main, so it cannot be merged
+now and should not be.
+
+**Deliberately not deleted here.** Deleting a ref that git does not consider
+merged is an owner decision, and "the content is equivalent" is an argument, not
+a proof — it rests on a ratchet total and a sample of call counts, not on a tree
+comparison (main has moved too far for one to mean anything). The safe close is
+for whoever owns the branch to confirm and run:
+
+```bash
+git push origin --delete deeng/de6-p1-batch9
+```
+
+The general lesson is the one this cycle keeps producing: **a plan item that
+says "merged" should be re-measured before it is acted on.** Here acting on it
+literally — deleting a branch believed merged — would have been safe by luck,
+not by the stated reason.
 
 ---
 
@@ -82,7 +114,7 @@ These are the genuinely-open track items after reconciliation. All are additive;
 ## 4. Recommended execution order
 
 1. **P0-1 + P0-2** — fix the two stale test fixtures, add the collection-error CI gate, re-run the full suite to a known-green count. *(same day)*
-2. **P1-4** — reconcile the roadmap and retire the stale branch, so the team plans against reality. *(same day)*
+2. ~~**P1-4** — reconcile the roadmap and retire the stale branch~~ — ✅ registry was already reconciled; the branch is **not** merged and its deletion is left to its owner (see P1-4).
 3. **P1-1 + P1-2** — frontend builds + production smoke/readiness on the live stack.
 4. **P0-3 + P1-3** — production env hardening (fail-closed auth, off-`/tmp` secret DBs, offsite backup env) and the restore drill. → **launch gate.**
 5. **Post-launch:** FT-6 chokepoint consolidation, then SR-7.2 coverage, DE-7 sandbox isolation, FM-5 ops tail, FT-2 read-cutover under shadow monitoring.
