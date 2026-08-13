@@ -123,9 +123,35 @@ jobs:
               echo
               echo 'This branch is force-updated by every run of `deploy-site.yml`, so it always carries the newest build rather than accumulating stale sync PRs.'
             } > /tmp/landing_pr_body.md
-            gh pr create \
+            # `gh pr create` fails with
+            #   GitHub Actions is not permitted to create or approve pull requests
+            # when Settings > Actions > General > Workflow permissions has
+            # "Allow GitHub Actions to create and approve pull requests" off.
+            # That is a repository setting; `permissions: pull-requests: write`
+            # above is necessary but not sufficient without it.
+            #
+            # Do not fail the job on it. The build is already safe on
+            # chore/landing-sync — losing the run would throw that away and
+            # teach everyone to ignore a red site workflow. Warn instead, so
+            # the pending republish is visible in the Actions UI and in the run
+            # summary rather than buried in a log.
+            if ! gh pr create \
               --head chore/landing-sync \
               --base main \
               --title "chore(landing): republish the directory Vercel serves" \
               --body-file /tmp/landing_pr_body.md
+            then
+              COMPARE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...chore/landing-sync?expand=1"
+              echo "::warning title=landing/ needs republishing::Build pushed to chore/landing-sync but the PR could not be opened. Open it here: ${COMPARE}"
+              {
+                echo "### landing/ is rebuilt and waiting"
+                echo
+                echo "The published site does not match \`site/\` until this is merged."
+                echo
+                echo "[Open the republish PR](${COMPARE})"
+                echo
+                echo "To let CI open it automatically, enable **Settings → Actions → General →"
+                echo "Workflow permissions → Allow GitHub Actions to create and approve pull requests**."
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
