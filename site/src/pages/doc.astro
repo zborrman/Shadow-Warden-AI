@@ -384,13 +384,13 @@ result = await buyer.search_and_buy(
                 <td>Fairness Score</td>
                 <td><code>first_offer_acceptance_rate</code></td>
                 <td>&lt; 0.35</td>
-                <td>Fraction of trades accepted on the first proposal. High values indicate bias.</td>
+                <td>Fraction of trades accepted on the first proposal. High values indicate bias. Returns <code>null</code> until the candidate count is recorded on a purchase — see <code>fairness_evidence</code>.</td>
               </tr>
               <tr>
                 <td>Avg. Alternatives</td>
                 <td><code>avg_candidates_evaluated</code></td>
                 <td>&gt; 5.0</td>
-                <td>Mean number of listings evaluated before acceptance.</td>
+                <td>Mean number of listings evaluated before acceptance. Not yet instrumented; returns <code>null</code> rather than <code>0.0</code>, so an unmeasured metric is never read as a measured zero.</td>
               </tr>
               <tr>
                 <td>Transactions Cleared</td>

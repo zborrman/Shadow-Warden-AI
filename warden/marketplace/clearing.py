@@ -46,6 +46,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.clearing")
 
@@ -161,7 +162,6 @@ def _authorize_clearing(buyer_agent_id: str, amount_usd: float) -> None:
         result = authorize_payment(tenant_id, buyer_agent_id, "clear", amount_usd,
                                     merchant=tenant_id)
     except Exception as exc:
-        from warden.observability import Reason, record_failopen
         log.warning("clearing: authorize_payment call failed, clearing proceeds: %s", exc)
         record_failopen("payments_authorize", Reason.BACKEND_ERROR, exc)
         return
@@ -269,25 +269,55 @@ class ClearingEngine:
     # ── Internal helpers ────────────────────────────────────────────────────────
 
     def _fetch_agreed_price(self, winner_neg_id: str) -> float:
-        """Return the agreed price from the winner negotiation record, or 0.0 if unavailable."""
+        """Return the agreed price of the winning negotiation.
+
+        The column is ``current_price`` — the running price a negotiation
+        carries, which ``negotiation.py`` also uses as the accepted price when
+        a party accepts. There has never been an ``agreed_price`` column, so
+        this SELECT raised ``no such column`` on every call, the bare
+        ``except`` below swallowed it, and clearing settled **every** trade at
+        $0.00: the FT-6 authorisation ran against $0.00, the platform fee
+        computed to $0.00 and the seller's recorded net was $0.00. Nothing had
+        cleared in production yet, so no money was actually lost.
+
+        A price that cannot be read is **not** a $0.00 trade. Settling at zero
+        because a query failed is the money analogue of a silent ALLOW, so an
+        unresolvable price now raises (``/marketplace/clear`` already maps
+        ``ValueError`` to HTTP 400) instead of quietly clearing for free.
+        """
         try:
             with _conn(self.db_path) as con:
                 row = con.execute(
-                    "SELECT agreed_price FROM marketplace_negotiations WHERE negotiation_id = ?",
+                    "SELECT current_price FROM marketplace_negotiations WHERE negotiation_id = ?",
                     (winner_neg_id,),
                 ).fetchone()
-            return float(row[0]) if row and row[0] is not None else 0.0
-        except Exception:
-            return 0.0
+        except Exception as exc:
+            record_failopen("marketplace_clearing_price", Reason.BACKEND_ERROR, exc)
+            raise ValueError(
+                f"clearing: cannot read the agreed price for negotiation {winner_neg_id}"
+            ) from exc
+        if row is None or row[0] is None:
+            raise ValueError(
+                f"clearing: negotiation {winner_neg_id} has no price to clear"
+            )
+        return float(row[0])
 
     def _reject_losers(self, winner_neg_id: str, buyer_agent_id: str) -> list[str]:
-        """Update all non-winner pending negotiations to 'cleared_by_market'."""
+        """Update all non-winner pending negotiations to 'cleared_by_market'.
+
+        The column is ``buyer_agent`` (no ``_id`` suffix) — the same
+        table-vs-parameter naming mismatch that broke ``_fetch_agreed_price``.
+        Against ``buyer_agent_id`` this SELECT raised ``no such column``, the
+        ``except`` returned ``[]``, and **no losing negotiation was ever
+        rejected**: they stayed open and eligible to clear again, which is the
+        stale-session outcome this method exists to prevent.
+        """
         try:
             with _conn(self.db_path) as con:
                 rows = con.execute(
                     """
                     SELECT negotiation_id FROM marketplace_negotiations
-                    WHERE  buyer_agent_id = ?
+                    WHERE  buyer_agent = ?
                       AND  negotiation_id != ?
                       AND  status IN ('pending', 'active', 'counter_offered')
                     """,
@@ -305,6 +335,7 @@ class ClearingEngine:
             return rejected_ids
         except Exception as exc:
             log.warning("ClearingEngine._reject_losers: %s", exc)
+            record_failopen("marketplace_clearing_reject_losers", Reason.BACKEND_ERROR, exc)
             return []
 
     def _write_sqlite(self, rec: ClearingResult) -> None:

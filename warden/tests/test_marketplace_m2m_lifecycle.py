@@ -30,6 +30,8 @@ from __future__ import annotations
 import os
 import sqlite3
 
+from warden.tests.marketplace_schema import create_marketplace_schema, seed_negotiation
+
 # ── TestClient factory ────────────────────────────────────────────────────────
 
 def _make_app(tmp_db: str):
@@ -49,30 +51,21 @@ def _make_app(tmp_db: str):
 
 
 def _seed_negotiations(db_path: str, buyer: str, count: int) -> list[str]:
-    """Create `count` dummy negotiations for buyer and return their IDs."""
-    con = sqlite3.connect(db_path)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS marketplace_negotiations (
-            negotiation_id   TEXT PRIMARY KEY,
-            buyer_agent_id   TEXT NOT NULL,
-            seller_agent_id  TEXT NOT NULL,
-            listing_id       TEXT NOT NULL,
-            initial_price    REAL NOT NULL DEFAULT 0,
-            asset_ueciid     TEXT NOT NULL DEFAULT '',
-            status           TEXT NOT NULL DEFAULT 'pending',
-            created_at       REAL NOT NULL DEFAULT 0
-        )
-    """)
+    """Create `count` dummy negotiations for buyer and return their IDs.
+
+    Built from the product's own `_NEGOTIATION_DDL`. The hand-rolled table
+    this replaced declared `buyer_agent_id`/`seller_agent_id`/`initial_price`,
+    none of which the real schema has — so these tests passed against a
+    negotiation shape that has never existed, and could not see that
+    `ClearingEngine` was querying the wrong column names.
+    """
+    create_marketplace_schema(db_path)
     ids = [f"neg-{i:04d}" for i in range(count)]
     for nid in ids:
-        con.execute(
-            "INSERT OR IGNORE INTO marketplace_negotiations "
-            "(negotiation_id, buyer_agent_id, seller_agent_id, listing_id) "
-            "VALUES (?,?,?,?)",
-            (nid, buyer, f"seller-{nid}", "listing-001"),
+        seed_negotiation(
+            db_path, nid, buyer_agent=buyer, seller_agent=f"seller-{nid}",
+            listing_id="listing-001", status="pending",
         )
-    con.commit()
-    con.close()
     return ids
 
 
@@ -338,7 +331,7 @@ class TestStage4Clearing:
         con = sqlite3.connect(db)
         cleared = con.execute(
             "SELECT COUNT(*) FROM marketplace_negotiations "
-            "WHERE buyer_agent_id='did:shadow:buyer2' AND status='cleared_by_market'"
+            "WHERE buyer_agent='did:shadow:buyer2' AND status='cleared_by_market'"
         ).fetchone()[0]
         winner_row = con.execute(
             "SELECT status FROM marketplace_negotiations WHERE negotiation_id=?",

@@ -72,7 +72,16 @@ def get_summary(
             p_where: list[str] = ["purchased_at >= ?"]
             p_params: list = [since]
             if tenant_id:
-                p_where.append("tenant_id = ?")
+                # `marketplace_purchases` carries no tenant_id — the tenant is a
+                # property of the listing. Filtering the purchase table on
+                # `tenant_id = ?` raised `no such column` on the very first
+                # aggregate below, so *every* tenant-scoped call to this
+                # function returned the empty fallback dict at the bottom
+                # rather than that tenant's real numbers.
+                p_where.append(
+                    "listing_id IN (SELECT listing_id FROM marketplace_listings "
+                    "WHERE tenant_id = ?)"
+                )
                 p_params.append(tenant_id)
 
             e_where: list[str] = ["created_at >= ?"]
@@ -128,10 +137,18 @@ def get_summary(
             ).fetchone()["cnt"])
             dispute_rate = round(e_disp / max(e_total, 1), 4)
 
+            # `asset_type` lives on the listing, not the purchase — the join is
+            # what makes this breakdown possible. Selecting it straight off
+            # `marketplace_purchases` raised `no such column` and the outer
+            # `except` returned an empty list, so "top asset types" has always
+            # been blank rather than wrong-looking.
             rows = con.execute(
-                f"SELECT asset_type, COUNT(*) as cnt, COALESCE(SUM(price_paid),0) as vol "
-                f"FROM marketplace_purchases {_pw(p_where + ['status=?'])} "
-                f"GROUP BY asset_type ORDER BY cnt DESC LIMIT 5",
+                f"SELECT l.asset_type AS asset_type, COUNT(*) as cnt, "
+                f"COALESCE(SUM(p.price_paid),0) as vol "
+                f"FROM marketplace_purchases p "
+                f"JOIN marketplace_listings l ON l.listing_id = p.listing_id "
+                f"{_pw(['p.' + c for c in p_where] + ['p.status=?'])} "
+                f"GROUP BY l.asset_type ORDER BY cnt DESC LIMIT 5",
                 p_params + ["completed"],
             ).fetchall()
             top_asset_types = [
@@ -259,8 +276,11 @@ def get_agent_leaderboard(
 def fairness_stats(period_days: int = 7, db_path: str | None = None) -> dict:
     """Return First-Proposal Bias metrics for the marketplace.
 
-    - avg_candidates_evaluated: mean alternatives compared per search_and_buy call
-      (sourced from candidates_evaluated stored in purchase records when available).
+    - avg_candidates_evaluated: mean alternatives compared per search_and_buy
+      call. **Not currently measurable** — no writer records it, so this and
+      first_offer_acceptance_rate are None and `fairness_evidence` says
+      "not_instrumented". They become real numbers once a purchase writer
+      stores the candidate count.
     - first_offer_acceptance_rate: fraction of purchases where the bought listing
       was the only candidate seen (candidates_evaluated == 1).
     - min_offers_policy: current MARKETPLACE_MIN_OFFERS_BEFORE_BUY setting.
@@ -276,35 +296,30 @@ def fairness_stats(period_days: int = 7, db_path: str | None = None) -> dict:
             ).fetchone()
             total = int(rows["total"]) if rows else 0
 
-            # candidates_evaluated column may not exist in older DBs — fail gracefully
-            try:
-                agg = con.execute(
-                    "SELECT AVG(CAST(candidates_evaluated AS REAL)) as avg_c, "
-                    "SUM(CASE WHEN candidates_evaluated = 1 THEN 1 ELSE 0 END) as single_c "
-                    "FROM marketplace_purchases WHERE purchased_at >= ?",
-                    (since,),
-                ).fetchone()
-                avg_candidates = round(float(agg["avg_c"] or 0), 2)
-                single_candidate = int(agg["single_c"] or 0)
-            except Exception:
-                avg_candidates = 0.0
-                single_candidate = 0
-
-        first_offer_rate = round(single_candidate / total, 4) if total > 0 else 0.0
+        # `candidates_evaluated` is not a column on marketplace_purchases and
+        # never has been — no writer records how many alternatives an agent
+        # compared before buying. The old comment ("may not exist in older
+        # DBs") implied a migration gap; there is none, the data simply is not
+        # captured. Reporting 0.0 made "we never measured this" look like
+        # "agents always evaluated zero candidates", and a first-offer
+        # acceptance rate derived from it was a confident number built on
+        # nothing. Both stay None until a writer exists.
         return {
             "period_days":                period_days,
             "total_purchases":            total,
-            "avg_candidates_evaluated":   avg_candidates,
-            "first_offer_acceptance_rate": first_offer_rate,
+            "avg_candidates_evaluated":   None,
+            "first_offer_acceptance_rate": None,
+            "fairness_evidence":          "not_instrumented",
             "min_offers_policy":          int(_os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
         }
     except Exception as exc:
         log.warning("fairness_stats failed: %s", exc)
         return {
             "period_days":                period_days,
-            "total_purchases":            0,
-            "avg_candidates_evaluated":   0.0,
-            "first_offer_acceptance_rate": 0.0,
+            "total_purchases":            None,
+            "avg_candidates_evaluated":   None,
+            "first_offer_acceptance_rate": None,
+            "fairness_evidence":          "not_available",
             "min_offers_policy":          int(_os.getenv("MARKETPLACE_MIN_OFFERS_BEFORE_BUY", "3")),
         }
 
@@ -507,9 +522,17 @@ def get_recent_trades(limit: int = 6, db_path: str = "") -> list[dict]:
     db = db_path or data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
     try:
         with _conn(db) as con:
+            # Same two mismatches as get_summary: a purchase is timestamped
+            # `purchased_at` (not `created_at`) and carries no `asset_type` —
+            # that is the listing's. Both wrong names raised, the `except`
+            # below returned [], and the live trade ticker has always been
+            # empty for reasons no reader could see.
             rows = con.execute(
-                "SELECT buyer_agent, seller_agent, asset_type, price_paid, created_at "
-                "FROM marketplace_purchases ORDER BY created_at DESC LIMIT ?",
+                "SELECT p.buyer_agent, p.seller_agent, l.asset_type, "
+                "p.price_paid, p.purchased_at "
+                "FROM marketplace_purchases p "
+                "JOIN marketplace_listings l ON l.listing_id = p.listing_id "
+                "ORDER BY p.purchased_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
             return [dict(r) for r in rows]

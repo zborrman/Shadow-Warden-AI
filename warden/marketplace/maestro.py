@@ -561,11 +561,22 @@ class CollusionDetector:
             return {}
 
     def _scan_market_prices(self) -> dict[str, float]:
+        # `marketplace_clearing_log` records only the buyer — there is no
+        # `seller_agent_id` column on it, so this SELECT raised and
+        # `scan_market_prices` fail-opened to `{}` on every call, which reads
+        # as "no tacit collusion detected". The seller is one hop away: the
+        # clearing names the winning negotiation, and the negotiation names
+        # the seller. Joining is enough; no schema change (and no matching
+        # Postgres migration for the audit copy) is needed.
         with _db_lock, _conn(self.db_path) as con:
             rows = con.execute(
-                """SELECT seller_agent_id, seller_net_usd, cleared_at
-                   FROM marketplace_clearing_log
-                   ORDER BY cleared_at DESC
+                """SELECT n.seller_agent AS seller_agent,
+                          c.seller_net_usd AS seller_net_usd,
+                          c.cleared_at     AS cleared_at
+                   FROM marketplace_clearing_log c
+                   JOIN marketplace_negotiations n
+                     ON n.negotiation_id = c.winner_neg_id
+                   ORDER BY c.cleared_at DESC
                    LIMIT ?""",
                 (self._TACIT_WINDOW * 20,),
             ).fetchall()
@@ -573,8 +584,8 @@ class CollusionDetector:
         from collections import defaultdict
         seller_prices: dict[str, list[float]] = defaultdict(list)
         for row in rows:
-            if len(seller_prices[row["seller_agent_id"]]) < self._TACIT_WINDOW:
-                seller_prices[row["seller_agent_id"]].append(row["seller_net_usd"])
+            if len(seller_prices[row["seller_agent"]]) < self._TACIT_WINDOW:
+                seller_prices[row["seller_agent"]].append(row["seller_net_usd"])
 
         eligible = {s: p for s, p in seller_prices.items() if len(p) >= 5}
         if len(eligible) < self._TACIT_MIN_SELLERS:

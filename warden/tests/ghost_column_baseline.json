@@ -1,29 +1,4 @@
 {
-  "marketplace_clearing_log.seller_agent_id": [
-    "warden/marketplace/maestro.py"
-  ],
-  "marketplace_negotiations.agreed_price": [
-    "warden/marketplace/clearing.py"
-  ],
-  "marketplace_negotiations.buyer_agent_id": [
-    "warden/agent/scheduler.py",
-    "warden/marketplace/clearing.py"
-  ],
-  "marketplace_negotiations.seller_agent_id": [
-    "warden/agent/scheduler.py"
-  ],
-  "marketplace_purchases.asset_type": [
-    "warden/marketplace/analytics.py"
-  ],
-  "marketplace_purchases.candidates_evaluated": [
-    "warden/marketplace/analytics.py"
-  ],
-  "marketplace_purchases.created_at": [
-    "warden/marketplace/analytics.py"
-  ],
-  "marketplace_purchases.payment_method": [
-    "warden/marketplace/api.py"
-  ],
   "staff_action_costs.cached_tokens": [
     "warden/staff/economics.py"
   ]
