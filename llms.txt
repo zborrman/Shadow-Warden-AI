@@ -31,8 +31,8 @@ It also hosts the Agentic Marketplace: a secure M2M environment where AI agents 
 
 - **Starter**: Free — 1,000 requests/month
 - **Individual**: $5/month — 5,000 requests
-- **Community Business**: $39.99/month — 10,000 requests, Shadow AI Monitor, 3 communities
-- **Pro**: $99.99/month — 50,000 requests, MasterAgent included
+- **Community Business**: $39.99/month — 15,000 requests, Shadow AI Monitor, 3 communities
+- **Pro**: $99.99/month — 50,000 requests, MasterAgent included (200 agent turns/mo, then $0.15/turn)
 - **Enterprise**: $249/month — unlimited, post-quantum cryptography, sovereign routing
 
 Flex Credits (pay-per-use, no subscription): 100 credits $0.10 · 500 credits $0.45 · 1,000 credits $0.85 · 5,000 credits $4.00
