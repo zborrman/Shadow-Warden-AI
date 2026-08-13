@@ -57,6 +57,12 @@ _COLDEF = re.compile(
     r"(TEXT|INTEGER|REAL|BLOB|NUMERIC|BOOLEAN|TIMESTAMP|VARCHAR|DOUBLE|BIGINT|SMALLINT)",
     re.I,
 )
+#: Literal `ALTER TABLE t ADD COLUMN c`. Does NOT see the loop-driven form
+#: `for col, defn in [...]: con.execute(f"... ADD COLUMN {col} {defn}")`, where
+#: the column name is a variable — `staff_action_costs.cached_tokens` is added
+#: exactly that way in `warden/staff/economics.py` and is therefore a **parser
+#: limitation, not a ghost**. It is the sole remaining baseline entry; do not
+#: "fix" it in the source, and do not read it as a real defect.
 _ALTER = re.compile(r"ALTER TABLE (\w+) ADD COLUMN (\w+)", re.I)
 _NOT_COLDEF = {"PRIMARY", "FOREIGN", "UNIQUE", "CHECK", "CONSTRAINT"}
 

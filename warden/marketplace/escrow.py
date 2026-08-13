@@ -91,6 +91,7 @@ _ESCROW_DDL = """
         asset_hash       TEXT NOT NULL DEFAULT '',
         dispute_reason   TEXT NOT NULL DEFAULT '',
         chain            TEXT NOT NULL DEFAULT 'sepolia',
+        memo             TEXT NOT NULL DEFAULT '',
         created_at       TEXT NOT NULL,
         funded_at        TEXT,
         delivered_at     TEXT,
@@ -106,11 +107,24 @@ register("marketplace", "warden.marketplace.escrow", _ESCROW_DDL)
 
 
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
-    """Add chain column to existing escrow tables that predate cross-chain support."""
+    """Add columns that post-date the original escrow table.
+
+    ``ALTER TABLE … ADD COLUMN`` is not idempotent, so it cannot live in the
+    registered DDL (which is replayed whenever its checksum changes) — same
+    suppress-per-connect pattern as ``staff/economics.py``.
+
+    ``memo`` carries the SHA-256 audit hash that
+    ``data_lifecycle._anonymise_escrow()`` writes when it redacts an escrow
+    for GDPR erasure: the record is retained, its identifying fields are not.
+    """
     import contextlib
     with contextlib.suppress(Exception):
         con.execute(
             "ALTER TABLE marketplace_escrow ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
+        )
+    with contextlib.suppress(Exception):
+        con.execute(
+            "ALTER TABLE marketplace_escrow ADD COLUMN memo TEXT NOT NULL DEFAULT ''"
         )
 
 

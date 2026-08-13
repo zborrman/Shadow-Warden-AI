@@ -442,9 +442,14 @@ async def _action_reject_proposal(
         with open_db(
             "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
         ) as con:
+            # `buyer_agent`, not `buyer_agent_id` — the same column that broke
+            # clearing. This one was invisible because the lifecycle test's
+            # hand-rolled fixture declared `buyer_agent_id`, so the UPDATE
+            # worked in the suite and raised in production, where it returned
+            # `{"error": ...}` and no proposal was ever rejected.
             con.execute(
                 "UPDATE marketplace_negotiations SET status=? "
-                "WHERE negotiation_id=? AND buyer_agent_id=?",
+                "WHERE negotiation_id=? AND buyer_agent=?",
                 (reason, negotiation_id, buyer_agent_id),
             )
             affected = con.execute("SELECT changes()").fetchone()[0]
@@ -778,7 +783,7 @@ _AGENT_SCOPED_TABLES = frozenset({
     "marketplace_agents",
     "marketplace_listings",
     "marketplace_purchases",
-    "marketplace_escrows",
+    "marketplace_escrow",
     "marketplace_negotiations",
     "marketplace_offers",
 })
@@ -792,15 +797,28 @@ _AGENT_ID_COLUMNS = frozenset({
 
 
 def _confused_deputy_check(stmt: str, caller_agent_id: str) -> str | None:
-    """Return an error string if the SQL references a foreign agent's DID.
+    """Return an error string if the SQL is not scoped to the caller's own DID.
 
-    Scans for patterns like `agent_id = 'did:shadow:...'` where the literal
-    value differs from the caller's own DID.  This is a first-layer heuristic
-    guard; a proper implementation uses row-level security views.
-    Returns None when the query is safe to execute.
+    Two layers, and the second one used to be missing:
+
+    1. **Foreign literal** — `buyer_agent = 'did:shadow:someone-else'` is
+       rejected outright.
+    2. **No scoping at all** — a query touching an agent-partitioned table
+       (`_AGENT_SCOPED_TABLES`) must carry an equality filter on one of the
+       agent-identity columns. Without this, `SELECT * FROM
+       marketplace_escrow` matched no literal, fell through, and returned
+       *every* agent's rows (capped at 500) to any authenticated caller. The
+       endpoint docstring already promised that "a query that ... omits
+       scoping entirely, is rejected"; only the promise existed.
+       `_AGENT_SCOPED_TABLES` was declared for exactly this and never read by
+       anything — a frozenset that looked like a control and was decoration.
+
+    This is a first-layer heuristic guard; a proper implementation uses
+    row-level security views. Returns None when the query is safe to execute.
     """
     import re
     col_pattern = "|".join(re.escape(c) for c in _AGENT_ID_COLUMNS)
+    scoped = False
     for match in re.finditer(
         rf"(?:{col_pattern})\s*=\s*['\"]([^'\"]+)['\"]",
         stmt,
@@ -813,6 +831,19 @@ def _confused_deputy_check(stmt: str, caller_agent_id: str) -> str | None:
                 f"but caller is '{caller_agent_id}'. "
                 "Scope your query to your own agent_id or omit the filter."
             )
+        scoped = True
+
+    if scoped:
+        return None
+
+    lowered = stmt.lower()
+    touched = sorted(t for t in _AGENT_SCOPED_TABLES if re.search(rf"\b{t}\b", lowered))
+    if touched:
+        return (
+            f"Confused Deputy: query reads agent-partitioned table(s) "
+            f"{', '.join(touched)} without scoping to an agent. Add a filter "
+            f"such as buyer_agent = '{caller_agent_id}'."
+        )
     return None
 
 
@@ -1216,8 +1247,16 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
     summary = get_summary(period_days=period_days, db_path=db)
     volume = get_volume_series(period_days=period_days, db_path=db)
 
-    # Payment method breakdown — derive from listings currency + l402/x402 columns if present
-    payment_breakdown: dict[str, int] = {"flex_credits": 0, "x402_usdc": 0, "l402_lightning": 0}
+    # Payment method breakdown.
+    #
+    # `marketplace_purchases` has no `payment_method` column and never has —
+    # nothing writes which rail settled a purchase, so this cannot be measured
+    # from the data we keep. It used to return three confident zeroes, which
+    # reads as "no purchases on any rail" rather than "we do not record this".
+    # `payment_breakdown` therefore stays None until a writer exists;
+    # `payment_breakdown_evidence` says which of the two it is.
+    payment_breakdown: dict[str, int] | None = None
+    payment_breakdown_evidence = "not_instrumented"
     agent_activity: list[dict] = []
     kya_distribution: dict[str, int] = {"VERIFIED": 0, "PENDING": 0, "FLAGGED": 0, "REVOKED": 0}
     top_agents: list[dict] = []
@@ -1226,23 +1265,6 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
         with open_db(
             "marketplace", db, turso_name="marketplace", module_default_path=db
         ) as con:
-            # Payment method breakdown from purchases
-            try:
-                rows = con.execute(
-                    "SELECT payment_method, COUNT(*) as cnt FROM marketplace_purchases "
-                    "WHERE status='completed' GROUP BY payment_method"
-                ).fetchall()
-                for r in rows:
-                    m = str(r["payment_method"] or "flex_credits").lower()
-                    if "l402" in m or "lightning" in m:
-                        payment_breakdown["l402_lightning"] += int(r["cnt"])
-                    elif "x402" in m or "usdc" in m:
-                        payment_breakdown["x402_usdc"] += int(r["cnt"])
-                    else:
-                        payment_breakdown["flex_credits"] += int(r["cnt"])
-            except Exception:
-                pass
-
             # Daily agent activity (new registrations per day)
             try:
                 rows = con.execute(
@@ -1251,7 +1273,7 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
                     # swallowed failure as the KYA query above.
                     f"SELECT DATE(created_at) as d, COUNT(*) as cnt FROM marketplace_agents "
                     f"WHERE created_at >= date('now', '-{period_days} days') "
-                    f"GROUP BY DATE(registered_at) ORDER BY d"
+                    f"GROUP BY DATE(created_at) ORDER BY d"
                 ).fetchall()
                 agent_activity = [{"date": r["d"], "count": int(r["cnt"])} for r in rows]
             except Exception:
@@ -1298,6 +1320,7 @@ async def marketplace_chart_data(period_days: int = Query(default=7, ge=1, le=90
         "summary": summary,
         "volume_series": volume,
         "payment_breakdown": payment_breakdown,
+        "payment_breakdown_evidence": payment_breakdown_evidence,
         "agent_activity": agent_activity,
         "kya_distribution": kya_distribution,
         "top_agents": top_agents,

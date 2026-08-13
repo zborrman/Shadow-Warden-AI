@@ -23,17 +23,19 @@ def db(tmp_path):
             seller_agent_id TEXT NOT NULL,
             status          TEXT NOT NULL DEFAULT 'active'
         );
-        CREATE TABLE IF NOT EXISTS marketplace_escrows (
+        CREATE TABLE IF NOT EXISTS marketplace_escrow (
             escrow_id    TEXT PRIMARY KEY,
             buyer_agent  TEXT NOT NULL,
             seller_agent TEXT NOT NULL,
-            status       TEXT NOT NULL DEFAULT 'pending'
+            status       TEXT NOT NULL DEFAULT 'pending_deposit'
         );
     """)
     con.execute("INSERT INTO marketplace_agents VALUES ('agent-001','[\"buy\",\"sell\",\"negotiate\"]','active')")
     con.execute("INSERT INTO marketplace_listings VALUES ('lst-001','agent-001','active')")
     con.execute("INSERT INTO marketplace_listings VALUES ('lst-002','agent-001','active')")
-    con.execute("INSERT INTO marketplace_escrows VALUES ('esc-001','agent-001','agent-002','pending')")
+    con.execute(
+        "INSERT INTO marketplace_escrow VALUES ('esc-001','agent-001','agent-002','pending_deposit')"
+    )
     con.commit()
     con.close()
     return path
@@ -64,7 +66,7 @@ class TestIsolation:
     def test_isolation_cancels_escrows(self, responder, db):
         asyncio.run(responder.isolate_agent("agent-001", "test"))
         con = sqlite3.connect(db)
-        row = con.execute("SELECT status FROM marketplace_escrows WHERE escrow_id='esc-001'").fetchone()
+        row = con.execute("SELECT status FROM marketplace_escrow WHERE escrow_id='esc-001'").fetchone()
         con.close()
         assert row[0] == "cancelled"
 

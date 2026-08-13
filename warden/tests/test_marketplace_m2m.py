@@ -232,9 +232,17 @@ class TestFairnessStats:
         assert result["period_days"] == 14
 
     def test_fairness_stats_handles_empty_db_gracefully(self, tmp_path):
+        """An unreadable DB reports that it could not measure, not a zero.
+
+        This used to assert `total_purchases == 0`, which is the same number a
+        healthy marketplace with no trades returns — so "the database is gone"
+        and "nobody traded this week" were indistinguishable to every reader.
+        """
         from warden.marketplace.analytics import fairness_stats
         result = fairness_stats(period_days=7, db_path=str(tmp_path / "empty.db"))
-        assert result["total_purchases"] == 0
+        assert result["total_purchases"] is None
+        assert result["fairness_evidence"] == "not_available"
+        assert result["period_days"] == 7
 
 
 # ── Confused Deputy protection ─────────────────────────────────────────────────

@@ -874,15 +874,21 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
         conn = open_db_readonly(db_path)
         cur = conn.cursor()
 
+        # Column and table names below are the ones the marketplace DDL
+        # actually declares: agents are `buyer_agent`/`seller_agent` (no `_id`
+        # suffix), a negotiation's round counter is `round_count`, and the
+        # escrow table is singular. Every name here was wrong, so both
+        # SELECTs raised, the `except` below logged at DEBUG, and this sync
+        # reported an empty marketplace to SOVA on every run.
         cur.execute(
-            "SELECT negotiation_id, status, buyer_agent_id, seller_agent_id, rounds "
+            "SELECT negotiation_id, status, buyer_agent, seller_agent, round_count "
             "FROM marketplace_negotiations WHERE status='active' LIMIT 20"
         )
         negotiations = [dict(r) for r in cur.fetchall()]
 
         cur.execute(
-            "SELECT escrow_id, status, amount_usd, buyer_agent_id, seller_agent_id "
-            "FROM marketplace_escrows WHERE status IN ('pending_deposit','funded','disputed') LIMIT 20"
+            "SELECT escrow_id, status, amount_usd, buyer_agent, seller_agent "
+            "FROM marketplace_escrow WHERE status IN ('pending_deposit','funded','disputed') LIMIT 20"
         )
         escrows = [dict(r) for r in cur.fetchall()]
 
@@ -931,13 +937,21 @@ async def sova_marketplace_state_sync(ctx: dict) -> dict:
             f"amount=${e.get('amount_usd',0):.2f}"
         )
 
+    # fairness_stats now returns None for anything it cannot measure, so render
+    # that as "not measured" rather than the literal "None" — SOVA reads this
+    # brief, and "None" invites it to reason about a value that does not exist.
+    def _fair(key: str) -> str:
+        value = fairness.get(key)
+        return "not measured" if value is None else str(value)
+
     lines += [
         "",
         "## Fairness Metrics (last 7d)",
-        f"total_purchases: {fairness.get('total_purchases', 'n/a')}",
-        f"avg_candidates_evaluated: {fairness.get('avg_candidates_evaluated', 'n/a')}",
-        f"first_offer_acceptance_rate: {fairness.get('first_offer_acceptance_rate', 'n/a')}",
-        f"min_offers_policy: {fairness.get('min_offers_policy', 'n/a')}",
+        f"total_purchases: {_fair('total_purchases')}",
+        f"avg_candidates_evaluated: {_fair('avg_candidates_evaluated')}",
+        f"first_offer_acceptance_rate: {_fair('first_offer_acceptance_rate')}",
+        f"fairness_evidence: {_fair('fairness_evidence')}",
+        f"min_offers_policy: {_fair('min_offers_policy')}",
         "",
         "## MAESTRO Threat Flags",
         f"count: {len(maestro_flags)}",

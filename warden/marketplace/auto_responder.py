@@ -224,11 +224,20 @@ class AutoResponder:
             return False
 
     def _cancel_escrows(self, agent_id: str) -> bool:
+        """Cancel a taken-down agent's open escrows.
+
+        Two mismatches against the real schema, both of which made this a
+        no-op that still reported success upstream: the table is
+        ``marketplace_escrow`` (singular), and an unfunded escrow's status is
+        ``pending_deposit`` — ``pending`` is not a value the escrow service
+        ever writes.
+        """
         try:
             with _db_lock, _conn(self.db_path) as con:
                 con.execute(
-                    """UPDATE marketplace_escrows SET status='cancelled'
-                       WHERE (buyer_agent=? OR seller_agent=?) AND status IN ('pending','funded')""",
+                    """UPDATE marketplace_escrow SET status='cancelled'
+                       WHERE (buyer_agent=? OR seller_agent=?)
+                         AND status IN ('pending_deposit','funded')""",
                     (agent_id, agent_id),
                 )
             return True

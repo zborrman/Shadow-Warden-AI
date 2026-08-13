@@ -13,30 +13,15 @@ import sqlite3
 import pytest
 
 from warden.marketplace.clearing import ClearingEngine
+from warden.tests.marketplace_schema import create_marketplace_schema, seed_negotiation
 
 
 @pytest.fixture
 def db(tmp_path):
     path = str(tmp_path / "mkt.db")
-    con = sqlite3.connect(path)
-    con.execute("""
-        CREATE TABLE marketplace_negotiations (
-            negotiation_id TEXT PRIMARY KEY,
-            buyer_agent_id TEXT,
-            status TEXT,
-            agreed_price REAL
-        )
-    """)
-    con.execute(
-        "INSERT INTO marketplace_negotiations VALUES (?,?,?,?)",
-        ("neg-winner", "buyer-1", "active", 100.0),
-    )
-    con.execute(
-        "INSERT INTO marketplace_negotiations VALUES (?,?,?,?)",
-        ("neg-loser", "buyer-1", "pending", 80.0),
-    )
-    con.commit()
-    con.close()
+    create_marketplace_schema(path)
+    seed_negotiation(path, "neg-winner", buyer_agent="buyer-1", status="active", price=100.0)
+    seed_negotiation(path, "neg-loser", buyer_agent="buyer-1", status="pending", price=80.0)
     return path
 
 

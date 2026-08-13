@@ -37,6 +37,7 @@ from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.data_lifecycle")
 
@@ -218,32 +219,39 @@ class DataLifecycleManager:
             log.warning("lifecycle: negotiation purge failed id=%s: %s", negotiation_id, exc)
 
     def _anonymise_escrow(self, escrow_id: str) -> None:
-        """Replace sensitive escrow fields with a SHA-256 audit hash, retain record."""
+        """Replace sensitive escrow fields with a SHA-256 audit hash, retain record.
+
+        Every statement here addressed ``marketplace_escrows``; the table is
+        ``marketplace_escrow`` (singular). So each call raised ``no such
+        table``, was swallowed below, and **no escrow was ever anonymised** —
+        a GDPR erasure path that logged a warning nobody was reading and
+        otherwise did nothing. ``tx_hash`` was never a column either; the
+        on-chain reference an escrow carries is ``contract_address``.
+        """
         try:
             with _db_lock, open_db(
                 "marketplace", self.marketplace_db,
                 turso_name="marketplace", module_default_path=_DB_PATH,
             ) as con:
                 row = con.execute(
-                    "SELECT * FROM marketplace_escrows WHERE escrow_id=?", (escrow_id,)
+                    "SELECT * FROM marketplace_escrow WHERE escrow_id=?", (escrow_id,)
                 ).fetchone()
-                if row:
-                    canonical = json.dumps(dict(row), sort_keys=True)
-                    audit_hash = hashlib.sha256(canonical.encode()).hexdigest()
-                    con.execute(
-                        """UPDATE marketplace_escrows
-                           SET buyer_agent='[redacted]', seller_agent='[redacted]',
-                               contract_address='[redacted]', tx_hash='[redacted]'
-                           WHERE escrow_id=?""",
-                        (escrow_id,),
-                    )
-                    con.execute(
-                        "UPDATE marketplace_escrows SET memo=? WHERE escrow_id=?",
-                        (f"audit_hash:{audit_hash}", escrow_id),
-                    )
+                if row is None:
+                    log.warning("lifecycle: escrow not found, nothing anonymised id=%s", escrow_id)
+                    return
+                canonical = json.dumps(dict(row), sort_keys=True)
+                audit_hash = hashlib.sha256(canonical.encode()).hexdigest()
+                con.execute(
+                    """UPDATE marketplace_escrow
+                       SET buyer_agent='[redacted]', seller_agent='[redacted]',
+                           contract_address='[redacted]', memo=?
+                       WHERE escrow_id=?""",
+                    (f"audit_hash:{audit_hash}", escrow_id),
+                )
             log.info("lifecycle: escrow anonymised id=%s", escrow_id)
         except Exception as exc:
             log.warning("lifecycle: escrow anonymise failed id=%s: %s", escrow_id, exc)
+            record_failopen("marketplace_escrow_anonymise", Reason.BACKEND_ERROR, exc)
 
     def _purge_mandate(self, mandate_id: str) -> None:
         """Delete expired mandate from DB and Redis."""

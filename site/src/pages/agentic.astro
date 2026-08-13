@@ -618,7 +618,11 @@ Chart.defaults.font.size = 11;
 
 function buildCharts(data) {
   const vol = data.volume_series || SEED_VOL;
-  const payments = data.payment_breakdown || { flex_credits: 45, x402_usdc: 30, l402_lightning: 25 };
+  // The API now returns null for payment_breakdown when the split is not
+  // recorded (no payment_method is stored on a purchase). Falling back to the
+  // demo figures here would put invented numbers on a live chart, so an
+  // unmeasured split renders as an explicit empty state instead.
+  const payments = data.payment_breakdown || null;
   const agents = data.agent_activity || [
     {date:'2026-06-27',count:34},{date:'2026-06-28',count:51},{date:'2026-06-29',count:28},
     {date:'2026-06-30',count:63},{date:'2026-07-01',count:45},{date:'2026-07-02',count:72},{date:'2026-07-03',count:58},
@@ -652,14 +656,24 @@ function buildCharts(data) {
     }
   });
 
-  // Payments doughnut
+  // Payments doughnut.
+  // Each slice used to read `payments.flex_credits || 45`, so a genuine zero
+  // — the falsy value that matters most here — was drawn as 45. Between that
+  // and the object-level demo fallback, this chart could show invented
+  // figures with no way for a viewer to tell. It now renders only from
+  // measured data.
   const payCtx = document.getElementById('chart-payments');
-  if (payCtx) new Chart(payCtx, {
+  if (payCtx && !payments) {
+    const note = document.createElement('p');
+    note.textContent = 'Payment rail split is not recorded yet.';
+    note.style.cssText = 'color:#94a3b8;font-size:12px;text-align:center;padding:64px 12px;margin:0';
+    payCtx.replaceWith(note);
+  } else if (payCtx) new Chart(payCtx, {
     type: 'doughnut',
     data: {
       labels: ['Flex Credits', 'x402 USDC', 'L402 ⚡'],
       datasets: [{
-        data: [payments.flex_credits || 45, payments.x402_usdc || 30, payments.l402_lightning || 25],
+        data: [payments.flex_credits ?? 0, payments.x402_usdc ?? 0, payments.l402_lightning ?? 0],
         backgroundColor: [C.cyan, C.violet, C.amber],
         borderColor: '#0d1017',
         borderWidth: 3,
