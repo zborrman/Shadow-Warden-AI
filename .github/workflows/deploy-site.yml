@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write   # the landing/ sync opens a PR instead of pushing to main
 
 # Two merges landing close together would race on the landing/ commit below.
 # Queue rather than cancel: a cancelled run leaves landing/ stale, which is the
@@ -78,9 +79,53 @@ jobs:
           # `site/**`, so a landing-only commit cannot retrigger it anyway.
           git commit -m "chore(site): regenerate landing/ from site/ [skip ci]"
 
-          # The push event checks out a detached SHA, so name the branch
-          # explicitly. Rebase first in case another merge landed meanwhile.
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # Publish onto a single long-lived branch, never straight to main.
+          #
+          # This used to be `git push origin HEAD:main`, which branch protection
+          # rejects — a bot commit carries no status checks, so main answers
+          # `GH006 ... 3 of 3 required status checks are expected` and the whole
+          # job fails *after* a successful build. That is how 7a7e02dd left the
+          # payments-chart fix in `site/` and out of the published HTML, and how
+          # the pricing page served $19/$69 for two days in August.
+          #
+          # Force-updating one branch (rather than a branch per run) keeps
+          # exactly one open PR that always carries the newest build, so this
+          # cannot silt up into a queue of stale sync PRs.
+          git push --force origin HEAD:refs/heads/chore/landing-sync
 
-          echo "Published $(git diff --name-only HEAD~1 -- landing | wc -l) changed file(s) to landing/."
+          echo "Published $(git diff --name-only HEAD~1 -- landing | wc -l) changed file(s) to chore/landing-sync."
+
+      - name: Open or refresh the landing-sync PR
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin chore/landing-sync --quiet 2>/dev/null || {
+            echo "No sync branch this run — landing/ was already current."
+            exit 0
+          }
+          if [ -z "$(git log --oneline origin/main..origin/chore/landing-sync 2>/dev/null)" ]; then
+            echo "Sync branch has nothing main does not already have."
+            exit 0
+          fi
+          if gh pr view chore/landing-sync --json number --jq .number >/dev/null 2>&1; then
+            echo "PR already open — the force-push refreshed it."
+          else
+            # Body written to a file first: a multi-line string inline here
+            # would have to sit at column 0 to keep its blank lines, which
+            # breaks out of this `run: |` block scalar and makes the whole
+            # workflow unparseable.
+            {
+              echo 'Automated: `site/` changed, so `landing/` — the pre-built directory Vercel serves — was rebuilt and needs republishing.'
+              echo
+              echo 'Merging this is what makes the site change live. Until it merges, `site/` and the published HTML disagree.'
+              echo
+              echo 'This branch is force-updated by every run of `deploy-site.yml`, so it always carries the newest build rather than accumulating stale sync PRs.'
+            } > /tmp/landing_pr_body.md
+            gh pr create \
+              --head chore/landing-sync \
+              --base main \
+              --title "chore(landing): republish the directory Vercel serves" \
+              --body-file /tmp/landing_pr_body.md
+          fi
