@@ -43,50 +43,57 @@ jobs:
           path: site/dist/
           retention-days: 7
 
-      # Sync Astro dist → landing/ and commit back to main so Vercel auto-deploys.
-      # Only runs on push to main (not PRs). Uses GITHUB_TOKEN (built-in).
+      # `landing/` must equal a fresh build of `site/`.
       #
-      # Strategy: copy ONLY index.html files (Astro output) preserving directory
-      # structure. This is safe because manually-maintained landing files use
-      # explicit names (e.g. enterprise-settings.html) — never index.html — so
-      # there is no collision. New Astro pages are picked up automatically.
-      - name: Sync dist → landing/ and push (Vercel deploy)
-        if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+      # This replaces two bots that both tried to publish it *after* merge and
+      # both failed on the same wall. They pushed to `main`, which is protected,
+      # so every attempt was rejected with "N of N required status checks are
+      # expected" — one swallowed the rejection with a warning that claimed
+      # "Vercel still deploys from the merge commit itself" (it does not; the
+      # VPS serves this directory verbatim), the other failed the whole job.
+      # Routing them through a PR instead did not help either: a branch pushed
+      # with GITHUB_TOKEN never triggers workflows, so the required checks on
+      # that PR never report and it stays BLOCKED forever.
+      #
+      # A generated directory that is committed cannot be published by a bot in
+      # a protected-branch repo. So it is published by whoever changes the
+      # source: a PR that edits `site/` and does not rebuild `landing/` fails
+      # here, in review, instead of merging and silently serving stale HTML —
+      # which is how the pricing page showed $19/$69 for two days in August and
+      # how the payments-chart fix sat unpublished in #325.
+      #
+      # Rebuild locally with:  cd site && npm ci && npm run build
+      #                        cd .. && rm -rf landing && cp -r site/dist landing
+      - name: Check landing/ matches a fresh build
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Copy every Astro-generated index.html, preserving directory structure.
-          # Uses find so new pages are included automatically without CI changes.
-          find site/dist -name 'index.html' | while IFS= read -r f; do
-            rel="${f#site/dist/}"
-            dest="landing/${rel}"
-            mkdir -p "$(dirname "$dest")"
-            cp "$f" "$dest"
-          done
-
-          # Copy _astro assets (content-hashed JS/CSS — Vercel handles CDN)
-          mkdir -p landing/_astro
-          cp -r site/dist/_astro/. landing/_astro/
-
-          # Stage all changes inside landing/ (new + modified index.html files + assets)
-          git add landing/
-
-          # Only commit if something changed
-          if git diff --cached --quiet; then
-            echo "landing/ unchanged — no commit needed"
-          else
-            git commit -m "chore(landing): sync Astro dist [skip ci]"
-            # main is a protected branch requiring status checks, so a bare push
-            # from inside a main-triggered run is rejected ("N of N required
-            # status checks are expected"). That is a marketing-asset sync — it
-            # must never fail the pipeline, and above all must never block the
-            # Deploy to VPS job (see its `needs:`). Treat a rejected push as a
-            # no-op: Vercel still deploys from the merge commit itself.
-            git push origin main || {
-              echo "::warning::landing sync push rejected (protected branch) — skipping, Vercel deploys from the merge commit"
-            }
+          set -euo pipefail
+          rm -rf /tmp/landing_fresh
+          cp -r site/dist /tmp/landing_fresh
+          if diff -r -q landing /tmp/landing_fresh > /tmp/landing_diff.txt 2>&1; then
+            echo "landing/ is current."
+            exit 0
           fi
+          echo "::error title=landing/ is stale::landing/ does not match a fresh build of site/ — the published site would not match the source"
+          {
+            echo "### \`landing/\` is stale"
+            echo
+            echo "The VPS serves \`landing/\` verbatim (\`docker-compose.yml\` mounts it at"
+            echo "\`/srv/landing\`), so merging this would publish HTML that does not match"
+            echo "\`site/\`."
+            echo
+            echo '```'
+            head -40 /tmp/landing_diff.txt
+            echo '```'
+            echo
+            echo "Rebuild and commit:"
+            echo
+            echo '```bash'
+            echo 'cd site && npm ci && npm run build'
+            echo 'cd .. && rm -rf landing && cp -r site/dist landing'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          head -40 /tmp/landing_diff.txt
+          exit 1
 
   # ── MkDocs Documentation Build ──────────────────────────────────────────────
   docs:

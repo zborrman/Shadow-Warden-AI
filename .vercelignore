@@ -51,13 +51,16 @@ Thumbs.db
 .env.*
 *.env
 
-# Vercel only needs the landing/ folder (root-anchored so landing/dashboard/analytics/ is NOT excluded)
+# Vercel builds the marketing site from `site/` (see vercel.json:
+# `cd site && npm ci && npm run build` → `site/dist`). `site/` therefore must NOT
+# be excluded — stripping it is what made the build fail with `Missing script:
+# "build"` (npm fell through to the root package.json, which has no build script).
+# Everything else the build does not need stays excluded to keep the upload small.
 /warden/
 /analytics/
 /grafana/
 /postgres/
 /redis/
-/site/
 /dashboard/
 /portal/
 /packages/
