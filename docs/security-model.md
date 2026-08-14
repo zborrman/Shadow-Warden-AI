@@ -25,7 +25,7 @@ Shadow Warden AI is designed to defend against the following threat actors and a
 | LLM02 | Insecure Output Handling | OutputGuard + OutputSanitizer |
 | LLM03 | Training Data Poisoning | EvolutionEngine corpus validation + CanaryGuard |
 | LLM04 | Model Denial of Service | TopologicalGatekeeper (< 2ms noise filter) + ERS shadow ban |
-| LLM05 | Supply Chain Vulnerabilities | Immutable Docker image + CPU-only torch (no CUDA supply chain); cosign keyless signature + signed in-toto SBOM attestation + SLSA provenance on the GHCR image — ⚠️ **see "What the attestation covers" below: production runs a different artefact** |
+| LLM05 | Supply Chain Vulnerabilities | Immutable Docker image + CPU-only torch (no CUDA supply chain); cosign keyless signature + signed in-toto SBOM attestation + SLSA provenance on the GHCR image — ⚠️ **see "What the attestation covers" below — production runs the attested image only when `PIN_SIGNED_IMAGE=true`** |
 | LLM06 | Sensitive Information Disclosure | SecretRedactor + Encrypted PII Vault |
 | LLM07 | Insecure Plugin Design | Zero-Trust Agent Sandbox (capability manifests) |
 | LLM08 | Excessive Agency | AgentMonitor (7 session patterns) + kill-switch API |
@@ -40,25 +40,35 @@ deprecated unsigned `cosign attach sbom`), and verifies that attestation before
 the job goes green. `slsa-provenance` then generates SLSA provenance for the
 same digest. All of that is real and it verifies.
 
-**It does not cover the container serving production traffic.** The `deploy`
-job SSHes to the VPS, `git pull`s and runs `docker compose build`; the `warden`
-compose service has a `build:` stanza and no `image:`, so the running container
-is a *separate build of the same commit*, produced on the host, with no
-signature, no SBOM and no provenance of its own.
+**Whether it covers the container serving production traffic depends on one
+repository variable, `PIN_SIGNED_IMAGE`.**
 
-Same source, different artefact. Anyone reading a green "SBOM + Image Signing"
-as production coverage is reading it wrong.
+| `PIN_SIGNED_IMAGE` | What production runs |
+|---|---|
+| `true` | The `deploy` job resolves this image's digest from GHCR, runs `cosign verify` **and** `cosign verify-attestation`, and the VPS pulls it **by digest**. Production runs the attested artefact. **Fail-CLOSED** — a missing image or a signature that does not verify stops the deploy; it never falls back to an unverified build while claiming to be pinned. |
+| unset / `false` (**default**) | `deploy` SSHes to the VPS and runs `docker compose build`, so the running container is a *separate host build of the same commit* — same source, different artefact, with no signature, SBOM or provenance of its own. A green "SBOM + Image Signing" says nothing about what ships. |
 
-**Closing it** means pinning the compose service to
-`image: ghcr.io/…@sha256:…` and running `cosign verify` on the host before
-`up`. That needs registry credentials on the VPS and a rollback path for a
-digest that fails verification — an ops migration, not a workflow edit, and an
-owner decision rather than a drive-by.
+cosign runs on the **runner**, not the server. The VPS then pulls by digest,
+which is content-addressed, so it cannot receive different bytes than the ones
+verified — which is why this needs neither cosign nor registry credentials on
+the VPS. The GHCR package is public, so no registry auth is involved at all.
 
-Until then the honest claim is: **the source is attested; the running binary is
-not.** Pinned by `warden/tests/test_sbom_scope.py`, which fails the moment the
-compose service stops being host-built, so the statement above cannot quietly
-go stale.
+`deploy` is deliberately **not** wired as `needs: sbom-sign`; it looks the
+digest up from the registry instead. Coupling the deploy to another job is
+exactly how a merged security fix once sat undeployed, and that failure mode is
+not worth re-creating.
+
+Verified end to end on 2026-08-14: both `cosign verify` and `cosign
+verify-attestation --type spdxjson` pass against
+`ghcr.io/zborrman/shadow-warden`, with the certificate identity resolving to
+`.../.github/workflows/ci.yml@refs/heads/main` and the entry present in the
+Rekor transparency log. Unlike the PQC build assertion, this chain was never
+silently broken — only unused.
+
+Pinned by `warden/tests/test_sbom_scope.py`, which asserts that `warden` stays
+buildable, that its `image:` remains the `${WARDEN_IMAGE:-…}` seam (a hard-coded
+registry reference would pin production to something the verify step never
+checked), and that the deploy still verifies both signature and attestation.
 
 ---
 

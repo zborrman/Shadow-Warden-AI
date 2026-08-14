@@ -796,22 +796,31 @@ jobs:
   # Generates a Software Bill of Materials (SBOM) and signs the container image
   # with cosign (keyless, OIDC). Runs only on push to main after docker-build passes.
   #
-  # ⚠️ SCOPE — read this before treating a green run as production coverage.
+  # ⚠️ SCOPE — what a green run here does and does not cover.
   # What is signed and attested is the image THIS job builds and pushes to GHCR.
-  # Production does not run that image: the `deploy` job SSHes to the VPS,
-  # `git pull`s, and runs `docker compose build`, so the container serving
-  # traffic is a separate build of the same commit, produced on the host, with
-  # no signature, no SBOM and no provenance of its own.
+  # Whether production runs that image depends on the `PIN_SIGNED_IMAGE`
+  # repository variable:
   #
-  # Same source, different artefact. The chain below is real and it verifies —
-  # it just does not cover what ships. Closing that means pinning the compose
-  # service to `image: ghcr.io/...@sha256:...` and running `cosign verify` on
-  # the host before `up`, which needs registry auth on the VPS and a rollback
-  # story: an ops migration, not a workflow edit.
+  #   PIN_SIGNED_IMAGE = true   the `deploy` job resolves this image's digest,
+  #                             runs `cosign verify` + `verify-attestation`, and
+  #                             the VPS pulls it by digest. Production runs the
+  #                             attested artefact. Fail-CLOSED: no image or a bad
+  #                             signature stops the deploy.
+  #
+  #   unset / false (default)   `deploy` SSHes in and runs `docker compose build`,
+  #                             so the container serving traffic is a separate
+  #                             host build of the same commit — same source,
+  #                             different artefact, with no signature, SBOM or
+  #                             provenance of its own. A green run here says
+  #                             nothing about what ships.
+  #
+  # cosign runs on the runner, not the server: the VPS pulls by digest, which is
+  # content-addressed, so it cannot receive different bytes than were verified.
+  # That is why no registry auth or cosign install is needed on the VPS.
   # Guarded by warden/tests/test_sbom_scope.py so the claim cannot drift.
   #
   # Required GitHub Secrets: none (keyless signing uses GitHub OIDC token)
-  # Required GitHub Vars:    none
+  # Required GitHub Vars:    PIN_SIGNED_IMAGE (optional; 'true' pins production)
   # Required: GHCR write permission (packages: write)
   #
   sbom-sign:
@@ -1049,11 +1058,76 @@ jobs:
             exit "$rc"
           fi
 
+      - name: Install cosign
+        if: ${{ vars.PIN_SIGNED_IMAGE == 'true' }}
+        uses: sigstore/cosign-installer@v3
+
+      # ── Resolve and verify the signed image (opt-in) ────────────────────────
+      #
+      # `sbom-sign` builds warden/, pushes it to GHCR, signs it keylessly and
+      # attaches a signed SBOM attestation. Production runs none of that: the
+      # step below SSHes in and runs `docker compose build`, so the container
+      # serving traffic is a *separate host build of the same commit* with no
+      # signature, SBOM or provenance. Same source, different artefact.
+      #
+      # This step closes that, opt-in via the `PIN_SIGNED_IMAGE` repository
+      # variable (default off — a posture flip, like AUTHORIZE_PAYMENT_ENFORCED).
+      #
+      # Deliberately NOT wired as `needs: sbom-sign`. Coupling deploy to another
+      # job is exactly how a merged security fix once sat undeployed (see this
+      # job's `needs:` comment), so the digest is looked up from the registry
+      # instead — the image is public, so no registry auth is needed here or on
+      # the VPS.
+      #
+      # cosign runs HERE, not on the server: the VPS then pulls by digest, which
+      # is content-addressed, so it cannot receive different bytes than the ones
+      # verified. That keeps the server free of cosign and of registry
+      # credentials.
+      #
+      # Fail-CLOSED when enabled: if the image is missing (sbom-sign still
+      # running or failed) or a signature does not verify, the deploy stops. It
+      # must never fall back to an unverified host build while claiming to be
+      # pinned — that is the fail-open this whole step exists to remove.
+      - name: Resolve and verify signed image
+        id: pin
+        if: ${{ vars.PIN_SIGNED_IMAGE == 'true' }}
+        run: |
+          set -euo pipefail
+          REPO_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REF="ghcr.io/${REPO_LC}/shadow-warden:${{ github.sha }}"
+
+          echo "Resolving ${REF} ..."
+          if ! DIGEST=$(docker buildx imagetools inspect "$REF" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            echo "::error title=Signed image not published::${REF} is not in GHCR. sbom-sign may still be running or may have failed; production must not deploy an unverified build while PIN_SIGNED_IMAGE is on."
+            exit 1
+          fi
+          PINNED="ghcr.io/${REPO_LC}/shadow-warden@${DIGEST}"
+          echo "Digest: ${DIGEST}"
+
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$PINNED" > /dev/null
+          echo "Signature verified."
+
+          cosign verify-attestation --type spdxjson \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$PINNED" > /dev/null
+          echo "SBOM attestation verified."
+
+          echo "image=${PINNED}" >> "$GITHUB_OUTPUT"
+          echo "### Production will run the attested image" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${PINNED}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Deploy via SSH
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          WARDEN_IMAGE: ${{ steps.pin.outputs.image }}
         run: |
           SSH_HOST=$(printf '%s' "$DEPLOY_HOST" | tr -d '[:space:]')
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
@@ -1068,6 +1142,15 @@ jobs:
               "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH || { echo "⚠️  Server unreachable — deploy skipped"; exit 0; }
           set -euo pipefail
           cd "$SSH_PATH"
+
+          # Expanded by the *local* shell (the heredoc is unquoted), so this
+          # arrives as a literal assignment. Empty unless PIN_SIGNED_IMAGE is on,
+          # in which case docker-compose.yml's \${WARDEN_IMAGE:-...} resolves to
+          # the digest CI verified. ssh does not forward env, hence writing it in.
+          export WARDEN_IMAGE="${WARDEN_IMAGE:-}"
+          if [ -n "\${WARDEN_IMAGE}" ]; then
+            echo "   warden pinned: \${WARDEN_IMAGE}"
+          fi
 
           echo "── [1/4] Code already pulled via git ──────────────────────"
 
@@ -1104,7 +1187,7 @@ jobs:
                 --entrypoint sh -e HOME=/tmp \
                 -v "\${COMPOSE_VOLUME}:/warden/models" \
                 -v "\$(pwd)/scripts:/warden/scripts:ro" \
-                shadow-warden-warden:latest \
+                "\${WARDEN_IMAGE:-shadow-warden-warden:latest}" \
                 -c "pip install -q 'optimum[onnxruntime]' && \
                     python3 /warden/scripts/export_onnx.py --quantize \
                       --output /warden/models/minilm-onnx \
@@ -1133,8 +1216,18 @@ jobs:
           #   analytics/portal/dashboard use different bases / isolated layers.
           echo "   building admin + arq-worker (no-cache)..."
           docker compose build --no-cache admin arq-worker 2>&1 | tail -10
-          echo "   building warden analytics portal dashboard..."
-          docker compose build warden analytics portal dashboard 2>&1 | tail -10
+          if [ -n "\${WARDEN_IMAGE:-}" ]; then
+            # warden is pinned to a signed digest that CI already verified, so it
+            # is pulled rather than rebuilt here. Building it would produce a
+            # different, unsigned artefact and defeat the pin.
+            echo "   warden pinned to \${WARDEN_IMAGE} — pulling instead of building"
+            docker compose pull warden 2>&1 | tail -5
+            echo "   building analytics portal dashboard..."
+            docker compose build analytics portal dashboard 2>&1 | tail -10
+          else
+            echo "   building warden analytics portal dashboard..."
+            docker compose build warden analytics portal dashboard 2>&1 | tail -10
+          fi
 
           # ── The swap (R2 — zero-downtime deploy): recreate ONLY the 6 services
           # whose image was just rebuilt (warden, arq-worker, analytics, admin,
