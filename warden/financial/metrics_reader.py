@@ -194,9 +194,12 @@ class MetricsReader:
         """
         try:
             import urllib.request
+
+            from warden.net_guard import assert_web_scheme
             url = f"{self._prom_url.rstrip('/')}/api/v1/query"
             query = "warden_shadow_ban_cost_saved_usd_total"
-            with urllib.request.urlopen(
+            assert_web_scheme(url)  # block non-http(s) schemes in a tampered PROM url
+            with urllib.request.urlopen(  # nosec B310 — scheme guarded by assert_web_scheme
                 f"{url}?query={query}", timeout=2
             ) as resp:
                 import json

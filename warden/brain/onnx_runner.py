@@ -82,7 +82,9 @@ class OnnxSentenceEncoder:
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
         session     = ort.InferenceSession(model_path, sess_options=opts)
-        tokenizer   = AutoTokenizer.from_pretrained(model_dir)
+        # Loads from the local export dir (model_dir), not the HF Hub — no remote
+        # fetch to pin a revision against, so bandit B615 is a false positive here.
+        tokenizer   = AutoTokenizer.from_pretrained(model_dir)  # nosec B615
         input_names = {inp.name for inp in session.get_inputs()}
 
         log.info(

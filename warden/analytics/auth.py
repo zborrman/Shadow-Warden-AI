@@ -70,6 +70,20 @@ _SSO_LOGIN_URL  = f"{_GATEWAY_URL}/auth/saml/login"
 _SSO_SESSION_URL = f"{_GATEWAY_URL}/auth/saml/session"
 _SSO_VERIFY_URL  = f"{_GATEWAY_URL}/auth/saml/verify"
 
+
+def _is_http_url(url: str) -> bool:
+    """Reject non-http(s) schemes before handing a URL to ``urllib.urlopen``.
+
+    Stdlib-only by design (this module must not pull the warden core / httpx into
+    the Streamlit dashboard). A tampered ``GATEWAY_URL`` must never dereference
+    ``file:///…`` or ``gopher://…``.
+    """
+    from urllib.parse import urlparse
+    try:
+        return urlparse(url).scheme.lower() in ("http", "https")
+    except Exception:  # noqa: BLE001
+        return False
+
 # ── Session-state keys (prefixed to avoid collisions with dashboard keys) ─────
 
 _K_AUTH         = "_wa_authenticated"
@@ -174,8 +188,10 @@ def _exchange_saml_otp(token: str) -> dict[str, Any] | None:
     import urllib.request
 
     url = f"{_SSO_SESSION_URL}?token={token}"
+    if not _is_http_url(url):
+        return None
     try:
-        with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=5) as resp:  # nosec B310 — scheme guarded by _is_http_url
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as exc:
         # 401 = invalid/expired OTP — silently ignore (normal if user refreshes)
@@ -196,12 +212,14 @@ def _verify_saml_jwt(jwt_token: str) -> dict[str, Any] | None:
     import urllib.error
     import urllib.request
 
+    if not _is_http_url(_SSO_VERIFY_URL):
+        return None
     req = urllib.request.Request(
         _SSO_VERIFY_URL,
         headers={"Authorization": f"Bearer {jwt_token}"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310 — scheme guarded by _is_http_url
             return json.loads(resp.read().decode())
     except (urllib.error.HTTPError, Exception):
         return None

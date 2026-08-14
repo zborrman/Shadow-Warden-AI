@@ -303,7 +303,9 @@ def _load_idp_metadata() -> dict[str, Any]:
                 "Set SAML_IDP_METADATA_URL or SAML_IDP_METADATA_XML to configure the IdP."
             )
         try:
-            with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            from warden.net_guard import assert_web_scheme
+            assert_web_scheme(url)  # block file://, gopher:// … in a tampered config value
+            with urllib.request.urlopen(url, timeout=10) as resp:  # nosec B310 — scheme guarded by assert_web_scheme
                 xml = resp.read().decode()
         except Exception as exc:
             raise RuntimeError(f"Failed to fetch IdP metadata from {url}: {exc}") from exc

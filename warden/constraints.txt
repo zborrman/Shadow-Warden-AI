@@ -88,6 +88,13 @@ distro==1.9.0
 dnspython==2.8.0
 docstring_parser==0.18.0
 docutils==0.22.4
+# ecdsa: transitive via python-jose (not imported directly anywhere in warden).
+# PYSEC-2026-1325 (side-channel class) has NO published fix version, so the CI
+# pip-audit gate — which only fails on FIXABLE CVEs — already treats it as
+# informational; do NOT add it to .github/pip-audit-ignore (that file is for
+# stuck *fixable* CVEs only). Not exploited: session JWTs are signed with HS256
+# (HMAC), never ECDSA. Excising it means migrating jose→PyJWT (auth/router.py,
+# portal_router.py, syndicates/invites_router.py) — tracked, not done here.
 ecdsa==0.19.2
 email-validator==2.3.0
 et_xmlfile==2.0.0
