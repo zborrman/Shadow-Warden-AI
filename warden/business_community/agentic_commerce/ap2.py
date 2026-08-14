@@ -30,6 +30,7 @@ from warden.business_community.agentic_commerce.models import Mandate, Receipt
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.commerce.ap2")
@@ -283,6 +284,10 @@ class AP2Processor:
                 status="PAID", receipt_json=json.dumps(receipt.to_dict()),
             )
         except Exception as exc:
+            # Counted, not just logged: a mirror that never writes is
+            # indistinguishable from one that works, and FT-6 Phase C is gated
+            # on the mirror being trustworthy (finops/order_recon.py).
+            record_failopen("order_mirror_agentic_commerce", Reason.BACKEND_ERROR, exc)
             log.debug("commerce_receipts -> marketplace_purchases mirror unavailable: %s", exc)
 
         log.info("Payment executed: txn=%s mandate=%s amount=%.2f merchant=%s", transaction_id, mandate_id, amount, merchant)

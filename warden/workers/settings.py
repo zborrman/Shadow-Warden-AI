@@ -69,6 +69,7 @@ from warden.workers.cve_scanner import scan_cves
 from warden.workers.dunning import process_dunning
 from warden.workers.gdpr_retention import run_gdpr_retention
 from warden.workers.ledger_recon_job import nightly_hold_recon, nightly_ledger_recon
+from warden.workers.order_recon_job import nightly_order_mirror_recon
 from warden.workers.reaper import (
     notify_impending_expiration,
     reap_expired_tunnels,
@@ -132,6 +133,8 @@ class WorkerSettings:
         nightly_ledger_recon,
         # Ledger hold reconciliation (FT-4 remainder)
         nightly_hold_recon,
+        # FT-6 order-mirror reconciliation (Phase C gate)
+        nightly_order_mirror_recon,
         # Clearing outbox relay (FT-4 slice 3)
         relay_clearing_outbox,
         # Clearing outbox retention/cleanup (FT-4 remainder)
@@ -230,6 +233,10 @@ class WorkerSettings:
 
         # ── Ledger hold reconciliation — daily at 04:10 UTC (FT-4 remainder) ──
         cron(nightly_hold_recon, hour=4, minute=10, timeout=300),
+
+        # ── FT-6 order-mirror reconciliation — daily at 04:20 UTC ────────────
+        # The only thing that produces the evidence Phase C is gated on.
+        cron(nightly_order_mirror_recon, hour=4, minute=20, timeout=300),
 
         # ── Clearing outbox relay — every 5 minutes (FT-4 slice 3) ───────────
         cron(

@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 from .models import Order, Product
 
@@ -209,6 +210,7 @@ class InventoryManager:
                 purchased_at=order.created_at or None,
             )
         except Exception as exc:
+            record_failopen("order_mirror_m2m_store", Reason.BACKEND_ERROR, exc)
             log.debug("m2m_orders -> marketplace_purchases mirror unavailable: %s", exc)
 
     def get_order(self, order_id: str) -> Order | None:
