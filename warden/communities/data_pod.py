@@ -90,17 +90,33 @@ def _conn() -> Generator[sqlite3.Connection, None, None]:
 # ── Crypto helpers ────────────────────────────────────────────────────────────
 
 def _vault_key() -> bytes:
-    """32-byte key for Fernet encryption of MinIO secret keys."""
+    """Fernet key for encryption-at-rest of MinIO secret keys.
+
+    vuln-0003 / CWE-798: the previous ``or "dev-vault-key-insecure-do-not-use"``
+    fallback made the at-rest encryption trivially reversible whenever the master
+    key was unset (boot only warns). Now fail-CLOSED: no master ⇒ raise in prod.
+
+    The sha256(master) derivation is deliberately UNCHANGED — swapping to a
+    resolve_key subkey would re-key Fernet and orphan every secret already
+    encrypted at rest (a migration, not a drop-in). Domain-separating this key is
+    tracked as follow-up behind a decrypt-with-legacy-fallback migration.
+    """
     import base64
     import hashlib
-    raw = (
-        os.getenv("COMMUNITY_VAULT_KEY")
-        or os.getenv("VAULT_MASTER_KEY")
-        or "dev-vault-key-insecure-do-not-use"
-    )
-    return base64.urlsafe_b64encode(
-        hashlib.sha256(raw.encode()).digest()
-    )
+    raw = os.getenv("COMMUNITY_VAULT_KEY") or os.getenv("VAULT_MASTER_KEY")
+    if not raw:
+        from warden.config import settings
+        if getattr(settings, "is_prod", False) and not getattr(
+            settings, "allow_unauthenticated", False
+        ):
+            from warden.secret_keys import InsecureKeyError
+            raise InsecureKeyError(
+                "data_pod Fernet key unavailable: set COMMUNITY_VAULT_KEY or "
+                "VAULT_MASTER_KEY (no insecure fallback in production)."
+            )
+        # dev / test only — provably unreachable in prod (raised above).
+        raw = "dev-datapod-fernet-nonprod-only"
+    return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
 
 
 def _encrypt_secret(plaintext: str) -> str:

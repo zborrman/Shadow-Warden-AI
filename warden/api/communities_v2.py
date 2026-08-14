@@ -6,13 +6,13 @@ network federation, analytics, compliance, and evolution sharing.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 
 # ── Authentication ───────────────────────────────────────────────────────────
 #
@@ -40,20 +40,21 @@ from warden.auth_guard import require_api_key
 # per-route dependency means genuinely no authentication, not a gap in a
 # blanket rule.
 #
-# NOTE: this closes anonymous access. It does NOT yet scope a caller to their
-# own community: an authenticated tenant can still address another tenant's
-# {community_id}. That is a separate IDOR fix — see the module TODO below.
+# Per-tenant authorization (vuln-0002 / CWE-639, 2026-08-14): every
+# community-scoped handler now injects `auth: AuthResult = Depends(require_api_key)`
+# and calls `_require_role(...)` (mutations) or `_require_read(...)` (reads) to
+# bind the authenticated tenant to the target community before acting. Identity
+# for actor fields (uploader/publisher/reviewer/requester) comes from
+# `auth.tenant_id`, never from a client-supplied path/query/body value. The
+# router-level dependency below still guarantees baseline authentication on every
+# route (including the global /stats and /networks/* handlers).
 router = APIRouter(
     prefix="/communities",
     tags=["Community Hub"],
     dependencies=[Depends(require_api_key)],
 )
 
-# TODO(security): per-route tenant scoping. warden/communities/router.py derives
-# the caller's tenant via _get_tenant(request) and enforces _require_tier before
-# touching a community; the routes here take {community_id} from the path and
-# trust it. Requires threading AuthResult.tenant_id into each handler and
-# checking membership before read or write.
+# TWO ROUTERS SHARE THE /communities PREFIX — see the note below before adding a route.
 #
 # TWO ROUTERS SHARE THE /communities PREFIX. `warden/communities/router.py` is
 # registered first, so for any path both define, its handler serves and the one
@@ -107,17 +108,61 @@ class ShareRuleIn(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────
 
-def _404(what: str = "Community") -> None:
+def _404(what: str = "Community") -> NoReturn:
     raise HTTPException(status_code=404, detail=f"{what} not found")
 
 
-def _403(msg: str = "Not authorized") -> None:
+def _403(msg: str = "Not authorized") -> NoReturn:
     raise HTTPException(status_code=403, detail=msg)
 
 
 def _dc(obj: Any) -> dict:
     from dataclasses import asdict
     return asdict(obj) if hasattr(obj, "__dataclass_fields__") else dict(obj)
+
+
+# ── Per-tenant authorization (vuln-0002 / CWE-639) ─────────────────────────────
+#
+# The router-level `require_api_key` only proves *who* is calling (authn). Every
+# community-scoped handler must additionally bind that identity to the target
+# {community_id} (authz), or any authenticated tenant can read/mutate/take over
+# another tenant's community. Never trust a tenant identifier taken from the
+# path, query, or body — use `auth.tenant_id`.
+
+_ROLE_RANK = {"observer": 0, "member": 1, "admin": 2, "owner": 3}
+
+
+def _caller_role(community_id: str, tenant_id: str) -> tuple[str | None, Any]:
+    """(role, community) for *tenant_id* in *community_id*; role None if not a
+    member. The community creator is always treated as ``owner`` even without an
+    explicit members row. 404s if the community does not exist."""
+    from warden.communities.community_factory import get_community
+    from warden.communities.membership import get_member
+    c = get_community(community_id)
+    if c is None:
+        _404()
+    if c.creator_tenant_id == tenant_id:
+        return "owner", c
+    m = get_member(community_id, tenant_id)
+    if m is not None and getattr(m, "status", "active") == "active":
+        return m.role, c
+    return None, c
+
+
+def _require_role(community_id: str, auth: AuthResult, min_role: str) -> tuple[str, Any]:
+    """Enforce that the caller holds at least *min_role* in the community."""
+    role, c = _caller_role(community_id, auth.tenant_id)
+    if role is None or _ROLE_RANK.get(role, -1) < _ROLE_RANK[min_role]:
+        _403(f"Requires '{min_role}' role in this community")
+    return role, c
+
+
+def _require_read(community_id: str, auth: AuthResult) -> Any:
+    """Members may read; non-members may read only ``public`` communities."""
+    role, c = _caller_role(community_id, auth.tenant_id)
+    if role is None and getattr(c, "visibility", "private") != "public":
+        _403("You are not a member of this community")
+    return c
 
 
 # ══════════════════════════════════════════════════════════════
@@ -131,7 +176,9 @@ def community_stats():
 
 
 @router.patch("/{community_id}", summary="Patch community name / description")
-def patch_community(community_id: str, req: PatchCommunityIn):
+def patch_community(community_id: str, req: PatchCommunityIn,
+                    auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "admin")
     from warden.communities.community_factory import patch_community as _p
     if not _p(community_id, name=req.name, description=req.description):
         raise HTTPException(status_code=404, detail="Community not found or nothing to update")
@@ -139,11 +186,10 @@ def patch_community(community_id: str, req: PatchCommunityIn):
 
 
 @router.put("/{community_id}/settings", summary="Update community settings")
-def update_settings(community_id: str, req: UpdateSettingsIn):
-    from warden.communities.community_factory import get_community, update_community_settings
-    c = get_community(community_id)
-    if not c:
-        _404()
+def update_settings(community_id: str, req: UpdateSettingsIn,
+                    auth: AuthResult = Depends(require_api_key)):
+    _, c = _require_role(community_id, auth, "admin")
+    from warden.communities.community_factory import update_community_settings
     settings = {**c.settings, **req.extra}
     if req.visibility:
         settings["visibility"] = req.visibility
@@ -154,9 +200,11 @@ def update_settings(community_id: str, req: UpdateSettingsIn):
 
 
 @router.delete("/{community_id}", summary="Delete community")
-def delete_community(community_id: str, requester_tenant_id: str = Query(...)):
+def delete_community(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    # Owner-only. Identity comes from the API key, never a client-supplied param.
+    _require_role(community_id, auth, "owner")
     from warden.communities.community_factory import delete_community as _d
-    if not _d(community_id, requester_tenant_id):
+    if not _d(community_id, auth.tenant_id):
         raise HTTPException(status_code=403, detail="Not authorized or community not found")
     return {"status": "deleted", "community_id": community_id}
 
@@ -166,7 +214,9 @@ def delete_community(community_id: str, requester_tenant_id: str = Query(...)):
 # ══════════════════════════════════════════════════════════════
 
 @router.post("/{community_id}/join", status_code=201, summary="Join community")
-def join_community(community_id: str, req: JoinIn):
+def join_community(community_id: str, req: JoinIn,
+                   auth: AuthResult = Depends(require_api_key)):
+    # A caller may only join AS ITSELF — never enrol another tenant.
     from warden.communities.community_factory import get_community
     from warden.communities.membership import add_member
     c = get_community(community_id)
@@ -174,22 +224,34 @@ def join_community(community_id: str, req: JoinIn):
         _404()
     if c.join_policy == "invite":
         _403("This community is invite-only; use the knock-and-verify flow")
-    m = add_member(community_id, req.tenant_id, role="member", display_name=req.display_name)
+    m = add_member(community_id, auth.tenant_id, role="member", display_name=req.display_name)
     return _dc(m)
 
 
 @router.put("/{community_id}/members/{member_id}", summary="Update member role")
-def update_member_role(community_id: str, member_id: str, req: UpdateRoleIn):
+def update_member_role(community_id: str, member_id: str, req: UpdateRoleIn,
+                       auth: AuthResult = Depends(require_api_key)):
+    caller_role, _ = _require_role(community_id, auth, "admin")
+    from warden.communities.membership import get_member_by_id
     from warden.communities.membership import update_member_role as _ur
+    target = get_member_by_id(member_id)
+    if target is None or target.community_id != community_id:
+        raise HTTPException(status_code=400, detail="Invalid role or member not found")
+    # Privilege-escalation guard: only an owner may grant or revoke the owner role.
+    if (req.role == "owner" or target.role == "owner") and caller_role != "owner":
+        _403("Only an owner can assign or change the owner role")
     if not _ur(community_id, member_id, req.role):
         raise HTTPException(status_code=400, detail="Invalid role or member not found")
     return {"status": "updated", "member_id": member_id, "role": req.role}
 
 
 @router.get("/member/{tenant_id}/memberships", summary="Get tenant's communities")
-def tenant_memberships(tenant_id: str):
+def tenant_memberships(tenant_id: str, auth: AuthResult = Depends(require_api_key)):
+    # A tenant may only enumerate its OWN memberships.
+    if tenant_id != auth.tenant_id:
+        _403("You may only list your own memberships")
     from warden.communities.membership import get_member_communities
-    return get_member_communities(tenant_id)
+    return get_member_communities(auth.tenant_id)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -199,15 +261,16 @@ def tenant_memberships(tenant_id: str):
 @router.post("/{community_id}/data/upload", status_code=201, summary="Upload file")
 async def upload_file(
     community_id: str,
-    uploader_tenant_id: str = Query(...),
     context: str = Form(default=""),
     file: UploadFile = File(...),
+    auth: AuthResult = Depends(require_api_key),
 ):
+    _require_role(community_id, auth, "member")
     from warden.communities.community_data import register_file
     content = await file.read()
     cf = register_file(
         community_id=community_id,
-        uploader_tenant_id=uploader_tenant_id,
+        uploader_tenant_id=auth.tenant_id,
         filename=file.filename or "upload",
         content_type=file.content_type or "application/octet-stream",
         size_bytes=len(content),
@@ -218,13 +281,16 @@ async def upload_file(
 
 
 @router.get("/{community_id}/data", summary="List community files")
-def list_data(community_id: str):
+def list_data(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     from warden.communities.community_data import list_files
     return [_dc(f) for f in list_files(community_id)]
 
 
 @router.get("/{community_id}/data/{file_id}", summary="Get file metadata")
-def get_file_meta(community_id: str, file_id: str):
+def get_file_meta(community_id: str, file_id: str,
+                  auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     from warden.communities.community_data import get_file, increment_download
     f = get_file(file_id)
     if not f or f.community_id != community_id:
@@ -234,9 +300,11 @@ def get_file_meta(community_id: str, file_id: str):
 
 
 @router.delete("/{community_id}/data/{file_id}", summary="Delete file")
-def delete_file(community_id: str, file_id: str, requester_tenant_id: str = Query(...)):
+def delete_file(community_id: str, file_id: str,
+                auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "member")
     from warden.communities.community_data import delete_file as _df
-    if not _df(file_id, requester_tenant_id):
+    if not _df(file_id, auth.tenant_id):
         raise HTTPException(status_code=403, detail="Not authorized or file not found")
     return {"status": "deleted", "file_id": file_id}
 
@@ -249,9 +317,11 @@ def delete_file(community_id: str, file_id: str, requester_tenant_id: str = Quer
              summary="Scan document via Document Intelligence")
 async def scan_document(
     community_id: str,
-    uploader_tenant_id: str = Query(...),
     file: UploadFile = File(...),
+    auth: AuthResult = Depends(require_api_key),
 ):
+    _require_role(community_id, auth, "member")
+    uploader_tenant_id = auth.tenant_id
     content = await file.read()
     result: dict[str, Any] = {
         "community_id": community_id,
@@ -323,7 +393,8 @@ async def scan_document(
 # ══════════════════════════════════════════════════════════════
 
 @router.get("/{community_id}/peers", summary="List peerings")
-def get_peers(community_id: str):
+def get_peers(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     try:
         from warden.communities.peering import list_peerings
         peerings = list_peerings(community_id)
@@ -333,7 +404,9 @@ def get_peers(community_id: str):
 
 
 @router.post("/{community_id}/peer", status_code=201, summary="Request peering")
-def request_peering(community_id: str, req: PeerIn):
+def request_peering(community_id: str, req: PeerIn,
+                    auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "admin")
     try:
         from warden.communities.peering import initiate_peering
         result = initiate_peering(community_id, req.target_community_id, req.policy)
@@ -359,9 +432,10 @@ def list_networks():
 
 
 @router.post("/networks/create", status_code=201, summary="Create network")
-def create_network(req: CreateNetworkIn):
+def create_network(req: CreateNetworkIn, auth: AuthResult = Depends(require_api_key)):
+    # Creator identity comes from the API key, not the request body.
     from warden.communities.network import create_network as _cn
-    return _dc(_cn(req.name, req.description, req.creator_tenant_id))
+    return _dc(_cn(req.name, req.description, auth.tenant_id))
 
 
 @router.get("/networks/{network_id}", summary="Get network")
@@ -394,7 +468,9 @@ def network_communities(network_id: str):
 # ══════════════════════════════════════════════════════════════
 
 @router.get("/{community_id}/analytics", summary="Community activity analytics")
-def get_analytics(community_id: str, days: int = Query(7, ge=1, le=90)):
+def get_analytics(community_id: str, days: int = Query(7, ge=1, le=90),
+                  auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     result: dict[str, Any] = {
         "community_id": community_id,
         "period_days": days,
@@ -439,7 +515,8 @@ def get_analytics(community_id: str, days: int = Query(7, ge=1, le=90)):
 # ══════════════════════════════════════════════════════════════
 
 @router.get("/{community_id}/compliance", summary="Compliance posture report")
-def get_compliance(community_id: str):
+def get_compliance(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     from warden.communities.community_compliance import get_community_compliance
     return _dc(get_community_compliance(community_id))
 
@@ -453,7 +530,8 @@ def _ctrl_color(status: str) -> str:
 
 
 @router.post("/{community_id}/compliance/export", summary="Export HTML compliance report")
-def export_compliance(community_id: str):
+def export_compliance(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     from warden.communities.community_compliance import get_community_compliance
     report = get_community_compliance(community_id)
     sc = _STATUS_COLORS.get(report.status, "#94a3b8")
@@ -499,9 +577,11 @@ def export_compliance(community_id: str):
 
 @router.post("/{community_id}/evolution/share", status_code=201,
              summary="Share anonymised evolution rule")
-def share_evolution_rule(community_id: str, req: ShareRuleIn):
+def share_evolution_rule(community_id: str, req: ShareRuleIn,
+                         auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "member")
     from warden.communities.community_evolution import share_rule
-    b = share_rule(community_id, req.publisher_tenant_id, req.rule_type, req.rule_content)
+    b = share_rule(community_id, auth.tenant_id, req.rule_type, req.rule_content)
     return _dc(b)
 
 
@@ -509,7 +589,9 @@ def share_evolution_rule(community_id: str, req: ShareRuleIn):
 def list_evolution_bundles(
     community_id: str,
     status: str | None = Query(None),
+    auth: AuthResult = Depends(require_api_key),
 ):
+    _require_read(community_id, auth)
     from warden.communities.community_evolution import list_bundles
     return [_dc(b) for b in list_bundles(community_id=community_id, status=status)]
 
@@ -517,19 +599,22 @@ def list_evolution_bundles(
 @router.post("/{community_id}/evolution/bundles/{bundle_id}/approve",
              summary="Approve evolution bundle (human gate)")
 def approve_bundle(
-    community_id: str,  # noqa: ARG001
+    community_id: str,
     bundle_id: str,
-    reviewer_tenant_id: str = Body(..., embed=True),
+    auth: AuthResult = Depends(require_api_key),
 ):
+    _require_role(community_id, auth, "admin")
     from warden.communities.community_evolution import approve_rule
-    if not approve_rule(bundle_id, reviewer_tenant_id):
+    if not approve_rule(bundle_id, auth.tenant_id):
         _404("Bundle")
     return {"status": "approved", "bundle_id": bundle_id}
 
 
 @router.post("/{community_id}/evolution/bundles/{bundle_id}/reject",
              summary="Reject evolution bundle")
-def reject_bundle(community_id: str, bundle_id: str):  # noqa: ARG001
+def reject_bundle(community_id: str, bundle_id: str,
+                  auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "admin")
     from warden.communities.community_evolution import reject_rule
     if not reject_rule(bundle_id):
         _404("Bundle")
@@ -538,7 +623,9 @@ def reject_bundle(community_id: str, bundle_id: str):  # noqa: ARG001
 
 @router.post("/{community_id}/evolution/bundles/{bundle_id}/import",
              summary="Import approved bundle into local evolution engine")
-def import_bundle(community_id: str, bundle_id: str):
+def import_bundle(community_id: str, bundle_id: str,
+                  auth: AuthResult = Depends(require_api_key)):
+    _require_role(community_id, auth, "admin")
     from warden.communities.community_evolution import import_rule
     if not import_rule(bundle_id, community_id):
         raise HTTPException(status_code=422, detail="Bundle not found or not yet approved")
@@ -546,6 +633,7 @@ def import_bundle(community_id: str, bundle_id: str):
 
 
 @router.get("/{community_id}/evolution/stats", summary="Evolution sharing stats")
-def evolution_stats(community_id: str):
+def evolution_stats(community_id: str, auth: AuthResult = Depends(require_api_key)):
+    _require_read(community_id, auth)
     from warden.communities.community_evolution import get_evolution_stats
     return get_evolution_stats(community_id)

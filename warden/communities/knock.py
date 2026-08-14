@@ -42,7 +42,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -76,12 +75,9 @@ def _redis_key(token_hash: str) -> str:
 # ── HMAC signing ───────────────────────────────────────────────────────────────
 
 def _sep_key() -> bytes:
-    raw = (
-        os.getenv("COMMUNITY_VAULT_KEY")
-        or os.getenv("VAULT_MASTER_KEY")
-        or "dev-sep-key-insecure"
-    )
-    return raw.encode() if isinstance(raw, str) else raw
+    # Fail-closed, domain-separated (vuln-0003 / CWE-798) — no committed constant.
+    from warden.secret_keys import resolve_key
+    return resolve_key("COMMUNITY_VAULT_KEY", purpose="sep_knock")
 
 
 def _sign_token(token: str) -> str:

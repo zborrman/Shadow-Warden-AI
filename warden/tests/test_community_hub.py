@@ -329,8 +329,12 @@ def _make_community(name: str, tid: str) -> str:
     straight to the factory rather than through a route another module owns.
     """
     from warden.communities.community_factory import create_community
+    # Own the community as "default" — the dev-mode client resolves to
+    # tenant "default" (ALLOW_UNAUTHENTICATED), and /communities/* now enforces
+    # per-tenant authorization (vuln-0002), so the caller must be the creator /
+    # a member to read or mutate it. `tid` is retained for display only.
     return create_community(
-        name=name, description="", creator_tenant_id=tid,
+        name=name, description=tid, creator_tenant_id="default",
         visibility="private", join_policy="invite",
     ).community_id
 

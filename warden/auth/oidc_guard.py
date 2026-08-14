@@ -97,6 +97,14 @@ def _get_jwks(url: str) -> dict[str, Any]:
     return keys
 
 
+def _allowed_audiences() -> list[str]:
+    """OAuth client id(s) this gateway will accept an id_token for (the `aud`
+    claim must match one). Comma-separated in OIDC_ALLOWED_AUDIENCES. Empty ⇒
+    audience is unconfigured and `_verify_rs256` fails closed (vuln-0005)."""
+    raw = os.getenv("OIDC_ALLOWED_AUDIENCES", "")
+    return [a.strip() for a in raw.split(",") if a.strip()]
+
+
 def _verify_rs256(token: str, jwks_url: str) -> dict[str, Any]:
     """Validate RS256 signature using cached JWKS keys. Returns decoded claims."""
     try:
@@ -130,14 +138,27 @@ def _verify_rs256(token: str, jwks_url: str) -> dict[str, Any]:
             detail=f"Unknown JWKS key ID '{kid}' — token may be malformed.",
         )
 
+    # Audience binding (vuln-0005 / CWE-1174): the provider signs id_tokens for
+    # ANY OAuth client the user consents to, all under the same JWKS keys. Without
+    # checking `aud`, a token minted for an attacker's unrelated client but
+    # carrying a victim's corporate email authenticates as the victim's tenant.
+    # Fail CLOSED: refuse to trust an id_token we cannot bind to our own RP.
+    audiences = _allowed_audiences()
+    if not audiences:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=(
+                "OIDC audience not configured — set OIDC_ALLOWED_AUDIENCES to the "
+                "extension's OAuth client id(s). Refusing an unbound id_token."
+            ),
+        )
     try:
         return jwt.decode(
             token,
             pub_key,
             algorithms=["RS256", "RS384", "RS512"],
-            # Audience validation skipped: chrome.identity scopes the token to the
-            # extension's own OAuth client; the gateway only needs email + issuer.
-            options={"verify_aud": False},
+            audience=audiences,          # token.aud must match one of ours
+            options={"verify_aud": True},
         )
     except jwt.ExpiredSignatureError as exc:
         raise HTTPException(

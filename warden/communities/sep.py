@@ -56,7 +56,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-import os
 import sqlite3
 import string
 import threading
@@ -270,12 +269,11 @@ def search_ueciids(
 # ── HMAC key ────────────────────────────────────────────────────────────────────
 
 def _sep_key() -> bytes:
-    raw = (
-        os.getenv("COMMUNITY_VAULT_KEY")
-        or os.getenv("VAULT_MASTER_KEY")
-        or "dev-sep-key-insecure"
-    )
-    return raw.encode() if isinstance(raw, str) else raw
+    # Fail-closed, domain-separated (vuln-0003 / CWE-798). Never a git-committed
+    # constant: resolve_key honours COMMUNITY_VAULT_KEY, else derives a subkey
+    # from the boot-validated VAULT_MASTER_KEY, else raises in prod.
+    from warden.secret_keys import resolve_key
+    return resolve_key("COMMUNITY_VAULT_KEY", purpose="sep_transfer_proof")
 
 
 # ── Causal Transfer Proof ──────────────────────────────────────────────────────

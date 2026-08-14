@@ -204,12 +204,9 @@ def _row_to_transfer(row) -> TransferRecord:
 # ── HMAC handshake token ────────────────────────────────────────────────────────
 
 def _sep_key() -> bytes:
-    raw = (
-        settings.community_vault_key
-        or settings.vault_master_key
-        or "dev-sep-key-insecure"
-    )
-    return raw.encode() if isinstance(raw, str) else raw
+    # Fail-closed, domain-separated (vuln-0003 / CWE-798) — no committed constant.
+    from warden.secret_keys import resolve_key
+    return resolve_key("COMMUNITY_VAULT_KEY", purpose="sep_peering")
 
 
 def _issue_handshake_token(peering_id: str) -> tuple[str, str]:

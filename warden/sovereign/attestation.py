@@ -31,7 +31,6 @@ import hashlib
 import hmac
 import json
 import logging
-import os
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -46,13 +45,12 @@ _ATTEST_CAP  = 10_000             # max attestations stored per tenant
 
 
 def _attest_key() -> bytes:
-    raw = (
-        os.getenv("SOVEREIGN_ATTEST_KEY")
-        or os.getenv("VAULT_MASTER_KEY")
-        or os.getenv("COMMUNITY_VAULT_KEY")
-        or "dev-sovereign-attest-key-insecure"
-    )
-    return raw.encode() if isinstance(raw, str) else raw
+    # Fail-closed, domain-separated (vuln-0003 / CWE-798). These HMACs are the
+    # non-repudiation evidence behind SOC 2 / GDPR Art.30 attestations — a
+    # git-committed fallback made them forgeable. resolve_key honours
+    # SOVEREIGN_ATTEST_KEY, else derives from VAULT_MASTER_KEY, else raises.
+    from warden.secret_keys import resolve_key
+    return resolve_key("SOVEREIGN_ATTEST_KEY", purpose="sovereign_attest")
 
 
 def _redis():

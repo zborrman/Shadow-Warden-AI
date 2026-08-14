@@ -111,12 +111,70 @@ def _extract_sig_payload(sig_header: str) -> dict | None:
         return None
 
 
-def _extract_agent_id(sig_header: str) -> str | None:
-    """Parse agent_id from PAYMENT-SIGNATURE header. Returns None on error."""
-    payload = _extract_sig_payload(sig_header)
+# Whether the payer identity MUST be cryptographically proven. Default true —
+# an unsigned PAYMENT-SIGNATURE is exactly the forgery Strix demonstrated
+# (vuln-0004 / CWE-345: anyone knowing a victim's public DID drained its balance).
+_X402_REQUIRE_SIGNED = os.getenv("X402_REQUIRE_SIGNED_PAYMENT", "true").lower() == "true"
+
+
+def _canonical_payment_msg(agent_id: str, nonce: str, issued_at: int) -> bytes:
+    """Deterministic message the payer signs to authorize a payment intent."""
+    return f"x402/1.0:{agent_id}:{nonce}:{issued_at}".encode()
+
+
+def _verify_payment_identity(payload: dict | None) -> str | None:
+    """Return the payer's agent_id ONLY when the payload cryptographically proves
+    control of it, else None (no trusted payer — never charge a claimed id).
+
+    The DID is self-authenticating: agent_id must equal
+    ``pubkey_to_agent_id(public_key)`` (did:shadow:{hash(pubkey)}), and the
+    Ed25519 signature over the canonical payment message must verify against that
+    key. So a caller cannot spend a balance held under a DID whose private key it
+    does not possess — knowing the public DID is not enough.
+
+    Fails CLOSED on a bad/absent signature (returns None); an actual crypto/import
+    error also returns None (deny), never raises — the *gate* stays fail-open on
+    infra faults, but a forged identity is never trusted.
+    """
     if not payload:
         return None
-    return str(payload.get("agent_id", "")) or None
+    agent_id = str(payload.get("agent_id", "")) or None
+    if not agent_id:
+        return None
+
+    if not _X402_REQUIRE_SIGNED:
+        # Explicit, documented opt-out (legacy/dev only) — insecure by design.
+        return agent_id
+
+    pub_b64 = payload.get("public_key")
+    sig_b64 = payload.get("signature")
+    nonce = payload.get("nonce")
+    issued_at = payload.get("issued_at")
+    if not (pub_b64 and sig_b64 and nonce and issued_at is not None):
+        log.warning("x402: PAYMENT-SIGNATURE missing public_key/signature — identity not trusted")
+        return None
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+        from warden.marketplace.agent import pubkey_to_agent_id
+        if pubkey_to_agent_id(str(pub_b64)) != agent_id:
+            log.warning("x402: agent_id does not derive from supplied public_key — rejected")
+            return None
+        msg = _canonical_payment_msg(agent_id, str(nonce), int(issued_at))
+        Ed25519PublicKey.from_public_bytes(base64.b64decode(pub_b64)).verify(
+            base64.b64decode(sig_b64), msg
+        )
+        return agent_id
+    except Exception as exc:  # noqa: BLE001
+        log.warning("x402: payment signature verification failed (rejected): %s", exc)
+        return None
+
+
+def _extract_agent_id(sig_header: str) -> str | None:
+    """Return the VERIFIED payer agent_id from the PAYMENT-SIGNATURE header, or
+    None when the signature is absent/invalid. Used by mcp/gateway too, so both
+    x402 call sites reject a forged identity through this one seam."""
+    return _verify_payment_identity(_extract_sig_payload(sig_header))
 
 
 def _consume_nonce(agent_id: str, nonce: str, issued_at: int) -> bool:
@@ -195,7 +253,9 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
     try:
         sig_header  = request.headers.get("PAYMENT-SIGNATURE", "")
         sig_payload = _extract_sig_payload(sig_header)
-        agent_id    = str(sig_payload.get("agent_id", "")) or None if sig_payload else None
+        # Payer identity must be cryptographically proven — a forged/unsigned
+        # agent_id resolves to None and is never charged (vuln-0004 / CWE-345).
+        agent_id    = _verify_payment_identity(sig_payload)
         tenant_id   = _get_tenant_id(request)
 
         # Replay protection — only enforced when client sends nonce + issued_at
@@ -262,8 +322,10 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
                     "error":        "payment_required",
                     "resource":     resource,
                     "instructions": (
-                        "Fund your balance via POST /marketplace/x402/fund, "
-                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\": \"...\"})"
+                        "Fund your balance via POST /marketplace/x402/fund, then retry with "
+                        "PAYMENT-SIGNATURE: base64({\"agent_id\",\"public_key\",\"signature\","
+                        "\"nonce\",\"issued_at\"}) — agent_id must be did:shadow:{hash(public_key)} "
+                        "and signature an Ed25519 sig over x402/1.0:agent_id:nonce:issued_at"
                     ),
                 },
             )

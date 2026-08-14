@@ -241,8 +241,19 @@ async def _deliver(url: str, body: bytes, signature: str) -> None:
         "X-Warden-Signature":  signature,
         "User-Agent":          "ShadowWardenAI/1.1",
     }
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        resp = await client.post(url, content=body, headers=headers)
+    # SSRF guard (vuln-0001 / CWE-918): validate + IP-pin at DELIVERY time, so a
+    # URL that resolved public at registration but rebinds to a private/metadata
+    # address at send time is still blocked (mirrors the /webhooks/* sibling).
+    # A blocked target is dropped, never retried — retrying an internal address
+    # would just burn the retry budget against a host that can never succeed.
+    from warden.net_guard import SSRFError, send_pinned_async
+    try:
+        resp = await send_pinned_async(
+            "POST", url, content=body, headers=headers, timeout=_TIMEOUT,
+        )
+    except SSRFError as exc:
+        log.warning("Webhook delivery blocked by SSRF guard: url=%s reason=%s", url, exc)
+        return
     if resp.status_code >= 500:
         resp.raise_for_status()  # triggers WEBHOOK_RETRY
     log.debug("Webhook delivered to %s — HTTP %d", url, resp.status_code)

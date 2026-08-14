@@ -55,6 +55,13 @@ async def register_webhook(
     """
     store = _require_webhook_store()
     tenant_id = auth.tenant_id if auth.tenant_id != "default" else "default"
+    # SSRF guard (vuln-0001 / CWE-918): reject internal/metadata targets at
+    # registration. Delivery is pinned+revalidated again in webhook_dispatch.
+    from warden.net_guard import SSRFError, assert_public_url
+    try:
+        assert_public_url(payload.url)
+    except SSRFError as exc:
+        raise HTTPException(status_code=400, detail=f"Webhook URL rejected: {exc}") from exc
     store.register(
         tenant_id = tenant_id,
         url       = payload.url,
