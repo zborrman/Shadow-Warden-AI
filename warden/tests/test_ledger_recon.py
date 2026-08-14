@@ -241,3 +241,52 @@ class TestReadCutoverGate:
         gate = ledger_recon.read_cutover_ready()
         assert gate["ready"] is False
         assert "drifted" in gate["reason"]
+
+
+class TestLedgerGateCLI:
+    """`scripts/finops_report.py --ledger-gate` — the gate's only entry point.
+
+    Worth its own tests despite being twelve lines: the exit code *is* the
+    answer, and a reversed return would report a blocked cutover as success —
+    the same shape of silent green this whole module exists to remove.
+    """
+
+    @staticmethod
+    def _cli():
+        import importlib.util
+        import pathlib
+
+        path = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "finops_report.py"
+        spec = importlib.util.spec_from_file_location("_finops_report_cli", path)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_not_ready_exits_2(self, wired, capsys):
+        rc = self._cli()._ledger_gate(as_json=False)
+        assert rc == 2
+        assert "NOT READY" in capsys.readouterr().out
+
+    def test_ready_exits_0(self, wired, capsys):
+        credits.purchase_credits("t1", "credits_100")
+        rc = self._cli()._ledger_gate(as_json=False)
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "READY" in out and "NOT READY" not in out
+
+    def test_json_mode_emits_the_full_report(self, wired, capsys):
+        import json
+
+        credits.purchase_credits("t1", "credits_100")
+        rc = self._cli()._ledger_gate(as_json=True)
+        assert rc == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["ready"] is True
+        assert payload["credits"]["evidence"] == ledger_recon.COUNTED
+        assert payload["holds"]["evidence"] == ledger_recon.NOTHING_TO_CHECK
+
+    def test_main_routes_the_flag_to_the_gate(self, wired, monkeypatch):
+        cli = self._cli()
+        monkeypatch.setattr("sys.argv", ["finops_report.py", "--ledger-gate"])
+        assert cli.main() == 2  # nothing reconciled → blocked, not silently ok
