@@ -157,8 +157,10 @@ def _ls_request(method: str, path: str, body: dict | None = None) -> dict:
         },
         method=method,
     )
+    from warden.net_guard import assert_web_scheme
+    assert_web_scheme(url)  # block non-http(s) schemes in a tampered LS API base
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:  # nosec B310 — scheme guarded by assert_web_scheme
             return json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         body_text = exc.read().decode(errors="replace")

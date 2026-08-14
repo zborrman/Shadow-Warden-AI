@@ -163,6 +163,24 @@ def is_public_url(url: str) -> bool:
         return False
 
 
+def assert_web_scheme(url: str) -> None:
+    """Reject non-web schemes (``file://``, ``gopher://``, ``data:`` …) *without*
+    the private-IP resolution of :func:`assert_public_url`.
+
+    For outbound calls to **operator-configured** endpoints — OIDC/SAML metadata,
+    Prometheus, a billing API — that may legitimately target an internal host, so
+    the full SSRF resolve-and-validate would wrongly reject them. A stray or
+    tampered config value must still never let ``urlopen`` dereference
+    ``file:///etc/passwd``. Fail-closed: any parse error is unsafe.
+    """
+    try:
+        scheme = (urlparse(url).scheme or "").lower()
+    except Exception as exc:  # noqa: BLE001
+        raise SSRFError(f"unparseable URL: {exc}") from exc
+    if scheme not in _ALLOWED_SCHEMES:
+        raise SSRFError(f"scheme not allowed: {scheme or '(none)'}")
+
+
 # ── Connection pinning (closes the DNS-rebind / TOCTOU window) ─────────────────
 #
 # assert_public_url resolves + validates a host, but a caller that then hands the

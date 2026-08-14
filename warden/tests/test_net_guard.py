@@ -17,6 +17,7 @@ from warden import net_guard as ng
 from warden.net_guard import (
     SSRFError,
     assert_public_url,
+    assert_web_scheme,
     is_public_url,
     resolve_validated_ips,
 )
@@ -118,3 +119,35 @@ class TestIsPublicUrl:
         # No raise, and no DNS round-trip needed.
         with mock.patch("warden.net_guard._resolve_all", side_effect=AssertionError("no DNS")):
             assert_public_url("http://127.0.0.1:8001/health")
+
+
+# ── assert_web_scheme (scheme-only guard for operator-configured URLs) ──────────
+
+class TestAssertWebScheme:
+    """SR: scheme-only guard used before urlopen on config-sourced URLs (OIDC,
+    SAML metadata, Prometheus, billing). Must block file://, gopher://, data:
+    without the private-IP checks (these URLs may legitimately be internal)."""
+
+    def test_https_ok(self):
+        assert_web_scheme("https://idp.example.com/metadata")  # no raise
+
+    def test_http_ok(self):
+        assert_web_scheme("http://127.0.0.1:9090/api/v1/query")  # internal, allowed
+
+    @pytest.mark.parametrize("url", [
+        "file:///etc/passwd",
+        "gopher://127.0.0.1:6379/_INFO",
+        "data:text/plain;base64,aGk=",
+        "ftp://example.com/x",
+        "not-a-url",
+    ])
+    def test_non_web_scheme_raises(self, url):
+        with pytest.raises(SSRFError):
+            assert_web_scheme(url)
+
+    def test_does_not_resolve_private_ip(self, monkeypatch):
+        """Unlike assert_public_url, this must not do a DNS/IP check — an internal
+        host over https is fine and must not trigger a resolve."""
+        monkeypatch.setenv("NET_GUARD_ALLOW_PRIVATE", "false")
+        with mock.patch("warden.net_guard._resolve_all", side_effect=AssertionError("no DNS")):
+            assert_web_scheme("https://internal.svc.local/token")  # no raise, no DNS

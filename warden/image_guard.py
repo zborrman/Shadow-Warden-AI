@@ -46,6 +46,7 @@ import asyncio
 import base64
 import io
 import logging
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -63,6 +64,10 @@ THRESHOLD: float     = settings.image_guard_threshold
 TIMEOUT_MS: int      = settings.image_pipeline_timeout_ms
 MODEL_ID: str        = settings.image_guard_model
 CACHE_DIR: str       = settings.model_cache_dir
+# Supply-chain pin for the HF Hub download (bandit B615). Defaults to "main"
+# (behaviour-preserving); set IMAGE_GUARD_MODEL_REVISION to a commit SHA in prod
+# so a compromised upstream repo cannot swap the weights out from under a fetch.
+MODEL_REVISION: str  = os.getenv("IMAGE_GUARD_MODEL_REVISION", "main")
 MAX_BYTES: int       = settings.image_max_bytes  # 10 MB default
 
 # ── Jailbreak / safe prompt sets for zero-shot CLIP scoring ──────────────────
@@ -125,10 +130,12 @@ def _load_model():
         t0 = time.time()
         local_only = settings.transformers_offline
         processor = CLIPProcessor.from_pretrained(
-            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only
+            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only,
+            revision=MODEL_REVISION,
         )
         model = CLIPModel.from_pretrained(
-            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only
+            MODEL_ID, cache_dir=CACHE_DIR, local_files_only=local_only,
+            revision=MODEL_REVISION,
         )
         model.eval()
         log.info(
