@@ -58,16 +58,17 @@ from __future__ import annotations
 
 import logging
 
-from warden.observability import Reason, record_failopen
+from warden.observability import COUNTED, NOT_AVAILABLE, NOTHING_TO_CHECK, Reason, record_failopen
 
 _CREDIT_MICROS = 1_000  # 1 credit = $0.001 = 1000 µUSD
 
-#: A report whose subjects were genuinely reconciled.
-COUNTED = "counted"
-#: Enumeration succeeded and found no subjects — nothing to reconcile.
-NOTHING_TO_CHECK = "nothing_to_check"
-#: The check could not run: modules missing, or enumeration failed.
-NOT_AVAILABLE = "not_available"
+# The evidence vocabulary is canonical in warden.observability — re-exported
+# here because callers and tests import it from this module, and because
+# finops/order_recon.py must speak exactly the same three words.
+__all__ = [
+    "COUNTED", "NOTHING_TO_CHECK", "NOT_AVAILABLE",
+    "credit_drift", "hold_drift", "read_cutover_ready",
+]
 
 log = logging.getLogger("warden.finops.ledger_recon")
 

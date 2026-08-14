@@ -192,6 +192,30 @@ def _ledger_gate(as_json: bool) -> int:
     return 0 if gate["ready"] else 2
 
 
+def _order_gate(as_json: bool) -> int:
+    """Print the FT-6 Phase C gate. Exit 0 = ready, 2 = not ready."""
+    from warden.finops.order_recon import phase_c_ready
+
+    gate = phase_c_ready()
+    if as_json:
+        print(json.dumps(gate, indent=2, default=str))
+    else:
+        rep = gate["mirror"]
+        print(f"FT-6 order-model Phase C: {'READY' if gate['ready'] else 'NOT READY'}")
+        print(f"  {gate['reason']}")
+        print(
+            f"  evidence={rep['evidence']} compared={rep['orders_checked']} "
+            f"unreadable={rep['unreadable']} missing={rep['missing']} "
+            f"mismatched={rep['mismatched']} orphaned={rep['orphaned']}"
+        )
+        for name, sub in (rep.get("by_source") or {}).items():
+            print(
+                f"  {name:18s} evidence={sub['evidence']:<16s} "
+                f"compared={sub['orders_checked']} drifted={sub['drifted']}"
+            )
+    return 0 if gate["ready"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--compose", default=str(_REPO_ROOT / "docker-compose.yml"))
@@ -207,10 +231,16 @@ def main() -> int:
         "--ledger-gate", action="store_true",
         help="report the FT-2 read-cutover go/no-go and exit (0 = ready, 2 = not ready)",
     )
+    ap.add_argument(
+        "--order-gate", action="store_true",
+        help="report the FT-6 Phase C go/no-go and exit (0 = ready, 2 = not ready)",
+    )
     args = ap.parse_args()
 
     if args.ledger_gate:
         return _ledger_gate(args.json)
+    if args.order_gate:
+        return _order_gate(args.json)
 
     report = {
         "unit_economics": unit_economics(),

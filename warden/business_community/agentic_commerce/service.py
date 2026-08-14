@@ -28,6 +28,7 @@ from warden.business_community.agentic_commerce.ucp import UCPClient
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.commerce.service")
 
@@ -197,6 +198,7 @@ class AgenticCommerceService:
                 purchased_at=order.created_at or None,
             )
         except Exception as exc:
+            record_failopen("order_mirror_agentic_commerce", Reason.BACKEND_ERROR, exc)
             log.debug("commerce_orders -> marketplace_purchases mirror unavailable: %s", exc)
 
     # ── Public API ────────────────────────────────────────────────────────────

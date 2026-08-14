@@ -57,6 +57,21 @@ class Reason:
     UNKNOWN = "unknown"
 
 
+# ── Evidence labels for reconciliation reports ───────────────────────────────
+# A fail-soft check returns "ok" in three different situations: it verified
+# something and agreed, there was nothing to verify, and it could not run at
+# all. Collapsing those into one boolean is how the FT-2 ledger cutover gate
+# became satisfiable without checking anything (see finops/ledger_recon.py).
+# Any report a human or a gate reads should say which of the three it is.
+
+#: At least one subject was genuinely reconciled.
+COUNTED = "counted"
+#: Enumeration succeeded and found no subjects — nothing to reconcile.
+NOTHING_TO_CHECK = "nothing_to_check"
+#: The check could not run: modules missing, or a read failed.
+NOT_AVAILABLE = "not_available"
+
+
 def record_failopen(stage: str, reason: str, exc: BaseException | None = None) -> None:
     """Count + log a fail-open event. Never raises; never logs content.
 
