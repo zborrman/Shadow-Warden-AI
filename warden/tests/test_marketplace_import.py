@@ -38,17 +38,23 @@ def _uid() -> str:
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
-def engine(tmp_path):
-    """Fresh EvolutionEngine backed by a fresh temp rules file (no cross-run state)."""
-    import pathlib
+def engine(tmp_path, monkeypatch):
+    """Fresh EvolutionEngine backed by a fresh temp rules file (no cross-run state).
 
-    from warden.brain import evolve as _evolve_mod
-    orig = _evolve_mod.DYNAMIC_RULES_PATH
-    _evolve_mod.DYNAMIC_RULES_PATH = pathlib.Path(tmp_path / "test_rules.json")
+    The env var, not the module global. `EvolutionEngine.__init__` resolves
+    `Path(os.getenv("DYNAMIC_RULES_PATH", str(DYNAMIC_RULES_PATH)))` — the
+    environment wins, and conftest.py sets `DYNAMIC_RULES_PATH` for the whole
+    suite, so patching `evolve.DYNAMIC_RULES_PATH` (what this fixture used to
+    do) never took effect. Every engine wrote its `seen_hashes` into the shared
+    /tmp/warden_test_dynamic_rules.json, which `_count_existing_rules()` reloads
+    on construction: `test_inject_rule_regex_valid` injects a *constant* regex,
+    so it passed on a clean machine and was rejected as a duplicate on every
+    rerun thereafter. CI never saw it — /tmp starts empty there — so this was a
+    test that could only pass once per machine while reporting green forever.
+    """
+    monkeypatch.setenv("DYNAMIC_RULES_PATH", str(tmp_path / "test_rules.json"))
     from warden.brain.evolve import EvolutionEngine
-    eng = EvolutionEngine(semantic_guard=None)
-    yield eng
-    _evolve_mod.DYNAMIC_RULES_PATH = orig
+    return EvolutionEngine(semantic_guard=None)
 
 
 @pytest.fixture
