@@ -167,6 +167,31 @@ def render(report: dict) -> str:
     return "\n".join(out)
 
 
+def _ledger_gate(as_json: bool) -> int:
+    """Print the FT-2 read-cutover gate. Exit 0 = ready, 2 = not ready.
+
+    `read_cutover_ready()` is only useful if somebody can actually run it — the
+    reconciliation it wraps sat uncalled for two slices precisely because it had
+    no entry point. Run inside the container:
+    `docker exec shadow-warden-warden-1 python scripts/finops_report.py --ledger-gate`
+    """
+    from warden.finops.ledger_recon import read_cutover_ready
+
+    gate = read_cutover_ready()
+    if as_json:
+        print(json.dumps(gate, indent=2, default=str))
+    else:
+        verdict = "READY" if gate["ready"] else "NOT READY"
+        print(f"FT-2 ledger read-cutover: {verdict}\n  {gate['reason']}")
+        for name, key in (("credits", "tenants_checked"), ("holds", "holds_checked")):
+            rep = gate[name]
+            print(
+                f"  {name:8s} evidence={rep['evidence']:<16s} checked={rep[key]} "
+                f"unreadable={rep['unreadable']} drifted={rep['drifted']}"
+            )
+    return 0 if gate["ready"] else 2
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--compose", default=str(_REPO_ROOT / "docker-compose.yml"))
@@ -178,7 +203,14 @@ def main() -> int:
     ap.add_argument("--cv2", type=float, default=1.0,
                     help="squared coefficient of variation of service time")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument(
+        "--ledger-gate", action="store_true",
+        help="report the FT-2 read-cutover go/no-go and exit (0 = ready, 2 = not ready)",
+    )
     args = ap.parse_args()
+
+    if args.ledger_gate:
+        return _ledger_gate(args.json)
 
     report = {
         "unit_economics": unit_economics(),
