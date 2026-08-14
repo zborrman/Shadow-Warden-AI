@@ -73,33 +73,72 @@ def test_attested_build_and_deployed_build_share_a_context():
     )
 
 
-def test_compose_warden_is_still_host_built():
-    """The scope note in ci.yml claims production runs an unsigned host build.
+def test_warden_image_is_pinnable_but_defaults_to_the_host_build():
+    """warden must be pinnable to a digest *and* still buildable.
 
-    The day that stops being true — someone pins `image: ghcr.io/...@sha256:` —
-    this test fails, and the note plus `docs/security-model.md` must be updated
-    to say the running artefact IS the attested one. Failing here is good news;
-    it just must not pass silently.
+    Both halves are load-bearing:
+
+    * `build:` stays, so an unpinned deploy behaves exactly as it always has.
+      Removing it would make `PIN_SIGNED_IMAGE=false` unbootable.
+    * `image:` must be the `${WARDEN_IMAGE:-<local>}` form. A hard-coded
+      registry reference here would pin production to a tag *outside* the
+      verify step below — pulling whatever currently answers to that name, with
+      no signature check. That is strictly worse than the host build it
+      replaced, because it looks pinned.
     """
     svc = _compose_warden()
     assert re.search(r"^    build:\s*$", svc, re.M), (
-        "warden no longer builds from source — update the scope note"
+        "warden no longer builds from source — an unpinned deploy cannot boot"
     )
-    assert not re.search(r"^    image:", svc, re.M), (
-        "warden now pins an image. If it is the signed GHCR digest, production is "
-        "finally running the attested artefact — update the SCOPE comment in "
-        "ci.yml's sbom-sign job and docs/security-model.md, then update this test. "
-        "If it is anything else, that is a supply-chain regression."
+    m = re.search(r"^    image:\s*(\S+)", svc, re.M)
+    assert m, "warden lost its `image:` — the signed-digest pin no longer has a seam"
+    image = m.group(1)
+    assert image.startswith("${WARDEN_IMAGE:-"), (
+        f"warden's image is `{image}`, not the ${{WARDEN_IMAGE:-...}} form. A fixed "
+        "reference bypasses the cosign verification in the deploy job."
+    )
+    default = image[len("${WARDEN_IMAGE:-"):].rstrip("}")
+    assert "/" not in default, (
+        f"the fallback image `{default}` is a remote reference. Unpinned deploys "
+        "must fall back to the locally built image, never to an unverified pull."
+    )
+
+
+def test_the_pin_verifies_signature_and_attestation_before_deploying():
+    """Pinning without verifying is just a slower way to run an unknown image.
+
+    The deploy resolves a digest from GHCR and must check both the signature and
+    the SBOM attestation before handing it to the server, and must fail rather
+    than fall back when either is missing.
+    """
+    job = _block(_CI.read_text(encoding="utf-8"), "deploy", 2)
+    assert "cosign verify \\" in job, "the deploy no longer verifies the image signature"
+    assert "cosign verify-attestation" in job, (
+        "the deploy no longer verifies the SBOM attestation"
+    )
+    assert "vars.PIN_SIGNED_IMAGE" in job, "the pin lost its opt-in flag"
+    assert "needs: [test, lint]" in job, (
+        "deploy gained a dependency. It is deliberately not coupled to sbom-sign — "
+        "that coupling is how a merged security fix once sat undeployed."
     )
 
 
 def test_the_scope_warning_is_present_in_the_workflow():
-    """A comment is the only thing standing between a green job and a false
-    conclusion, so treat it as load-bearing."""
+    """A green job means production coverage only when the pin is on.
+
+    While `PIN_SIGNED_IMAGE` defaults to off, that distinction is the only thing
+    standing between a green `SBOM + Image Signing` and a false conclusion — so
+    the note stating it is load-bearing, not decoration.
+    """
     ci = _CI.read_text(encoding="utf-8")
-    assert "Production does not run that image" in ci, (
-        "the SBOM scope warning was removed from ci.yml — without it a green "
-        "`SBOM + Image Signing` reads as production coverage, which it is not"
+    assert "⚠️ SCOPE" in ci, "the SBOM scope warning was removed from ci.yml"
+    assert "PIN_SIGNED_IMAGE" in ci, (
+        "the scope note no longer names the flag that decides whether production "
+        "runs the attested image"
+    )
+    assert "host build of the same commit" in ci, (
+        "the scope note no longer says what ships when the pin is off — without "
+        "that, a green run reads as production coverage, which by default it is not"
     )
 
 

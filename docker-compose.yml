@@ -79,6 +79,15 @@ services:
 
   # ── WARDEN GATEWAY ─────────────────────────────────────────────────────────
   warden:
+    # Unset (the default) resolves to `shadow-warden-warden`, exactly the name
+    # compose derives on its own — so an unpinned deploy behaves as it always
+    # has and still builds from ./warden.
+    #
+    # When the deploy pins a signed GHCR digest (PIN_SIGNED_IMAGE, see ci.yml),
+    # this becomes `ghcr.io/<owner>/shadow-warden@sha256:...` and the container
+    # is pulled by content address instead of built on the host — which is what
+    # makes production run the artefact `sbom-sign` actually signed and attested.
+    image: ${WARDEN_IMAGE:-shadow-warden-warden}
     build:
       context: ./warden
       dockerfile: Dockerfile
