@@ -25,6 +25,12 @@ from warden.marketplace import x402_gate as g
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch, tmp_path):
     monkeypatch.setattr(g, "_DB_PATH", str(tmp_path / "x402.db"))
+    # These tests pin the gate's FLOW logic (replay, autonomy, balance, argument
+    # propagation) using simple agent_ids. Payer-identity signature verification
+    # is a separate concern, enforced by default and covered by
+    # test_x402_signed_identity.py — so run the flow tests in the explicit
+    # unsigned opt-out mode they were written for.
+    monkeypatch.setattr(g, "_X402_REQUIRE_SIGNED", False)
     yield
 
 
