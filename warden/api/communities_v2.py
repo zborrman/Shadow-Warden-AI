@@ -6,7 +6,7 @@ network federation, analytics, compliance, and evolution sharing.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse
@@ -108,11 +108,11 @@ class ShareRuleIn(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────
 
-def _404(what: str = "Community") -> None:
+def _404(what: str = "Community") -> NoReturn:
     raise HTTPException(status_code=404, detail=f"{what} not found")
 
 
-def _403(msg: str = "Not authorized") -> None:
+def _403(msg: str = "Not authorized") -> NoReturn:
     raise HTTPException(status_code=403, detail=msg)
 
 
@@ -154,7 +154,7 @@ def _require_role(community_id: str, auth: AuthResult, min_role: str) -> tuple[s
     role, c = _caller_role(community_id, auth.tenant_id)
     if role is None or _ROLE_RANK.get(role, -1) < _ROLE_RANK[min_role]:
         _403(f"Requires '{min_role}' role in this community")
-    return role, c  # type: ignore[return-value]
+    return role, c
 
 
 def _require_read(community_id: str, auth: AuthResult) -> Any:

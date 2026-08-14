@@ -808,20 +808,18 @@ class TestWebhookDispatchBypass:
 
     @pytest.mark.asyncio
     async def test_deliver_posts_to_endpoint(self):
+        # Delivery now goes through net_guard.send_pinned_async (validate + pin)
+        # instead of a bare httpx client (vuln-0001 SSRF fix).
         from warden.webhook_dispatch import _deliver
 
         mock_resp = mock.MagicMock()
         mock_resp.status_code = 200
         mock_resp.raise_for_status.return_value = None
 
-        mock_client = mock.AsyncMock()
-        mock_client.post.return_value = mock_resp
-        mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = mock.AsyncMock(return_value=None)
-
-        with mock.patch("httpx.AsyncClient", return_value=mock_client):
+        sender = mock.AsyncMock(return_value=mock_resp)
+        with mock.patch("warden.net_guard.send_pinned_async", new=sender):
             await _deliver("https://ex.com/h", b'{"x":1}', "sha256=abc")
-        mock_client.post.assert_called_once()
+        sender.assert_called_once()
 
 
 # ── workers/dunning.py — _slack() with SLACK_WEBHOOK_URL set (lines 40-44) ───

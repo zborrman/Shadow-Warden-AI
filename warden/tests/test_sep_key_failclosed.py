@@ -25,6 +25,10 @@ _OLD_PUBLIC_CONSTANTS = {
 @pytest.fixture
 def _prod_no_master(monkeypatch):
     """Production posture with no master key configured — resolve_key must raise."""
+    # resolve_key's explicit-override wins over the master, so an env var set in
+    # CI (e.g. SOVEREIGN_ATTEST_KEY) would short-circuit the fail-closed path.
+    for var in ("SOVEREIGN_ATTEST_KEY", "COMMUNITY_VAULT_KEY", "VAULT_MASTER_KEY"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(sk, "_master_secret", lambda: "")
     monkeypatch.setattr(sk, "_dev_mode", lambda: False)
 
