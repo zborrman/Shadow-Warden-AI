@@ -197,7 +197,11 @@ class _JsonFormatter(logging.Formatter):
 
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
-        return json.dumps(payload, ensure_ascii=False)
+        # `default=str` so one non-serializable value in `extra` degrades that
+        # field to its repr instead of raising and losing the entire log line —
+        # losing the line is how an error disappears at exactly the moment
+        # somebody is trying to read it.
+        return json.dumps(payload, ensure_ascii=False, default=str)
 
 
 def _configure_json_logging() -> None:
@@ -1334,7 +1338,7 @@ if _PROMETHEUS_ENABLED:
         excluded_handlers=_METRICS_EXCLUDED_HANDLERS,
     ).add(
         _pfi_metrics.default(latency_lowr_buckets=_LATENCY_BUCKETS)
-    ).instrument(app).expose(app, endpoint="/metrics")
+    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 # /openapi.json, /openapi-public.json, /docs, /redoc extracted to
 # warden/api/docs_router.py (P-2). _docs_auth and its DOCS_USERNAME/

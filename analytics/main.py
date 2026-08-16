@@ -83,7 +83,7 @@ app.add_middleware(
 try:
     from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
 
-    _Instrumentator(excluded_handlers=["/metrics", "/health"]).instrument(app).expose(
+    _Instrumentator(excluded_handlers=[r"^/metrics$", r"^/health(/.*)?$"]).instrument(app).expose(
         app, endpoint="/metrics", include_in_schema=False
     )
 except Exception as _exc:                          # pragma: no cover - defensive
