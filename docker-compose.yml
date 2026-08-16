@@ -803,13 +803,22 @@ services:
       start_period: 15s
 
   # ── GRAFANA ─────────────────────────────────────────────────────────────────
-  # Pinned (OB-7). `:latest` had already drifted to 12.4.1 — two majors past the
-  # "version": "10.0.0" the dashboards' own __requires blocks claimed. A Grafana
-  # major can change alert-provisioning schema, and CI autodeploy runs
-  # `docker compose up` on every merge to main, so a floating tag means the
-  # alerting layer can be rewritten by a pull nobody reviewed. Bump deliberately.
+  # Pinned (OB-7, corrected). A floating tag lets a Grafana major rewrite the
+  # alert-provisioning schema during a `docker compose up` nobody reviewed, so
+  # the pin is right — but the FIRST pin was wrong and took Grafana down.
+  #
+  # 12.4.1 was read off the local dev stack, which turned out to be the stale
+  # checkout. Production's `:latest` had already pulled **13.1.3**, so pinning
+  # "the version verified running" was a five-month downgrade across a major,
+  # against a grafana.db already migrated by 13.x. It crash-looped on
+  #   no kind "Folder" is registered for version "folder.grafana.app/v1"
+  # because 12.4.1 cannot read 13.x's unified-storage folder state.
+  #
+  # Verify a pin against the environment it will run in, not the one nearest to
+  # hand. Bump deliberately, and check `docker images grafana/grafana` on the
+  # target host first.
   grafana:
-    image: grafana/grafana:12.4.1
+    image: grafana/grafana:13.1.3
     container_name: warden-grafana
     restart: unless-stopped
     logging:
