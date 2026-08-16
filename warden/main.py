@@ -130,6 +130,46 @@ from warden.xai.explainer import explain as _xai_explain
 
 # ── Structured JSON logging ───────────────────────────────────────────────────
 
+#: Correlation fields lifted off the LogRecord when a caller supplied them via
+#: `logging.info(..., extra={"request_id": rid})`. Metadata only — never content.
+#: `risk_level` and `request_id` are here because grafana/promtail.yml has been
+#: parsing for them since it was written, against a formatter that emitted
+#: neither (OB-F11): the Loki `risk_level` label an operator would filter on was
+#: always empty, and the extraction was a no-op.
+_LOG_EXTRA_FIELDS = ("request_id", "tenant_id", "risk_level", "session_id")
+
+
+def _active_trace_ids() -> tuple[str | None, str | None]:
+    """(trace_id, span_id) of the active OTel span as hex, or (None, None).
+
+    Self-populating: no caller has to thread anything through, so every log line
+    emitted inside a traced request carries the join key to its trace. This is
+    what makes a Loki derived field able to link a log line to Jaeger — before
+    OB-9 nothing in a log record and nothing in a span shared a value, so logs
+    and traces could not be joined at all.
+
+    Never raises, in any direction: OTel is opt-in (OTEL_ENABLED=false by
+    default) and telemetry must never be able to break logging. This is log
+    enrichment, not a security guard — nothing is bypassed when it returns
+    empty, the line simply carries no trace link. The isinstance guards matter
+    because a mocked span sets these to non-ints (see Rule.md / _span_meta).
+    """
+    try:
+        from opentelemetry import trace as _otel_trace
+
+        ctx = _otel_trace.get_current_span().get_span_context()
+        tid = getattr(ctx, "trace_id", None)
+        sid = getattr(ctx, "span_id", None)
+        if isinstance(tid, int) and tid:
+            return (
+                format(tid, "032x"),
+                format(sid, "016x") if isinstance(sid, int) and sid else None,
+            )
+    except Exception:  # noqa: BLE001 - logging must survive any telemetry fault
+        pass
+    return None, None
+
+
 class _JsonFormatter(logging.Formatter):
     """Emit each log record as a single JSON line."""
 
@@ -140,6 +180,21 @@ class _JsonFormatter(logging.Formatter):
             "logger":  record.name,
             "message": record.getMessage(),
         }
+
+        # ── OB-9 correlation keys ────────────────────────────────────────────
+        # Emitted only when present, so a line never gains a null field. GDPR:
+        # these are identifiers and metadata, never prompt content, decoded
+        # text or PII — the content-is-never-logged rule is unchanged.
+        trace_id, span_id = _active_trace_ids()
+        if trace_id:
+            payload["trace_id"] = trace_id
+            if span_id:
+                payload["span_id"] = span_id
+        for field in _LOG_EXTRA_FIELDS:
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
+
         if record.exc_info:
             payload["exc"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
@@ -163,10 +218,43 @@ log = logging.getLogger("warden.gateway")
 
 try:
     from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
+    from prometheus_fastapi_instrumentator import metrics as _pfi_metrics
     _PROMETHEUS_ENABLED = os.getenv("PROMETHEUS_METRICS_ENABLED", "true").lower() != "false"
 except ImportError:
     _PROMETHEUS_ENABLED = False
     log.warning("prometheus-fastapi-instrumentator not installed — /metrics disabled.")
+
+# ── OB-5: latency buckets that can express the SLO we sell ───────────────────
+# The library ships latency_lowr_buckets=(0.1, 0.5, 1) for the per-handler
+# histogram http_request_duration_seconds. docs/sla.md commits to **P99 < 50 ms**
+# on /filter — so every observation landed in the first bucket and
+# histogram_quantile could only interpolate inside [0, 0.1]. The P95/P99 panels
+# and the 500 ms latency alert were reporting a number the histogram had no
+# resolution to produce. (The library's fine-grained companion,
+# http_request_duration_highr_seconds, carries no `handler` label, so it cannot
+# answer "how fast is /filter" either.)
+#
+# These edges bracket the SLO — five of them below 100 ms — and keep the coarse
+# tail so a genuinely slow request is still visible.
+#
+# Changing bucket edges starts a NEW time series: historical
+# http_request_duration_seconds_bucket data is not comparable across this
+# change, and the burn-rate alerts should be re-checked against real numbers
+# once a full window has elapsed.
+_LATENCY_BUCKETS = (
+    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1.0, 2.5, float("inf"),
+)
+
+# Anchored on purpose. `excluded_handlers` entries are regexes matched with
+# re.search, so a bare "/health" would also exclude /gsam/health, /soc/health,
+# /business-intelligence/health and 15 other real operator endpoints.
+# Only the gateway's own liveness route and the scrape endpoint are dropped:
+# the compose healthcheck polls /health every 30s and Prometheus polls /metrics
+# every 15s, and counting that synthetic traffic inflates the denominator that
+# the availability and burn-rate alerts divide by — on a quiet gateway it is
+# most of the "traffic", which makes the measured error ratio look far better
+# than it is.
+_METRICS_EXCLUDED_HANDLERS = [r"^/metrics$", r"^/health(/.*)?$"]
 
 # API docs auth (_docs_auth, DOCS_USERNAME/DOCS_PASSWORD) moved to
 # warden/api/docs_router.py (P-2) with the four routes that used it.
@@ -1236,7 +1324,17 @@ except Exception as _exc:  # noqa: BLE001
     log.debug("suppressed exception: %r", _exc)
 
 if _PROMETHEUS_ENABLED:
-    _Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+    # .add(metrics.default(...)) rather than a bare .add(metrics.latency(...)):
+    # default() is what produces http_requests_total, the request/response size
+    # histograms and both latency metrics. Adding only a latency instrumentation
+    # would replace that whole set and silently delete http_requests_total —
+    # which every dashboard panel, the error-rate alert, the availability SLO and
+    # all four burn-rate rules are built on.
+    _Instrumentator(
+        excluded_handlers=_METRICS_EXCLUDED_HANDLERS,
+    ).add(
+        _pfi_metrics.default(latency_lowr_buckets=_LATENCY_BUCKETS)
+    ).instrument(app).expose(app, endpoint="/metrics")
 
 # /openapi.json, /openapi-public.json, /docs, /redoc extracted to
 # warden/api/docs_router.py (P-2). _docs_auth and its DOCS_USERNAME/

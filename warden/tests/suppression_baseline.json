@@ -1,6 +1,6 @@
 {
-  "type_ignore": 223,
-  "noqa": 830,
+  "type_ignore": 226,
+  "noqa": 831,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 0,
@@ -68,10 +68,10 @@
     },
     "main.py": {
       "type_ignore": 2,
-      "noqa": 88
+      "noqa": 90
     },
     "metrics.py": {
-      "type_ignore": 122,
+      "type_ignore": 135,
       "noqa": 1
     },
     "mtls.py": {
@@ -116,7 +116,7 @@
     },
     "stripe_billing.py": {
       "type_ignore": 0,
-      "noqa": 10
+      "noqa": 11
     },
     "taint_tracker.py": {
       "type_ignore": 0,
@@ -172,11 +172,7 @@
     },
     "agent/scheduler.py": {
       "type_ignore": 2,
-      "noqa": 27
-    },
-    "agent/sova.py": {
-      "type_ignore": 3,
-      "noqa": 0
+      "noqa": 28
     },
     "agent/tools.py": {
       "type_ignore": 2,
@@ -187,7 +183,7 @@
       "noqa": 2
     },
     "analytics/logger.py": {
-      "type_ignore": 1,
+      "type_ignore": 2,
       "noqa": 0
     },
     "analytics/report.py": {
@@ -200,11 +196,11 @@
     },
     "api/agent.py": {
       "type_ignore": 0,
-      "noqa": 11
+      "noqa": 12
     },
     "api/billing_audit.py": {
       "type_ignore": 0,
-      "noqa": 5
+      "noqa": 6
     },
     "api/communities_v2.py": {
       "type_ignore": 0,
@@ -232,7 +228,7 @@
     },
     "api/gdpr.py": {
       "type_ignore": 0,
-      "noqa": 12
+      "noqa": 13
     },
     "api/kya.py": {
       "type_ignore": 0,
@@ -322,25 +318,21 @@
       "type_ignore": 1,
       "noqa": 0
     },
-    "auth/saml.py": {
-      "type_ignore": 0,
-      "noqa": 4
-    },
     "auth/saml_provider.py": {
       "type_ignore": 0,
       "noqa": 1
     },
     "backup/service.py": {
       "type_ignore": 0,
-      "noqa": 5
+      "noqa": 7
     },
     "billing/audit_chain.py": {
-      "type_ignore": 1,
-      "noqa": 7
+      "type_ignore": 0,
+      "noqa": 6
     },
     "billing/quota_middleware.py": {
       "type_ignore": 0,
-      "noqa": 3
+      "noqa": 4
     },
     "billing/router.py": {
       "type_ignore": 0,
@@ -446,10 +438,6 @@
       "type_ignore": 3,
       "noqa": 4
     },
-    "communities/sep.py": {
-      "type_ignore": 1,
-      "noqa": 1
-    },
     "communities/training_records.py": {
       "type_ignore": 0,
       "noqa": 1
@@ -461,10 +449,6 @@
     "compliance/bundler.py": {
       "type_ignore": 0,
       "noqa": 1
-    },
-    "compliance/dashboard.py": {
-      "type_ignore": 0,
-      "noqa": 2
     },
     "compliance/evidence_bundle.py": {
       "type_ignore": 0,
@@ -486,6 +470,10 @@
       "type_ignore": 0,
       "noqa": 1
     },
+    "compliance/soc2_collector.py": {
+      "type_ignore": 0,
+      "noqa": 2
+    },
     "crypto/hsm.py": {
       "type_ignore": 4,
       "noqa": 4
@@ -493,6 +481,10 @@
     "crypto/pqc.py": {
       "type_ignore": 0,
       "noqa": 2
+    },
+    "db/connect.py": {
+      "type_ignore": 0,
+      "noqa": 1
     },
     "db/ddl_registry.py": {
       "type_ignore": 0,
@@ -522,17 +514,17 @@
       "type_ignore": 1,
       "noqa": 0
     },
-    "gsam/jit_lease.py": {
+    "finops/llm_budget.py": {
       "type_ignore": 1,
       "noqa": 0
     },
-    "gsam/quarantine.py": {
-      "type_ignore": 1,
-      "noqa": 1
+    "finops/margin.py": {
+      "type_ignore": 0,
+      "noqa": 2
     },
     "gsam/rollup.py": {
-      "type_ignore": 1,
-      "noqa": 3
+      "type_ignore": 0,
+      "noqa": 2
     },
     "guards/__init__.py": {
       "type_ignore": 0,
@@ -544,11 +536,15 @@
     },
     "integrations/misp_bridge.py": {
       "type_ignore": 0,
-      "noqa": 6
+      "noqa": 5
     },
     "integrations/nemo_bridge.py": {
       "type_ignore": 1,
       "noqa": 0
+    },
+    "integrations/smb_suite.py": {
+      "type_ignore": 0,
+      "noqa": 1
     },
     "integrations/taxii.py": {
       "type_ignore": 0,
@@ -557,10 +553,6 @@
     "kya/did.py": {
       "type_ignore": 0,
       "noqa": 3
-    },
-    "kya/profile.py": {
-      "type_ignore": 1,
-      "noqa": 1
     },
     "m2m_store/api.py": {
       "type_ignore": 1,
@@ -580,7 +572,11 @@
     },
     "marketplace/api.py": {
       "type_ignore": 1,
-      "noqa": 28
+      "noqa": 27
+    },
+    "marketplace/api_escrow.py": {
+      "type_ignore": 0,
+      "noqa": 1
     },
     "marketplace/api_listings.py": {
       "type_ignore": 0,
@@ -589,6 +585,10 @@
     "marketplace/api_maestro.py": {
       "type_ignore": 5,
       "noqa": 0
+    },
+    "marketplace/autonomy.py": {
+      "type_ignore": 0,
+      "noqa": 2
     },
     "marketplace/brand_agent.py": {
       "type_ignore": 1,
@@ -620,7 +620,7 @@
     },
     "marketplace/listing.py": {
       "type_ignore": 0,
-      "noqa": 5
+      "noqa": 6
     },
     "marketplace/maestro.py": {
       "type_ignore": 0,
@@ -660,15 +660,11 @@
     },
     "payments/l402.py": {
       "type_ignore": 0,
-      "noqa": 6
+      "noqa": 5
     },
     "payments/usdc.py": {
       "type_ignore": 0,
       "noqa": 2
-    },
-    "sac/preflight.py": {
-      "type_ignore": 1,
-      "noqa": 0
     },
     "sdk/otel.py": {
       "type_ignore": 0,
@@ -719,8 +715,8 @@
       "noqa": 1
     },
     "staff/a2a.py": {
-      "type_ignore": 1,
-      "noqa": 9
+      "type_ignore": 0,
+      "noqa": 8
     },
     "staff/boundaries.py": {
       "type_ignore": 0,
@@ -731,8 +727,8 @@
       "noqa": 2
     },
     "staff/economics.py": {
-      "type_ignore": 1,
-      "noqa": 7
+      "type_ignore": 0,
+      "noqa": 5
     },
     "staff/structured_log.py": {
       "type_ignore": 0,
@@ -816,7 +812,7 @@
     },
     "webhooks/engine.py": {
       "type_ignore": 0,
-      "noqa": 5
+      "noqa": 4
     },
     "whitelabel/config.py": {
       "type_ignore": 0,
@@ -846,17 +842,13 @@
       "type_ignore": 2,
       "noqa": 18
     },
-    "staff/tools/compliance_kyc.py": {
-      "type_ignore": 0,
-      "noqa": 1
-    },
-    "staff/tools/growth.py": {
-      "type_ignore": 0,
-      "noqa": 1
-    },
     "staff/tools/support.py": {
       "type_ignore": 0,
       "noqa": 5
+    },
+    "staff/tools/_prescreen.py": {
+      "type_ignore": 0,
+      "noqa": 2
     },
     "protocols/acp/checkout.py": {
       "type_ignore": 0,
@@ -866,11 +858,11 @@
       "type_ignore": 0,
       "noqa": 2
     },
-    "protocols/acp/token_vault.py": {
-      "type_ignore": 1,
-      "noqa": 1
-    },
     "integrations/obsidian/note_scanner.py": {
+      "type_ignore": 1,
+      "noqa": 0
+    },
+    "business_community/agentic_commerce/mcp_bridge.py": {
       "type_ignore": 1,
       "noqa": 0
     },

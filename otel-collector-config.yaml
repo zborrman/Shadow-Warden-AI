@@ -51,3 +51,15 @@ service:
   telemetry:
     logs:
       level: warn
+
+    # OB-4: expose the collector's own metrics so the trace pipeline is
+    # observable. otelcol_exporter_send_failed_spans and
+    # otelcol_processor_dropped_spans are the two that matter — a collector
+    # silently dropping spans is otherwise indistinguishable from an
+    # application that stopped emitting them.
+    #
+    # 0.0.0.0 is required: the default binds loopback inside the container,
+    # where Prometheus cannot reach it. Not published to the host.
+    metrics:
+      level: normal
+      address: 0.0.0.0:8888

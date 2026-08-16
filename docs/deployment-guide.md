@@ -2246,12 +2246,27 @@ CI auto-deploys to the VPS on every push to main via the `deploy` GitHub Actions
 
 ### 24.8 Monitoring
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Grafana | `http://<server>:3001` | `GRAFANA_USER` / `GRAFANA_PASSWORD` |
-| Jaeger tracing | `http://<server>:16686` | none |
-| MinIO console | `http://<server>:9091` | `S3_ACCESS_KEY` / `S3_SECRET_KEY` |
+All four are bound to `127.0.0.1` (OB-7). None is reachable on the public
+origin IP, because Cloudflare's WAF and rate limits are bypassed by any request
+sent straight to it — an internal surface published there is outside the entire
+edge posture. Open a tunnel first:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 -L 16686:127.0.0.1:16686 -L 9091:127.0.0.1:9091 root@<server>
+```
+
+| Service | URL (through the tunnel) | Credentials |
+|---------|--------------------------|-------------|
+| Grafana | `http://127.0.0.1:3001` | `GRAFANA_USER` / `GRAFANA_PASSWORD` |
+| Jaeger tracing | `http://127.0.0.1:16686` | none — never expose this |
+| MinIO console | `http://127.0.0.1:9091` | `S3_ACCESS_KEY` / `S3_SECRET_KEY` |
 | Prometheus | internal only (`:9090`) | none |
+
+`GRAFANA_PASSWORD` is **required**: `docker-compose.yml` declares it as
+`${GRAFANA_PASSWORD:?...}`, so the whole stack refuses to start without it.
+Set it in the host `.env` before deploying. Grafana applies it on first boot
+only; to rotate an existing install use
+`docker exec -it warden-grafana grafana cli admin reset-admin-password '<new>'`.
 
 Enable tracing: set `OTEL_ENABLED=true` in `.env` and restart warden.
 
@@ -2265,7 +2280,7 @@ Three new dashboards are automatically loaded from `grafana/dashboards/` on Graf
 | Compliance Posture | `sw-compliance` | Shadow Warden | Overall score gauge, per-framework scores (GDPR/SOC2/ISO27001/HIPAA), open gaps timeline |
 | Community Hub | `sw-community` | Shadow Warden | Active communities, members, peering connections, SEP transfer rate, document scan rate |
 
-Access them at `http://<server>:3001/dashboards` → folder "Shadow Warden".
+Access them at `http://127.0.0.1:3001/dashboards` (through the tunnel above) → folder "Shadow Warden".
 
 #### Prometheus Metrics Added (v5.6)
 

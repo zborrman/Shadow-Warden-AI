@@ -1,10 +1,7 @@
 {
-  "__inputs": [],
-  "__requires": [
-    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
-    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"}
-  ],
-  "annotations": {"list": []},
+  "annotations": {
+    "list": []
+  },
   "description": "Shadow Warden AI — Gateway metrics overview",
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -13,612 +10,1952 @@
   "links": [],
   "panels": [
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [
-          {"color": "green", "value": null},
-          {"color": "yellow", "value": 10},
-          {"color": "red", "value": 50}
-        ]}},
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
+        },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Requests / min",
       "type": "stat",
-      "targets": [{"expr": "round(sum(rate(http_requests_total{job=\"warden-gateway\"}[1m])) * 60, 1)", "legendFormat": "req/min", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "round(sum(rate(http_requests_total{job=\"warden\"}[1m])) * 60, 1)",
+          "legendFormat": "req/min",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "thresholds"}, "unit": "percentunit", "thresholds": {"mode": "absolute", "steps": [
-          {"color": "green", "value": null},
-          {"color": "yellow", "value": 0.05},
-          {"color": "red", "value": 0.20}
-        ]}},
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.05
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          }
+        },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
       "id": 2,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Block Rate",
       "type": "stat",
-      "targets": [{"expr": "sum(rate(http_requests_total{job=\"warden-gateway\",status=~\"4..\"}[5m])) / sum(rate(http_requests_total{job=\"warden-gateway\"}[5m]))", "legendFormat": "block rate", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{job=\"warden\",status=~\"4..\"}[5m])) / sum(rate(http_requests_total{job=\"warden\"}[5m]))",
+          "legendFormat": "block rate",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "thresholds"}, "unit": "ms", "thresholds": {"mode": "absolute", "steps": [
-          {"color": "green", "value": null},
-          {"color": "yellow", "value": 100},
-          {"color": "red", "value": 500}
-        ]}},
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
+        },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
       "id": 3,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "p95 Latency",
       "type": "stat",
-      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p95 ms", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"warden\",handler=\"/filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p95 ms",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "short"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "id": 4,
-      "options": {"legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
       "title": "Request Rate — /filter",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum(rate(http_requests_total{job=\"warden-gateway\",handler=\"/filter\",status=~\"2..\"}[1m]))", "legendFormat": "allowed", "refId": "A"},
-        {"expr": "sum(rate(http_requests_total{job=\"warden-gateway\",handler=\"/filter\",status=~\"4..\"}[1m]))", "legendFormat": "blocked", "refId": "B"}
+        {
+          "expr": "sum(rate(http_requests_total{job=\"warden\",handler=\"/filter\",status=~\"2..\"}[1m]))",
+          "legendFormat": "allowed",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{job=\"warden\",handler=\"/filter\",status=~\"4..\"}[1m]))",
+          "legendFormat": "blocked",
+          "refId": "B"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "ms"}, "overrides": []},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "id": 5,
-      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Latency Percentiles — /filter",
       "type": "timeseries",
       "targets": [
-        {"expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p50", "refId": "A"},
-        {"expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p95", "refId": "B"},
-        {"expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"warden-gateway\",handler=\"/filter\"}[5m])) by (le)) * 1000", "legendFormat": "p99", "refId": "C"}
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"warden\",handler=\"/filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"warden\",handler=\"/filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"warden\",handler=\"/filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 100},
-            {"color": "red", "value": 1000}
-          ]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 12},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
       "id": 6,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Tool Blocks — Incoming Results (Phase A)",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"result\"}[24h]))", "legendFormat": "blocked results", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_tool_blocks_total{direction=\"result\"}[24h]))",
+          "legendFormat": "blocked results",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 50},
-            {"color": "red", "value": 500}
-          ]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 12},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 12
+      },
       "id": 7,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Tool Blocks — Outgoing Calls (Phase B)",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_tool_blocks_total{direction=\"call\"}[24h]))", "legendFormat": "blocked calls", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_tool_blocks_total{direction=\"call\"}[24h]))",
+          "legendFormat": "blocked calls",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
       "id": 8,
-      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Tool Blocks by Threat Type",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum by (threat) (increase(warden_tool_blocks_total[5m]))", "legendFormat": "{{threat}}", "refId": "A"}
+        {
+          "expr": "sum by (threat) (increase(warden_tool_blocks_total[5m]))",
+          "legendFormat": "{{threat}}",
+          "refId": "A"
+        }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
       "id": 20,
       "title": "Resilience Events",
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 1},
-            {"color": "red", "value": 10}
-          ]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 21},
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 21
+      },
       "id": 21,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Fail-open Bypasses (24h)",
       "description": "Pipeline timeout events where WARDEN_FAIL_STRATEGY=open allowed the request through. Any non-zero value warrants investigation.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_filter_bypasses_total[24h])) or vector(0)", "legendFormat": "bypasses", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_filter_bypasses_total[24h])) or vector(0)",
+          "legendFormat": "bypasses",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 20},
-            {"color": "red", "value": 100}
-          ]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 21},
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 21
+      },
       "id": 22,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "ML Gray-zone (24h)",
       "description": "Requests where ML score fell in [uncertainty_lower_threshold, semantic_threshold). These are suspicious but not blocked — review if rate is high.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_filter_uncertain_total[24h])) or vector(0)", "legendFormat": "uncertain", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_filter_uncertain_total[24h])) or vector(0)",
+          "legendFormat": "uncertain",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "blue", "value": null}
-          ]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 21},
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 21
+      },
       "id": 23,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Honeytrap Hits (24h)",
       "description": "Attackers served a deceptive honey-response by HoneyEngine. High values indicate active adversarial probing.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_filter_honeytrap_total[24h])) or vector(0)", "legendFormat": "honeytraps", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_filter_honeytrap_total[24h])) or vector(0)",
+          "legendFormat": "honeytraps",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": [
-          {"matcher": {"id": "byName", "options": "bypasses"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "uncertain"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "honeytraps"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]}
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "bypasses"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "uncertain"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "honeytraps"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
       "id": 24,
-      "options": {"legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Resilience Events / min",
       "description": "Rate of bypass, gray-zone, and honeytrap events. Spike in bypasses = pipeline overload. Sustained uncertain rate = tune thresholds.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum(rate(warden_filter_bypasses_total[1m])) * 60", "legendFormat": "bypasses", "refId": "A"},
-        {"expr": "sum(rate(warden_filter_uncertain_total[1m])) * 60", "legendFormat": "uncertain", "refId": "B"},
-        {"expr": "sum(rate(warden_filter_honeytrap_total[1m])) * 60", "legendFormat": "honeytraps", "refId": "C"}
+        {
+          "expr": "sum(rate(warden_filter_bypasses_total[1m])) * 60",
+          "legendFormat": "bypasses",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(warden_filter_uncertain_total[1m])) * 60",
+          "legendFormat": "uncertain",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(warden_filter_honeytrap_total[1m])) * 60",
+          "legendFormat": "honeytraps",
+          "refId": "C"
+        }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
       "id": 30,
       "title": "Global Threat Intelligence — v1.3",
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 1},
-            {"color": "red", "value": 10}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 34},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 34
+      },
       "id": 31,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Rules Published (24h)",
       "description": "New attack rules generated by EvolutionEngine on this node and published to the global threat stream for other regions to consume.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_sync_rules_published_total[24h])) or vector(0)", "legendFormat": "published", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_sync_rules_published_total[24h])) or vector(0)",
+          "legendFormat": "published",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "blue", "value": null}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 34},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 34
+      },
       "id": 32,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Rules Applied from Remote (24h)",
       "description": "Attack rules received from other regions (USA/EU/Dubai) and hot-loaded into local MiniLM corpus. Non-zero = cross-region learning active.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_sync_rules_applied_total[24h])) or vector(0)", "legendFormat": "applied", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_sync_rules_applied_total[24h])) or vector(0)",
+          "legendFormat": "applied",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 1},
-            {"color": "red", "value": 5}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 34},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 34
+      },
       "id": 33,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "IPs Blocked Globally (24h)",
       "description": "IP addresses added to the cross-region Redis ZSET blocklist. Once blocked here, all regions enforce the ban within seconds.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_sync_blocks_propagated_total[24h])) or vector(0)", "legendFormat": "blocked", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_sync_blocks_propagated_total[24h])) or vector(0)",
+          "legendFormat": "blocked",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "blue", "value": null}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 34},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 34
+      },
       "id": 34,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Corpus Syncs (24h)",
       "description": "MiniLM corpus snapshots downloaded from S3 and hot-reloaded after a remote region extended its corpus via EvolutionEngine.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_sync_corpus_downloads_total[24h])) or vector(0)", "legendFormat": "downloads", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_sync_corpus_downloads_total[24h])) or vector(0)",
+          "legendFormat": "downloads",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": [
-          {"matcher": {"id": "byName", "options": "rules published"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "rules applied"}, "properties": [{"id": "color", "value": {"fixedColor": "blue", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "blocks propagated"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "blocks applied"}, "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]}
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rules published"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rules applied"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "blocks propagated"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "blocks applied"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 38},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
       "id": 35,
-      "options": {"legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Global Sync Activity / min",
       "description": "Real-time rate of cross-region events. rules published = this node learning; rules applied = receiving from peers; blocks propagated/applied = IP blocklist sync.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum(rate(warden_sync_rules_published_total[1m])) * 60", "legendFormat": "rules published", "refId": "A"},
-        {"expr": "sum(rate(warden_sync_rules_applied_total[1m])) * 60", "legendFormat": "rules applied", "refId": "B"},
-        {"expr": "sum(rate(warden_sync_blocks_propagated_total[1m])) * 60", "legendFormat": "blocks propagated", "refId": "C"},
-        {"expr": "sum(rate(warden_sync_blocks_applied_total[1m])) * 60", "legendFormat": "blocks applied", "refId": "D"}
+        {
+          "expr": "sum(rate(warden_sync_rules_published_total[1m])) * 60",
+          "legendFormat": "rules published",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(warden_sync_rules_applied_total[1m])) * 60",
+          "legendFormat": "rules applied",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(warden_sync_blocks_propagated_total[1m])) * 60",
+          "legendFormat": "blocks propagated",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(warden_sync_blocks_applied_total[1m])) * 60",
+          "legendFormat": "blocks applied",
+          "refId": "D"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 38},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
       "id": 36,
-      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Rules Applied by Source Region",
       "description": "Which regions are sharing threat intelligence with this node. A flat line for a region = stream lag or that node has no new attacks.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum by (source_region) (increase(warden_sync_rules_applied_total[5m]))", "legendFormat": "from {{source_region}}", "refId": "A"},
-        {"expr": "sum by (source_region) (increase(warden_sync_blocks_applied_total[5m]))", "legendFormat": "blocks from {{source_region}}", "refId": "B"}
+        {
+          "expr": "sum by (source_region) (increase(warden_sync_rules_applied_total[5m]))",
+          "legendFormat": "from {{source_region}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (source_region) (increase(warden_sync_blocks_applied_total[5m]))",
+          "legendFormat": "blocks from {{source_region}}",
+          "refId": "B"
+        }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 47},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
       "id": 40,
       "title": "Multi-Modal Guard — v1.4",
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 48},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 48
+      },
       "id": 41,
-      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
       "title": "Visual Jailbreaks Blocked",
       "description": "CLIP-detected jailbreak text in images.",
       "type": "stat",
       "targets": [
-        {"expr": "sum(increase(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+        {
+          "expr": "sum(increase(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1h])) or vector(0)",
+          "legendFormat": "last 1h",
+          "refId": "A"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 48},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 48
+      },
       "id": 42,
-      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
       "title": "PII Detected in Images",
       "description": "GDPR: image not forwarded to LLM when PII found.",
       "type": "stat",
       "targets": [
-        {"expr": "sum(increase(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+        {
+          "expr": "sum(increase(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1h])) or vector(0)",
+          "legendFormat": "last 1h",
+          "refId": "A"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 48},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 48
+      },
       "id": 43,
-      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
       "title": "Audio Injections Blocked",
       "description": "Whisper + ultrasound detected hidden commands in audio.",
       "type": "stat",
       "targets": [
-        {"expr": "sum(increase(warden_audio_guard_blocks_total[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+        {
+          "expr": "sum(increase(warden_audio_guard_blocks_total[1h])) or vector(0)",
+          "legendFormat": "last 1h",
+          "refId": "A"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "short", "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 48},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 48
+      },
       "id": 44,
-      "options": {"reduceOptions": {"calcs": ["sum"]}, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "area", "justifyMode": "auto"},
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ]
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
       "title": "Multimodal Requests",
       "description": "Total POST /filter/multimodal calls.",
       "type": "stat",
       "targets": [
-        {"expr": "sum(increase(warden_multimodal_requests_total[1h])) or vector(0)", "legendFormat": "last 1h", "refId": "A"}
+        {
+          "expr": "sum(increase(warden_multimodal_requests_total[1h])) or vector(0)",
+          "legendFormat": "last 1h",
+          "refId": "A"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
       "id": 45,
-      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Multi-Modal Blocks / min",
       "description": "Visual jailbreaks, PII in images, audio injections, and ultrasound detections over time.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum(rate(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1m])) * 60", "legendFormat": "visual jailbreak", "refId": "A"},
-        {"expr": "sum(rate(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1m])) * 60", "legendFormat": "image PII", "refId": "B"},
-        {"expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"semantic_injection\"}[1m])) * 60", "legendFormat": "audio injection", "refId": "C"},
-        {"expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"ultrasound\"}[1m])) * 60", "legendFormat": "ultrasound", "refId": "D"}
+        {
+          "expr": "sum(rate(warden_image_guard_blocks_total{reason=\"visual_jailbreak\"}[1m])) * 60",
+          "legendFormat": "visual jailbreak",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(warden_image_guard_blocks_total{reason=\"pii_detected\"}[1m])) * 60",
+          "legendFormat": "image PII",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"semantic_injection\"}[1m])) * 60",
+          "legendFormat": "audio injection",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(warden_audio_guard_blocks_total{reason=\"ultrasound\"}[1m])) * 60",
+          "legendFormat": "ultrasound",
+          "refId": "D"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 52},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
       "id": 46,
-      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Multimodal Requests by Modality",
       "description": "Breakdown of /filter/multimodal calls by modality combination (text, image, audio, image+audio, etc).",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum by (modalities) (rate(warden_multimodal_requests_total[5m])) * 60", "legendFormat": "{{modalities}}", "refId": "A"}
+        {
+          "expr": "sum by (modalities) (rate(warden_multimodal_requests_total[5m])) * 60",
+          "legendFormat": "{{modalities}}",
+          "refId": "A"
+        }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 60},
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
       "id": 50,
       "title": "Agent Security & Compliance — v1.7/v1.8",
       "type": "row"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "yellow", "value": 10},
-            {"color": "red", "value": 50}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 61},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 61
+      },
       "id": 51,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Active Agent Sessions",
       "description": "Sessions currently active within the TTL window (AGENT_SESSION_TTL seconds).",
       "type": "stat",
-      "targets": [{"expr": "warden_agent_sessions_active or vector(0)", "legendFormat": "active", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "warden_agent_sessions_active or vector(0)",
+          "legendFormat": "active",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "red", "value": 1}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 61},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 61
+      },
       "id": 52,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Sessions Revoked (24h)",
       "description": "Agent sessions terminated via DELETE /api/agent/session (kill-switch). Any non-zero value indicates a confirmed or suspected compromise.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_agent_sessions_revoked_total[24h])) or vector(0)", "legendFormat": "revoked", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_agent_sessions_revoked_total[24h])) or vector(0)",
+          "legendFormat": "revoked",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "orange", "value": 1},
-            {"color": "red", "value": 10}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 61},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 61
+      },
       "id": 53,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "Sandbox Violations (24h)",
       "description": "Tool calls denied by the Zero-Trust Agent Sandbox (no_manifest, tool_not_allowed, param_not_allowed, quota_exceeded, network_egress_denied).",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_sandbox_violations_total[24h])) or vector(0)", "legendFormat": "violations", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_sandbox_violations_total[24h])) or vector(0)",
+          "legendFormat": "violations",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "thresholds": {"mode": "absolute", "steps": [
-            {"color": "green", "value": null},
-            {"color": "red", "value": 1}
-          ]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 61},
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 61
+      },
       "id": 54,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["sum"], "fields": "", "values": false}, "textMode": "auto"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
       "title": "ROGUE_AGENT Detections (24h)",
       "description": "Full kill-chain detected: read + network/write + destructive tool calls in the same session. Treat each as confirmed compromise.",
       "type": "stat",
-      "targets": [{"expr": "sum(increase(warden_agent_anomalies_total{pattern_type=\"ROGUE_AGENT\"}[24h])) or vector(0)", "legendFormat": "rogue agents", "refId": "A"}]
+      "targets": [
+        {
+          "expr": "sum(increase(warden_agent_anomalies_total{pattern_type=\"ROGUE_AGENT\"}[24h])) or vector(0)",
+          "legendFormat": "rogue agents",
+          "refId": "A"
+        }
+      ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": [
-          {"matcher": {"id": "byName", "options": "ROGUE_AGENT"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "PRIVILEGE_ESCALATION"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "EXFIL_CHAIN"}, "properties": [{"id": "color", "value": {"fixedColor": "purple", "mode": "fixed"}}]},
-          {"matcher": {"id": "byName", "options": "EVASION_ATTEMPT"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]}
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ROGUE_AGENT"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PRIVILEGE_ESCALATION"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "EXFIL_CHAIN"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "EVASION_ATTEMPT"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
         ]
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 65},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 65
+      },
       "id": 55,
-      "options": {"legend": {"calcs": ["sum", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Agent Anomalies by Pattern / min",
       "description": "Rate of threat patterns detected by AgentMonitor. ROGUE_AGENT = full kill-chain; EXFIL_CHAIN = read→network; PRIVILEGE_ESCALATION = capability abuse; EVASION_ATTEMPT = retried blocked tool.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum by (pattern_type) (rate(warden_agent_anomalies_total[1m])) * 60", "legendFormat": "{{pattern_type}}", "refId": "A"}
+        {
+          "expr": "sum by (pattern_type) (rate(warden_agent_anomalies_total[1m])) * 60",
+          "legendFormat": "{{pattern_type}}",
+          "refId": "A"
+        }
       ]
     },
     {
-      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": {"color": {"mode": "palette-classic"}, "unit": "short"},
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 65},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 65
+      },
       "id": 56,
-      "options": {"legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "none"}},
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
       "title": "Sandbox Violations by Reason / min",
       "description": "Breakdown of Zero-Trust sandbox denials by reason. no_manifest = agent has no capability manifest registered; quota_exceeded = tool call rate limit hit.",
       "type": "timeseries",
       "targets": [
-        {"expr": "sum by (reason) (rate(warden_sandbox_violations_total[1m])) * 60", "legendFormat": "{{reason}}", "refId": "A"}
+        {
+          "expr": "sum by (reason) (rate(warden_sandbox_violations_total[1m])) * 60",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
       ]
     }
   ],
   "schemaVersion": 38,
-  "tags": ["shadow-warden", "security"],
+  "tags": [
+    "shadow-warden",
+    "security"
+  ],
   "templating": {
-    "list": [
-      {
-        "current": {},
-        "hide": 0,
-        "includeAll": false,
-        "name": "DS_PROMETHEUS",
-        "options": [],
-        "query": "prometheus",
-        "refresh": 1,
-        "type": "datasource"
-      }
-    ]
+    "list": []
   },
-  "time": {"from": "now-1h", "to": "now"},
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
   "title": "Shadow Warden — Overview",

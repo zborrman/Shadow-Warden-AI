@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!--
+  ClickHouse Prometheus endpoint (OB-4).
+
+  GSAM ingest is fail-OPEN toward ClickHouse: it spools to NDJSON and replays,
+  so a dead or degraded OLAP store fails *silently*. `GET /gsam/health` reports
+  that from the application side, but nothing observed the server itself —
+  ClickHouse was the only stateful service in the stack with no scrape job.
+
+  This does NOT undo the D-8 containment in logging.xml. Those four tables were
+  removed because ClickHouse was spending ~2 GiB of its own disk (and OOMing a
+  merge thread) to record its own idleness, with no consumer. The endpoint below
+  reads the live in-memory views — system.metrics, system.events,
+  system.asynchronous_metrics, system.errors — which are current values, not
+  history, and cost no disk at all. The history then lives in Prometheus, which
+  is the system actually designed to retain time series and expire them.
+
+  Port 9363 is the ClickHouse convention and is not published to the host; only
+  the compose network reaches it. Scraped as job="clickhouse".
+-->
+<clickhouse>
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+
+        <!-- system.metrics — current gauges (open connections, active merges) -->
+        <metrics>true</metrics>
+
+        <!-- system.events — cumulative counters (inserted rows, failed queries) -->
+        <events>true</events>
+
+        <!-- system.asynchronous_metrics — periodically refreshed host/server
+             values (disk space, memory tracking, replica delay) -->
+        <asynchronous_metrics>true</asynchronous_metrics>
+
+        <!-- system.errors — per-error-code counters. This is the one that
+             answers "is the GSAM ingest being rejected", which the fail-open
+             writer never surfaces on its own. -->
+        <errors>true</errors>
+    </prometheus>
+</clickhouse>

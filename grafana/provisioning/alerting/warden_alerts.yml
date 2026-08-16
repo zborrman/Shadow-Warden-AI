@@ -133,6 +133,66 @@ groups:
             The 99th-percentile latency for POST /filter has exceeded 500ms
             for 5 consecutive minutes.  Likely cause: ML model contention or
             Redis cache miss storm.
+            This is the gross-outlier alarm, an order of magnitude above the
+            published SLO; warden-p99-slo-breach below is the one that tracks
+            the 50 ms commitment in docs/sla.md.
+
+      # ── The SLO we actually sell (OB-5) ─────────────────────────────────────
+      # This rule could not exist before OB-5. The per-handler histogram shipped
+      # with buckets of 0.1 / 0.5 / 1 s, so every sub-100 ms request fell into
+      # the first bucket and histogram_quantile had no resolution to answer
+      # "is P99 under 50 ms" — the exact question docs/sla.md answers to
+      # customers. With SLO-bracketed edges in place, it does.
+      - uid: warden-p99-slo-breach
+        title: "Warden — /filter P99 above the 50 ms SLO"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                histogram_quantile(
+                  0.99,
+                  sum by (le) (
+                    rate(http_request_duration_seconds_bucket{
+                      job="warden",
+                      handler="/filter"
+                    }[15m])
+                  )
+                )
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.05"
+        # No traffic means the SLO is unmeasured, not breached. A 15m window and
+        # a 10m hold keep this off a quiet gateway and off single slow requests.
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: slo
+        annotations:
+          summary: "P99 latency on /filter has been above the published 50 ms SLO for 10 minutes"
+          description: >
+            docs/sla.md commits Pro to 99.9% uptime and P99 < 50 ms; Enterprise to
+            99.95%. This is a service-credit exposure, not an outage — page-worthy
+            only if it persists or coincides with warden-high-p99-latency.
+            Check ML model contention, Redis cache hit rate, and whether the
+            HyperbolicBrain stage is falling back to a cold model load.
             Dashboard: http://localhost:3000/d/warden-overview
 
       # ── 3. Corpus Canary Failure (Self-Healing trigger) ───────────────────────
@@ -566,8 +626,20 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # `and redis_memory_max_bytes > 0` is load-bearing (OB-8). Redis
+              # reports maxmemory as 0 when no limit is configured — which is the
+              # default, and is what this deployment runs. The bare ratio is then
+              # used/0 = +Inf, which is > 85, so this rule sat in a firing
+              # condition permanently. It was invisible only because the alerting
+              # layer could not resolve its datasource (OB-F2); the moment OB-1
+              # fixed that, it would have paged on a healthy Redis forever.
+              #
+              # With the guard, an unbounded Redis produces no series and the rule
+              # goes NoData -> OK, which is correct: a Redis with no maxmemory
+              # cannot be "above 85% of maxmemory".
               expr: >
                 redis_memory_used_bytes / redis_memory_max_bytes * 100
+                  and redis_memory_max_bytes > 0
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -874,6 +946,12 @@ groups:
       - uid: warden-voice-latency-high
         title: "Warden Voice — P95 Latency > 1500ms"
         condition: C
+        # OB-6: explicit, not inherited. Grafana defaults an unset noDataState to
+        # NoData, which raises a DatasourceNoData alert — and voice metrics are
+        # legitimately absent whenever no voice session is running. With OB-3's
+        # routing live that default would page on an idle subsystem.
+        noDataState: OK
+        execErrState: OK
         for: 5m
         labels:
           severity: warning
@@ -890,7 +968,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: PROMETHEUS
+            datasourceUid: prometheus
             model:
               expr: histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))
               intervalMs: 60000
@@ -901,7 +979,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "-100"
+            datasourceUid: __expr__
             model:
               conditions:
                 - evaluator:
@@ -922,6 +1000,12 @@ groups:
       - uid: warden-voice-error-rate-high
         title: "Warden Voice — Error Rate > 5%"
         condition: C
+        # OB-6: explicit, not inherited. Grafana defaults an unset noDataState to
+        # NoData, which raises a DatasourceNoData alert — and voice metrics are
+        # legitimately absent whenever no voice session is running. With OB-3's
+        # routing live that default would page on an idle subsystem.
+        noDataState: OK
+        execErrState: Alerting
         for: 5m
         labels:
           severity: critical
@@ -938,7 +1022,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: PROMETHEUS
+            datasourceUid: prometheus
             model:
               expr: rate(warden_voice_errors_total[5m]) / (rate(warden_voice_sessions_started_total[5m]) + 0.001)
               intervalMs: 60000
@@ -949,7 +1033,7 @@ groups:
             relativeTimeRange:
               from: 300
               to: 0
-            datasourceUid: "-100"
+            datasourceUid: __expr__
             model:
               conditions:
                 - evaluator:
@@ -970,6 +1054,12 @@ groups:
       - uid: warden-voice-deepfake
         title: "Warden Voice — Deepfake Audio Detected"
         condition: C
+        # OB-6: explicit, not inherited. Grafana defaults an unset noDataState to
+        # NoData, which raises a DatasourceNoData alert — and voice metrics are
+        # legitimately absent whenever no voice session is running. With OB-3's
+        # routing live that default would page on an idle subsystem.
+        noDataState: OK
+        execErrState: Alerting
         labels:
           severity: critical
           category: voice
@@ -985,7 +1075,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: PROMETHEUS
+            datasourceUid: prometheus
             model:
               expr: increase(warden_voice_deepfake_detected_total[10m])
               intervalMs: 60000
@@ -996,7 +1086,7 @@ groups:
             relativeTimeRange:
               from: 600
               to: 0
-            datasourceUid: "-100"
+            datasourceUid: __expr__
             model:
               conditions:
                 - evaluator:
@@ -1145,3 +1235,391 @@ groups:
             The live-pipeline canary self-test (warden_pipeline_canary_missed > 0) shows
             the detector is letting blatant jailbreaks through. Likely a bad model/corpus
             deploy. Check GET /health/pipeline?deep=true and recent EvolutionEngine changes.
+
+  # ── OB-3: Deadman ───────────────────────────────────────────────────────────
+  #
+  # Every other group in this file alerts on a metric moving in a bad direction.
+  # None of them can tell the difference between "all is well" and "the signal
+  # chain is broken and nothing is arriving" — the two look identical from the
+  # alerting side, which is exactly how findings OB-F1 through OB-F4 survived in
+  # production. These two rules watch the chain itself.
+  #
+  # execErrState is deliberately Alerting: if Prometheus is unreachable the query
+  # errors, and an observability stack that cannot query is the failure this
+  # group exists to catch. Do not soften it to OK.
+  - orgId: 1
+    name: warden_meta
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+
+      # ── The gateway stopped being scraped at all ──────────────────────────────
+      - uid: warden-deadman-gateway
+        title: "Warden — DEADMAN: gateway metrics have stopped arriving"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                absent(up{job="warden"})
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        # absent() returns an empty result while the series exists, so NoData
+        # here means "the gateway is being scraped" — the healthy case.
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: critical
+          team: warden
+          category: meta
+        annotations:
+          summary: "No up{job=\"warden\"} series — the gateway is unscraped, not necessarily down"
+          description: >
+            Prometheus has no up series for job "warden" for 5 minutes. Either the
+            gateway is gone, or the scrape job was renamed/removed in
+            grafana/prometheus.yml. Both are silent failures for every other rule in
+            this file, all of which filter on job="warden". Check the Scrape Target
+            Summary table on dashboard sw-unified-v1 and Prometheus /targets.
+
+      # ── Any configured scrape target is down ─────────────────────────────────
+      - uid: warden-scrape-target-down
+        title: "Warden — Scrape target down"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                min by (job) (up)
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A < 1"
+        # No up series at all means Prometheus itself is not collecting.
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: meta
+        annotations:
+          summary: "A Prometheus scrape target has been down for 10 minutes"
+          description: >
+            One of the configured targets (warden, caddy, postgres, redis, node,
+            cadvisor) is failing its scrape. Nothing else in this file alerts on the
+            exporters, so without this rule a dead postgres-exporter simply makes the
+            Postgres panels go blank.
+
+  # ── OB-4: background worker ─────────────────────────────────────────────────
+  #
+  # The arq-worker container runs the money crons and the nightly encrypted
+  # backup. Before OB-4 it emitted nothing, so every rule in this group is
+  # watching something that previously had no signal at all.
+  - orgId: 1
+    name: warden_worker
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+
+      # ── The worker itself is gone or unscraped ───────────────────────────────
+      - uid: warden-arq-worker-down
+        title: "Warden — ARQ worker down (backup and settlement crons not running)"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                absent(up{job="arq"}) or (up{job="arq"} == 0)
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        labels:
+          severity: critical
+          team: warden
+          category: worker
+        annotations:
+          summary: "arq-worker is not being scraped or is reporting down"
+          description: >
+            No healthy up{job="arq"} for 5 minutes. This container runs the nightly
+            encrypted backup, monthly overage settlement, nightly ledger and hold
+            reconciliation, x402 settlement, the clearing outbox relay and the AML
+            sweep. None of them are running while this fires.
+
+      # ── A background job is failing ──────────────────────────────────────────
+      - uid: warden-arq-job-failures
+        title: "Warden — ARQ background job failing"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(increase(warden_arq_jobs_total{status="failed"}[1h]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 0m
+        labels:
+          severity: warning
+          team: warden
+          category: worker
+        annotations:
+          summary: "One or more ARQ jobs raised in the last hour"
+          description: >
+            Break down by job with sum by (task) (increase(warden_arq_jobs_total{status="failed"}[1h])).
+            arq retries a failed job, so a single spike may self-heal — a sustained
+            rate on a money cron (sova_overage_billing, nightly_ledger_recon,
+            nightly_hold_recon, settle_x402_deductions) should not be waited out.
+
+      # ── The nightly backup has not succeeded in over a day ──────────────────
+      - uid: warden-backup-stale
+        title: "Warden — Nightly encrypted backup has not succeeded in 26h"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                time() - max(warden_arq_job_last_success_timestamp{task="sova_nightly_backup"})
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 93600"
+        # NoData here means the gauge has not been set since the last worker
+        # restart, not that the backup failed — prometheus_client gauges start
+        # unset and there is no cross-restart persistence. Worker liveness is
+        # covered by warden-arq-worker-down above; treating NoData as Alerting
+        # would page on every deploy that happens outside the 03:30 window.
+        noDataState: OK
+        execErrState: Alerting
+        for: 10m
+        labels:
+          severity: critical
+          team: warden
+          category: worker
+        annotations:
+          summary: "No successful sova_nightly_backup in over 26 hours"
+          description: >
+            R1/R6 built encrypted snapshots to two independent S3 targets and proved
+            them restorable (RTO ~17s) — but nothing watched whether they are still
+            being taken. 26h is the 24h cadence plus a two-hour grace. Check the
+            arq-worker logs and that VAULT_MASTER_KEY is set there: the backup is
+            fail-CLOSED on the key, so a missing key means no snapshot at all.
+
+  # ── OB-8: money correctness ─────────────────────────────────────────────────
+  #
+  # FT-2 built ledger reconciliation and FT-4 the settlement jobs; both emit a
+  # number every night, and until OB-8 nothing read either one. A drift gauge
+  # nobody queries is the same as no reconciliation at all — the clearing engine
+  # settled every trade at $0.00 for months while its fixtures agreed with the bug.
+  #
+  # Severity is `warning`, deliberately. These are correctness and revenue
+  # exposures that must be worked the same day, not outages that justify waking
+  # someone: the notification policy routes warning to Slack with a 12h repeat.
+  - orgId: 1
+    name: warden_money
+    folder: Shadow Warden
+    interval: 5m
+    rules:
+
+      # ── Ledger drifted from its authoritative counters ───────────────────────
+      - uid: warden-ledger-drift
+        title: "Warden — Ledger reconciliation drift is non-zero"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                max(warden_ledger_recon_drift_usd)
+              intervalMs: 60000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        # Absent means the nightly recon has not run since the last restart, which
+        # is covered by warden-arq-worker-down and the backup-freshness rule — not
+        # by paging on a gauge that was never set.
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: money
+        annotations:
+          summary: "nightly_ledger_recon reported a non-zero USD gap"
+          description: >
+            warden_ledger_recon_drift_usd is above zero: the ledger and its
+            authoritative counters disagree. This is not a rounding artefact — the
+            job reports an absolute USD figure. Inspect the last run of
+            nightly_ledger_recon in arq-worker, then the clearing outbox relay.
+            Dashboard: http://127.0.0.1:3001/d/sw-l1-payments
+
+      # ── Open holds drifted from their contra accounts ────────────────────────
+      - uid: warden-ledger-hold-drift
+        title: "Warden — Open-hold drift is non-zero"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                max(warden_ledger_recon_hold_drift_usd)
+              intervalMs: 60000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: OK
+        for: 10m
+        labels:
+          severity: warning
+          team: warden
+          category: money
+        annotations:
+          summary: "nightly_hold_recon reported a non-zero USD gap"
+          description: >
+            Currently-open holds do not match their ledger contra accounts. A hold
+            that was released without its contra entry leaves money reserved against
+            nothing. Check nightly_hold_recon and the x402 settlement job.
+            Dashboard: http://127.0.0.1:3001/d/sw-l1-payments
+
+      # ── Overage settlement failed ────────────────────────────────────────────
+      - uid: warden-overage-settlement-failed
+        title: "Warden — Overage settlement job failed"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(increase(warden_arq_jobs_total{task="sova_overage_billing", status="failed"}[24h]))
+              intervalMs: 60000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: OK
+        for: 0m
+        labels:
+          severity: warning
+          team: warden
+          category: money
+        annotations:
+          summary: "sova_overage_billing raised in the last 24h — revenue may be uncollected"
+          description: >
+            The monthly overage cron failed. settle() is idempotent per
+            (tenant_id, period), so a re-run cannot double-charge — retrying is safe.
+            A charge that could not be presented stores as `failed`, never silently as
+            `charged`. Note OVERAGE_CHARGE_ENFORCED gates whether money actually moves;
+            with it off, a failure here still means the audit trail is incomplete.
+            Dashboard: http://127.0.0.1:3001/d/sw-l1-finops

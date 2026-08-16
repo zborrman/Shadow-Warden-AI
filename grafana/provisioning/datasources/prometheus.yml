@@ -3,8 +3,16 @@ apiVersion: 1
 datasources:
 
   # ── Prometheus — metrics ─────────────────────────────────────────────────
+  #
+  # `uid` MUST stay pinned. Provisioned alert rules bind their queries by
+  # datasource UID, not by name (see provisioning/alerting/warden_alerts.yml).
+  # With no `uid` here Grafana generates a random one at first boot, every
+  # rule fails to resolve its datasource, and the whole alerting layer errors
+  # instead of firing — silently, because a rule that cannot evaluate looks
+  # exactly like a rule that is not breaching.
   - name: Prometheus
     type: prometheus
+    uid: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
@@ -17,8 +25,58 @@ datasources:
   # ── Loki — logs ──────────────────────────────────────────────────────────
   - name: Loki
     type: loki
+    uid: loki
     access: proxy
     url: http://loki:3100
     editable: false
     jsonData:
       maxLines: 1000
+
+      # ── OB-9: log → trace ────────────────────────────────────────────────
+      # Turns the trace_id in a log line into a click through to that trace.
+      # This could not exist before OB-9: warden's _JsonFormatter emitted only
+      # ts/level/logger/message, so no log record and no span shared any value
+      # — logs and traces were two disconnected stores.
+      #
+      # A derived field reads the log LINE, not a Loki label, which is what we
+      # want: trace_id is high-cardinality and must never become a label or it
+      # explodes Loki's index. `risk_level` is the opposite — bounded, so
+      # promtail promotes that one.
+      #
+      # Degrades cleanly: OTel is opt-in (OTEL_ENABLED=false by default), and
+      # with it off no line carries a trace_id, so the field simply never
+      # matches rather than producing a broken link.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":\s*"([0-9a-f]{32})"'
+          url: '${__value.raw}'
+          datasourceUid: jaeger
+          urlDisplayLabel: 'View trace'
+
+  # ── Jaeger — traces ──────────────────────────────────────────────────────
+  # OB-9. Traces have been reaching Jaeger through the OTel collector all
+  # along, but Grafana had no trace datasource, and Jaeger's own UI is bound to
+  # 127.0.0.1 — so traces were reachable only over an SSH tunnel, in a separate
+  # tool, with no way to arrive from the metric or log that prompted the
+  # question. Grafana proxies to it over the compose network, so the host port
+  # stays loopback-only.
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: false
+    jsonData:
+      # ── trace → logs, the return leg ─────────────────────────────────────
+      # From a span, jump to the log lines carrying the same trace_id. The
+      # window is widened either side because a log line is written at a
+      # slightly different instant than the span it belongs to.
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - key: 'service.name'
+            value: 'service'

@@ -839,6 +839,56 @@ try:
     except ValueError:
         LLM_BUDGET_DOWNGRADE_TOTAL = REGISTRY._names_to_collectors.get("warden_llm_budget_downgrade_total")  # type: ignore[attr-defined, assignment]
 
+    # ── ARQ background worker (OB-4) ─────────────────────────────────────────
+    # The arq-worker container runs 31 cron jobs — the nightly encrypted backup,
+    # overage settlement, ledger + hold reconciliation, x402 settlement, the
+    # clearing outbox relay and the AML sweep — and until OB-4 emitted nothing
+    # at all. It has no HTTP surface of its own, so warden.workers.settings
+    # starts a prometheus_client HTTP server on ARQ_METRICS_PORT and Prometheus
+    # scrapes it as job="arq".
+    #
+    # A cron that silently stops running is indistinguishable from one that runs
+    # and finds nothing to do, unless something counts the runs. That is the
+    # whole point of these three.
+    #
+    # Labels:
+    #   task    — arq function name (bounded: the cron_jobs list). NOT "job":
+    #             Prometheus owns that label name and overwrites it at scrape
+    #             time with the scrape job ("arq"), pushing ours to
+    #             "exported_job" — so every query filtering on job=<function>
+    #             would silently match nothing.
+    #   status  — "complete" | "failed"
+    try:
+        ARQ_JOBS_TOTAL = Counter(
+            "warden_arq_jobs_total",
+            "ARQ background job executions by function and outcome",
+            ["task", "status"],
+        )
+    except ValueError:
+        ARQ_JOBS_TOTAL = cast(Counter, REGISTRY._names_to_collectors.get("warden_arq_jobs_total"))
+
+    try:
+        ARQ_JOB_DURATION_SECONDS = Histogram(
+            "warden_arq_job_duration_seconds",
+            "Wall-clock duration of an ARQ background job",
+            ["task"],
+            buckets=(0.1, 0.5, 1, 5, 15, 60, 180, 600, float("inf")),
+        )
+    except ValueError:
+        ARQ_JOB_DURATION_SECONDS = cast(Histogram, REGISTRY._names_to_collectors.get("warden_arq_job_duration_seconds"))
+
+    # Unix timestamp of the last successful run, per job. This is what a
+    # freshness alert reads: `time() - warden_arq_job_last_success_timestamp`
+    # answers "when did the backup last actually work", which a counter cannot.
+    try:
+        ARQ_JOB_LAST_SUCCESS = Gauge(
+            "warden_arq_job_last_success_timestamp",
+            "Unix timestamp of the last successful run of an ARQ job",
+            ["task"],
+        )
+    except ValueError:
+        ARQ_JOB_LAST_SUCCESS = cast(Gauge, REGISTRY._names_to_collectors.get("warden_arq_job_last_success_timestamp"))
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -922,3 +972,6 @@ except ImportError:
     LEDGER_RECON_HOLD_DRIFT_USD     = _Noop()  # type: ignore[assignment]
     LLM_COST_USD_TOTAL              = _Noop()  # type: ignore[assignment]
     LLM_BUDGET_DOWNGRADE_TOTAL      = _Noop()  # type: ignore[assignment]
+    ARQ_JOBS_TOTAL                  = _Noop()  # type: ignore[assignment]
+    ARQ_JOB_DURATION_SECONDS        = _Noop()  # type: ignore[assignment]
+    ARQ_JOB_LAST_SUCCESS            = _Noop()  # type: ignore[assignment]
