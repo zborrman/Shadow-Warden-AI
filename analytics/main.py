@@ -68,6 +68,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Prometheus (OB-4) ─────────────────────────────────────────────────────────
+# Until OB-4 this service exposed no /metrics, so `up{job="analytics"}` had no
+# series to match — while the unified dashboard carried an "Analytics — Status"
+# tile querying exactly that. The tile could only ever read "No data", which an
+# operator reasonably mistakes for neutral rather than unmonitored.
+#
+# /metrics and /health are excluded from the histogram: the compose healthcheck
+# polls them on a timer, and counting those inflates the request-rate and
+# error-rate denominators that the availability alerts divide by.
+#
+# Guarded so a missing package degrades observability instead of taking the
+# analytics API down with it.
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator as _Instrumentator
+
+    _Instrumentator(excluded_handlers=["/metrics", "/health"]).instrument(app).expose(
+        app, endpoint="/metrics", include_in_schema=False
+    )
+except Exception as _exc:                          # pragma: no cover - defensive
+    logging.getLogger(__name__).warning(
+        "prometheus instrumentation unavailable (%s) — continuing without /metrics",
+        _exc,
+    )
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

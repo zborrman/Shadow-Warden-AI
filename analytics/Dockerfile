@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 # `=0.30.0`. Versions match warden/constraints.txt so the two services agree.
 RUN pip install --no-cache-dir \
     "fastapi==0.139.0" \
-    "uvicorn[standard]==0.50.0"
+    "uvicorn[standard]==0.50.0" \
+    "prometheus-fastapi-instrumentator==8.0.2"
 
 # Copy the analytics service source
 COPY main.py /analytics/main.py

@@ -35,8 +35,12 @@ Environment variables
 """
 from __future__ import annotations
 
+import functools
 import logging
 import os
+import time
+from collections.abc import Callable
+from typing import Any
 
 from arq import cron
 from arq.connections import RedisSettings
@@ -59,6 +63,15 @@ from warden.agent.scheduler import (
     sova_visual_patrol,
 )
 from warden.brain.online_learner import online_learning_job
+
+# Registers the shared metric singletons into the default prometheus_client
+# REGISTRY. Imported explicitly rather than relied on transitively, because the
+# metrics HTTP server below serves that registry and must not race a lazy import.
+from warden.metrics import (
+    ARQ_JOB_DURATION_SECONDS,
+    ARQ_JOB_LAST_SUCCESS,
+    ARQ_JOBS_TOTAL,
+)
 from warden.workers.aml_monitor_job import nightly_aml_scan
 from warden.workers.clearing_outbox_relay import (
     purge_clearing_outbox,
@@ -85,11 +98,92 @@ logging.basicConfig(
 
 _REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+# ── OB-4: worker observability ───────────────────────────────────────────────
+# This container has no HTTP surface, so until OB-4 nothing here was scrapeable:
+# 31 cron jobs — the nightly encrypted backup, overage settlement, ledger and
+# hold reconciliation, x402 settlement, the clearing outbox relay, the AML sweep
+# — ran with no `up` series, no duration, no failure counter. A cron that stops
+# firing looks exactly like a cron that runs and finds nothing to do.
+#
+# 9110 avoids the exporter ports already in use on this network: node-exporter
+# 9100, redis-exporter 9121, postgres-exporter 9187.
+_METRICS_PORT = int(os.getenv("ARQ_METRICS_PORT", "9110"))
+
+_log = logging.getLogger("warden.workers.metrics")
+
+
+def _start_metrics_server() -> None:
+    """Expose the default prometheus registry over HTTP.
+
+    Telemetry must never stop the worker from running the money crons, so a
+    bind failure is non-fatal — but it is not free either: the worker then runs
+    the backup, settlement and reconciliation jobs with no `up` series and no
+    failure counter, which is the exact blind spot OB-4 closed. So the
+    degradation is counted rather than merely logged, via record_failopen().
+    """
+    try:
+        from prometheus_client import start_http_server
+
+        start_http_server(_METRICS_PORT)
+        _log.info("arq metrics server listening on :%d", _METRICS_PORT)
+    except Exception as exc:                       # pragma: no cover - defensive
+        _log.warning("arq metrics server unavailable (%s) — continuing", exc)
+        try:
+            from warden.observability import record_failopen
+
+            record_failopen("arq_metrics", "metrics_server_unavailable", exc)
+        except Exception:                          # pragma: no cover - defensive
+            _log.debug("could not record arq metrics degradation", exc_info=True)
+
+
+_WRAPPED: dict[Callable[..., Any], Callable[..., Any]] = {}
+
+
+def _instrument(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap an arq job so every execution is counted, timed and dated.
+
+    ``functools.wraps`` preserves ``__name__``/``__qualname__``, which is how
+    arq derives the registered job name — so wrapping changes what is measured,
+    never what is scheduled or how it is enqueued. Memoised so a function listed
+    in both ``functions`` and ``cron_jobs`` yields one wrapper, not two.
+    """
+    cached = _WRAPPED.get(fn)
+    if cached is not None:
+        return cached
+
+    name = getattr(fn, "__name__", repr(fn))
+
+    def _record(status: str, elapsed: float) -> None:
+        # Metric bookkeeping is never allowed to turn a successful job into a
+        # failed one, nor to mask a real exception on the failure path.
+        try:
+            ARQ_JOBS_TOTAL.labels(task=name, status=status).inc()
+            ARQ_JOB_DURATION_SECONDS.labels(task=name).observe(elapsed)
+            if status == "complete":
+                ARQ_JOB_LAST_SUCCESS.labels(task=name).set(time.time())
+        except Exception:                          # pragma: no cover - defensive
+            _log.debug("arq metric update failed for %s", name, exc_info=True)
+
+    @functools.wraps(fn)
+    async def _wrapper(*args: Any, **kwargs: Any) -> Any:
+        started = time.monotonic()
+        try:
+            result = await fn(*args, **kwargs)
+        except Exception:
+            _record("failed", time.monotonic() - started)
+            raise
+        _record("complete", time.monotonic() - started)
+        return result
+
+    _WRAPPED[fn] = _wrapper
+    return _wrapper
+
 
 async def startup(ctx: dict) -> None:
     logging.getLogger("warden.workers").setLevel(logging.INFO)
     logging.getLogger("arq").setLevel(logging.INFO)
     logging.getLogger("warden.workers.reaper").setLevel(logging.INFO)
+    _start_metrics_server()
 
 
 class WorkerSettings:
@@ -97,7 +191,10 @@ class WorkerSettings:
 
     redis_settings = RedisSettings.from_dsn(_REDIS_URL)
 
-    functions = [
+    # Each entry is wrapped by _instrument() — same registered name, same
+    # behaviour, plus a run counter, a duration histogram and a last-success
+    # timestamp. Add new jobs to the tuple; the wrapping is automatic.
+    functions = [_instrument(_fn) for _fn in (
         send_weekly_reports,
         process_dunning,
         reap_expired_tunnels,
@@ -141,7 +238,7 @@ class WorkerSettings:
         purge_clearing_outbox,
         # AML structuring sweep on the journal (FT-5)
         nightly_aml_scan,
-    ]
+    )]
 
     cron_jobs = [
         # ── Weekly ROI email — every Friday 08:00 UTC ─────────────────────────
@@ -256,3 +353,20 @@ class WorkerSettings:
     max_jobs    = 10
     job_timeout = 600   # 10 minutes max per job
     keep_result = 3600  # keep result in Redis for 1 hour
+
+
+# Instrument the cron entries in place. `cron()` has already captured the job
+# name by the time this runs, and _instrument preserves __name__ anyway, so this
+# swaps the callable without touching the schedule. Guarded with getattr because
+# CronJob.coroutine is arq-internal (pinned at arq==0.28.0 in constraints.txt):
+# if a future arq renames it, the worker keeps running with no metrics rather
+# than failing to import.
+for _cron_job in WorkerSettings.cron_jobs:
+    _coro = getattr(_cron_job, "coroutine", None)
+    if _coro is not None:
+        _cron_job.coroutine = _instrument(_coro)
+    else:                                          # pragma: no cover - defensive
+        logging.getLogger("warden.workers.metrics").warning(
+            "CronJob has no .coroutine attribute — arq internals changed, "
+            "cron metrics are not being recorded"
+        )
