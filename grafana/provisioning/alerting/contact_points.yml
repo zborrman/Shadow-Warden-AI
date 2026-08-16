@@ -1,7 +1,80 @@
 apiVersion: 1
 
-# Slack + email contact points are configured via Grafana UI (Alerting → Contact points)
-# to avoid provisioning crashes when env vars are not set in the container.
-contactPoints: []
+# ── Shadow Warden AI — Alert delivery (OB-3) ─────────────────────────────────
+#
+# This file used to ship `contactPoints: []` and `policies: []`, with a comment
+# deferring both to the Grafana UI "to avoid provisioning crashes when env vars
+# are not set". The cost of that was severe and silent: every routing decision
+# lived only inside the `grafana-data` Docker volume, which is in no backup set
+# (warden/backup/service.py discovers `warden_*.db` plus a Postgres dump — not
+# Grafana's own SQLite). A volume loss removed alert delivery with no signal,
+# and 22 rules evaluated into nothing.
+#
+# The crash worry is handled the right way instead: docker-compose.yml gives
+# both variables a syntactically valid placeholder default, so provisioning
+# always validates. An unconfigured deployment therefore fails *loudly* — the
+# delivery error is visible in Grafana's notification log — rather than
+# silently having nowhere to send. Visible misconfiguration beats invisible
+# non-delivery; that is the whole lesson of OB-F3.
+#
+# Severity vocabulary matches the labels the rules already carry:
+#   critical → PagerDuty + Slack   (wake someone)
+#   warning  → Slack               (file it)
+# ─────────────────────────────────────────────────────────────────────────────
 
-policies: []
+contactPoints:
+
+  - orgId: 1
+    name: warden-slack
+    receivers:
+      - uid: warden-slack-webhook
+        type: slack
+        disableResolveMessage: false
+        settings:
+          url: ${GF_SLACK_WEBHOOK_URL}
+          title: '{{ template "default.title" . }}'
+          text: '{{ template "default.message" . }}'
+
+  - orgId: 1
+    name: warden-pagerduty
+    receivers:
+      - uid: warden-pagerduty-events
+        type: pagerduty
+        disableResolveMessage: false
+        settings:
+          integrationKey: ${GF_PAGERDUTY_ROUTING_KEY}
+          severity: critical
+          class: shadow-warden
+          component: '{{ index .CommonLabels "category" }}'
+          summary: '{{ template "default.title" . }}'
+
+policies:
+
+  - orgId: 1
+    receiver: warden-slack
+    group_by: [alertname, category]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+    routes:
+
+      # critical → page, and still land in Slack for the written record.
+      # `continue: true` is what makes the notification reach both receivers;
+      # without it matching stops at the first route and PagerDuty would be
+      # the only destination.
+      - receiver: warden-pagerduty
+        object_matchers:
+          - [severity, "=", critical]
+        group_wait: 10s
+        repeat_interval: 1h
+        continue: true
+
+      - receiver: warden-slack
+        object_matchers:
+          - [severity, "=", critical]
+
+      - receiver: warden-slack
+        object_matchers:
+          - [severity, "=", warning]
+        group_wait: 1m
+        repeat_interval: 12h

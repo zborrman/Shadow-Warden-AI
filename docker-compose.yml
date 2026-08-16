@@ -432,6 +432,13 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    expose:
+      # OB-4: warden.workers.settings starts a prometheus_client server here.
+      # This container has no other HTTP surface, so without it the 29 cron jobs
+      # — nightly encrypted backup, overage settlement, ledger + hold recon,
+      # x402 settlement, clearing outbox relay, AML sweep — have no `up` series
+      # and no failure counter. Scraped as job="arq"; not published to the host.
+      - "9110"
     networks:
       - warden-net
     # ── S4 / DE-7 — browser process isolation (opt-in) ──────────────────────────
@@ -520,6 +527,12 @@ services:
     environment:
       - MINIO_ROOT_USER=${S3_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${S3_SECRET_KEY:-minioadmin}
+      # OB-4: serve /minio/v2/metrics/* without a bearer token. Safe here only
+      # because MinIO is loopback-bound (see ports below) and the scrape happens
+      # over warden-net — the metrics are counters and gauges, never object data.
+      # Without this the endpoint 403s and job="minio" would look permanently
+      # down, which is worse than not scraping it at all.
+      - MINIO_PROMETHEUS_AUTH_TYPE=public
     volumes:
       - minio-data:/data
     ports:
@@ -584,6 +597,9 @@ services:
       # Self-telemetry containment — without this the server writes ~2 GiB of
       # logs about itself while holding zero observation rows. See the file.
       - ./docker/clickhouse/config.d/logging.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+      # OB-4: Prometheus endpoint on :9363. Reads the live in-memory views, so
+      # it does not reintroduce the disk cost logging.xml removed.
+      - ./docker/clickhouse/config.d/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
     ulimits:
       nofile:
         soft: 262144
@@ -744,8 +760,12 @@ services:
       start_period: 30s
 
   # ── PROMETHEUS ──────────────────────────────────────────────────────────────
+  # Pinned (OB-7). The running server is already Prometheus 3.x while this file
+  # was written against 2.x-era config; a floating tag means the next
+  # `docker compose up` can move a major under the scrape config and the alert
+  # rules at deploy time. Verified against what is actually running today.
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.10.0
     container_name: warden-prometheus
     restart: unless-stopped
     logging:
@@ -783,8 +803,13 @@ services:
       start_period: 15s
 
   # ── GRAFANA ─────────────────────────────────────────────────────────────────
+  # Pinned (OB-7). `:latest` had already drifted to 12.4.1 — two majors past the
+  # "version": "10.0.0" the dashboards' own __requires blocks claimed. A Grafana
+  # major can change alert-provisioning schema, and CI autodeploy runs
+  # `docker compose up` on every merge to main, so a floating tag means the
+  # alerting layer can be rewritten by a pull nobody reviewed. Bump deliberately.
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.4.1
     container_name: warden-grafana
     restart: unless-stopped
     logging:
@@ -793,7 +818,18 @@ services:
         max-size: "10m"
         max-file: "3"
     ports:
-      - "3001:3000"
+      # OB-7 — loopback only. Grafana holds every datasource credential and the
+      # whole alerting configuration, and it was the one internal surface still
+      # published on all interfaces while MinIO (9000/9091) and Jaeger (16686)
+      # were deliberately bound to 127.0.0.1. Cloudflare's WAF and rate limits
+      # are bypassed by any request sent straight to the origin IP, so a public
+      # :3001 was outside the entire edge posture.
+      #
+      # Reach it with a tunnel:  ssh -L 3001:127.0.0.1:3001 root@<host>
+      # For a shared team surface, put it behind a Caddy vhost + Cloudflare
+      # Access — see the commented block in docker/Caddyfile, which needs a DNS
+      # record and a cert SAN first (Caddy here uses bring-your-own certs).
+      - "127.0.0.1:3001:3000"
     deploy:
       resources:
         limits:
@@ -801,11 +837,36 @@ services:
           memory: 512M
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-warden-grafana}
+      # OB-7 — fail-closed, mirroring the WARDEN_API_KEY rule in warden/main.py:
+      # no password, no boot. The previous `:-warden-grafana` default meant a
+      # fresh deploy came up with a password published in this file, on a port
+      # published to the internet. `:?` makes compose refuse to start instead.
+      #
+      # DEPLOY PREREQUISITE: GRAFANA_PASSWORD must exist in the host .env before
+      # this merges, or `docker compose up` fails for the WHOLE stack.
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env - Grafana will not boot with a default password}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:3001
+      # Explicit rather than inherited: these are Grafana's defaults today, and
+      # a default is not a decision. Anonymous access would expose every panel
+      # and datasource name without a login.
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_USERS_VIEWERS_CAN_EDIT=false
+      - GF_SNAPSHOTS_EXTERNAL_ENABLED=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SECURITY_COOKIE_SAMESITE=strict
+      # Override to the public vhost when one exists. Deliberately NOT setting
+      # GF_SECURITY_COOKIE_SECURE: it would break login over the plain-HTTP
+      # loopback tunnel above, which is the only access path until that vhost
+      # is in place. Set it together with an https root URL, not before.
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://127.0.0.1:3001/}
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      # Alert delivery (OB-3). grafana/provisioning/alerting/contact_points.yml
+      # interpolates these. The placeholder defaults are syntactically valid on
+      # purpose: provisioning then always validates, and an unconfigured install
+      # fails loudly in Grafana's notification log instead of routing nowhere.
+      - GF_SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-https://hooks.slack.invalid/not-configured}
+      - GF_PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY:-not-configured}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -873,6 +934,7 @@ services:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     expose:
       - "4317"           # OTLP gRPC (warden → collector)
+      - "8888"           # OB-4: the collector's own Prometheus metrics
     deploy:
       resources:
         limits:
@@ -1065,7 +1127,10 @@ services:
 
   # ── REDIS EXPORTER ─────────────────────────────────────────────────────────
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    # Pinned (OB-7) to the version currently running — verified from the
+    # container's org.opencontainers.image.version label, so this is a lock,
+    # not an upgrade.
+    image: oliver006/redis_exporter:v1.83.0
     container_name: warden-redis-exporter
     restart: unless-stopped
     expose:

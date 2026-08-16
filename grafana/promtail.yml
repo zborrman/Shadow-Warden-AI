@@ -28,6 +28,18 @@ scrape_configs:
 
     pipeline_stages:
       # Parse JSON log lines from warden (structured logging)
+      # ── warden gateway — structured JSON ──────────────────────────────────
+      # These expressions must match what warden/main.py::_JsonFormatter
+      # actually emits. Until OB-9 they did not: the formatter wrote only
+      # ts/level/logger/message, so `request_id` and `risk_level` were parsed
+      # out of every line and always came back empty — the Loki `risk_level`
+      # label an operator would filter on had never held a value (OB-F11).
+      #
+      # trace_id is extracted but deliberately NOT promoted to a label: it is
+      # high-cardinality and would blow up Loki's index. It stays in the line,
+      # where the Loki datasource's derivedFields turns it into a link to
+      # Jaeger (see provisioning/datasources/prometheus.yml). Labels are for
+      # bounded values only — level, logger, risk_level.
       - match:
           selector: '{service="warden"}'
           stages:
@@ -37,6 +49,7 @@ scrape_configs:
                   logger:     logger
                   request_id: request_id
                   risk_level: risk_level
+                  trace_id:   trace_id
             - labels:
                 level:
                 logger:

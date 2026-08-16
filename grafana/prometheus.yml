@@ -43,3 +43,77 @@ scrape_configs:
     static_configs:
       - targets: ["proxy:2019"]
     metrics_path: /metrics
+
+  # ═══ OB-4: services that were running but unobserved ═══════════════════════
+  #
+  # Job names are load-bearing. Dashboards and alert rules filter on them, and
+  # a query naming a job that is not defined here matches nothing and renders
+  # as an empty panel — which reads as calm rather than blind (OB-F1/OB-F4).
+  # Renaming a job below silently breaks every consumer; add, don't rename.
+
+  # ── ARQ background worker ────────────────────────────────────────────────
+  # The highest-value addition. This container runs 29 cron jobs including the
+  # nightly encrypted backup, monthly overage settlement, nightly ledger and
+  # hold reconciliation, x402 settlement and the AML sweep. Until OB-4 none of
+  # it was observable: a cron that stops firing looked exactly like a cron that
+  # runs and finds nothing to do.
+  - job_name: "arq"
+    static_configs:
+      - targets: ["arq-worker:9110"]
+    metrics_path: /metrics
+
+  # ── Analytics API ────────────────────────────────────────────────────────
+  - job_name: "analytics"
+    static_configs:
+      - targets: ["analytics:8002"]
+    metrics_path: /metrics
+
+  # ── MinIO — Evidence Vault + offsite backup target ───────────────────────
+  # Requires MINIO_PROMETHEUS_AUTH_TYPE=public in docker-compose.yml; without
+  # it this endpoint 403s and the job reads as permanently down.
+  - job_name: "minio"
+    static_configs:
+      - targets: ["minio:9000"]
+    metrics_path: /minio/v2/metrics/cluster
+
+  # ── ClickHouse — GSAM observation store ──────────────────────────────────
+  # GSAM ingest is fail-OPEN toward this server: it spools and replays, so a
+  # degraded store fails silently. Enabled by docker/clickhouse/config.d/prometheus.xml.
+  - job_name: "clickhouse"
+    static_configs:
+      - targets: ["clickhouse:9363"]
+    metrics_path: /metrics
+
+  # ═══ Meta-monitoring: the observability stack observing itself ═════════════
+  #
+  # Prometheus did not scrape itself, so a failing scrape, a full TSDB or a
+  # rule-evaluation error had no series and no alert. An observability stack
+  # that breaks quietly is indistinguishable from a system that is simply
+  # healthy — that is precisely the failure this track exists to end.
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+    metrics_path: /metrics
+
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
+    metrics_path: /metrics
+
+  - job_name: "promtail"
+    static_configs:
+      - targets: ["promtail:9080"]
+    metrics_path: /metrics
+
+  # otelcol_exporter_send_failed_spans / otelcol_processor_dropped_spans are
+  # the two series here that matter: a collector dropping spans otherwise looks
+  # identical to an application that stopped emitting them.
+  - job_name: "otelcol"
+    static_configs:
+      - targets: ["otel-collector:8888"]
+    metrics_path: /metrics

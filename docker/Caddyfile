@@ -203,6 +203,45 @@ dash.shadow-warden-ai.com {
 	}
 }
 
+# ── Grafana (OB-7) — NOT ENABLED YET, three prerequisites below ──────────────
+#
+# Grafana is bound to 127.0.0.1:3001 in docker-compose.yml, so today it is
+# reachable only over an SSH tunnel:
+#
+#     ssh -L 3001:127.0.0.1:3001 root@<host>
+#
+# That is correct for one operator and wrong for a team. This vhost is the
+# shared-access path, left commented because enabling it before the three
+# prerequisites are met breaks Caddy at startup rather than degrading:
+#
+#   1. DNS — an A/AAAA record for grafana.shadow-warden-ai.com, proxied
+#      (orange cloud) through Cloudflare.
+#   2. TLS — this Caddyfile uses BRING-YOUR-OWN certs, not ACME. The mounted
+#      /etc/caddy/ssl/cert.pem must already cover this hostname (a wildcard, or
+#      the SAN reissued). Caddy fails to load a site whose cert file does not
+#      match; it will not silently fall back.
+#   3. Cloudflare Access — a self-hosted Access application in front of the
+#      hostname, with a policy scoped to the operator group. Without it this is
+#      a login page for every datasource credential in the stack, published on
+#      the internet, protected only by one shared admin password.
+#
+# Then also set, in the host .env:
+#     GRAFANA_ROOT_URL=https://grafana.shadow-warden-ai.com/
+# and only once that is live, GF_SECURITY_COOKIE_SECURE=true in the compose
+# service — setting it earlier breaks login over the plain-HTTP tunnel.
+#
+# grafana.shadow-warden-ai.com {
+# 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+#
+# 	import security_headers
+#
+# 	handle {
+# 		reverse_proxy grafana:3000 {
+# 			import client_ip_headers
+# 		}
+# 	}
+# }
+
 # ── API Documentation (Redoc) ────────────────────────────────────────────────
 docs.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
