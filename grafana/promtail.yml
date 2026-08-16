@@ -35,11 +35,13 @@ scrape_configs:
       # out of every line and always came back empty — the Loki `risk_level`
       # label an operator would filter on had never held a value (OB-F11).
       #
-      # trace_id is extracted but deliberately NOT promoted to a label: it is
-      # high-cardinality and would blow up Loki's index. It stays in the line,
-      # where the Loki datasource's derivedFields turns it into a link to
-      # Jaeger (see provisioning/datasources/prometheus.yml). Labels are for
-      # bounded values only — level, logger, risk_level.
+      # trace_id is deliberately absent here. It must not become a label (high
+      # cardinality would blow up Loki's index), and a json-stage extraction
+      # would be inert anyway: that stage writes to the extracted map, not to
+      # the stored line, and nothing downstream reads it. The Loki datasource's
+      # derivedFields matches trace_id against the raw line instead — see
+      # provisioning/datasources/prometheus.yml. Labels stay bounded: level,
+      # logger, risk_level.
       - match:
           selector: '{service="warden"}'
           stages:
@@ -49,7 +51,6 @@ scrape_configs:
                   logger:     logger
                   request_id: request_id
                   risk_level: risk_level
-                  trace_id:   trace_id
             - labels:
                 level:
                 logger:

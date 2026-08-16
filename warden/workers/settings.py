@@ -169,7 +169,12 @@ def _instrument(fn: Callable[..., Any]) -> Callable[..., Any]:
         started = time.monotonic()
         try:
             result = await fn(*args, **kwargs)
-        except Exception:
+        except BaseException:
+            # BaseException, not Exception: arq enforces job_timeout by
+            # cancelling the task, and asyncio.CancelledError is a BaseException.
+            # Catching only Exception meant a job that hit its timeout — the most
+            # interesting failure a 600s backup can have — recorded nothing at
+            # all, which is the blind spot this wrapper exists to close.
             _record("failed", time.monotonic() - started)
             raise
         _record("complete", time.monotonic() - started)
