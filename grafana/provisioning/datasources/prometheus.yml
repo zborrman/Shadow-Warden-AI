@@ -1,5 +1,31 @@
 apiVersion: 1
 
+# ── Existing-install migration (OB-1 follow-up) ──────────────────────────────
+# Grafana matches a provisioned datasource to an existing row by NAME, then
+# tries to look the row up by the uid in this file. Pinning `uid:` on an install
+# whose grafana.db already holds Prometheus/Loki under generated uids therefore
+# fails with "Datasource provisioning error: data source not found", and Grafana
+# **exits(1) in a restart loop** — it does not degrade, it refuses to start.
+#
+# Observed on production 2026-08-16 immediately after the OB track deployed. It
+# never appeared in pre-merge verification because every check ran against a
+# fresh volume, where there is no prior row to collide with.
+#
+# deleteDatasources runs before datasources, so the old rows are removed and
+# re-created with the pinned uids. This is idempotent: on a fresh install the
+# deletes are no-ops, and on an already-migrated install the names match rows
+# that already carry the right uid.
+#
+# Keep this block. Removing it once production is migrated would only re-open
+# the same failure for any other install, and it costs nothing here.
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+  - name: Loki
+    orgId: 1
+  - name: Jaeger
+    orgId: 1
+
 datasources:
 
   # ── Prometheus — metrics ─────────────────────────────────────────────────
