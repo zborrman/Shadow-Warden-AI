@@ -30,6 +30,13 @@ contactPoints:
       - uid: warden-slack-webhook
         type: slack
         disableResolveMessage: false
+        # The webhook URL is a bearer credential and `settings` is not encrypted
+        # at rest, so moving it to `secure_settings` looks correct — and breaks
+        # Grafana 12.4.1 hard. Its slack validator reads `url` from `settings`;
+        # with it absent the integration is taken to be the Slack chat API,
+        # which then demands `recipient`, provisioning fails to map the file and
+        # the container exits(1). Verified: not a warning, a crash loop. Keep
+        # `url` here and protect it by keeping the value in the host .env.
         settings:
           url: ${GF_SLACK_WEBHOOK_URL}
           title: '{{ template "default.title" . }}'

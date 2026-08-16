@@ -2246,7 +2246,7 @@ CI auto-deploys to the VPS on every push to main via the `deploy` GitHub Actions
 
 ### 24.8 Monitoring
 
-All four are bound to `127.0.0.1` (OB-7). None is reachable on the public
+Grafana, Jaeger and the MinIO console are bound to `127.0.0.1` (OB-7); Prometheus is not published to the host at all. None is reachable on the public
 origin IP, because Cloudflare's WAF and rate limits are bypassed by any request
 sent straight to it — an internal surface published there is outside the entire
 edge posture. Open a tunnel first:

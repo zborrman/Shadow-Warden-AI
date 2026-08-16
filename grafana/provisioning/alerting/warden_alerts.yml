@@ -1309,8 +1309,13 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # node and cadvisor are `profiles: ["monitoring"]` in
+              # docker-compose.yml — not started by the default profile, so a
+              # bare min(up) reports them down forever and this rule would page
+              # continuously on every standard deployment. Only jobs that the
+              # default profile actually starts are watched here.
               expr: >
-                min by (job) (up)
+                min by (job) (up{job!~"node|cadvisor"})
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -1334,10 +1339,12 @@ groups:
         annotations:
           summary: "A Prometheus scrape target has been down for 10 minutes"
           description: >
-            One of the configured targets (warden, caddy, postgres, redis, node,
-            cadvisor) is failing its scrape. Nothing else in this file alerts on the
-            exporters, so without this rule a dead postgres-exporter simply makes the
-            Postgres panels go blank.
+            One of the always-on scrape targets is failing. Nothing else in this
+            file alerts on the exporters, so without this rule a dead
+            postgres-exporter simply makes the Postgres panels go blank.
+            node and cadvisor are excluded by design: they only run under the
+            `monitoring` compose profile. If you enable that profile, drop the
+            job!~ filter so they are covered too.
 
   # ── OB-4: background worker ─────────────────────────────────────────────────
   #

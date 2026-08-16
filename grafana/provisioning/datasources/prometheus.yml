@@ -49,7 +49,10 @@ datasources:
       derivedFields:
         - name: TraceID
           matcherRegex: '"trace_id":\s*"([0-9a-f]{32})"'
-          url: '${__value.raw}'
+          # $$ escapes Grafana's provisioning-time env interpolation; a single
+          # $ would be resolved as an environment variable named
+          # `__value.raw`, resolve to empty, and the link would go nowhere.
+          url: '$${__value.raw}'
           datasourceUid: jaeger
           urlDisplayLabel: 'View trace'
 
