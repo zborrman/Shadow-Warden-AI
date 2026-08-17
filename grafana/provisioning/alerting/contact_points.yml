@@ -42,6 +42,47 @@ contactPoints:
           title: '{{ template "default.title" . }}'
           text: '{{ template "default.message" . }}'
 
+  # ── ntfy — the free wake-up channel (OB-3b) ──────────────────────────────────
+  #
+  # Slack and PagerDuty are not interchangeable, and the difference is exactly
+  # one thing: a Slack message at 03:00 does not wake anyone. That single
+  # property — a push that overrides silent mode — is the whole reason to pay
+  # $25/user/month, and ntfy delivers it for nothing. Priority 5 ("urgent") on
+  # the ntfy app rings through Do Not Disturb on both Android and iOS.
+  #
+  # This does NOT replace PagerDuty. It has no escalation policy, no on-call
+  # rotation, no ack/resolve lifecycle and therefore no MTTA/MTTR evidence —
+  # all of which become contractual the moment an Enterprise SLA is signed
+  # (docs/sla.md §5 already names PagerDuty as the Enterprise notification
+  # channel, and §6 as the on-call contact for SOC 2 A1 evidence). Until then
+  # the paid product buys governance we cannot yet use, while the free one
+  # buys the alarm clock we can.
+  #
+  # THE TOPIC NAME IS THE CREDENTIAL. On public ntfy.sh anyone who knows the
+  # topic can both read every alert and publish forged ones, so the whole URL
+  # lives in the host .env and never in this repo. Generate an unguessable one:
+  #     python -c "import secrets; print('https://ntfy.sh/warden-' + secrets.token_urlsafe(16))"
+  # then subscribe to that topic in the ntfy mobile app.
+  #
+  # Grafana posts its standard alert JSON as the request body; ntfy publishes a
+  # request body verbatim as the message text, so no custom payload template is
+  # needed. Title/priority/tags ride in the query string of the configured URL
+  # (docs.ntfy.sh/publish — query parameters are supported on any publish
+  # request, for exactly the case where request headers cannot be set). That
+  # keeps this contact point on the smallest possible schema surface: `url` and
+  # `httpMethod`, nothing else. This file has already crash-looped production
+  # twice by reaching for a richer schema than the running Grafana accepted
+  # (uid pinning, then secure_settings) — the cheap shape is the safe one.
+  - orgId: 1
+    name: warden-ntfy
+    receivers:
+      - uid: warden-ntfy-push
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: ${GF_NTFY_URL}
+          httpMethod: POST
+
   - orgId: 1
     name: warden-pagerduty
     receivers:
@@ -70,6 +111,16 @@ policies:
       # without it matching stops at the first route and PagerDuty would be
       # the only destination.
       - receiver: warden-pagerduty
+        object_matchers:
+          - [severity, "=", critical]
+        group_wait: 10s
+        repeat_interval: 1h
+        continue: true
+
+      # critical → phone push. Same `continue: true` reasoning as above: this
+      # is a third destination for the same notification, not an alternative
+      # to either of the other two.
+      - receiver: warden-ntfy
         object_matchers:
           - [severity, "=", critical]
         group_wait: 10s
