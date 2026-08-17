@@ -1630,3 +1630,30 @@ groups:
             `charged`. Note OVERAGE_CHARGE_ENFORCED gates whether money actually moves;
             with it off, a failure here still means the audit trail is incomplete.
             Dashboard: http://127.0.0.1:3001/d/sw-l1-finops
+
+# ── OB-6 follow-up: retire the pre-provisioning UI rules ─────────────────────
+#
+# Four alert rules were created through the Grafana UI before OB-3 put routing
+# into version control. Their uids are Grafana-generated (not the readable
+# `warden-*` ids this file uses), and they were bound to the datasource rows
+# that OB-1's `deleteDatasources` replaced — so since that migration they have
+# evaluated to "data source not found" on every cycle, roughly 30 errors per
+# minute in production's Grafana log.
+#
+# They are superseded: the 31 rules above are now the source of truth, and
+# leaving these would mean either permanent error noise or, if someone repaired
+# their datasource, duplicate alerts firing alongside the provisioned set.
+#
+# Deleting them here rather than in the UI keeps the whole alerting surface
+# described by this file. `deleteRules` is processed before the groups below
+# are applied, and is a no-op once the rules are gone — so this is safe to keep
+# and safe to re-run.
+deleteRules:
+  - orgId: 1
+    uid: bfkmz1rxyp91cb
+  - orgId: 1
+    uid: dfkn2hw9uu9z4c
+  - orgId: 1
+    uid: efkmzn7jhk7i8b
+  - orgId: 1
+    uid: efkn047p3qtq8b
