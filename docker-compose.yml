@@ -876,6 +876,13 @@ services:
       # fails loudly in Grafana's notification log instead of routing nowhere.
       - GF_SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-https://hooks.slack.invalid/not-configured}
       - GF_PAGERDUTY_ROUTING_KEY=${PAGERDUTY_ROUTING_KEY:-not-configured}
+      # The placeholder here points at port 1, which nothing can ever listen on
+      # — connection refused, immediately, with no traffic leaving the host. It
+      # deliberately is NOT a real ntfy.sh URL: any syntactically plausible
+      # topic on the public server is a topic somebody could be subscribed to,
+      # so an unconfigured install would publish live alert contents to
+      # strangers. Failing loudly must not mean failing outward.
+      - GF_NTFY_URL=${NTFY_URL:-http://localhost:1/ntfy-not-configured}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

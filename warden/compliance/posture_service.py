@@ -202,7 +202,13 @@ def _check_stix_audit() -> tuple[bool, Gap | None]:
 def _check_notifications() -> tuple[bool, Gap | None]:
     """SOC2-02: at least one alert channel (Slack/Teams/PagerDuty) is configured."""
     slack  = settings.slack_webhook_url
-    pd     = os.getenv("PAGERDUTY_API_KEY",  "")
+    # PAGERDUTY_API_KEY is a name nothing in this project ever sets. The variable
+    # is PAGERDUTY_ROUTING_KEY everywhere else — .env.example, docker-compose.yml,
+    # warden/alerting.py, config.py, soc2.py, the Grafana contact point. So this
+    # check could only ever see PagerDuty as unconfigured, and a PagerDuty-only
+    # deployment would be reported as having no alert channel at all. Latent
+    # while Slack is set (the condition is an OR), wrong the moment it is not.
+    pd     = settings.pagerduty_routing_key
     teams  = os.getenv("TEAMS_WEBHOOK_URL",  "")
     if slack or pd or teams:
         return True, None
@@ -210,7 +216,7 @@ def _check_notifications() -> tuple[bool, Gap | None]:
         control_id="SOC2-02",
         description="No alert channel is configured (Slack, PagerDuty, Teams).",
         severity=Severity.MEDIUM,
-        remediation="Set SLACK_WEBHOOK_URL or PAGERDUTY_API_KEY in the gateway .env file.",
+        remediation="Set SLACK_WEBHOOK_URL or PAGERDUTY_ROUTING_KEY in the gateway .env file.",
         affected_module="alerting",
     )
 
