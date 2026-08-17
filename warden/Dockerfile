@@ -134,9 +134,26 @@ WORKDIR /warden
 #     support dumping from an older major server than the client, so no PGDG repo
 #     is needed. (Do NOT pin postgresql-client-16 via PGDG: on this base image's
 #     codename, PGDG's libpq5 conflicts with the system libldap, and apt fails.)
+# `apt-get upgrade` is not decoration. bsdutils and libblkid1 are not in the
+# install list below — they ship inside python:3.11-slim itself, so without an
+# explicit upgrade they stay pinned to whatever the base image was built with,
+# and no amount of rebuilding picks up Debian's security fixes.
+#
+# That is how CVE-2026-53615 (HIGH — integer overflow in libblkid's DOS
+# partition parser) blocked every deploy on 2026-08-17: the Trivy gate correctly
+# refused an image carrying a vulnerability that already had a published fix,
+# and that fix was one apt release away in trixie-security. Measured in the base
+# image: bsdutils 1:2.41-5 -> 1:2.41.5-0+deb13u1.
+#
+# The cost is that the same Dockerfile now yields different system-package
+# versions over time. That trade is already made — python:3.11-slim is itself a
+# floating tag — and the Python dependencies, which are what actually change
+# behaviour, stay pinned by constraints.txt.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
+    apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         libgomp1 curl gosu git ca-certificates \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
