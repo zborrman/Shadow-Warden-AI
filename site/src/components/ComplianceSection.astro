@@ -1,24 +1,30 @@
 ---
+// Each OWASP LLM vector is mapped to the layer that handles it. This is a
+// mapping, not a measured coverage figure — see docs/capability-matrix.md §1.
+// The per-vector percentages that used to sit here were not produced by any
+// test or benchmark, and are gone.
 const owasp = [
-  { id: 'LLM01', name: 'Prompt Injection',         layer: 'SemanticGuard + Brain',   pct: 99 },
-  { id: 'LLM02', name: 'Insecure Output Handling', layer: 'OutputGuard v2',          pct: 98 },
-  { id: 'LLM03', name: 'Training Data Poisoning',  layer: 'Evolution Engine Guard',  pct: 94 },
-  { id: 'LLM04', name: 'Model Denial of Service',  layer: 'ERS Shadow Ban',          pct: 100 },
-  { id: 'LLM05', name: 'Supply Chain Vuln.',        layer: 'Dependency CVE Scanner',  pct: 96 },
-  { id: 'LLM06', name: 'Sensitive Info Disclosure', layer: 'PII Vault + Redactor',   pct: 100 },
-  { id: 'LLM07', name: 'Insecure Plugin Design',    layer: 'Agent Monitor',           pct: 97 },
-  { id: 'LLM08', name: 'Excessive Agency',          layer: 'Agent Sandbox',           pct: 98 },
-  { id: 'LLM09', name: 'Overreliance',              layer: 'Causal Arbiter',          pct: 95 },
-  { id: 'LLM10', name: 'Model Theft',               layer: 'PQC + Evidence Vault',   pct: 99 },
+  { id: 'LLM01', name: 'Prompt Injection',          layer: 'SemanticGuard + Brain' },
+  { id: 'LLM02', name: 'Insecure Output Handling',  layer: 'OutputGuard v2' },
+  { id: 'LLM03', name: 'Training Data Poisoning',   layer: 'Evolution Engine Guard' },
+  { id: 'LLM04', name: 'Model Denial of Service',   layer: 'ERS Shadow Ban' },
+  { id: 'LLM05', name: 'Supply Chain Vuln.',        layer: 'Dependency CVE Scanner' },
+  { id: 'LLM06', name: 'Sensitive Info Disclosure', layer: 'PII Vault + Redactor' },
+  { id: 'LLM07', name: 'Insecure Plugin Design',    layer: 'Agent Monitor' },
+  { id: 'LLM08', name: 'Excessive Agency',          layer: 'Agent Sandbox' },
+  { id: 'LLM09', name: 'Overreliance',              layer: 'Causal Arbiter' },
+  { id: 'LLM10', name: 'Model Theft',               layer: 'PQC + Evidence Vault' },
 ];
 
+// We hold no certification of any kind. Every row below is our own mapping of
+// our own controls, and says so. Never relabel these as certifications.
 const frameworks = [
-  { icon: '🇪🇺', name: 'GDPR Art.35 DPIA',      color: 'text-[#0A84FF]' },
-  { icon: '🔐', name: 'SOC 2 Type II',           color: 'text-[#30D158]' },
-  { icon: '🏛️', name: 'EU AI Act Ready',         color: 'text-[#FFD60A]' },
-  { icon: '🧬', name: 'NIST FIPS 203/204',       color: 'text-[#BF5AF2]' },
-  { icon: '🏥', name: 'HIPAA PHI Controls',      color: 'text-[#0A84FF]' },
-  { icon: '🌐', name: 'ISO 27001',               color: 'text-[#30D158]' },
+  { icon: '🇪🇺', name: 'GDPR Art.35 DPIA',   note: 'published',     color: 'text-[#0A84FF]' },
+  { icon: '🔐', name: 'SOC 2 Type II',       note: 'preparing',     color: 'text-[#8E8E9E]' },
+  { icon: '🏛️', name: 'EU AI Act',           note: 'self-assessed', color: 'text-[#8E8E9E]' },
+  { icon: '🧬', name: 'NIST FIPS 203/204',   note: 'algorithms',    color: 'text-[#BF5AF2]' },
+  { icon: '🏥', name: 'HIPAA PHI controls',  note: 'mapped',        color: 'text-[#8E8E9E]' },
+  { icon: '🌐', name: 'ISO 27001:2022',      note: '93 mapped',     color: 'text-[#8E8E9E]' },
 ];
 ---
 
@@ -30,28 +36,32 @@ const frameworks = [
     <!-- Header -->
     <div class="mb-16">
       <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#30D158] mb-3">
-        Compliance & Certifications
+        Compliance & control mappings
       </p>
       <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
-        100% OWASP LLM Top 10 coverage.
+        All ten OWASP LLM vectors, mapped to a defense layer.
       </h2>
       <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
-        Every known LLM attack vector mapped to a specific defense layer.
-        Audit evidence generated automatically.
+        A mapping, not a coverage score. Our measured result on our own
+        58-prompt adversarial corpus is <span class="text-[#F5F5F7] font-semibold">36.2%
+        caught at HIGH or BLOCK, with zero false positives</span> across 35 benign
+        prompts — reproduce it with <code class="text-[12px] text-[#8E8E9E]">scripts/capability_probe.py</code>.
+        We publish the number because closing the gap is on the roadmap and
+        hiding it would not be.
       </p>
     </div>
 
     <div class="grid lg:grid-cols-[1fr_340px] gap-12">
       <!-- OWASP table -->
       <div class="rounded-2xl border border-white/[0.07] overflow-hidden">
-        <div class="grid grid-cols-[80px_1fr_160px_60px] px-5 py-3 border-b border-white/[0.07] bg-[#0D1428]">
-          {['ID', 'Vulnerability', 'Defense Layer', 'Det.'].map(h => (
+        <div class="grid grid-cols-[80px_1fr_160px] px-5 py-3 border-b border-white/[0.07] bg-[#0D1428]">
+          {['ID', 'Vulnerability', 'Defense Layer'].map(h => (
             <span class="text-[9px] font-bold tracking-[1.5px] uppercase text-[#48485A]">{h}</span>
           ))}
         </div>
         {owasp.map((row, i) => (
           <div
-            class={`grid grid-cols-[80px_1fr_160px_60px] items-center px-5 py-3.5 text-[13px]
+            class={`grid grid-cols-[80px_1fr_160px] items-center px-5 py-3.5 text-[13px]
                    ${i < owasp.length - 1 ? 'border-b border-white/[0.05]' : ''}
                    hover:bg-white/[0.02] transition-colors duration-150`}
           >
@@ -61,15 +71,6 @@ const frameworks = [
             >{row.id}</span>
             <span class="text-[#F5F5F7] font-medium pr-4">{row.name}</span>
             <span class="text-[11px] text-[#8E8E9E]">{row.layer}</span>
-            <div class="flex items-center gap-1.5">
-              <div class="flex-1 h-1 rounded-full bg-white/[0.06]">
-                <div
-                  class="h-1 rounded-full bg-[#30D158] transition-all"
-                  style={`width:${row.pct}%`}
-                ></div>
-              </div>
-              <span class="text-[10px] font-bold text-[#30D158] font-mono">{row.pct}%</span>
-            </div>
           </div>
         ))}
       </div>
@@ -78,15 +79,18 @@ const frameworks = [
       <div class="flex flex-col gap-6">
         <!-- Frameworks -->
         <div class="rounded-2xl border border-white/[0.07] p-6 bg-[#0D1428]">
-          <h3 class="text-[13px] font-bold mb-4 text-[#8E8E9E] uppercase tracking-wider">
-            Frameworks Covered
+          <h3 class="text-[13px] font-bold mb-1 text-[#8E8E9E] uppercase tracking-wider">
+            Control mappings
           </h3>
+          <p class="text-[11px] text-[#48485A] mb-4 leading-relaxed">
+            Self-attested. We hold no third-party certification.
+          </p>
           <div class="flex flex-col gap-3">
             {frameworks.map(f => (
               <div class="flex items-center gap-3">
                 <span class="text-lg">{f.icon}</span>
                 <span class={`text-[13px] font-medium ${f.color}`}>{f.name}</span>
-                <span class="ml-auto text-[#30D158] text-sm font-bold">✓</span>
+                <span class="ml-auto text-[10px] font-mono text-[#48485A]">{f.note}</span>
               </div>
             ))}
           </div>

@@ -7,6 +7,35 @@
 ## Language Rule
 - **All project content is English-only.** Every page, UI string, comment, label, and copy on the site (`site/`), dashboard (`dashboard/`), and portal (`portal/`) must be written in English. Never write Russian, Hebrew, or any other language in project files.
 
+## Feature Freeze — active since 2026-08-18 (P0)
+The launch programme (`docs/launch-program.md`, phase P0) froze the growth of
+surface area. 978 Python files, ~40 subsystems and 562 endpoints already exceed
+what one maintainer can keep exercised; breadth is now the main structural risk,
+not a strength. Until **P3 exits**, the following are refused by default — by the
+autonomous loop as well as by humans:
+- **No new subsystems** and no new top-level packages under `warden/`.
+- **No new routers.** New endpoints go into an existing router, under `/v1`.
+- **No fifth frontend.** `site/`, `portal/`, `dashboard/` and Streamlit are the
+  full set; Streamlit is internal-only. New UI lands inside one of them.
+- **No new chains, providers or integrations** until the existing one settles a
+  real transaction.
+
+Exempt: security fixes, work that a numbered phase of the launch programme calls
+for, and repairs to something already shipped. When declining work under this
+rule, name the rule — do not silently narrow the scope.
+
+## Claims Rule (canonical: `docs/capability-matrix.md`)
+- **No public claim may exceed its row in the capability matrix.** Site copy,
+  README, decks and SDK docs are all in scope. A PR that adds a public claim must
+  add or cite a row.
+- Statuses mean what they say: `SIMULATED` may never be phrased as if it were
+  `LIVE`, and `SELF-ATTESTED` is a control mapping, never a certification. We hold
+  **no** certification of any kind — never write "SOC 2 compliant".
+- Never publish a number nobody measures. Latency and uptime figures need an
+  instrument first; `scripts/capability_probe.py` regenerates the falsifiable
+  ones, and the probe wins any disagreement with the matrix.
+- Never imply customers, revenue or usage. There are zero registered users.
+
 ## Deploy Rule
 - **After each modernization-plan Phase passes its tests, merge to `main` and push.** CI autodeploy (`DEPLOY_SSH_KEY/HOST/USER/PATH`) pulls `main` and runs `docker compose up` on the Hetzner VPS — do not skip the merge/push step or the server stays stale. Do not batch multiple phases into one merge.
 

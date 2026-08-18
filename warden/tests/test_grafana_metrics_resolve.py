@@ -63,6 +63,12 @@ _SAMPLE_SUFFIXES = ("_bucket", "_sum", "_count", "_created", "_total")
 _NAME_IN_CODE = re.compile(r'"(warden_[a-z0-9_]+)"')
 _NAME_IN_GRAFANA = re.compile(r"(warden_[a-z0-9_]+)")
 
+#: A Counter declaration and the name on its next line. prometheus_client never
+#: exports the bare name of a Counter — only `<name>_total` (plus `_created`) —
+#: so a dashboard querying the base name is blind in exactly the way this file
+#: exists to catch, while still passing the producer check above.
+_COUNTER_DECL = re.compile(r"\bCounter\(\s*\n?\s*\"(warden_[a-z0-9_]+)\"")
+
 
 def _grafana_files() -> list[Path]:
     files = sorted(_GRAFANA.glob("dashboards/*.json")) + sorted(
@@ -77,6 +83,21 @@ def _defined_metrics() -> set[str]:
     for mod in _METRIC_MODULES:
         assert mod.exists(), f"metric module missing: {mod}"
         names |= set(_NAME_IN_CODE.findall(mod.read_text(encoding="utf-8")))
+    return names
+
+
+def _counter_base_names() -> set[str]:
+    """Names registered as a Counter, minus any that already end in `_total`.
+
+    `Counter("warden_x_total")` is exported as `warden_x_total`, so the base name
+    *is* the series and querying it is correct. `Counter("warden_x")` is exported
+    only as `warden_x_total`, so querying `warden_x` never resolves.
+    """
+    names: set[str] = set()
+    for mod in _METRIC_MODULES:
+        for name in _COUNTER_DECL.findall(mod.read_text(encoding="utf-8")):
+            if not name.endswith("_total"):
+                names.add(name)
     return names
 
 
@@ -136,6 +157,37 @@ def test_every_grafana_metric_has_a_producer() -> None:
         "or add the metric to warden/metrics.py (or warden/voice/metrics.py). "
         "Check for a singular/plural slip first: that is how warden_shadow_bans_total "
         "shipped against the real warden_shadow_ban_total."
+    )
+
+
+def test_no_grafana_query_uses_a_counter_base_name() -> None:
+    """P0. A Counter's base name is never an exported series — only `_total` is.
+
+    `warden_marketplace_trade_volume_usd` is declared as a Counter, so Prometheus
+    only ever holds `warden_marketplace_trade_volume_usd_total`. Both trade-volume
+    panels on the marketplace board queried the base name and had therefore been
+    rendering "No data" since the board was written — on the one panel that
+    reports whether the marketplace has moved any money at all.
+
+    The producer check above cannot catch this: the name *is* in metrics.py, so it
+    resolves. Only the metric's type reveals that the series can never exist.
+    """
+    counters = _counter_base_names()
+    offenders = {
+        name: sorted(files)
+        for name, files in sorted(_queried_metrics().items())
+        if name in counters
+    }
+    assert not offenders, (
+        "Grafana queries the base name of a Counter, which Prometheus never "
+        "exports:\n"
+        + "\n".join(
+            f"  {name}  ->  {name}_total   <- {', '.join(files)}"
+            for name, files in offenders.items()
+        )
+        + "\n\nAppend _total to the query. Until then the panel reads 'No data' "
+        "forever, which on a business metric is indistinguishable from a genuine "
+        "zero — and a genuine zero is information we need."
     )
 
 
