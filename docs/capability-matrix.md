@@ -120,8 +120,31 @@ our own mapping of our own controls.
 | "HIPAA compliance built in" (`index.astro`) | `SELF-ATTESTED` | PHI transfer rules exist in the jurisdiction matrix. HIPAA compliance is a property of a covered entity's whole programme, not of a vendor component. | Reword to "HIPAA PHI transfer controls" |
 | GDPR: content is never logged | `LIVE` | Enforced in the pipeline, asserted by tests; the production journal holds metadata only | None |
 | GDPR Art. 35 DPIA, Art. 30 RoPA, DPA | `LIVE` | `docs/dpia.md`, `legal/RoPA.md`, `legal/DPA.md` exist and are current | None |
-| SOC 2 evidence vault | `BUILT` | **`S3_ENABLED=false` in production.** The vault the SOC 2 material cites is switched off. | Enable in P0 |
+| SOC 2 evidence vault | `LIVE` | Enabled 2026-08-18 (P0). Verified by writing `bundles/p0-verify-session.json` and reading it back through the S3 API; `warden-logs` is receiving live request metadata. See §4.1 for the prerequisite this surfaced. | None |
+| Encrypted offsite backup of the databases | `LIVE` | 388 objects in the offsite bucket, most recent snapshot `20260818T033000Z`, every file `.db.enc` | None |
 | EU AI Act ready | `SELF-ATTESTED` | Our own reading of the regulation | Label as such |
+
+### 4.1 What enabling the vault surfaced
+
+MinIO was running on the default credentials `minioadmin` / `minioadmin`, because
+`docker-compose.yml` falls back to them (`${S3_ACCESS_KEY:-minioadmin}`) and
+production had never overridden the value.
+
+The exposure was bounded — ports are published on `127.0.0.1` only, so the object
+store was never internet-reachable — but the fix had to land *before* the flip,
+not after: switching the vault on would have started writing the evidence whose
+integrity the whole SOC 2 story depends on into a store with a guessable
+password.
+
+Rotated 2026-08-18 to a 22-character key and a 40-character secret. Verified in
+both directions: the old credentials are now rejected
+(`The Access Key Id you provided does not exist in our records`) and the new ones
+list both buckets. The buckets held zero objects at rotation time, so nothing
+was at risk in the interim.
+
+**Standing rule.** A compose default that is a working credential is not a
+default, it is a shipped password. Any `${X:-…}` fallback for a secret should
+fail to start instead.
 
 ---
 
@@ -175,7 +198,7 @@ the fact.
 | `STRICT_MODE` | `false` | Consequence of the above: uncertain verdicts pass rather than block. |
 | `AUTHORIZE_PAYMENT_ENFORCED` | `false` | The payment chokepoint composes correctly but has never guarded a real transaction. Flipping it is a P1 exit criterion, staged. |
 | `OVERAGE_CHARGE_ENFORCED` | `false` | Overage accrues as `computed` with a full audit trail; nothing is presented to a provider. Deliberate until one period has been reconciled by hand. |
-| `S3_ENABLED` | `false` → to be enabled in P0 | Not a decision, an oversight: the SOC 2 material cites a vault that is switched off. |
+| `S3_ENABLED` | `true` since 2026-08-18 | Was `false` — not a decision, an oversight: the SOC 2 material cited a vault that was switched off. Enabled in P0, after rotating the MinIO credentials it was still running on (§4.1). |
 
 ---
 
