@@ -308,12 +308,12 @@
         {
           "datasource": "prometheus",
           "expr": "sum(rate(warden_marketplace_listings_total[5m])) or vector(0)",
-          "legendFormat": "Listings/s ({{asset_type}})"
+          "legendFormat": "Listings/s"
         },
         {
           "datasource": "prometheus",
           "expr": "sum(rate(warden_marketplace_purchases_total[5m])) or vector(0)",
-          "legendFormat": "Purchases/s ({{asset_type}})"
+          "legendFormat": "Purchases/s"
         }
       ],
       "title": "Listings & Purchases Rate",
@@ -397,5 +397,5 @@
   "timezone": "browser",
   "title": "Marketplace Liquidity",
   "uid": "sw-marketplace",
-  "version": 2
+  "version": 3
 }

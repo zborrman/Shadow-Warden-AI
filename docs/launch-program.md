@@ -83,7 +83,7 @@ configuration, one mainnet chain, and the decision to flip two enforcement flags
 | Overage collection | One full period accruing as `computed`, reconciled by hand, then `OVERAGE_CHARGE_ENFORCED=true`. |
 
 **Exit criteria**
-- [ ] One real fiat subscription purchased end to end in production, by a card that is not yours.
+- [ ] One real fiat subscription purchased end to end in production by a consenting third party, using their own payment instrument, with their authorization recorded alongside the transaction. A self-test proves the integration, not the rail.
 - [ ] One on-chain USDC escrow funded, delivered and released on a mainnet chain.
 - [ ] Both reconciled clean by `order_recon_job` and `ledger_recon_job`.
 - [ ] `AUTHORIZE_PAYMENT_ENFORCED=true` in production with no purchase-path regression.
