@@ -687,26 +687,34 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
 
     <!-- Concrete scenario strip -->
     <div class="rounded-xl p-6 border" style="background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.07)">
-      <div class="text-[11px] font-semibold uppercase tracking-wider mb-4" style="color:#475569">Real business scenarios</div>
+      <!--
+        Formerly "Real business scenarios" with dollar outcomes attached. No
+        customer exists to have had those outcomes. These are illustrative uses
+        of shipped capabilities, and the header now says so.
+      -->
+      <div class="text-[11px] font-semibold uppercase tracking-wider mb-1" style="color:#475569">Illustrative scenarios</div>
+      <p class="text-[11px] mb-4" style="color:#475569">
+        How the platform is intended to be used. Not customer results — we are pre-launch.
+      </p>
       <div class="grid sm:grid-cols-3 gap-6">
         {[
           {
             role: 'FinTech CISO',
             color: '#ef4444',
-            scenario: 'Blocks 3 prompt injections/day targeting customer data. SOC 2 Type II audit passes with zero findings. Cyber insurance premium drops 40%.',
-            result: '$500K saved in Year 1',
+            scenario: 'Routes every LLM call through the gateway. Prompt injections and accidental secret leaks are caught before they reach the model, and each decision carries an explainable causal chain for incident triage.',
+            result: 'Evidence trail for audit prep',
           },
           {
             role: 'AI Dataset Vendor',
             color: '#10b981',
-            scenario: 'Lists 12 financial datasets on Marketplace. Each purchase auto-issues a UECIID provenance token. Buyers pay in USDC with no chargebacks.',
-            result: '$80K ARR from passive sales',
+            scenario: 'Lists datasets on the marketplace. Each purchase auto-issues a UECIID provenance token and moves through the escrow state machine.',
+            result: 'Settlement is simulated today — mainnet lands in P1',
           },
           {
             role: 'Industry Hub Operator',
             color: '#80b4fd',
-            scenario: 'Runs a Healthcare AI Community with 200 members. HIPAA compliance built in. SOVA watches for data exfiltration. Members trade models inside the SEP framework.',
-            result: '$6M HIPAA fine avoided',
+            scenario: 'Runs a healthcare AI community. PHI transfer rules restrict cross-border movement, SOVA watches for exfiltration, and members trade models inside the SEP framework.',
+            result: 'HIPAA PHI controls, self-attested',
           },
         ].map(s => (
           <div>
@@ -721,42 +729,51 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
 </section>
 
 
-<!-- ── 8. TESTIMONIALS ──────────────────────────────────────────────────── -->
+<!-- ── 8. VERIFY IT YOURSELF ────────────────────────────────────────────── -->
+<!--
+  This slot used to hold three testimonials attributed to named people. There
+  are no customers yet, so there were no such people. Fabricated social proof
+  is not a placeholder we are willing to ship — see docs/capability-matrix.md §6.
+  Until real customers say something real, the slot earns its place by pointing
+  at things a visitor can check without trusting us.
+-->
 <section class="py-20 fade-in-section" style="background:#0c1020;border-top:1px solid rgba(128,180,253,0.08)">
   <div class="mx-auto max-w-5xl px-4 lg:px-8">
-    <div class="text-center mb-10">
-      <h2 class="text-[20px] font-bold" style="color:#f0f4fc">What users are saying</h2>
+    <div class="text-center mb-3">
+      <h2 class="text-[20px] font-bold" style="color:#f0f4fc">Don't take our word for it</h2>
     </div>
+    <p class="text-center mb-10 mx-auto max-w-2xl" style="font-size:13px;color:#6b7c96">
+      We are pre-launch and have no customers yet, so we have no testimonials to
+      show you. Here is what you can verify for yourself instead.
+    </p>
     <div class="grid md:grid-cols-3 gap-4">
       {[
         {
-          quote: 'In the first week Shadow Warden blocked 3 prompt injection attempts against our corporate chatbot. The XAI explanations saved us hours of incident triage.',
-          name: 'Igor K.', role: 'CISO, FinTech company', color: '#80b4fd',
+          title: 'Run the gateway against your own traffic',
+          body: 'The API playground takes any prompt and returns the full nine-stage verdict, with per-stage timings and the causal chain behind the decision.',
+          cta: 'Open the playground', href: '/playground', color: '#80b4fd',
         },
         {
-          quote: 'Setup took 20 minutes. One URL change in config — and all AI traffic is under control. SecretRedactor caught 2 accidental JWT tokens on day one.',
-          name: 'Anna M.', role: 'CTO, SaaS startup', color: '#4d9cfc',
+          title: 'Reproduce our detection numbers',
+          body: 'We publish the measured result on our own adversarial corpus — 36.2% caught at HIGH or BLOCK, zero false positives on benign traffic — and the script that produces it.',
+          cta: 'Read the capability matrix', href: '/trust', color: '#4d9cfc',
         },
         {
-          quote: 'The SMB Governance Suite helped us pass a GDPR audit with zero findings. Vendor Governance tracks all DPAs automatically — it\'s invaluable.',
-          name: 'Dmitri R.', role: 'Head of IT, retail chain', color: '#34d399',
+          title: 'Check the live system',
+          body: 'Pipeline health, the post-quantum self-check and the M2M protocol manifest are all public, unauthenticated reads. Nothing about them is staged for you.',
+          cta: 'See system status', href: '/status', color: '#34d399',
         },
       ].map(t => (
         <div class="rounded-lg p-5 flex flex-col justify-between border"
              style="background:#070910;border-color:rgba(128,180,253,0.09)">
           <div>
-            <p class="leading-relaxed mb-4" style="font-size:13px;color:#a8b8d0">{t.quote}</p>
+            <div class="font-semibold mb-2" style="font-size:13px;color:#f0f4fc">{t.title}</div>
+            <p class="leading-relaxed mb-4" style="font-size:13px;color:#a8b8d0">{t.body}</p>
           </div>
-          <div class="flex items-center gap-3 pt-4 border-t" style="border-color:rgba(128,180,253,0.07)">
-            <div class="w-8 h-8 rounded flex items-center justify-center font-bold flex-shrink-0 text-[13px]"
-                 style={`color:${t.color};background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.14)`}>
-              {t.name[0]}
-            </div>
-            <div>
-              <div class="font-semibold" style="font-size:13px;color:#f0f4fc">{t.name}</div>
-              <div style="font-size:11px;color:#6b7c96">{t.role}</div>
-            </div>
-          </div>
+          <a href={t.href} class="font-semibold pt-4 border-t"
+             style={`font-size:12px;color:${t.color};border-color:rgba(128,180,253,0.07)`}>
+            {t.cta} →
+          </a>
         </div>
       ))}
     </div>
@@ -794,7 +811,7 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
         {
           color: '#80b4fd', bg: 'rgba(128,180,253,0.10)', border: 'rgba(128,180,253,0.22)',
           title: 'On-Chain Mandates (Web3)',
-          desc: 'Deploy mandates to Ethereum / Polygon via smart contract. IPFS metadata storage. Immutable audit trail — no one can dispute what the agent was authorised to spend.',
+          desc: 'Deploy mandates via smart contract on Sepolia, Polygon Amoy or Arbitrum Sepolia — testnet today, mainnet on the roadmap. IPFS metadata storage. Immutable audit trail of what the agent was authorised to spend.',
           icon: `<path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>`,
         },
         {
