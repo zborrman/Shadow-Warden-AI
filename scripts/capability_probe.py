@@ -174,53 +174,67 @@ def probe_detection(*, show_prompts: bool = False) -> dict[str, Any]:
 
                 from warden.main import app  # noqa: PLC0415
         except Exception as exc:  # noqa: BLE001
-            # The three probe groups are documented as independent. A missing
-            # dependency here must cost this group only, not the public and
-            # registry results already gathered.
-            return {"error": f"could not import the app: {type(exc).__name__}: {exc}"}
+            # Deliberately broad. The three probe groups are documented as
+            # independent, so nothing here may cost the public and registry
+            # results already gathered. The class name is carried through so a
+            # genuine application bug is not disguised as a missing dependency.
+            return {"error": f"import failed: {type(exc).__name__}: {exc}"}
 
-        def load(name: str) -> list[str]:
-            lines = (corpus / name).read_text(encoding="utf-8").splitlines()
-            return [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
+        def load(name: str) -> list[tuple[int, str]]:
+            """Corpus entries paired with their *physical* line in the file.
+
+            Blank and comment lines are skipped, so a running counter over the
+            kept entries would drift from the file and make `corpus_line` point
+            at the wrong prompt.
+            """
+            text = (corpus / name).read_text(encoding="utf-8")
+            return [
+                (lineno, stripped)
+                for lineno, raw in enumerate(text.splitlines(), start=1)
+                if (stripped := raw.strip()) and not stripped.startswith("#")
+            ]
 
         jailbreaks, benign = load("jailbreaks.txt"), load("benign.txt")
         verdicts: Counter[str] = Counter()
         non_200 = 0
         missed: list[dict[str, str]] = []
 
-        # The lifespan banner and the shutdown banner both land on stdout too.
-        with contextlib.redirect_stdout(sys.stderr), TestClient(app) as client:
+        try:
+            # The lifespan banner and the shutdown banner both land on stdout.
+            # The boundary covers TestClient's context too: a lifespan failure
+            # raises on __enter__, and before this it aborted the whole run.
+            with contextlib.redirect_stdout(sys.stderr), TestClient(app) as client:
 
-            def verdict(text: str) -> str | None:
-                resp = client.post("/filter", json={"content": text})
-                if resp.status_code != 200:
-                    return None
-                body = resp.json()
-                if body.get("blocked"):
-                    return "BLOCK"
-                raw = body.get("risk_level") or body.get("risk") or ""
-                return str(raw).upper() or "?"
+                def verdict(text: str) -> str | None:
+                    resp = client.post("/filter", json={"content": text})
+                    if resp.status_code != 200:
+                        return None
+                    body = resp.json()
+                    if body.get("blocked"):
+                        return "BLOCK"
+                    raw = body.get("risk_level") or body.get("risk") or ""
+                    return str(raw).upper() or "?"
 
-            for index, text in enumerate(jailbreaks, start=1):
-                got = verdict(text)
-                if got is None:
-                    non_200 += 1
-                    continue
-                verdicts[got] += 1
-                if got not in _CAUGHT_VERDICTS:
-                    miss: dict[str, str] = {
-                        "verdict": got,
-                        # Line number in jailbreaks.txt — enough to look a miss
-                        # up without the probe restating what it posted.
-                        "corpus_line": str(index),
-                    }
-                    if show_prompts:
-                        miss["prompt"] = text
-                    missed.append(miss)
+                for lineno, text in jailbreaks:
+                    got = verdict(text)
+                    if got is None:
+                        non_200 += 1
+                        continue
+                    verdicts[got] += 1
+                    if got not in _CAUGHT_VERDICTS:
+                        miss: dict[str, str] = {
+                            "verdict": got,
+                            "corpus_line": str(lineno),
+                        }
+                        if show_prompts:
+                            miss["prompt"] = text
+                        missed.append(miss)
 
-            false_positives = sum(
-                1 for text in benign if (verdict(text) or "") in _CAUGHT_VERDICTS
-            )
+                false_positives = sum(
+                    1 for _, text in benign if (verdict(text) or "") in _CAUGHT_VERDICTS
+                )
+        except Exception as exc:  # noqa: BLE001 — same isolation rule as above
+            return {"error": f"app startup failed: {type(exc).__name__}: {exc}"}
 
         total = len(jailbreaks)
         caught = total - len(missed) - non_200
@@ -293,6 +307,13 @@ def render(report: dict[str, Any]) -> str:
             lines.append(f"  ---- verdicts:   {det['verdict_histogram']}")
             lines.append(f"  {_flag(det['false_positives'] == 0)} false positives: "
                          f"{det['false_positives']}/{det['benign']} benign")
+            # Without this the report states a catch rate and never says which
+            # prompts produced it, and --show-prompts silently does nothing
+            # unless --json is also passed.
+            for miss in det.get("missed_prompts", []):
+                tail = f"  {miss['prompt']}" if "prompt" in miss else ""
+                lines.append(f"    missed  line {miss['corpus_line']:>3}  "
+                             f"{miss['verdict']:<8}{tail}")
         lines.append("")
 
     lines.append("Matrix: docs/capability-matrix.md — update it if these numbers moved.")
