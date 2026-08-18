@@ -176,21 +176,6 @@ def probe_detection(*, show_prompts: bool = False) -> dict[str, Any]:
         if str(repo) not in sys.path:
             sys.path.insert(0, str(repo))
 
-        try:
-            # Booting the app prints a banner to stdout. Under --json that makes
-            # the machine-readable output unparseable, so everything the app says
-            # goes to stderr and stdout carries the report alone.
-            with contextlib.redirect_stdout(sys.stderr):
-                from fastapi.testclient import TestClient  # noqa: PLC0415
-
-                from warden.main import app  # noqa: PLC0415
-        except Exception as exc:  # noqa: BLE001
-            # Deliberately broad. The three probe groups are documented as
-            # independent, so nothing here may cost the public and registry
-            # results already gathered. The class name is carried through so a
-            # genuine application bug is not disguised as a missing dependency.
-            return {"error": f"import failed: {type(exc).__name__}: {exc}"}
-
         def load(name: str) -> list[tuple[int, str]]:
             """Corpus entries paired with their *physical* line in the file.
 
@@ -205,12 +190,29 @@ def probe_detection(*, show_prompts: bool = False) -> dict[str, Any]:
                 if (stripped := raw.strip()) and not stripped.startswith("#")
             ]
 
+        # Before the app import, deliberately: an unreadable corpus is knowable
+        # in microseconds and there is no reason to pay ~20s of application boot
+        # to discover it. Either way it costs the detection group only, never the
+        # public and registry results already gathered.
         try:
             jailbreaks, benign = load("jailbreaks.txt"), load("benign.txt")
         except (OSError, UnicodeDecodeError) as exc:
-            # An unreadable or non-UTF-8 corpus is a detection-group problem and
-            # must not cost the public and registry results.
             return {"error": f"corpus unreadable: {type(exc).__name__}: {exc}"}
+
+        try:
+            # Booting the app prints a banner to stdout. Under --json that makes
+            # the machine-readable output unparseable, so everything the app says
+            # goes to stderr and stdout carries the report alone.
+            with contextlib.redirect_stdout(sys.stderr):
+                from fastapi.testclient import TestClient  # noqa: PLC0415
+
+                from warden.main import app  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            # Deliberately broad. The three probe groups are documented as
+            # independent, so nothing here may cost the public and registry
+            # results already gathered. The class name is carried through so a
+            # genuine application bug is not disguised as a missing dependency.
+            return {"error": f"import failed: {type(exc).__name__}: {exc}"}
 
         verdicts: Counter[str] = Counter()
         # Tracked per corpus. A benign request that 403s scores as "not a false
