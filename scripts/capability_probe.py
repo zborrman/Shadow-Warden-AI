@@ -35,11 +35,13 @@ Usage::
     python scripts/capability_probe.py
     python scripts/capability_probe.py --detection
     python scripts/capability_probe.py --detection --json
+    python scripts/capability_probe.py --detection --show-prompts
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -123,8 +125,15 @@ def probe_registries() -> dict[str, Any]:
     }
 
 
-def probe_detection() -> dict[str, Any]:
-    """Run the committed adversarial corpus through the real pipeline."""
+def probe_detection(*, show_prompts: bool = False) -> dict[str, Any]:
+    """Run the committed adversarial corpus through the real pipeline.
+
+    ``show_prompts`` includes the text of each missed prompt. Off by default:
+    the corpus is public repository content rather than tenant traffic, so this
+    is not the GDPR content-logging rule, but a probe that echoes whatever it
+    posted to ``/filter`` becomes one the moment somebody points it at a
+    different corpus. Verdict plus corpus index identifies a miss without that.
+    """
     repo = pathlib.Path(__file__).resolve().parent.parent
     corpus = repo / "warden" / "tests" / "adversarial"
     if not corpus.is_dir():
@@ -156,9 +165,19 @@ def probe_detection() -> dict[str, Any]:
         if str(repo) not in sys.path:
             sys.path.insert(0, str(repo))
 
-        from fastapi.testclient import TestClient  # noqa: PLC0415
+        try:
+            # Booting the app prints a banner to stdout. Under --json that makes
+            # the machine-readable output unparseable, so everything the app says
+            # goes to stderr and stdout carries the report alone.
+            with contextlib.redirect_stdout(sys.stderr):
+                from fastapi.testclient import TestClient  # noqa: PLC0415
 
-        from warden.main import app  # noqa: PLC0415
+                from warden.main import app  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            # The three probe groups are documented as independent. A missing
+            # dependency here must cost this group only, not the public and
+            # registry results already gathered.
+            return {"error": f"could not import the app: {type(exc).__name__}: {exc}"}
 
         def load(name: str) -> list[str]:
             lines = (corpus / name).read_text(encoding="utf-8").splitlines()
@@ -169,7 +188,8 @@ def probe_detection() -> dict[str, Any]:
         non_200 = 0
         missed: list[dict[str, str]] = []
 
-        with TestClient(app) as client:
+        # The lifespan banner and the shutdown banner both land on stdout too.
+        with contextlib.redirect_stdout(sys.stderr), TestClient(app) as client:
 
             def verdict(text: str) -> str | None:
                 resp = client.post("/filter", json={"content": text})
@@ -181,14 +201,22 @@ def probe_detection() -> dict[str, Any]:
                 raw = body.get("risk_level") or body.get("risk") or ""
                 return str(raw).upper() or "?"
 
-            for text in jailbreaks:
+            for index, text in enumerate(jailbreaks, start=1):
                 got = verdict(text)
                 if got is None:
                     non_200 += 1
                     continue
                 verdicts[got] += 1
                 if got not in _CAUGHT_VERDICTS:
-                    missed.append({"verdict": got, "prompt": text})
+                    miss: dict[str, str] = {
+                        "verdict": got,
+                        # Line number in jailbreaks.txt — enough to look a miss
+                        # up without the probe restating what it posted.
+                        "corpus_line": str(index),
+                    }
+                    if show_prompts:
+                        miss["prompt"] = text
+                    missed.append(miss)
 
             false_positives = sum(
                 1 for text in benign if (verdict(text) or "") in _CAUGHT_VERDICTS
@@ -280,6 +308,11 @@ def main() -> int:
         action="store_true",
         help="also run the adversarial corpus locally (slow, boots the app)",
     )
+    parser.add_argument(
+        "--show-prompts",
+        action="store_true",
+        help="include the text of each missed prompt, not just its corpus line",
+    )
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     args = parser.parse_args()
 
@@ -288,7 +321,7 @@ def main() -> int:
         "registries": probe_registries(),
     }
     if args.detection:
-        report["detection"] = probe_detection()
+        report["detection"] = probe_detection(show_prompts=args.show_prompts)
 
     print(json.dumps(report, indent=2) if args.json else render(report))
     return 0
