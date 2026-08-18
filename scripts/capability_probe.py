@@ -21,25 +21,36 @@ costs the others:
     committed adversarial corpus through the real ``/filter`` pipeline. This
     reproduces ``warden/tests/adversarial/baseline.json``.
 
-    Two isolation details matter, and getting either wrong silently produces a
-    catch rate of zero:
+    Three isolation details matter, and each has its own wrong-number mode:
 
     * ``AUTO_BLOCK_THRESHOLD=0`` — otherwise the corpus shadow-bans its own
       client IP partway through and every later request returns 403, which
-      scores as a miss.
+      scores as a miss. Catch rate collapses toward zero.
     * a private ``WARDEN_DATA_DIR`` — otherwise a ban persists in the threat
       store and poisons the *next* run from its first request.
+    * a raised rate limit — the default is 60 requests per minute and the two
+      corpora are 93 requests. Without this the run fits the 58 jailbreaks
+      under the limit and then 429s most of the benign pass. A rejected benign
+      request scores as "not a false positive", so the report claims a flawless
+      zero while having measured almost nothing — the optimistic failure, and
+      the more dangerous one, because zero false positives is the number worth
+      quoting.
+
+    Any non-200 in either corpus voids the run via ``ISOLATION_FAILURE`` rather
+    than being folded silently into a headline figure.
 
 Usage::
 
     python scripts/capability_probe.py
     python scripts/capability_probe.py --detection
     python scripts/capability_probe.py --detection --json
+    python scripts/capability_probe.py --detection --show-prompts
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import pathlib
@@ -123,8 +134,15 @@ def probe_registries() -> dict[str, Any]:
     }
 
 
-def probe_detection() -> dict[str, Any]:
-    """Run the committed adversarial corpus through the real pipeline."""
+def probe_detection(*, show_prompts: bool = False) -> dict[str, Any]:
+    """Run the committed adversarial corpus through the real pipeline.
+
+    ``show_prompts`` includes the text of each missed prompt. Off by default:
+    the corpus is public repository content rather than tenant traffic, so this
+    is not the GDPR content-logging rule, but a probe that echoes whatever it
+    posted to ``/filter`` becomes one the moment somebody points it at a
+    different corpus. Verdict plus corpus index identifies a miss without that.
+    """
     repo = pathlib.Path(__file__).resolve().parent.parent
     corpus = repo / "warden" / "tests" / "adversarial"
     if not corpus.is_dir():
@@ -142,8 +160,10 @@ def probe_detection() -> dict[str, Any]:
                 "SEMANTIC_THRESHOLD": "0.72",
                 "PROMETHEUS_METRICS_ENABLED": "false",
                 "THREAT_INTEL_ENABLED": "false",
-                # See the module docstring: both of these are load-bearing.
+                # See the module docstring: all three of these are load-bearing.
                 "AUTO_BLOCK_THRESHOLD": "0",
+                "TENANT_RATE_LIMIT": "100000",
+                "RATE_LIMIT_PER_MINUTE": "100000",
                 "WARDEN_DATA_DIR": data_dir,
                 "THREAT_DB_PATH": f"{data_dir}/threat.db",
                 "LOGS_PATH": f"{data_dir}/logs.json",
@@ -156,62 +176,115 @@ def probe_detection() -> dict[str, Any]:
         if str(repo) not in sys.path:
             sys.path.insert(0, str(repo))
 
-        from fastapi.testclient import TestClient  # noqa: PLC0415
+        try:
+            # Booting the app prints a banner to stdout. Under --json that makes
+            # the machine-readable output unparseable, so everything the app says
+            # goes to stderr and stdout carries the report alone.
+            with contextlib.redirect_stdout(sys.stderr):
+                from fastapi.testclient import TestClient  # noqa: PLC0415
 
-        from warden.main import app  # noqa: PLC0415
+                from warden.main import app  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            # Deliberately broad. The three probe groups are documented as
+            # independent, so nothing here may cost the public and registry
+            # results already gathered. The class name is carried through so a
+            # genuine application bug is not disguised as a missing dependency.
+            return {"error": f"import failed: {type(exc).__name__}: {exc}"}
 
-        def load(name: str) -> list[str]:
-            lines = (corpus / name).read_text(encoding="utf-8").splitlines()
-            return [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
+        def load(name: str) -> list[tuple[int, str]]:
+            """Corpus entries paired with their *physical* line in the file.
 
-        jailbreaks, benign = load("jailbreaks.txt"), load("benign.txt")
+            Blank and comment lines are skipped, so a running counter over the
+            kept entries would drift from the file and make `corpus_line` point
+            at the wrong prompt.
+            """
+            text = (corpus / name).read_text(encoding="utf-8")
+            return [
+                (lineno, stripped)
+                for lineno, raw in enumerate(text.splitlines(), start=1)
+                if (stripped := raw.strip()) and not stripped.startswith("#")
+            ]
+
+        try:
+            jailbreaks, benign = load("jailbreaks.txt"), load("benign.txt")
+        except (OSError, UnicodeDecodeError) as exc:
+            # An unreadable or non-UTF-8 corpus is a detection-group problem and
+            # must not cost the public and registry results.
+            return {"error": f"corpus unreadable: {type(exc).__name__}: {exc}"}
+
         verdicts: Counter[str] = Counter()
-        non_200 = 0
+        # Tracked per corpus. A benign request that 403s scores as "not a false
+        # positive", so folding both into one counter would let a client banned
+        # during the benign pass report a flawless zero — the exact number the
+        # site quotes — with nothing marking the run as void.
+        non_200_jailbreak = 0
+        non_200_benign = 0
         missed: list[dict[str, str]] = []
 
-        with TestClient(app) as client:
+        try:
+            # The lifespan banner and the shutdown banner both land on stdout.
+            # The boundary covers TestClient's context too: a lifespan failure
+            # raises on __enter__, and before this it aborted the whole run.
+            with contextlib.redirect_stdout(sys.stderr), TestClient(app) as client:
 
-            def verdict(text: str) -> str | None:
-                resp = client.post("/filter", json={"content": text})
-                if resp.status_code != 200:
-                    return None
-                body = resp.json()
-                if body.get("blocked"):
-                    return "BLOCK"
-                raw = body.get("risk_level") or body.get("risk") or ""
-                return str(raw).upper() or "?"
+                def verdict(text: str) -> str | None:
+                    resp = client.post("/filter", json={"content": text})
+                    if resp.status_code != 200:
+                        return None
+                    body = resp.json()
+                    if body.get("blocked"):
+                        return "BLOCK"
+                    raw = body.get("risk_level") or body.get("risk") or ""
+                    return str(raw).upper() or "?"
 
-            for text in jailbreaks:
-                got = verdict(text)
-                if got is None:
-                    non_200 += 1
-                    continue
-                verdicts[got] += 1
-                if got not in _CAUGHT_VERDICTS:
-                    missed.append({"verdict": got, "prompt": text})
+                for lineno, text in jailbreaks:
+                    got = verdict(text)
+                    if got is None:
+                        non_200_jailbreak += 1
+                        continue
+                    verdicts[got] += 1
+                    if got not in _CAUGHT_VERDICTS:
+                        miss: dict[str, str] = {
+                            "verdict": got,
+                            "corpus_line": str(lineno),
+                        }
+                        if show_prompts:
+                            miss["prompt"] = text
+                        missed.append(miss)
 
-            false_positives = sum(
-                1 for text in benign if (verdict(text) or "") in _CAUGHT_VERDICTS
-            )
+                false_positives = 0
+                for _, text in benign:
+                    got = verdict(text)
+                    if got is None:
+                        non_200_benign += 1
+                        continue
+                    if got in _CAUGHT_VERDICTS:
+                        false_positives += 1
+        except Exception as exc:  # noqa: BLE001 — same isolation rule as above
+            return {"error": f"app startup failed: {type(exc).__name__}: {exc}"}
 
         total = len(jailbreaks)
-        caught = total - len(missed) - non_200
+        # Only jailbreak failures reduce `caught`; a benign failure says nothing
+        # about detection, it just invalidates the false-positive figure.
+        caught = total - len(missed) - non_200_jailbreak
         result: dict[str, Any] = {
             "jailbreaks": total,
             "caught": caught,
-            "missed": len(missed) + non_200,
+            "missed": len(missed) + non_200_jailbreak,
             "catch_rate_pct": round(100 * caught / total, 1) if total else 0.0,
             "verdict_histogram": dict(verdicts),
             "benign": len(benign),
             "false_positives": false_positives,
             "missed_prompts": missed,
+            "non_200": {"jailbreak": non_200_jailbreak, "benign": non_200_benign},
         }
-        if non_200:
-            # Isolation failed; the catch rate below is meaningless, say so loudly
-            # rather than reporting a confident wrong number.
+        if non_200_jailbreak or non_200_benign:
+            # Isolation failed; both headline numbers above are meaningless, so
+            # say so loudly rather than reporting a confident wrong one.
             result["ISOLATION_FAILURE"] = (
-                f"{non_200} requests did not return 200 — the client was most likely "
-                "shadow-banned mid-run. Treat this result as void."
+                f"{non_200_jailbreak} jailbreak and {non_200_benign} benign requests "
+                "did not return 200 — the client was most likely shadow-banned "
+                "mid-run. Treat this result as void."
             )
         return result
     finally:
@@ -263,8 +336,16 @@ def render(report: dict[str, Any]) -> str:
             lines.append(f"  ---- catch rate: {det['catch_rate_pct']}% "
                          f"({det['caught']}/{det['jailbreaks']} at HIGH/BLOCK)")
             lines.append(f"  ---- verdicts:   {det['verdict_histogram']}")
-            lines.append(f"  {_flag(det['false_positives'] == 0)} false positives: "
+            fp_ok = det["false_positives"] == 0 and not det.get("ISOLATION_FAILURE")
+            lines.append(f"  {_flag(fp_ok)} false positives: "
                          f"{det['false_positives']}/{det['benign']} benign")
+            # Without this the report states a catch rate and never says which
+            # prompts produced it, and --show-prompts silently does nothing
+            # unless --json is also passed.
+            for miss in det.get("missed_prompts", []):
+                tail = f"  {miss['prompt']}" if "prompt" in miss else ""
+                lines.append(f"    missed  line {miss['corpus_line']:>3}  "
+                             f"{miss['verdict']:<8}{tail}")
         lines.append("")
 
     lines.append("Matrix: docs/capability-matrix.md — update it if these numbers moved.")
@@ -280,6 +361,11 @@ def main() -> int:
         action="store_true",
         help="also run the adversarial corpus locally (slow, boots the app)",
     )
+    parser.add_argument(
+        "--show-prompts",
+        action="store_true",
+        help="include the text of each missed prompt, not just its corpus line",
+    )
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     args = parser.parse_args()
 
@@ -288,7 +374,7 @@ def main() -> int:
         "registries": probe_registries(),
     }
     if args.detection:
-        report["detection"] = probe_detection()
+        report["detection"] = probe_detection(show_prompts=args.show_prompts)
 
     print(json.dumps(report, indent=2) if args.json else render(report))
     return 0
