@@ -36,16 +36,55 @@ all.
 from __future__ import annotations
 
 import ast
+import textwrap
 from pathlib import Path
+
+import pytest
 
 _TESTS_DIR = Path(__file__).resolve().parent
 
 
+def _class_base(node: ast.expr, local_test_classes: set[str]) -> str | None:
+    """Name of the test class an assignment target writes to, if any.
+
+    Three spellings reach the same place, and the last two are the likelier way
+    the pattern comes back, because they are written from inside a test method
+    where the class name is not in scope:
+
+        TestFoo.attr = ...          → ast.Name
+        self.__class__.attr = ...   → ast.Attribute on `self`
+        type(self).attr = ...       → ast.Call to `type`
+    """
+    if isinstance(node, ast.Name) and node.id in local_test_classes:
+        return node.id
+    if (
+        isinstance(node, ast.Attribute)
+        and node.attr == "__class__"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+    ):
+        return "self.__class__"
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "type"
+        and len(node.args) == 1
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "self"
+    ):
+        return "type(self)"
+    return None
+
+
 def _offenders(tree: ast.Module) -> list[tuple[str, int]]:
-    """Assignments of the form `TestSomething.attr = ...` inside the module.
+    """Writes of the form `<test class>.attr = ...` inside the module.
 
     Only classes defined in this file count — an imported name that happens to
     start with `Test` is somebody else's type.
+
+    All three assignment nodes are checked. A guard that only understood plain
+    `=` would miss `attr: str = ...` and `attr += ...`, which store state just
+    as durably.
     """
     local_test_classes = {
         node.name
@@ -57,15 +96,19 @@ def _offenders(tree: ast.Module) -> list[tuple[str, int]]:
 
     found: list[tuple[str, int]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+        elif isinstance(node, ast.AnnAssign | ast.AugAssign):
+            targets = [node.target]
+        else:
             continue
-        for target in node.targets:
-            if (
-                isinstance(target, ast.Attribute)
-                and isinstance(target.value, ast.Name)
-                and target.value.id in local_test_classes
-            ):
-                found.append((f"{target.value.id}.{target.attr}", node.lineno))
+
+        for target in targets:
+            if not isinstance(target, ast.Attribute):
+                continue
+            base = _class_base(target.value, local_test_classes)
+            if base is not None:
+                found.append((f"{base}.{target.attr}", node.lineno))
     return found
 
 
@@ -97,3 +140,47 @@ def test_no_test_class_is_used_as_a_state_channel() -> None:
         "declare it as a parameter; pytest will order them by the dependency "
         "graph. See test_hub_marketplace_flow.py for the shape."
     )
+
+
+# ── the guard's own coverage ───────────────────────────────────────────────────
+# A recurrence guard is only worth the forms it recognises, so each spelling is
+# pinned. `self.__class__` and `type(self)` matter most: they are what somebody
+# writes from inside a test method, where the class name is not in scope.
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param("TestFoo.captured = 1", id="plain-assign"),
+        pytest.param("TestFoo.captured: int = 1", id="annotated-assign"),
+        pytest.param("TestFoo.captured += 1", id="augmented-assign"),
+        pytest.param("self.__class__.captured = 1", id="via-self-class"),
+        pytest.param("type(self).captured = 1", id="via-type-self"),
+    ],
+)
+def test_guard_catches_every_spelling(body: str) -> None:
+    src = textwrap.dedent(f"""
+        class TestFoo:
+            def test_one(self):
+                {body}
+    """)
+    assert _offenders(ast.parse(src)), f"guard missed: {body}"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # Imported types whose names merely start with "Test" are not test classes.
+        pytest.param("TestClient.timeout = 5", id="imported-testclient"),
+        # Instance state dies with the instance — that is not a state channel.
+        pytest.param("self.captured = 1", id="instance-attribute"),
+        # A local, and a plain call.
+        pytest.param("captured = 1", id="local-variable"),
+    ],
+)
+def test_guard_does_not_flag_legitimate_writes(body: str) -> None:
+    src = textwrap.dedent(f"""
+        class TestFoo:
+            def test_one(self):
+                {body}
+    """)
+    assert not _offenders(ast.parse(src)), f"false positive on: {body}"

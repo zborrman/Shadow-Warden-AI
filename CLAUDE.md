@@ -37,6 +37,7 @@ rule, name the rule — do not silently narrow the scope.
 - Never imply customers, revenue or usage. There are zero registered users.
 
 ## Branch Hygiene (learned the hard way, 2026-08-19)
+
 Two mistakes cost real work in one session; both are cheap to prevent and
 invisible when they happen.
 - **`git fetch` immediately before creating a branch, and check
