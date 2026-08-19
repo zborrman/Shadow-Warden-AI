@@ -44,6 +44,10 @@ Verdict = Literal["ALLOW", "REQUIRE_APPROVAL", "DENY"]
 
 _PRECEDENCE: dict[str, int] = {"ALLOW": 0, "REQUIRE_APPROVAL": 1, "DENY": 2}
 
+#: The reason semantic_budget returns when a tenant has agentic commerce off.
+#: It allows at any amount, so it is an ALLOW that evaluated nothing.
+_BUDGET_NOT_CONFIGURED = "agentic_commerce_not_enabled"
+
 
 @dataclass
 class AuthorizationResult:
@@ -102,10 +106,36 @@ def _check_budget(tenant_id: str, amount_usd: float, merchant: str) -> tuple[Ver
             return "DENY", f"budget={decision.action}:{decision.reason}"
         if decision.action == "require_approval":
             return "REQUIRE_APPROVAL", f"budget={decision.action}:{decision.reason}"
+        if decision.reason == _BUDGET_NOT_CONFIGURED:
+            # Allowed because nothing evaluated it, not because it passed. Same
+            # distinction the `enforced` label draws one level up: a tenant with
+            # agentic commerce off gets ALLOW at any amount, and on production
+            # that is currently every tenant.
+            return "ALLOW", f"budget=not_evaluated:{decision.reason}"
         return "ALLOW", "budget=allow"
     except Exception as exc:
         log.warning("authorize_payment: budget check failed (fail-soft): %s", exc)
         return "REQUIRE_APPROVAL", f"budget_error={exc}"
+
+
+def _check_outcome(reason: str, verdict: Verdict) -> str:
+    """Metric label for one check: its verdict, or why it did not produce one."""
+    if reason.startswith(("budget=not_evaluated", "autonomy=not_evaluated")):
+        return "not_evaluated"
+    if "_error=" in reason:
+        return "error"
+    return verdict.lower()
+
+
+def _record_check(check: str, reason: str, verdict: Verdict) -> None:
+    """Never raises — telemetry must not block money."""
+    try:
+        from warden.metrics import PAYMENT_AUTHORIZATION_CHECK_TOTAL
+        PAYMENT_AUTHORIZATION_CHECK_TOTAL.labels(
+            check=check, outcome=_check_outcome(reason, verdict)
+        ).inc()
+    except Exception as exc:  # pragma: no cover - metrics are optional
+        log.debug("authorize_payment check metric unavailable: %s", exc)
 
 
 def _check_mandate(mandate_id: str, tenant_id: str) -> tuple[Verdict, str]:
@@ -160,17 +190,20 @@ def authorize_payment(
     verdict = _merge(verdict, autonomy_verdict)
     reasons.append(autonomy_reason)
     checks["autonomy"] = autonomy_verdict
+    _record_check("autonomy", autonomy_reason, autonomy_verdict)
 
     budget_verdict, budget_reason = _check_budget(tenant_id, amount_usd, merchant)
     verdict = _merge(verdict, budget_verdict)
     reasons.append(budget_reason)
     checks["budget"] = budget_verdict
+    _record_check("budget", budget_reason, budget_verdict)
 
     if mandate_id:
         mandate_verdict, mandate_reason = _check_mandate(mandate_id, tenant_id)
         verdict = _merge(verdict, mandate_verdict)
         reasons.append(mandate_reason)
         checks["mandate"] = mandate_verdict
+        _record_check("mandate", mandate_reason, mandate_verdict)
 
     _record_authorization(verdict, enforced=True)
     return AuthorizationResult(verdict=verdict, reasons=reasons, checks=checks)

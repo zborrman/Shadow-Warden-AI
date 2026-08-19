@@ -522,6 +522,31 @@ try:
             "warden_payment_authorization_total"
         )
 
+    # P1: per-check outcomes inside the chokepoint. The composite verdict above
+    # cannot distinguish a check that ran and passed from one that returned
+    # "allow" because it was never configured — measured on production
+    # 2026-08-19, the Budget Guardian answered ALLOW at $500 for every tenant
+    # because agentic commerce is enabled for none of them. A two-check
+    # chokepoint that is really a one-check chokepoint should say so before an
+    # operator flips AUTHORIZE_PAYMENT_ENFORCED on the strength of it.
+    # `outcome` carries `not_evaluated` for exactly that case.
+    try:
+        PAYMENT_AUTHORIZATION_CHECK_TOTAL = Counter(
+            "warden_payment_authorization_check_total",
+            "Per-check outcomes inside authorize_payment()",
+            ["check", "outcome"],
+        )
+    except ValueError:
+        # getattr rather than REGISTRY._names_to_collectors directly: the
+        # attribute is private, so the direct form needs a typing suppression
+        # for attr-defined and assignment — and the suppression ratchet is
+        # right that a new one should justify itself. getattr returns Any,
+        # which checks cleanly and reads no worse.
+        _registered = getattr(REGISTRY, "_names_to_collectors", {})
+        PAYMENT_AUTHORIZATION_CHECK_TOTAL = _registered.get(
+            "warden_payment_authorization_check_total"
+        )
+
     # MP-1b: offer-signature outcomes. `absent` is the one that matters during
     # the bake period — it counts offers that would be rejected once
     # MARKETPLACE_REQUIRE_SIGNED_OFFERS flips to true, so an operator can watch

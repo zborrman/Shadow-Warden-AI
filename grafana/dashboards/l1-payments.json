@@ -26,7 +26,7 @@
       "type": "stat",
       "id": 13,
       "title": "Ledger Drift",
-      "description": "warden_ledger_recon_drift_usd — absolute USD gap between the ledger and its authoritative counters at the last nightly recon. Anything above zero is a money-correctness event, not a rounding artefact.",
+      "description": "warden_ledger_recon_drift_usd \u2014 absolute USD gap between the ledger and its authoritative counters at the last nightly recon. Anything above zero is a money-correctness event, not a rounding artefact.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -86,7 +86,7 @@
       "type": "stat",
       "id": 14,
       "title": "Open-Hold Drift",
-      "description": "warden_ledger_recon_hold_drift_usd — gap between currently-open holds and their ledger contra accounts.",
+      "description": "warden_ledger_recon_hold_drift_usd \u2014 gap between currently-open holds and their ledger contra accounts.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -145,7 +145,7 @@
     {
       "type": "stat",
       "id": 15,
-      "title": "Payment DENYs — 24h",
+      "title": "Payment DENYs \u2014 24h",
       "description": "authorize_payment() refusals. Verdict precedence is DENY > REQUIRE_APPROVAL > ALLOW; each sub-check fails soft to REQUIRE_APPROVAL on its own error, never to a silent ALLOW.",
       "datasource": {
         "type": "prometheus",
@@ -184,7 +184,7 @@
     {
       "type": "stat",
       "id": 16,
-      "title": "Authorizations — 24h",
+      "title": "Authorizations \u2014 24h",
       "description": "All authorize_payment() verdicts.",
       "datasource": {
         "type": "prometheus",
@@ -326,10 +326,42 @@
       ]
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Which checks inside authorize_payment() actually evaluate. `not_evaluated` means the check allowed without assessing anything \u2014 the Budget Guardian returns that for every tenant with agentic commerce off, which on 2026-08-19 was all of them. A chokepoint whose second check never fires is a one-check chokepoint; this panel is how you notice before flipping AUTHORIZE_PAYMENT_ENFORCED.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 910,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (check, outcome) (rate(warden_payment_authorization_check_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{check}} / {{outcome}}"
+        }
+      ],
+      "title": "Chokepoint \u2014 which checks evaluate",
+      "type": "timeseries"
+    },
+    {
       "type": "timeseries",
       "id": 21,
       "title": "Offer Signature Verification",
-      "description": "warden_marketplace_offer_signature_total{result,enforced} — MARKETPLACE_REQUIRE_SIGNED_OFFERS turns this from observe-and-count into reject.",
+      "description": "warden_marketplace_offer_signature_total{result,enforced} \u2014 MARKETPLACE_REQUIRE_SIGNED_OFFERS turns this from observe-and-count into reject.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -416,7 +448,7 @@
       "type": "timeseries",
       "id": 24,
       "title": "WAT Transfers by Rail",
-      "description": "warden_wat_transfers_total{rail} — on-chain versus simulation.",
+      "description": "warden_wat_transfers_total{rail} \u2014 on-chain versus simulation.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -503,7 +535,7 @@
   },
   "timepicker": {},
   "timezone": "UTC",
-  "title": "Shadow Warden — Payments & Ledger",
+  "title": "Shadow Warden \u2014 Payments & Ledger",
   "uid": "sw-l1-payments",
-  "version": 1
+  "version": 2
 }
