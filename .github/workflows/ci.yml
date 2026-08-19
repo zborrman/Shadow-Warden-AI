@@ -1133,13 +1133,28 @@ jobs:
           SSH_USER=$(printf '%s' "$DEPLOY_USER" | tr -d '[:space:]')
           SSH_PATH=$(printf '%s' "$DEPLOY_PATH" | tr -d '[:space:]')
 
+          # `|| { …; exit 0; }` used to sit on this heredoc, so *any* non-zero
+          # exit read as "unreachable" and the job went green. That is also how
+          # the remote script reports `docker compose up failed` and how the
+          # health poll below reports "/health did not return 200 within five
+          # minutes" — both `exit 1`. On 2026-08-19 a stale container-name
+          # conflict left the whole stack in `created`, the remote script said
+          # so, exited 1, and this line turned that into "deploy skipped" and a
+          # green pipeline. Production was down for about ninety minutes behind
+          # a passing build.
+          #
+          # ssh reserves 255 for its own connection failures; anything else is
+          # the remote script's own status. (A remote command exiting exactly
+          # 255 would be misread as unreachable — this script only ever exits
+          # 0 or 1, so that is not reachable here.)
+          set +e
           ssh -i ~/.ssh/id_deploy \
               -o BatchMode=yes \
               -o StrictHostKeyChecking=no \
               -o ConnectTimeout=15 \
               -o ServerAliveInterval=20 \
               -o ServerAliveCountMax=6 \
-              "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH || { echo "⚠️  Server unreachable — deploy skipped"; exit 0; }
+              "${SSH_USER}@${SSH_HOST}" /bin/bash << ENDSSH
           set -euo pipefail
           cd "$SSH_PATH"
 
@@ -1316,6 +1331,21 @@ jobs:
           docker compose logs --tail 100 warden
           exit 1
           ENDSSH
+          DEPLOY_RC=$?
+          set -e
+
+          if [ "$DEPLOY_RC" -eq 255 ]; then
+            echo "⚠️  Server unreachable — deploy skipped"
+            exit 0
+          fi
+          if [ "$DEPLOY_RC" -ne 0 ]; then
+            echo "❌ Remote deploy failed (exit $DEPLOY_RC) — production may be down."
+            echo "   The remote script's own output is above: either 'docker compose"
+            echo "   up failed' or the /health poll timing out. This step now fails"
+            echo "   instead of reporting the deploy as skipped."
+            exit "$DEPLOY_RC"
+          fi
+          echo "✅ Deploy completed and warden answered /health."
 
   # ── Slack Deploy Notification ────────────────────────────────────────────────
   #
