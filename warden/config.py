@@ -1794,6 +1794,16 @@ class Settings:
     arbitrum_sepolia_rpc_url: str = field(
         default_factory=lambda: _env("ARBITRUM_SEPOLIA_RPC_URL", "")
     )
+    # P1a. Both default to Base's public endpoints: they answer without an
+    # account and were verified reachable from the production host, so a
+    # deployment needs no RPC provider signup to settle. Override to point at
+    # Alchemy or similar when rate limits start to matter.
+    base_rpc_url: str = field(
+        default_factory=lambda: _env("BASE_RPC_URL", "https://mainnet.base.org")
+    )
+    base_sepolia_rpc_url: str = field(
+        default_factory=lambda: _env("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org")
+    )
 
     # ── Document Intelligence converter (warden/document_intel/converter.py) ────
     doc_intel_max_bytes: int = field(
