@@ -36,6 +36,23 @@ rule, name the rule — do not silently narrow the scope.
   ones, and the probe wins any disagreement with the matrix.
 - Never imply customers, revenue or usage. There are zero registered users.
 
+## Branch Hygiene (learned the hard way, 2026-08-19)
+
+Two mistakes cost real work in one session; both are cheap to prevent and
+invisible when they happen.
+- **`git fetch` immediately before creating a branch, and check
+  `git diff origin/main --stat` before the first commit.** A branch cut from a
+  stale `origin/main` silently *reverts* whatever landed in between — one P1
+  branch would have undone an entire merged PR. The diff must contain only the
+  files you touched; anything else means the base is wrong.
+- **Check `gh pr view <n> --json state` before pushing to an existing PR's
+  branch.** Pushing to a branch whose PR is already merged strands the commit:
+  the ref moves, GitHub does not re-open the PR, no CI runs, and nothing says so.
+  Post-merge work always gets a new branch off fresh `main` and its own PR.
+- **A squash merge means the branch commits are not ancestors of `main`.**
+  `git merge-base --is-ancestor` will say "not merged" for work that *is* merged.
+  Verify by content (`git diff origin/main <file>`), not by ancestry.
+
 ## Deploy Rule
 - **After each modernization-plan Phase passes its tests, merge to `main` and push.** CI autodeploy (`DEPLOY_SSH_KEY/HOST/USER/PATH`) pulls `main` and runs `docker compose up` on the Hetzner VPS — do not skip the merge/push step or the server stays stale. Do not batch multiple phases into one merge.
 
