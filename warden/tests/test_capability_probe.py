@@ -65,13 +65,25 @@ def _fake_repo(tmp_path: Path, *, with_dir: bool) -> Path:
     return tmp_path / "scripts" / "capability_probe.py"
 
 
+def _assert_error_only(result: dict[str, Any]) -> None:
+    """A failed detection run reports an error and *nothing else*.
+
+    Excluding `catch_rate_pct` alone is not enough: a regression that returned a
+    partial result — `jailbreaks`, `false_positives` or `non_200` alongside an
+    error — would pass a narrower assertion while handing a caller numbers
+    derived from a run that never happened. That is the same defect this whole
+    file exists to prevent, so the contract is pinned exactly.
+    """
+    assert set(result) == {"error"}, f"expected only an error key, got {sorted(result)}"
+
+
 def test_absent_corpus_directory_returns_an_error(
     probe: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(probe, "__file__", str(_fake_repo(tmp_path, with_dir=False)))
     result = probe.probe_detection()
     assert "error" in result, "an absent corpus must return an error, not raise"
-    assert "catch_rate_pct" not in result, "no number may be reported without a corpus"
+    _assert_error_only(result)
 
 
 def test_missing_corpus_file_returns_an_error(
@@ -84,7 +96,11 @@ def test_missing_corpus_file_returns_an_error(
     monkeypatch.setattr(probe, "__file__", str(_fake_repo(tmp_path, with_dir=True)))
     result = probe.probe_detection()
     assert "corpus unreadable" in result.get("error", ""), result
-    assert "catch_rate_pct" not in result
+    # The missing-file path must arrive as OSError, not be relabelled by a
+    # broader handler upstream — that distinction is what tells an operator the
+    # corpus is absent rather than malformed.
+    assert "FileNotFoundError" in result["error"] or "OSError" in result["error"], result
+    _assert_error_only(result)
 
 
 def test_non_utf8_corpus_returns_an_error(
@@ -100,7 +116,7 @@ def test_non_utf8_corpus_returns_an_error(
     result = probe.probe_detection()
     assert "corpus unreadable" in result.get("error", ""), result
     assert "UnicodeDecodeError" in result["error"], result
-    assert "catch_rate_pct" not in result
+    _assert_error_only(result)
 
 
 def test_render_survives_a_detection_error(probe: Any) -> None:
