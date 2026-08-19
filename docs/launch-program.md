@@ -82,6 +82,25 @@ configuration, one mainnet chain, and the decision to flip two enforcement flags
 | Order model cutover | FT-6 Phase C: move readers onto `marketplace_purchases`, retire the `m2m_orders` / `commerce_orders` / `commerce_receipts` triple. |
 | Overage collection | One full period accruing as `computed`, reconciled by hand, then `OVERAGE_CHARGE_ENFORCED=true`. |
 
+**Measured 2026-08-19, before any flip.** Two of these are further along than the
+table suggests, and one is further behind:
+
+- The flip itself is safe for verified agents — `test_kya_default_autonomy`
+  already covers purchase-under-enforcement, blocked-when-unverified, and
+  approval-above-threshold. What it buys is smaller than advertised: the Budget
+  Guardian answers `ALLOW` at any amount for every production tenant, because
+  none has agentic commerce configured. The flip enables the autonomy gate and a
+  constant. Instrumented as `not_evaluated` rather than left to read as a pass.
+- **Order-model cutover is blocked on P3, not on this phase.**
+  `phase_c_ready()` reports `{'ready': False, 'reason': 'no orders were
+  compared'}`. The gate is right to refuse: reconciling zero rows against zero
+  rows is the vacuous pass FT-2 shipped once already. It unblocks when orders
+  exist, which is P3's job.
+- Fiat and mainnet are blocked on credentials that cannot be invented here: a
+  Lemon Squeezy key plus product/variant id, and an RPC endpoint plus a funded
+  wallet. Until those arrive, both can only be built against mocks, and a mock
+  settlement is what the capability matrix already calls `SIMULATED`.
+
 **Exit criteria**
 - [ ] One real fiat subscription purchased end to end in production by a consenting third party, using their own payment instrument, with their authorization recorded alongside the transaction. A self-test proves the integration, not the rail.
 - [ ] One on-chain USDC escrow funded, delivered and released on a mainnet chain.
