@@ -8,9 +8,10 @@ registered users, zero listings, zero settled trades, no live payment rail. This
 programme closes that gap, ordered so each phase unblocks the next.
 
 Phases are numbered because they are genuinely sequential — each entry gate is
-the previous phase's exit evidence. **P2 is the only phase that runs in
-parallel.** No phase is complete on effort spent, only on its exit criteria being
-demonstrably true in production.
+the previous phase's exit evidence. Two exceptions: **P2** runs alongside P1a,
+and **P1b** is gated on a company rather than on a phase, so it lands whenever
+the entity exists and blocks nothing. No phase is complete on effort spent, only
+on its exit criteria being demonstrably true in production.
 
 ---
 
@@ -31,7 +32,7 @@ category requiring contact with a paying counterparty scores below 30:
 | Data layer & scale | 56 | 30 SQLite files on one VPS; Postgres carries probe data only |
 | Frontend & UX | 52 | Four overlapping surfaces, duplicated IA, no i18n |
 | Developer experience & SDKs | 44 | Four SDKs written, none published; no API versioning |
-| Money rail & settlement | 28 | Testnets only; no fiat provider; both enforcement flags off |
+| Money rail & settlement | 28 | Testnets only; no fiat provider; both enforcement flags off. Split into P1a (crypto, no entity needed) and P1b (fiat, needs one) |
 | Customer service operations | 22 | No ticketing; SLA promises credits with no mechanism |
 | Commercial traction | 10 | Zero of everything indicating a market exists |
 
@@ -65,53 +66,91 @@ asks.
 
 ---
 
-## P1 — The money rail · +16 · week 1–4
+## P1a — The crypto rail · +12 · week 1–4
 
 **Entry gate:** P0 exit. Do not connect real money to a system whose claims are
 not yet reconciled.
 
-The largest score movement in the programme and the cheapest relative to its
-effect, because most of the code exists and is tested. What is missing is
-configuration, one mainnet chain, and the decision to flip two enforcement flags.
+**Why this is split from the fiat rail.** The original P1 put a Lemon Squeezy
+subscription and an on-chain settlement in one phase, which quietly made the
+whole money rail depend on a registered company: Lemon Squeezy is a merchant of
+record and needs a legal entity behind it. That inverts the dependency the audit
+found. The platform's binding constraint is not engineering — the engine is
+production-grade and its suite is green — it is that **no transaction has ever
+been exercised by a real counterparty**. A marketplace cannot be "finished and
+tested" before it transacts; transacting *is* the test. Gating the first
+transaction on incorporation, and incorporation on the platform being finished,
+is a deadlock, and the programme would stall around 58 instead of reaching 82.
+
+The crypto rail has no such dependency: an on-chain escrow needs a wallet and an
+RPC endpoint, not an entity. It is also the more native rail for this product —
+agents settling with agents is the M2M thesis, while a fiat subscription bills a
+*human* tenant for gateway access, which is a different product on a different
+clock. Roughly $10–15 covers the proof: USDC for one trade, plus Base gas
+measured in cents.
 
 | Workstream | Detail |
 |---|---|
-| Fiat rail live | `warden/lemon_billing.py` has checkout creation and webhook handling complete. Production has no Lemon Squeezy keys at all. |
+| Mainnet settlement | `warden/web3/chains.py` knows only Sepolia, Polygon Amoy and Arbitrum Sepolia. Add Base mainnet + USDC; `GET /marketplace/protocol` must report `settlement_mode: onchain`. |
 | Flip `AUTHORIZE_PAYMENT_ENFORCED` | Prerequisite shipped: `kya.screen_agent()` grants a default L2 policy on VERIFIED, so the flag is no longer a kill switch. Stage it. |
-| Mainnet settlement | `warden/web3/chains.py` knows only Sepolia, Polygon Amoy and Arbitrum Sepolia. Add Base mainnet + USDC; the protocol must report `onchain`. |
-| Order model cutover | FT-6 Phase C: move readers onto `marketplace_purchases`, retire the `m2m_orders` / `commerce_orders` / `commerce_receipts` triple. |
-| Overage collection | One full period accruing as `computed`, reconciled by hand, then `OVERAGE_CHARGE_ENFORCED=true`. |
+| Per-trade value cap | Cap the first 90 days. Clearing once settled every trade at $0.00 with tests that agreed; assume that bug class is still latent and reconcile by hand initially. |
 
-**Measured 2026-08-19, before any flip.** Two of these are further along than the
-table suggests, and one is further behind:
+**Measured 2026-08-19, before any flip.**
 
-- The flip itself is safe for verified agents — `test_kya_default_autonomy`
-  already covers purchase-under-enforcement, blocked-when-unverified, and
+- The flip is safe for verified agents — `test_kya_default_autonomy` covers
+  purchase-under-enforcement, blocked-when-unverified and
   approval-above-threshold. What it buys is smaller than advertised: the Budget
   Guardian answers `ALLOW` at any amount for every production tenant, because
   none has agentic commerce configured. The flip enables the autonomy gate and a
   constant. Instrumented as `not_evaluated` rather than left to read as a pass.
-- **Order-model cutover is blocked on P3, not on this phase.**
-  `phase_c_ready()` reports `{'ready': False, 'reason': 'no orders were
-  compared'}`. The gate is right to refuse: reconciling zero rows against zero
-  rows is the vacuous pass FT-2 shipped once already. It unblocks when orders
-  exist, which is P3's job.
-- Fiat and mainnet are blocked on credentials that cannot be invented here: a
-  Lemon Squeezy key plus product/variant id, and an RPC endpoint plus a funded
-  wallet. Until those arrive, both can only be built against mocks, and a mock
-  settlement is what the capability matrix already calls `SIMULATED`.
+- Mainnet is blocked on inputs that cannot be invented here: an RPC endpoint and
+  a funded wallet. Built against mocks it produces exactly what the capability
+  matrix already labels `SIMULATED`.
 
 **Exit criteria**
-- [ ] One real fiat subscription purchased end to end in production by a consenting third party, using their own payment instrument, with their authorization recorded alongside the transaction. A self-test proves the integration, not the rail.
 - [ ] One on-chain USDC escrow funded, delivered and released on a mainnet chain.
-- [ ] Both reconciled clean by `order_recon_job` and `ledger_recon_job`.
+- [ ] `GET /marketplace/protocol` reports `settlement_mode: onchain`.
+- [ ] Reconciled clean by `order_recon_job` and `ledger_recon_job`.
 - [ ] `AUTHORIZE_PAYMENT_ENFORCED=true` in production with no purchase-path regression.
+
+---
+
+## P1b — The fiat rail · +4 · gated on the company, not on the calendar
+
+**Entry gate:** a registered legal entity able to hold a merchant-of-record
+account. This is a business decision with tax consequences, and it belongs to
+the owner and their accountant, not to this plan. Nothing in P1b blocks any
+other phase.
+
+The code is already written and idle: `warden/lemon_billing.py` has checkout
+creation and webhook handling complete, and production simply has no keys. When
+the keys exist this is about a day of work, most of it verification.
+
+| Workstream | Detail |
+|---|---|
+| Fiat rail live | Configure the Lemon Squeezy key, webhook secret and product/variant ids; run the sandbox flow; go live. |
+| Overage collection | One full period accruing as `computed`, reconciled by hand, then `OVERAGE_CHARGE_ENFORCED=true`. |
+
+**Exit criteria**
+- [ ] One real subscription purchased end to end in production by a consenting third party, using their own payment instrument, with their authorization recorded alongside the transaction. A self-test proves the integration, not the rail.
+- [ ] One overage period settled through the ledger with no double-charge on re-run.
+
+---
+
+## FT-6 Phase C — order-model cutover · moved out of P1
+
+**Blocked on order volume, not on code, and not on either rail.**
+`phase_c_ready()` on production reports `{'ready': False, 'reason': 'no orders
+were compared (orders_checked=0)'}`. The gate is right to refuse: reconciling
+zero rows against zero rows is the vacuous pass FT-2 shipped once already. It
+unblocks inside **P3**, once real orders exist on both write paths — which is
+why it now lives there rather than here.
 
 ---
 
 ## P2 — Distribution and developer experience · +8 · week 3–6
 
-**Entry gate:** none — runs alongside P1. Publishing an SDK against a simulated
+**Entry gate:** none — runs alongside P1a. Publishing an SDK against a simulated
 rail is acceptable only because the capability matrix says so plainly.
 
 For a machine-to-machine platform the front door is a package install, not a
@@ -134,8 +173,9 @@ For a machine-to-machine platform the front door is a package install, not a
 
 ## P3 — Seeding both sides of the market · +12 · week 5–12
 
-**Entry gate:** P1 exit. Seeding a market that cannot settle produces demos, not
-liquidity.
+**Entry gate:** P1a exit. Seeding a market that cannot settle produces demos,
+not liquidity — and it is settlement that is required here, not billing, so P1b
+is not a prerequisite.
 
 A two-sided market with zero supply and zero demand does not bootstrap itself,
 and no feature fixes that. The platform's advantage is that it can credibly be
@@ -148,18 +188,21 @@ its own first seller.
 | Referral loop | `warden/billing/referral.py` exists and is unwired. Agent-to-agent referral is the natural M2M growth mechanic. |
 | Liquidity reporting | Weekly: listings, active agents, GMV, settled trades, fill rate, time-to-first-fill. A flat week is an incident. |
 | Pricing calibration | The price list is coherent but untested against willingness to pay. The first ten transactions are an experiment. |
+| FT-6 Phase C | Moved here from P1. Once orders flow on both write paths, run the reconciliation and cut `list_orders()`/`get_order()`/`order_history()`/`get_receipt()` over to `marketplace_purchases`. `phase_c_ready()` is the gate. |
 
 **Exit criteria**
 - [ ] 50 live listings and 10 agents that transacted in the last 30 days.
 - [ ] ≥25 settled transactions per week, sustained four consecutive weeks.
 - [ ] At least one trade where neither counterparty is first-party.
+- [ ] `phase_c_ready()` returns `ready: True` on a non-zero sample, and the readers are cut over.
 
 ---
 
 ## P4 — Service and trust operations · +7 · week 8–14
 
-**Entry gate:** first paying customer from P1. Building support infrastructure
-before there is anyone to support is the same mistake in another category.
+**Entry gate:** the first real counterparty — a settled trade from P1a, or a
+paying subscriber once P1b lands. Building support infrastructure before there is
+anyone to support is the same mistake in another category.
 
 | Workstream | Detail |
 |---|---|
@@ -222,6 +265,7 @@ consuming the capacity the phases above need. Enforced by the feature freeze in
 | Flipping `AUTHORIZE_PAYMENT_ENFORCED` blocks all purchases | High | Known failure mode: an agent with no autonomy policy returns `REQUIRE_APPROVAL`. Verify the KYA default-policy grant covers the `purchase` action string before flipping; stage it. |
 | Mainnet moves real value through untested paths | High | Cap per-trade value for 90 days. Clearing once settled every trade at $0.00 with tests that agreed — assume the same bug class is still latent and reconcile by hand initially. |
 | Cold start never ignites | High | P3's exit demands a trade between two third parties. If that has not happened by week 12, the market thesis needs revisiting — not more features. |
+| "Finish the platform first, then incorporate" | High | The bar recedes: a marketplace cannot be finished before it transacts, because transacting is the test. P1a exists so the first real transaction needs a wallet rather than a legal entity. If P1a is also deferred, the programme stops at P0 and the score stays near 58. |
 | Single VPS loss before P5 | Medium | Offsite encrypted backup, restore drilled at ~17s RTO. Accepted exposure until P5; state it in the SLA rather than implying HA. |
 | Compliance claims outrun the audit | Medium | The capability matrix is the control. Never state a certification, only mapped controls and their attestation status. |
 | Maintainer capacity | Medium | The freeze list is the mitigation, and only works if enforced against the autonomous loop as well as human enthusiasm. |
@@ -230,7 +274,10 @@ consuming the capacity the phases above need. Enforced by the feature freeze in
 
 ## Ceiling
 
-All six phases land the assessment at roughly **82**. The remaining gap to the
+All phases land the assessment at roughly **82**; without P1b — if the company
+is deferred — the ceiling is about **78**, because a platform that settles
+agent-to-agent but cannot bill a human tenant is a narrower product, not a
+broken one. Nothing else in the programme waits on it. The remaining gap to the
 high eighties is not engineering: it is an independent SOC 2 Type II opinion with
 a completed observation window, and a transaction history long enough that the
 trust, dispute and settlement machinery has been exercised by adversarial
