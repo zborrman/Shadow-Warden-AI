@@ -38,7 +38,9 @@ def deploy_script() -> str:
         for step in job.get("steps") or []:
             if step.get("name") == "Deploy via SSH":
                 return str(step["run"])
-    pytest.fail("no 'Deploy via SSH' step in ci.yml")
+    # raise, not pytest.fail(): the installed pytest stubs do not mark fail()
+    # as NoReturn, so mypy reads this function as able to fall off the end.
+    raise AssertionError("no 'Deploy via SSH' step in ci.yml")
 
 
 def test_ssh_failure_is_not_blanket_converted_to_success(deploy_script: str) -> None:
