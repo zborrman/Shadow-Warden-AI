@@ -53,14 +53,70 @@ def test_probe_script_exists() -> None:
     )
 
 
-def test_missing_corpus_degrades_to_an_error_not_a_crash(
+def _fake_repo(tmp_path: Path, *, with_dir: bool) -> Path:
+    """A tree shaped like the repo, so `probe_detection()` resolves into it.
+
+    The probe derives the corpus from its own `__file__`: `scripts/x.py` →
+    `<repo>/warden/tests/adversarial`.
+    """
+    (tmp_path / "scripts").mkdir(parents=True, exist_ok=True)
+    if with_dir:
+        (tmp_path / "warden" / "tests" / "adversarial").mkdir(parents=True)
+    return tmp_path / "scripts" / "capability_probe.py"
+
+
+def _assert_error_only(result: dict[str, Any]) -> None:
+    """A failed detection run reports an error and *nothing else*.
+
+    Excluding `catch_rate_pct` alone is not enough: a regression that returned a
+    partial result — `jailbreaks`, `false_positives` or `non_200` alongside an
+    error — would pass a narrower assertion while handing a caller numbers
+    derived from a run that never happened. That is the same defect this whole
+    file exists to prevent, so the contract is pinned exactly.
+    """
+    assert set(result) == {"error"}, f"expected only an error key, got {sorted(result)}"
+
+
+def test_absent_corpus_directory_returns_an_error(
     probe: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A corpus that cannot be read costs the detection group only."""
-    monkeypatch.setattr(probe, "__file__", str(tmp_path / "capability_probe.py"))
+    monkeypatch.setattr(probe, "__file__", str(_fake_repo(tmp_path, with_dir=False)))
     result = probe.probe_detection()
     assert "error" in result, "an absent corpus must return an error, not raise"
-    assert "catch_rate_pct" not in result, "no number may be reported without a corpus"
+    _assert_error_only(result)
+
+
+def test_missing_corpus_file_returns_an_error(
+    probe: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The directory exists but the file does not — `load()` raises OSError.
+
+    Distinct from the case above, which returns before `load()` is ever called.
+    """
+    monkeypatch.setattr(probe, "__file__", str(_fake_repo(tmp_path, with_dir=True)))
+    result = probe.probe_detection()
+    assert "corpus unreadable" in result.get("error", ""), result
+    # The missing-file path must arrive as OSError, not be relabelled by a
+    # broader handler upstream — that distinction is what tells an operator the
+    # corpus is absent rather than malformed.
+    assert "FileNotFoundError" in result["error"] or "OSError" in result["error"], result
+    _assert_error_only(result)
+
+
+def test_non_utf8_corpus_returns_an_error(
+    probe: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A corpus that is not valid UTF-8 must degrade, not raise."""
+    probe_path = _fake_repo(tmp_path, with_dir=True)
+    corpus = tmp_path / "warden" / "tests" / "adversarial"
+    (corpus / "jailbreaks.txt").write_bytes(b"\xff\xfe not utf-8 \x80\x81")
+    (corpus / "benign.txt").write_text("hello\n", encoding="utf-8")
+    monkeypatch.setattr(probe, "__file__", str(probe_path))
+
+    result = probe.probe_detection()
+    assert "corpus unreadable" in result.get("error", ""), result
+    assert "UnicodeDecodeError" in result["error"], result
+    _assert_error_only(result)
 
 
 def test_render_survives_a_detection_error(probe: Any) -> None:
