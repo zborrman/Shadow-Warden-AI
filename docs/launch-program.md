@@ -47,9 +47,16 @@ before scale.
 **Entry gate:** none. Blocks everything else.
 
 Stop the growth of surface area and publish an honest account of what is
-simulated. The live exposure is selling "high security, escrow-backed" while
-`GET /marketplace/protocol` answers `settlement_mode: simulated` to anyone who
-asks.
+simulated. The live exposure is selling "high security, escrow-backed" over an
+escrow that settles nothing.
+
+**Worse than the audit recorded (found 2026-08-21).** `GET /marketplace/protocol`
+was not answering `settlement_mode: simulated` at all — production answered
+`onchain`, because the field flipped on *any* configured RPC and production has
+`WEB3_RPC_URL` pointing at Sepolia. A foreign agent reading the manifest was
+told this market settles on-chain, on the strength of free test tokens. Repaired:
+`onchain` now requires a chain in `MAINNET_CHAINS`, `testnet` is its own state,
+and `escrow.chains` is derived from configuration rather than hard-coded.
 
 | Workstream | Detail |
 |---|---|
@@ -61,8 +68,15 @@ asks.
 
 **Exit criteria**
 - [ ] Capability matrix published; every public claim reconciled against it.
-- [ ] An evidence bundle written to MinIO and to the offsite bucket, verified by hand.
-- [ ] Liquidity dashboard live in Grafana, reporting honest zeros.
+- [~] An evidence bundle written to MinIO and to the offsite bucket, verified by hand.
+      MinIO half done 2026-08-21: generated, landed at `bundles/…json`, read back
+      through the S3 API, `verify` returns `valid: true`. Offsite half **open** —
+      that bucket carries only the nightly `backups/` snapshots, so bundles exist
+      on one box and the R6 restore drill does not cover them.
+- [x] Liquidity dashboard live in Grafana, reporting honest zeros.
+      `marketplace.json` — Active Agents, Active Escrows, Total Trade Volume, Open
+      Negotiations, Listings & Purchases — provisioned and mounted in the running
+      Grafana.
 
 ---
 
@@ -109,7 +123,9 @@ measured in cents.
 
 **Exit criteria**
 - [ ] One on-chain USDC escrow funded, delivered and released on a mainnet chain.
-- [ ] `GET /marketplace/protocol` reports `settlement_mode: onchain`.
+- [ ] `GET /marketplace/protocol` reports `settlement_mode: onchain` — which since
+      2026-08-21 requires a chain in `MAINNET_CHAINS`, so this criterion can no
+      longer be satisfied by a testnet endpoint.
 - [ ] Reconciled clean by `order_recon_job` and `ledger_recon_job`.
 - [ ] `AUTHORIZE_PAYMENT_ENFORCED=true` in production with no purchase-path regression.
 
