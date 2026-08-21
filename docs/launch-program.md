@@ -142,6 +142,25 @@ The code is already written and idle: `warden/lemon_billing.py` has checkout
 creation and webhook handling complete, and production simply has no keys. When
 the keys exist this is about a day of work, most of it verification.
 
+**Idle is not the same as unexercised (2026-08-21).** `FakeLemonSqueezy` — a
+development double in the SWFE fake layer, not a new subsystem — now drives the
+whole path with no account and no entity: checkout → HMAC-signed webhook → plan →
+feature flags, plus replay, forged signature, missing signature and in-flight
+tamper. It answers the module's only two external seams, `_ls_request()` and the
+signature `handle_webhook()` verifies. Three levels of proof, kept distinct:
+
+| Level | Proves | Needs |
+|---|---|---|
+| `FakeLemonSqueezy` | our side of the contract | nothing |
+| Lemon Squeezy **test mode** | the wire format — event names, JSON:API shape, retries | an account, no company |
+| Live keys | the rail | the entity — this phase |
+
+Level 2 is the honest next step and is **not** gated on incorporation, so the
+wire can be validated long before P1b opens. Until a real purchase settles, the
+capability matrix row stays `SIMULATED`: a fake can only ever agree with the
+developer who wrote it, which is precisely how clearing settled every trade at
+$0.00 with tests that agreed.
+
 | Workstream | Detail |
 |---|---|
 | Fiat rail live | Configure the Lemon Squeezy key, webhook secret and product/variant ids; run the sandbox flow; go live. |
