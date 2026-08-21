@@ -852,6 +852,28 @@ groups:
             Dashboard: http://localhost:3000/d/sw-compliance
 
       # ── 4. Community — Peering Down ───────────────────────────────────────────
+      #
+      # This rule paged `critical` continuously, twice over, for the entire life
+      # of the deployment, and neither instance meant a peering had dropped
+      # (verified on production 2026-08-21). Two separate faults produced that:
+      #
+      #   1. `warden_community_peering_connections` was declared in metrics.py
+      #      and written by no code path at all. A prometheus Gauge with no
+      #      writer still exports — at 0 — so a rule built on `== 0` fires on
+      #      the absence of a writer. OB-F12 gives the gauge a real writer in
+      #      communities/peering.py, counted from the table.
+      #   2. `== 0` cannot tell "every peering we had is gone" from "we have
+      #      never had one". On a deployment with no communities the second is
+      #      permanently true, and it is not an incident. The `max_over_time`
+      #      guard below is what makes the title of this rule true: it fires
+      #      only where a peering existed within the last day and is now gone.
+      #      With no peering in that window the query returns no series, and
+      #      noDataState: OK resolves it — the same shape as the OB-8 guard on
+      #      the Redis maxmemory rule.
+      #
+      # The `job="warden"` selector removes the second instance: the arq-worker
+      # process imports metrics.py, so it declares this gauge too, and it is not
+      # where peerings are accepted or revoked. Its series is 0 forever.
       - uid: warden-community-peer-down
         title: "Warden — All community peerings lost"
         condition: B
@@ -864,7 +886,10 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: "warden_community_peering_connections"
+              expr: >
+                warden_community_peering_connections{job="warden"} == 0
+                  and
+                max_over_time(warden_community_peering_connections{job="warden"}[24h]) > 0
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -889,8 +914,9 @@ groups:
         annotations:
           summary: "All community peering connections have dropped to zero"
           description: >
-            No active inter-community peering connections detected. SEP entity
-            transfers will fail. Check the peering registry and MASQUE tunnels.
+            Active inter-community peering connections have dropped to zero,
+            having been non-zero within the last 24h. SEP entity transfers will
+            fail. Check the peering registry and MASQUE tunnels.
             Dashboard: http://localhost:3000/d/sw-community
 
       # ── 5. Community — No SEP Transfers ──────────────────────────────────────

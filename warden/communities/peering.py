@@ -310,6 +310,7 @@ def accept_peering(
         )
 
     log.info("peering: accepted id=%s by mid=%s", peering_id[:8], accepted_by_mid[:8])
+    refresh_peering_gauge()
     return PeeringRecord(
         peering_id=peering_id,
         initiator_community=row["initiator_community"],
@@ -337,7 +338,47 @@ def revoke_peering(peering_id: str) -> bool:
     revoked = cur.rowcount > 0
     if revoked:
         log.info("peering: revoked id=%s", peering_id[:8])
+        refresh_peering_gauge()
     return revoked
+
+
+def refresh_peering_gauge() -> int:
+    """
+    Publish the live count of ACTIVE peerings to Prometheus. Returns the count.
+
+    ``warden_community_peering_connections`` was declared in warden/metrics.py
+    and written by nothing, anywhere — a Gauge with no writer, which prometheus
+    still exports, at its default of 0. The critical Grafana rule "All community
+    peerings lost" is built on ``== 0``, so it did not report a lost peering: it
+    reported the absence of a writer, and it had been paging on that continuously
+    (two instances — the arq-worker process declares the same gauge and never
+    writes it either). Verified on production 2026-08-21.
+
+    Counted from the table rather than inc()/dec()'d at the call site, so the
+    value survives a process restart. An in-process counter reads 0 after every
+    deploy, which is the same false "all peerings lost" by a slower route.
+
+    Returns -1, and publishes nothing, when the count cannot be taken:
+    instrumentation must never be able to break a peering operation, and a
+    metric left at its last real value is better than one overwritten with a
+    zero that a critical rule would read as an outage.
+    """
+    try:
+        with _db_lock, _conn() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM sep_peerings WHERE status='ACTIVE'"
+            ).fetchone()
+        count = int(row["n"]) if row else 0
+    except (sqlite3.Error, OSError, TypeError, ValueError) as exc:
+        log.debug("peering gauge: count failed (non-fatal): %s", exc)
+        return -1
+
+    try:
+        from warden.metrics import COMMUNITY_PEERING_CONNECTIONS
+        COMMUNITY_PEERING_CONNECTIONS.set(count)
+    except (ImportError, AttributeError) as exc:
+        log.debug("peering gauge: publish failed (non-fatal): %s", exc)
+    return count
 
 
 def get_peering(peering_id: str) -> PeeringRecord | None:

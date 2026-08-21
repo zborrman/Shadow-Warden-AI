@@ -657,6 +657,18 @@ async def lifespan(app: FastAPI):
     except Exception as _pe:
         log.warning("DataPoisoningGuard unavailable (non-fatal): %s", _pe)
 
+    # ── Community peering gauge ────────────────────────────────────────
+    # Counted from the peering table at boot, not just on change, so a restart
+    # cannot leave warden_community_peering_connections reading 0 while ACTIVE
+    # peerings exist — which the "All community peerings lost" rule would then
+    # report as a critical outage.
+    try:
+        from warden.communities.peering import refresh_peering_gauge
+        _peerings = await asyncio.to_thread(refresh_peering_gauge)
+        log.info("Community peering gauge published: %d active peering(s).", _peerings)
+    except Exception as _pg_err:
+        log.debug("Community peering gauge skipped (non-fatal): %s", _pg_err)
+
     # ── Causal Arbiter CPT calibration (MLE from prod logs) ─────────────
     try:
         from warden.causal_arbiter import calibrate_from_logs as _calibrate_cpt
