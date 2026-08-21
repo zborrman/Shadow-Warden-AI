@@ -102,19 +102,49 @@ class TestProtocolManifestHonesty:
     def test_escrow_settlement_mode_is_advertised(self):
         """Advertising `chains` without this reads as an on-chain guarantee."""
         mode = self._manifest()["escrow"]["settlement_mode"]
-        assert mode in ("onchain", "simulated", "unknown")
+        assert mode in ("onchain", "testnet", "simulated", "unknown")
 
     def test_settlement_mode_is_simulated_without_an_rpc(self, monkeypatch):
         from warden.marketplace.api import _escrow_settlement_mode
         monkeypatch.setattr("warden.web3.chains.get_chain", lambda _c: {"rpc_url": ""})
         assert _escrow_settlement_mode() == "simulated"
 
-    def test_settlement_mode_is_onchain_with_an_rpc(self, monkeypatch):
+    def test_settlement_mode_is_testnet_when_only_test_chains_are_configured(
+        self, monkeypatch
+    ):
+        """A Sepolia RPC is not an on-chain rail.
+
+        Production reported `onchain` on the strength of `WEB3_RPC_URL` pointing
+        at Sepolia, with $0 ever settled — which also made "manifest reports
+        onchain" unusable as the P1a exit gate.
+        """
         from warden.marketplace.api import _escrow_settlement_mode
         monkeypatch.setattr(
-            "warden.web3.chains.get_chain", lambda _c: {"rpc_url": "https://rpc.example"}
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://rpc.example" if c == "sepolia" else ""},
+        )
+        assert _escrow_settlement_mode() == "testnet"
+
+    def test_settlement_mode_is_onchain_only_for_a_mainnet_chain(self, monkeypatch):
+        from warden.marketplace.api import _escrow_settlement_mode
+        from warden.web3.chains import MAINNET_CHAINS
+        mainnet = sorted(MAINNET_CHAINS)[0]
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://rpc.example" if c == mainnet else ""},
         )
         assert _escrow_settlement_mode() == "onchain"
+
+    def test_advertised_chains_are_the_configured_ones(self, monkeypatch):
+        """`eth_tester` is an in-process EVM, not a settlement venue."""
+        from warden.marketplace.api import _configured_chains
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://rpc.example" if c == "sepolia" else ""},
+        )
+        assert _configured_chains() == ["sepolia"]
+        monkeypatch.setattr("warden.web3.chains.get_chain", lambda _c: {"rpc_url": ""})
+        assert _configured_chains() == []
 
     def test_manifest_probes_never_raise(self, monkeypatch):
         """A discovery endpoint must not 500 because a probe failed."""

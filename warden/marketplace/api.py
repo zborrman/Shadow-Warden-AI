@@ -53,12 +53,47 @@ def _signed_offers_required() -> bool:
         return False
 
 
-def _escrow_settlement_mode() -> str:
-    """``"onchain"`` when a chain RPC is configured, else ``"simulated"`` (MP-7).
+def _configured_chains() -> list[str]:
+    """Chain names with an RPC URL configured, sorted. Empty when none are.
 
-    ``EscrowService`` runs a deterministic in-process simulation when no RPC is
-    set — the state machine is real, the settlement is not. The manifest used to
-    advertise ``chains`` unconditionally, which reads as an on-chain guarantee.
+    The manifest used to advertise a hard-coded ``["sepolia", "eth_tester"]``,
+    which described the developer's laptop rather than the running deployment —
+    ``eth_tester`` is an in-process EVM, and a counterparty reading it as a
+    settlement venue is reading a claim nothing backs. Derived, like the mode.
+    """
+    try:
+        from warden.web3.chains import VALID_CHAINS, get_chain
+    except Exception as exc:
+        log.debug("manifest: chain registry unavailable: %s", exc)
+        return []
+    found: list[str] = []
+    for chain in sorted(VALID_CHAINS):
+        try:
+            if get_chain(chain).get("rpc_url", ""):
+                found.append(chain)
+        except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
+            continue
+    return found
+
+
+def _escrow_settlement_mode() -> str:
+    """What kind of value this marketplace can actually settle (MP-7, P1a).
+
+    Three states, because two could not tell the difference that matters:
+
+    * ``"onchain"``   — a **mainnet** chain is configured; a trade moves real value.
+    * ``"testnet"``   — only test chains are configured. The transaction is real,
+      the money is not; test USDC is free and a settled testnet trade proves the
+      plumbing, never the rail.
+    * ``"simulated"`` — no RPC at all. ``EscrowService`` runs a deterministic
+      in-process simulation: the state machine is real, the settlement is not.
+
+    This used to return ``"onchain"`` for any configured RPC, so production
+    advertised on-chain settlement to every foreign agent on the strength of a
+    Sepolia endpoint — and made "manifest reports onchain" unusable as the P1a
+    exit gate, since it was already true with zero mainnet and $0 settled.
+    ``MAINNET_CHAINS`` is the explicit list; membership is never inferred from
+    a chain id or a name that happens to lack "sepolia" in it.
 
     Derived from **configuration**, never by probing. ``_check_rpc_with_retry()``
     is the reachability check, and it retries with 2/4/8s back-off — putting that
@@ -67,13 +102,12 @@ def _escrow_settlement_mode() -> str:
     ``/health``, not a change in what this marketplace offers.
     """
     try:
-        from warden.web3.chains import VALID_CHAINS, get_chain
-        for chain in VALID_CHAINS:
-            try:
-                if get_chain(chain).get("rpc_url", ""):
-                    return "onchain"
-            except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
-                continue
+        from warden.web3.chains import MAINNET_CHAINS
+        configured = set(_configured_chains())
+        if configured & MAINNET_CHAINS:
+            return "onchain"
+        if configured:
+            return "testnet"
         return "simulated"
     except Exception as exc:
         log.debug("manifest: escrow mode probe unavailable: %s", exc)
@@ -144,12 +178,13 @@ async def get_market_protocol(response: Response) -> dict:
         },
         "escrow": {
             "required": True,
-            "chains": ["sepolia", "eth_tester"],
+            "chains": _configured_chains(),
             "delivery_timeout_hours": int(os.getenv("ESCROW_DELIVERY_TIMEOUT_HOURS", "48")),
-            # "simulated" when no chain RPC is configured: the escrow state
-            # machine runs deterministically in-process and settles nothing
-            # on-chain. Advertising `chains` without this let a counterparty
-            # read an on-chain guarantee that does not exist.
+            # "onchain" only for a mainnet chain; "testnet" when the configured
+            # chains are all test networks; "simulated" when no RPC is set and
+            # the escrow state machine runs in-process, settling nothing.
+            # Advertising `chains` without this let a counterparty read an
+            # on-chain guarantee that does not exist.
             "settlement_mode": _escrow_settlement_mode(),
         },
         "governance": {

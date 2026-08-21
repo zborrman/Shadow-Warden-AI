@@ -47,9 +47,16 @@ before scale.
 **Entry gate:** none. Blocks everything else.
 
 Stop the growth of surface area and publish an honest account of what is
-simulated. The live exposure is selling "high security, escrow-backed" while
-`GET /marketplace/protocol` answers `settlement_mode: simulated` to anyone who
-asks.
+simulated. The live exposure is selling "high security, escrow-backed" over an
+escrow that settles nothing.
+
+**Worse than the audit recorded (found 2026-08-21).** `GET /marketplace/protocol`
+was not answering `settlement_mode: simulated` at all — production answered
+`onchain`, because the field flipped on *any* configured RPC and production has
+`WEB3_RPC_URL` pointing at Sepolia. A foreign agent reading the manifest was
+told this market settles on-chain, on the strength of free test tokens. Repaired:
+`onchain` now requires a chain in `MAINNET_CHAINS`, `testnet` is its own state,
+and `escrow.chains` is derived from configuration rather than hard-coded.
 
 | Workstream | Detail |
 |---|---|
@@ -109,7 +116,9 @@ measured in cents.
 
 **Exit criteria**
 - [ ] One on-chain USDC escrow funded, delivered and released on a mainnet chain.
-- [ ] `GET /marketplace/protocol` reports `settlement_mode: onchain`.
+- [ ] `GET /marketplace/protocol` reports `settlement_mode: onchain` — which since
+      2026-08-21 requires a chain in `MAINNET_CHAINS`, so this criterion can no
+      longer be satisfied by a testnet endpoint.
 - [ ] Reconciled clean by `order_recon_job` and `ledger_recon_job`.
 - [ ] `AUTHORIZE_PAYMENT_ENFORCED=true` in production with no purchase-path regression.
 
