@@ -106,6 +106,7 @@ P0's obligation ends at publishing the number and correcting the copy.
 | Agent registration, DID, KYA/KYB, sanctions screening | `BUILT` | Complete and covered by tests; **never executed against a real counterparty** | Safe to describe; do not imply usage |
 | Trust graph, reputation, Sybil guard, MAESTRO collusion detection | `BUILT` | Implemented, tested, zero production data | Same |
 | Marketplace activity of any kind | `FABRICATED` if implied | Production values: agents 0, escrows 0, negotiations 0, trade volume $0. Every marketplace database contains only the `_warden_ddl_applied` schema-tracking row. | Never imply traction |
+| Paid plans purchasable at the published prices (`pricing.astro`, `docs/sla.md`) | `SIMULATED` | Lemon Squeezy is the merchant of record and production has no keys at all — no checkout can be created, no card can be charged. Since 2026-08-21 the path is exercised end to end against `FakeLemonSqueezy` (`warden/testing/fakes/lemon_fake.py`): checkout → HMAC-signed webhook → plan → feature flags, including replay and forged-signature rejection. A fake agrees with whoever wrote it, so this proves the plumbing and nothing about the rail. | Keep "simulated" until a Lemon Squeezy **test-mode** run validates the wire format, and `SIMULATED` → `LIVE` only on a real purchase by a consenting third party (P1b exit) |
 
 ---
 

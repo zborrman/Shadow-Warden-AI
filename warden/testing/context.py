@@ -30,6 +30,13 @@ from unittest.mock import patch
 
 from warden.testing.fakes.anthropic_fake import FakeAnthropicClient
 from warden.testing.fakes.evolution_fake import FakeEvolutionEngine
+from warden.testing.fakes.lemon_fake import (
+    FAKE_API_KEY,
+    FAKE_STORE_ID,
+    FAKE_VARIANTS,
+    FAKE_WEBHOOK_SECRET,
+    FakeLemonSqueezy,
+)
 from warden.testing.fakes.nvidia_fake import FakeNvidiaClient
 from warden.testing.fakes.s3_fake import FakeS3Storage
 
@@ -49,18 +56,21 @@ class FakeContext:
         enable_s3: bool = True,
         enable_anthropic: bool = True,
         enable_nvidia: bool = True,
+        enable_lemon: bool = True,
     ) -> None:
         self.simulation_id = simulation_id or str(uuid.uuid4())[:8]
         self._enable_evolution = enable_evolution
         self._enable_s3 = enable_s3
         self._enable_anthropic = enable_anthropic
         self._enable_nvidia = enable_nvidia
+        self._enable_lemon = enable_lemon
 
         # Экземпляры фейков — доступны после __enter__
         self.anthropic:  FakeAnthropicClient = FakeAnthropicClient()
         self.nvidia:     FakeNvidiaClient    = FakeNvidiaClient()
         self.s3:         FakeS3Storage       = FakeS3Storage()
         self.evolution:  FakeEvolutionEngine = FakeEvolutionEngine()
+        self.lemon:      FakeLemonSqueezy    = FakeLemonSqueezy()
 
         self._patches: list = []
 
@@ -93,6 +103,24 @@ class FakeContext:
         if self._enable_nvidia:
             patches.extend([
                 ("warden.brain.nemotron_client.openai.OpenAI", lambda **kw: self.nvidia),
+            ])
+
+        if self._enable_lemon:
+            # `lemon_billing` snapshots its credentials into module globals at
+            # import time, so patching the environment is not enough — the
+            # globals themselves are the seam. This is also why a `LemonBilling`
+            # instance must be constructed INSIDE the context: `__init__` copies
+            # `_LS_API_KEY` into `self._enabled` once and never re-reads it.
+            patches.extend([
+                ("warden.lemon_billing._ls_request", self.lemon.request),
+                ("warden.lemon_billing._LS_API_KEY", FAKE_API_KEY),
+                ("warden.lemon_billing._LS_STORE_ID", FAKE_STORE_ID),
+                ("warden.lemon_billing._LS_WEBHOOK_SECRET", FAKE_WEBHOOK_SECRET),
+                ("warden.lemon_billing._LS_VARIANT_TRIAL", FAKE_VARIANTS["trial"]),
+                ("warden.lemon_billing._LS_VARIANT_INDIVIDUAL", FAKE_VARIANTS["individual"]),
+                ("warden.lemon_billing._LS_VARIANT_COMMUNITY", FAKE_VARIANTS["community_business"]),
+                ("warden.lemon_billing._LS_VARIANT_PRO", FAKE_VARIANTS["pro"]),
+                ("warden.lemon_billing._LS_VARIANT_ENTERPRISE", FAKE_VARIANTS["enterprise"]),
             ])
 
         # Активируем все patches
