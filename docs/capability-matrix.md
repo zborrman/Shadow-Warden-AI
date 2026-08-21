@@ -203,7 +203,8 @@ the fact.
 | `STRICT_MODE` | `false` | Consequence of the above: uncertain verdicts pass rather than block. |
 | `AUTHORIZE_PAYMENT_ENFORCED` | `false` | The payment chokepoint composes correctly but has never guarded a real transaction. Flipping it is a P1 exit criterion, staged. |
 | `OVERAGE_CHARGE_ENFORCED` | `false` | Overage accrues as `computed` with a full audit trail; nothing is presented to a provider. Deliberate until one period has been reconciled by hand. |
-| `S3_ENABLED` | `true` since 2026-08-18 | Was `false` — not a decision, an oversight: the SOC 2 material cited a vault that was switched off. Enabled in P0, after rotating the MinIO credentials it was still running on (§4.1). |
+| `S3_ENABLED` | `true` since 2026-08-18 | Was `false` — not a decision, an oversight: the SOC 2 material cited a vault that was switched off. Enabled in P0, after rotating the MinIO credentials it was still running on (§4.1). Round-trip verified by hand on 2026-08-21: `GET /compliance/evidence/{session_id}` → object at `warden-evidence/bundles/…json` → read back through the S3 API → `POST /compliance/evidence/verify` returns `valid: true`. Bundles are generated **on demand only**; nothing in the pipeline writes one, so an empty-looking vault is expected while no one calls the endpoint. |
+| Evidence bundles offsite | **not replicated** | The offsite bucket holds 445 objects, every one under `backups/` — the nightly encrypted SQLite snapshots (latest 2026-08-21T03:30Z). No `bundles/` prefix exists there. Evidence bundles live on the single VPS only, so the R6 restore drill does not cover them. Closing this is the remaining half of the P0 exit criterion "written to MinIO **and** to the offsite bucket". |
 
 ---
 
