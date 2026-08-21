@@ -146,6 +146,47 @@ class TestProtocolManifestHonesty:
         monkeypatch.setattr("warden.web3.chains.get_chain", lambda _c: {"rpc_url": ""})
         assert _configured_chains() == []
 
+    def test_unreadable_chain_registry_is_unknown_not_simulated(self, monkeypatch):
+        """"We could not look" is not "we looked and found nothing".
+
+        `simulated` is a statement about the configuration. Returning it when the
+        registry could not be read states a fact that was never established.
+        """
+        from warden.marketplace import api
+
+        def _boom(*_a, **_kw):
+            raise RuntimeError("registry unavailable")
+
+        monkeypatch.setattr(api, "_discover_chains", _boom)
+        assert api._escrow_settlement_mode() == "unknown"
+
+    # ── The manifest is the contract; these assert it, not the helpers ────────
+
+    def _escrow(self, monkeypatch, rpc_for: str | None) -> dict:
+        """Manifest `escrow` block with an RPC configured for `rpc_for` only."""
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://rpc.example" if c == rpc_for else ""},
+        )
+        return dict(self._manifest()["escrow"])
+
+    def test_manifest_reports_simulated_and_no_chains_without_an_rpc(self, monkeypatch):
+        escrow = self._escrow(monkeypatch, None)
+        assert escrow["settlement_mode"] == "simulated"
+        assert escrow["chains"] == []
+
+    def test_manifest_reports_testnet_and_names_the_test_chain(self, monkeypatch):
+        escrow = self._escrow(monkeypatch, "sepolia")
+        assert escrow["settlement_mode"] == "testnet"
+        assert escrow["chains"] == ["sepolia"]
+
+    def test_manifest_reports_onchain_only_for_mainnet(self, monkeypatch):
+        from warden.web3.chains import MAINNET_CHAINS
+        mainnet = sorted(MAINNET_CHAINS)[0]
+        escrow = self._escrow(monkeypatch, mainnet)
+        assert escrow["settlement_mode"] == "onchain"
+        assert escrow["chains"] == [mainnet]
+
     def test_manifest_probes_never_raise(self, monkeypatch):
         """A discovery endpoint must not 500 because a probe failed."""
         from warden.marketplace.api import _escrow_settlement_mode, _signed_offers_required

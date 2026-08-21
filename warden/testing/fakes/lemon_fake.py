@@ -76,6 +76,9 @@ FAKE_VARIANTS: dict[str, str] = {
 
 _VARIANT_TO_PLAN: dict[str, str] = {v: k for k, v in FAKE_VARIANTS.items()}
 
+#: Stamped on every artifact this fake issues. Not overridable — see `emit()`.
+_FAKE_PROVIDER = "FakeLemonSqueezy"
+
 
 class FakeLemonSqueezyError(RuntimeError):
     """Raised for a call the fake does not model, so gaps are loud."""
@@ -154,6 +157,11 @@ class FakeLemonSqueezy:
                     # this fake must never be mistaken for a payable checkout.
                     "url": f"https://fake-lemon.invalid/checkout/{checkout_id}",
                     "test_mode": True,
+                    # Provenance travels with the artifact, not just with the
+                    # webhook: a checkout response that outlives this process —
+                    # logged, cached, pasted into an issue — must still say what
+                    # produced it.
+                    "_fake_provider": _FAKE_PROVIDER,
                     "store_id": FAKE_STORE_ID,
                     "variant_id": variant_id,
                 },
@@ -200,6 +208,11 @@ class FakeLemonSqueezy:
             attrs["first_order_item"] = {"variant_id": variant_id}
         if attributes:
             attrs.update(attributes)
+        # Applied last, so a caller-supplied `attributes` override cannot strip
+        # the provenance. A test that needs to simulate a live-mode payload is
+        # asking for a different fake, not for this one to lie about itself.
+        attrs["test_mode"] = True
+        attrs["_fake_provider"] = _FAKE_PROVIDER
 
         envelope = {
             "meta": {
@@ -207,7 +220,7 @@ class FakeLemonSqueezy:
                 "event_id": event_id or str(uuid.uuid4()),
                 "custom_data": {"tenant_id": tenant_id} if tenant_id else {},
                 "test_mode": True,
-                "_fake_provider": "FakeLemonSqueezy",
+                "_fake_provider": _FAKE_PROVIDER,
             },
             "data": {
                 "type": "subscriptions" if event_name.startswith("subscription") else "orders",

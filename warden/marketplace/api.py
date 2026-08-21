@@ -53,19 +53,19 @@ def _signed_offers_required() -> bool:
         return False
 
 
-def _configured_chains() -> list[str]:
-    """Chain names with an RPC URL configured, sorted. Empty when none are.
+def _discover_chains() -> list[str]:
+    """Chain names with an RPC URL configured, sorted. **Raises** if unreadable.
 
     The manifest used to advertise a hard-coded ``["sepolia", "eth_tester"]``,
     which described the developer's laptop rather than the running deployment —
     ``eth_tester`` is an in-process EVM, and a counterparty reading it as a
     settlement venue is reading a claim nothing backs. Derived, like the mode.
+
+    Propagating a registry failure is the point: "we looked and found nothing"
+    and "we could not look" are different facts, and only the caller knows which
+    of the two its field is allowed to state.
     """
-    try:
-        from warden.web3.chains import VALID_CHAINS, get_chain
-    except Exception as exc:
-        log.debug("manifest: chain registry unavailable: %s", exc)
-        return []
+    from warden.web3.chains import VALID_CHAINS, get_chain
     found: list[str] = []
     for chain in sorted(VALID_CHAINS):
         try:
@@ -74,6 +74,20 @@ def _configured_chains() -> list[str]:
         except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
             continue
     return found
+
+
+def _configured_chains() -> list[str]:
+    """``_discover_chains()`` for the manifest: empty list rather than a 500.
+
+    A discovery endpoint must answer. An empty ``chains`` array understates what
+    is configured, which is the safe direction for a claim — while
+    ``settlement_mode`` carries the fact that the lookup failed at all.
+    """
+    try:
+        return _discover_chains()
+    except Exception as exc:
+        log.debug("manifest: chain registry unavailable: %s", exc)
+        return []
 
 
 def _escrow_settlement_mode() -> str:
@@ -87,6 +101,9 @@ def _escrow_settlement_mode() -> str:
       plumbing, never the rail.
     * ``"simulated"`` — no RPC at all. ``EscrowService`` runs a deterministic
       in-process simulation: the state machine is real, the settlement is not.
+    * ``"unknown"``   — the chain registry could not be read. Reserved for that
+      case alone: reporting ``"simulated"`` when the lookup failed would state a
+      fact about the configuration that was never established.
 
     This used to return ``"onchain"`` for any configured RPC, so production
     advertised on-chain settlement to every foreign agent on the strength of a
@@ -103,7 +120,7 @@ def _escrow_settlement_mode() -> str:
     """
     try:
         from warden.web3.chains import MAINNET_CHAINS
-        configured = set(_configured_chains())
+        configured = set(_discover_chains())
         if configured & MAINNET_CHAINS:
             return "onchain"
         if configured:

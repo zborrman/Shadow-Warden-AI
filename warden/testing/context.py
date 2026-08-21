@@ -1,19 +1,19 @@
 """
 warden/testing/context.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━
-FakeContext — единая точка входа для подмены всех зависимостей.
+FakeContext — one entry point for substituting every external dependency.
 
-Аналог "тестового хендлера" из системы фейков Avito:
-  • Активирует все фейки одновременно через patch
-  • Обеспечивает изоляцию (каждый тест получает чистое состояние)
-  • Предоставляет удобный API для настройки поведения фейков
+Modelled on the test-handler pattern:
+  * activates every fake at once through `unittest.mock.patch`
+  * isolates each test — every context starts from clean state
+  * exposes a small API for shaping how the fakes behave
 
-Использование (минимальное):
+Minimal use:
     with FakeContext() as ctx:
         resp = client.post("/filter", json={"content": "test"})
         assert resp.json()["allowed"] is True
 
-Использование (расширенное):
+Fuller use:
     with FakeContext() as ctx:
         ctx.evolution.queue_rule("ignore.*instructions")
         ctx.s3.clear()
@@ -43,10 +43,10 @@ from warden.testing.fakes.s3_fake import FakeS3Storage
 
 class FakeContext:
     """
-    Контекстный менеджер для активации всех фейков Shadow Warden.
+    Context manager that activates every Shadow Warden fake.
 
-    Реализует принцип "request-level isolation" из системы фейков Avito:
-    каждый вызов FakeContext создаёт независимую изолированную среду.
+    Request-level isolation: each FakeContext builds an independent
+    environment, so tests cannot leak state into one another.
     """
 
     def __init__(
@@ -65,7 +65,7 @@ class FakeContext:
         self._enable_nvidia = enable_nvidia
         self._enable_lemon = enable_lemon
 
-        # Экземпляры фейков — доступны после __enter__
+        # Fake instances — available once __enter__ has run
         self.anthropic:  FakeAnthropicClient = FakeAnthropicClient()
         self.nvidia:     FakeNvidiaClient    = FakeNvidiaClient()
         self.s3:         FakeS3Storage       = FakeS3Storage()
@@ -84,7 +84,7 @@ class FakeContext:
     # ── Patch management ──────────────────────────────────────────────────────
 
     def _activate(self) -> None:
-        """Активировать все фейки через unittest.mock.patch."""
+        """Activate every fake through unittest.mock.patch."""
         patches: list[tuple[str, object]] = []
 
         if self._enable_s3:
@@ -123,17 +123,17 @@ class FakeContext:
                 ("warden.lemon_billing._LS_VARIANT_ENTERPRISE", FAKE_VARIANTS["enterprise"]),
             ])
 
-        # Активируем все patches
+        # Start every patch
         for target, new_val in patches:
             try:
                 p = patch(target, new_val)
                 p.start()
                 self._patches.append(p)
             except AttributeError:
-                pass  # Модуль может не существовать в конкретной конфигурации
+                pass  # the module may not exist in this configuration
 
     def _deactivate(self) -> None:
-        """Остановить все patches и сбросить состояние."""
+        """Stop every patch and drop the accumulated state."""
         for p in reversed(self._patches):
             with contextlib.suppress(RuntimeError):
                 p.stop()
@@ -142,7 +142,7 @@ class FakeContext:
     # ── Convenience methods ───────────────────────────────────────────────────
 
     def simulation_header(self) -> dict[str, str]:
-        """Заголовок X-Simulation-ID для request-level isolation."""
+        """X-Simulation-ID header for request-level isolation."""
         return {"X-Simulation-ID": self.simulation_id}
 
     def assert_evolution_triggered(self) -> None:
@@ -176,8 +176,8 @@ class FakeContext:
 @contextmanager
 def fake_evolution_context(semantic_guard=None):
     """
-    Минимальный контекст: только подмена Evolution Engine.
-    Полезен в тестах, которые проверяют, что EvolutionEngine вызывается.
+    Minimal context: substitutes the Evolution Engine and nothing else.
+    Useful in tests that assert the EvolutionEngine was invoked.
     """
     fake = FakeEvolutionEngine()
     if semantic_guard is not None:
