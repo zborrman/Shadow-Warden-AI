@@ -880,8 +880,12 @@ groups:
       # bind-mounted, so changing one alters neither the image nor the compose
       # config and `docker compose up` correctly does nothing — the container goes
       # on evaluating whatever it loaded at startup. The deploy now restarts
-      # grafana when anything under grafana/provisioning/ changes. If you fix a
-      # rule here and production disagrees, check that first.
+      # grafana whenever a hash of this tree differs from the one last loaded
+      # (`.deploy-grafana-prov.sha` on the server). It is keyed to a stamp rather
+      # than to a per-run git diff because a deploy that pulls and then fails
+      # consumes a diff window exactly once, silently — which is how the first
+      # version of that check lost its own change. If you fix a rule here and
+      # production disagrees, check whether grafana has restarted since.
       - uid: warden-community-peer-down
         title: "Warden — All community peerings lost"
         condition: B

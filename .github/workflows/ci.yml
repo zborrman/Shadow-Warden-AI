@@ -1337,20 +1337,35 @@ jobs:
           #
           # Alert rules, contact points and dashboards live in bind-mounted files.
           # Changing one alters neither the image nor the compose config, so both
-          # \`docker compose up\` passes are a correct no-op for grafana — and the
+          # `docker compose up` passes are a correct no-op for grafana — and the
           # container goes on evaluating the rules it read at startup. The file on
           # disk and the rule in memory then disagree indefinitely.
           #
-          # That is not hypothetical: the \`warden-community-peer-down\` guard shipped
-          # in Track O and production kept paging critical on the pre-guard rule
-          # until 2026-08-22, when a manual restart finally loaded it. Same class as
-          # the posture flags that were set in .env and never reached the container.
+          # Not hypothetical: the `warden-community-peer-down` guard shipped in
+          # Track O and production kept paging critical on the pre-guard rule until
+          # 2026-08-22, when a manual restart finally loaded it.
           #
-          # Restart only when those files actually changed — ORIG_HEAD is set by the
-          # \`git reset --hard\` in the pull step, so an unchanged deploy is a no-op.
-          if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^grafana/provisioning/'; then
+          # Keyed to a stamp of the tree, NOT to this run's git diff. The first
+          # version of this check compared ORIG_HEAD..HEAD, and the very deploy
+          # meant to prove it lost the change: its pull advanced ORIG_HEAD, the run
+          # then failed on an unrelated stale-`landing/` gate, and the next deploy
+          # diffed from the already-advanced ref and correctly saw nothing. Any
+          # interrupted deploy consumes the window exactly once, silently, in the
+          # direction that leaves production on stale rules. A stamp cannot be
+          # consumed: it disagrees until a restart actually happens.
+          PROV_SHA=$(find grafana/provisioning -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d" " -f1)
+          PROV_STAMP=".deploy-grafana-prov.sha"
+          if [ "$PROV_SHA" = "$(cat "$PROV_STAMP" 2>/dev/null || true)" ]; then
+            echo "── Grafana provisioning unchanged — no restart"
+          else
             echo "── Grafana provisioning changed — restarting so it re-reads the files"
-            docker compose restart grafana 2>&1 | tail -3
+            # The stamp is written only after the restart succeeds, so a failed
+            # restart is retried on the next deploy instead of being marked done.
+            if docker compose restart grafana; then
+              echo "$PROV_SHA" > "$PROV_STAMP"
+            else
+              echo "⚠️  grafana restart failed — rules on disk are NOT loaded; will retry next deploy"
+            fi
           fi
 
           echo "── [3b/4] Prune build cache ────────────────────────────────"
