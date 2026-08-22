@@ -1286,6 +1286,26 @@ jobs:
           # changes, zero recreates, when nothing actually differs).
           docker compose up -d --no-build --remove-orphans 2>&1 | tail -20
 
+          # ── Grafana provisioning: bind-mounted, so neither pass above sees it
+          #
+          # Alert rules, contact points and dashboards live in bind-mounted files.
+          # Changing one alters neither the image nor the compose config, so both
+          # `docker compose up` passes are a correct no-op for grafana — and the
+          # container goes on evaluating the rules it read at startup. The file on
+          # disk and the rule in memory then disagree indefinitely.
+          #
+          # That is not hypothetical: the `warden-community-peer-down` guard shipped
+          # in Track O and production kept paging critical on the pre-guard rule
+          # until 2026-08-22, when a manual restart finally loaded it. Same class as
+          # the posture flags that were set in .env and never reached the container.
+          #
+          # Restart only when those files actually changed — ORIG_HEAD is set by the
+          # `git reset --hard` in the pull step, so an unchanged deploy is a no-op.
+          if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^grafana/provisioning/'; then
+            echo "── Grafana provisioning changed — restarting so it re-reads the files"
+            docker compose restart grafana 2>&1 | tail -3
+          fi
+
           echo "── [3b/4] Prune build cache ────────────────────────────────"
           # On a 40 GB disk the Docker build cache accumulates ~4-5 GB per week
           # (every --build pass creates new layers; old ones are not auto-removed).
