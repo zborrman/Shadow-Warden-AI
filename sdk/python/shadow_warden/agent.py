@@ -1,5 +1,5 @@
 """
-shadow_warden_sdk/agent.py
+shadow_warden/agent.py
 SecureAgent — mixin/decorator that adds Shadow Warden mandate controls
 to any AI agent class.
 """
@@ -42,7 +42,7 @@ class SecureAgent:
         base_url: str = "https://api.shadow-warden-ai.com",
         max_default_amount: float = 100.0,
     ) -> None:
-        from shadow_warden_sdk.client import ShadowWardenClient
+        from shadow_warden.commerce import ShadowWardenClient
         self._sw_client   = ShadowWardenClient(api_key=api_key, base_url=base_url)
         self._tenant_id   = tenant_id
         self._max_default = max_default_amount

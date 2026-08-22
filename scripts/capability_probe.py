@@ -126,10 +126,10 @@ def probe_public(base_url: str) -> dict[str, Any]:
 
 def probe_registries() -> dict[str, Any]:
     """Are the SDKs installable by anyone who is not us?"""
-    pypi, _ = _get("https://pypi.org/pypi/shadow-warden-client/json")
+    pypi, _ = _get("https://pypi.org/pypi/shadow-warden-sdk/json")
     npm, _ = _get("https://registry.npmjs.org/@shadow-warden/sdk")
     return {
-        "pypi_shadow_warden_client": pypi == 200,
+        "pypi_shadow_warden_sdk": pypi == 200,
         "npm_shadow_warden_sdk": npm == 200,
     }
 
@@ -323,7 +323,7 @@ def render(report: dict[str, Any]) -> str:
     reg = report.get("registries", {})
     if reg:
         lines.append("Distribution")
-        lines.append(f"  {_flag(reg['pypi_shadow_warden_client'])} PyPI  shadow-warden-client")
+        lines.append(f"  {_flag(reg['pypi_shadow_warden_sdk'])} PyPI  shadow-warden-sdk")
         lines.append(f"  {_flag(reg['npm_shadow_warden_sdk'])} npm   @shadow-warden/sdk")
         lines.append("")
 

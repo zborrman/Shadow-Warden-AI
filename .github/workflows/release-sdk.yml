@@ -1,0 +1,132 @@
+# SDK release — tag-triggered publish of the two client packages.
+#
+# Why a separate workflow: ci.yml runs on every push and is already 17 jobs. A
+# publish must be rare, deliberate and traceable to a tag, not a side effect of
+# a merge.
+#
+# Tag format:  sdk-v1.0.0     (one tag releases both packages together, which is
+#                              what "versions never drift from the gateway" in
+#                              the launch programme means in practice)
+#
+# Tokens: PYPI_API_TOKEN and NPM_TOKEN repository secrets. Until they exist the
+# workflow still runs end to end — build, metadata check, version/tag agreement,
+# `--dry-run` publish — and then says plainly that it did not publish. It never
+# reports success for a release that did not happen: that is the whole failure
+# class this repository keeps finding (a gate that passes without checking, a
+# clearing run that settles $0.00, a probe that measures nothing).
+name: Release SDK
+
+on:
+  push:
+    tags:
+      - "sdk-v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and validate only — never publish"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: PyPI — shadow-warden-sdk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: python -m pip install --quiet build twine
+
+      - name: Version must match the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#sdk-v}"
+          PKG=$(grep -m1 '^version' sdk/python/pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "tag=$TAG pyproject=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error title=Version drift::tag sdk-v$TAG does not match sdk/python/pyproject.toml $PKG"
+            exit 1
+          fi
+
+      - name: Build + validate metadata
+        run: |
+          set -euo pipefail
+          cd sdk/python
+          python -m build
+          python -m twine check dist/*
+
+      - name: Publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd sdk/python
+          if [ -z "${TWINE_PASSWORD:-}" ]; then
+            echo "::warning title=Not published::PYPI_API_TOKEN is not set — validated the artefact and stopped."
+            echo "NOT PUBLISHED: add the PYPI_API_TOKEN secret, then re-run this workflow."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "dry run — skipping upload"
+            exit 0
+          fi
+          python -m twine upload dist/*
+          echo "published shadow-warden-sdk to PyPI"
+
+  typescript:
+    name: npm — @shadow-warden/sdk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Version must match the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#sdk-v}"
+          PKG=$(node -p "require('./sdk/typescript/package.json').version")
+          echo "tag=$TAG package.json=$PKG"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error title=Version drift::tag sdk-v$TAG does not match sdk/typescript/package.json $PKG"
+            exit 1
+          fi
+
+      - name: Build + test
+        run: |
+          set -euo pipefail
+          cd sdk/typescript
+          npm ci || npm install
+          npm run build --if-present
+          npm test --if-present
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd sdk/typescript
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::warning title=Not published::NPM_TOKEN is not set — built and validated the package and stopped."
+            echo "NOT PUBLISHED: add the NPM_TOKEN secret, then re-run this workflow."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm publish --dry-run --access public
+            exit 0
+          fi
+          npm publish --access public
+          echo "published @shadow-warden/sdk to npm"

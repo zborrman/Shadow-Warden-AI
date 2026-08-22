@@ -181,7 +181,7 @@ fail to start instead.
 
 | Claim as published | Status | Evidence | Action |
 |---|---|---|---|
-| Python SDK (`shadow-warden-client`) | `BUILT` | PyPI returns 404 — not published | P2 |
+| Python SDK (`shadow-warden-sdk`) | `BUILT` | PyPI returns 404 — not published. Consolidated 2026-08-22 from three competing trees; the site, the docs and this probe named four different packages between them, none of which resolved. | P2 |
 | Node SDK (`@shadow-warden/sdk`) | `BUILT` | npm returns 404 — not published | P2 |
 | Go SDK, React ACP widget | `BUILT` | In-repository only | P2 |
 | 562 REST endpoints | `LIVE` | `openapi.json`; unversioned | Add `/v1` in P2 |

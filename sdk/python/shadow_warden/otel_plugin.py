@@ -1,5 +1,5 @@
 """
-sdks/python/shadow_warden/otel_plugin.py  (DEV-02)
+sdk/python/shadow_warden/otel_plugin.py  (DEV-02)
 ────────────────────────────────────────────────────
 WardenSpanProcessor — OpenTelemetry SDK plugin.
 
