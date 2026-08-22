@@ -125,7 +125,7 @@ def test_render_survives_a_detection_error(probe: Any) -> None:
         {
             "public": {"pipeline_reachable": False},
             "registries": {
-                "pypi_shadow_warden_client": False,
+                "pypi_shadow_warden_sdk": False,
                 "npm_shadow_warden_sdk": False,
             },
             "detection": {"error": "corpus unreadable: OSError: nope"},

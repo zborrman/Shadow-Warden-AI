@@ -1,11 +1,11 @@
-# shadow-warden-client
+# shadow-warden-sdk
 
 Python SDK for the [Shadow Warden AI](https://shadowwarden.ai) security gateway.
 
 ## Install
 
 ```bash
-pip install shadow-warden-client
+pip install shadow-warden-sdk
 ```
 
 ## Quick start
@@ -103,3 +103,25 @@ except WardenGatewayError as e:
 | `has_secrets` | `bool` | True if any secrets were found |
 | `has_pii` | `bool` | True if `pii_detected` flag is present |
 | `processing_ms` | `dict[str, float]` | Per-stage timing breakdown |
+
+## Agentic commerce
+
+`ShadowWardenClient` carries the mandate, order, spend and MCP-intent calls, and
+`SecureAgent` is the mixin that gives any agent class mandate-controlled
+purchasing:
+
+```python
+from shadow_warden import SecureAgent
+
+class ProcurementAgent(SecureAgent):
+    def run(self, task: str):
+        if self.filter_prompt(task).get("blocked"):
+            raise ValueError("task blocked")
+        self.create_mandate(max_amount=200.0)
+        return self.purchase({"store_url": "shop.example.com", "items": [...]})
+```
+
+## OpenTelemetry
+
+`pip install "shadow-warden-sdk[otel]"` adds `WardenSpanProcessor`, which filters
+span attributes through the gateway before they are exported.

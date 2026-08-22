@@ -125,7 +125,7 @@ where GDPR compliance for AI-assisted note sharing is an unmet need.
 
 ### 4.1 Developer-Led Growth (Starter → Individual → Pro)
 - Free Starter tier with immediate API access
-- SDK: `pip install shadow-warden-client`
+- SDK: `pip install shadow-warden-sdk`
 - LangChain callback (`WardenCallback`) — zero-friction integration
 - OpenAI-compatible proxy endpoint — swap base URL, no code changes
 - GitHub-first: open issues for feature requests, closed-source core
