@@ -342,6 +342,12 @@ def revoke_peering(peering_id: str) -> bool:
     return revoked
 
 
+#: Published on the peering gauge when the count cannot be taken. Negative so it
+#: can never be confused with a real count, and specifically not with 0, which
+#: the "All community peerings lost" rule reads as an outage.
+PEERING_COUNT_UNAVAILABLE = -1
+
+
 def refresh_peering_gauge() -> int:
     """
     Publish the live count of ACTIVE peerings to Prometheus. Returns the count.
@@ -358,10 +364,16 @@ def refresh_peering_gauge() -> int:
     value survives a process restart. An in-process counter reads 0 after every
     deploy, which is the same false "all peerings lost" by a slower route.
 
-    Returns -1, and publishes nothing, when the count cannot be taken:
-    instrumentation must never be able to break a peering operation, and a
-    metric left at its last real value is better than one overwritten with a
-    zero that a critical rule would read as an outage.
+    On failure the gauge is set to UNAVAILABLE (-1), not left alone. A fresh
+    process has never written the gauge, so "left alone" means 0 — and 0 is the
+    exact value the critical rule treats as an outage. An unavailable count and
+    an empty peering table have to be distinguishable, or a database error pages
+    someone about peerings that are fine. The rule matches `== 0`, so the
+    sentinel is inert to it by construction, and the metric still shows on a
+    dashboard that the count could not be taken.
+
+    Instrumentation must never be able to break a peering operation, so every
+    failure path here is logged and swallowed.
     """
     try:
         with _db_lock, _conn() as conn:
@@ -370,14 +382,15 @@ def refresh_peering_gauge() -> int:
             ).fetchone()
         count = int(row["n"]) if row else 0
     except (sqlite3.Error, OSError, TypeError, ValueError) as exc:
-        log.debug("peering gauge: count failed (non-fatal): %s", exc)
-        return -1
+        log.warning("peering gauge: count failed, publishing UNAVAILABLE: %s", exc)
+        count = PEERING_COUNT_UNAVAILABLE
 
     try:
         from warden.metrics import COMMUNITY_PEERING_CONNECTIONS
         COMMUNITY_PEERING_CONNECTIONS.set(count)
     except (ImportError, AttributeError) as exc:
-        log.debug("peering gauge: publish failed (non-fatal): %s", exc)
+        log.warning("peering gauge: publish failed, metric is now stale: %s", exc)
+        return PEERING_COUNT_UNAVAILABLE
     return count
 
 

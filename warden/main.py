@@ -663,11 +663,20 @@ async def lifespan(app: FastAPI):
     # peerings exist — which the "All community peerings lost" rule would then
     # report as a critical outage.
     try:
-        from warden.communities.peering import refresh_peering_gauge
+        from warden.communities.peering import (
+            PEERING_COUNT_UNAVAILABLE,
+            refresh_peering_gauge,
+        )
         _peerings = await asyncio.to_thread(refresh_peering_gauge)
-        log.info("Community peering gauge published: %d active peering(s).", _peerings)
+        if _peerings == PEERING_COUNT_UNAVAILABLE:
+            log.warning(
+                "Community peering gauge UNAVAILABLE at startup — the peering count "
+                "could not be taken; see the peering log line above for the cause."
+            )
+        else:
+            log.info("Community peering gauge published: %d active peering(s).", _peerings)
     except Exception as _pg_err:
-        log.debug("Community peering gauge skipped (non-fatal): %s", _pg_err)
+        log.warning("Community peering gauge skipped (non-fatal): %s", _pg_err)
 
     # ── Causal Arbiter CPT calibration (MLE from prod logs) ─────────────
     try:
