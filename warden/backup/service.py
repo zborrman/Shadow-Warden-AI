@@ -455,7 +455,13 @@ def ship_evidence_bundles() -> int:
         local, evidence_bucket = _local_evidence_client()
         off_client, off_bucket = _offsite_client()
         if local is None or off_client is None or not off_bucket:
+            # Counted, not just logged. "Not configured" is the most likely way
+            # for this to be silently off in production — it is how the vault
+            # itself sat disabled while the SOC 2 material cited it — and an
+            # un-counted early return is precisely the fail-open the docstring
+            # above claims does not exist here.
             log.debug("evidence ship: local or offsite storage not configured — skipped")
+            record_failopen("evidence_ship_offsite", Reason.BACKEND_ERROR)
             return 0
 
         f = _fernet()  # fail-CLOSED: never mirror an unencrypted bundle offsite
