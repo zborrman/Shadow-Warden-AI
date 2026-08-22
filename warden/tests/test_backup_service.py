@@ -335,17 +335,33 @@ class TestEvidenceBundleReplication:
         assert s.ship_evidence_bundles() == 0, "re-shipped bundles found on offsite page 2"
         assert stub.get_calls == [], "read a bundle that was already offsite"
 
-    def test_unconfigured_storage_is_counted_not_silent(self, svc, monkeypatch):
-        """An un-counted early return is the fail-open the docstring denies."""
+    @pytest.mark.parametrize("local_off,offsite_off", [
+        (True,  True),   # neither end configured
+        (True,  False),  # local vault missing, offsite fine
+        (False, True),   # local vault fine, offsite missing
+    ])
+    def test_unconfigured_storage_is_counted_not_silent(
+        self, svc, monkeypatch, local_off, offsite_off
+    ):
+        """An un-counted early return is the fail-open the docstring denies.
+
+        Each end is checked on its own: offsite-only unconfigured is the shape
+        this actually takes in production — the vault works, the copy that
+        survives host loss does not — and it must not be the quiet one.
+        """
         s, _, _ = svc
         seen: list[tuple[str, str]] = []
         monkeypatch.setattr(s, "record_failopen",
                             lambda stage, reason, exc=None: seen.append((stage, reason)))
-        monkeypatch.setattr("warden.storage.s3._get_client", lambda: None)
-        monkeypatch.setattr(s, "_offsite_client", lambda: (None, ""))
+        stub = _StubVault({"bundles/sess-1.json": b"{}"})
+        monkeypatch.setattr("warden.storage.s3._get_client",
+                            lambda: None if local_off else stub)
+        monkeypatch.setattr(s, "_offsite_client",
+                            lambda: (None, "") if offsite_off else (stub, "warden-offsite"))
 
         assert s.ship_evidence_bundles() == 0
-        assert seen and seen[0][0] == "evidence_ship_offsite"
+        assert seen == [("evidence_ship_offsite", s.Reason.BACKEND_ERROR)]
+        assert stub.offsite == {}
 
     def test_unconfigured_offsite_is_a_no_op(self, svc, monkeypatch):
         s, _, _ = svc
