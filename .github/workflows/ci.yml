@@ -999,6 +999,31 @@ jobs:
     needs: [test, lint]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
+    # One deploy at a time, against one server.
+    #
+    # There was no concurrency group here at all, so every push to main started
+    # its own deploy. The test matrix takes ~25 min, so two merges less than
+    # that apart both arrive at this step at once and drive `docker compose`
+    # against the same daemon simultaneously. On 2026-08-22 that took
+    # production down: #359 (06:51) and #355 (07:01) reached [3/4] together,
+    # the second one's scoped recreate hit "removal of container ... is already
+    # in progress" from the first, and the `||` fallback below responded to
+    # that by running `docker compose down` on the WHOLE stack — then lost the
+    # same race coming back up ("network ... already exists", then the
+    # `warden-minio` name taken by the other run's fresh container). `up`
+    # aborted two containers in. Nineteen services destroyed, none running,
+    # Cloudflare serving 530/1033, and no automatic recovery: the step exits 1
+    # and the next deploy only runs on the next merge.
+    #
+    # `cancel-in-progress: false` is the important half. Cancelling a running
+    # deploy is how you get a half-torn-down stack on purpose — the job would
+    # be killed mid `down`/`up` with containers already destroyed. Queue
+    # instead: a superseded deploy wastes a few minutes and is harmless,
+    # because the newer commit is a descendant and deploys everything anyway.
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
+
     steps:
       - name: Set up SSH key
         env:
@@ -1218,7 +1243,7 @@ jobs:
           docker compose pull --quiet --ignore-buildable 2>/dev/null || docker compose pull --quiet || true
 
           echo "── [3/4] Restart services ──────────────────────────────────"
-          # Build FIRST, while the old stack keeps serving. `docker compose build`
+          # Build FIRST, while the old stack keeps serving. \`docker compose build\`
           # never touches running containers, so there is zero downtime during the
           # slow --no-cache pass — and (see R2 below) the swap itself no longer
           # takes the whole stack down either, only the services actually rebuilt.
@@ -1246,39 +1271,61 @@ jobs:
 
           # ── The swap (R2 — zero-downtime deploy): recreate ONLY the 6 services
           # whose image was just rebuilt (warden, arq-worker, analytics, admin,
-          # portal, dashboard) — NOT the whole stack. `docker compose up` only
+          # portal, dashboard) — NOT the whole stack. \`docker compose up\` only
           # recreates a container whose image/config actually changed, so proxy
           # (Caddy — the internet-facing edge), postgres, redis, minio, clickhouse,
           # grafana, jaeger, loki, promtail, exporters, otel-collector, and
           # cloudflared are never touched and never go down. This previously ran
-          # a blanket `docker compose down` + full `up` on EVERY deploy, dropping
+          # a blanket \`docker compose down\` + full \`up\` on EVERY deploy, dropping
           # all 19 services (including the edge proxy → Cloudflare HTTP 530s) for
           # the entire recreate + warden model-warmup window.
-          # `--wait` gates on Docker healthcheck status for the named services
-          # before returning — but deliberately does NOT include `minio-init`
-          # (a one-shot bucket-init container that exits 0 after running; `--wait`
+          # \`--wait\` gates on Docker healthcheck status for the named services
+          # before returning — but deliberately does NOT include \`minio-init\`
+          # (a one-shot bucket-init container that exits 0 after running; \`--wait\`
           # treats a non-restarting exit as a failure even on success, so
           # including it here would make this step always report failure).
           docker compose up -d --no-build --remove-orphans --wait \
             warden arq-worker analytics admin portal dashboard || {
-            echo "⚠️  Scoped recreate failed — falling back to full down+up"
-            echo "   (recovers from a stale-container name conflict, e.g. a"
-            echo "   container left by a prior failed deploy blocking create)"
-            docker compose down --remove-orphans 2>/dev/null || true
-            docker ps -aq --filter "name=warden-" | xargs -r docker rm -f 2>/dev/null || true
-            docker compose up -d --no-build --remove-orphans || {
-              echo "── docker compose up failed — gateway logs ─────────────────"
-              docker compose logs --tail 100 warden || true
-              exit 1
+            # Retry the SCOPED recreate once before escalating. The failure this
+            # fallback was written for — a container left behind by a prior failed
+            # deploy — is permanent, and survives the retry. The failure that took
+            # production down on 2026-08-22 was transient ("removal of container
+            # ... is already in progress", i.e. Docker was still finishing a
+            # remove) and clears in seconds. Escalating a transient conflict
+            # straight to \`down\` on the whole stack is a far worse outcome than
+            # the conflict: it destroys thirteen services that were healthy and
+            # had nothing to do with the deploy.
+            echo "⚠️  Scoped recreate failed — retrying scoped in 15s before escalating"
+            sleep 15
+            docker compose up -d --no-build --remove-orphans --wait \
+              warden arq-worker analytics admin portal dashboard || {
+              echo "⚠️  Scoped recreate failed twice — falling back to full down+up"
+              echo "   (recovers from a stale-container name conflict, e.g. a"
+              echo "   container left by a prior failed deploy blocking create)"
+              docker compose down --remove-orphans 2>/dev/null || true
+              # Force-remove by COMPOSE PROJECT, not by name prefix. The old
+              # \`--filter name=warden-\` matched warden-redis and warden-grafana
+              # but not shadow-warden-warden-1 or shadow-warden-cloudflared-1,
+              # which take their names from the project rather than from a
+              # container_name: — so the gateway container itself, the one most
+              # likely to be blocking a create, was the one this line could not
+              # remove.
+              docker compose ps -aq 2>/dev/null | xargs -r docker rm -f 2>/dev/null || true
+              docker ps -aq --filter "name=warden-" | xargs -r docker rm -f 2>/dev/null || true
+              docker compose up -d --no-build --remove-orphans || {
+                echo "── docker compose up failed — gateway logs ─────────────────"
+                docker compose logs --tail 100 warden || true
+                exit 1
+              }
             }
           }
 
           # Second, unscoped pass — catches config drift the scoped pass above
-          # can't see: a brand-new service definition (e.g. R3's `autoheal`) or
+          # can't see: a brand-new service definition (e.g. R3's \`autoheal\`) or
           # a config-only change (labels, env) on one of the 13 NON-buildable
           # services (proxy/postgres/redis/minio/clickhouse/...). Those never
           # get an image rebuild, so they're invisible to the scoped pass by
-          # design — but `docker compose up` still detects a docker-compose.yml
+          # design — but \`docker compose up\` still detects a docker-compose.yml
           # diff for them independently of any image change. No --wait here
           # (same minio-init incompatibility as above, this time unavoidable
           # since the whole project is in scope) — already-correct containers
@@ -1290,17 +1337,17 @@ jobs:
           #
           # Alert rules, contact points and dashboards live in bind-mounted files.
           # Changing one alters neither the image nor the compose config, so both
-          # `docker compose up` passes are a correct no-op for grafana — and the
+          # \`docker compose up\` passes are a correct no-op for grafana — and the
           # container goes on evaluating the rules it read at startup. The file on
           # disk and the rule in memory then disagree indefinitely.
           #
-          # That is not hypothetical: the `warden-community-peer-down` guard shipped
+          # That is not hypothetical: the \`warden-community-peer-down\` guard shipped
           # in Track O and production kept paging critical on the pre-guard rule
           # until 2026-08-22, when a manual restart finally loaded it. Same class as
           # the posture flags that were set in .env and never reached the container.
           #
           # Restart only when those files actually changed — ORIG_HEAD is set by the
-          # `git reset --hard` in the pull step, so an unchanged deploy is a no-op.
+          # \`git reset --hard\` in the pull step, so an unchanged deploy is a no-op.
           if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^grafana/provisioning/'; then
             echo "── Grafana provisioning changed — restarting so it re-reads the files"
             docker compose restart grafana 2>&1 | tail -3
