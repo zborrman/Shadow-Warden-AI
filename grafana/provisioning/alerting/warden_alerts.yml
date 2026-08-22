@@ -874,6 +874,14 @@ groups:
       # The `job="warden"` selector removes the second instance: the arq-worker
       # process imports metrics.py, so it declares this gauge too, and it is not
       # where peerings are accepted or revoked. Its series is 0 forever.
+      #
+      # Postscript (2026-08-22): the guard below was correct and production kept
+      # paging on it anyway, because Grafana had never read it. These files are
+      # bind-mounted, so changing one alters neither the image nor the compose
+      # config and `docker compose up` correctly does nothing — the container goes
+      # on evaluating whatever it loaded at startup. The deploy now restarts
+      # grafana when anything under grafana/provisioning/ changes. If you fix a
+      # rule here and production disagrees, check that first.
       - uid: warden-community-peer-down
         title: "Warden — All community peerings lost"
         condition: B
