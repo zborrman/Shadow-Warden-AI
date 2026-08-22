@@ -322,6 +322,31 @@ class TestEvidenceBundleReplication:
 
         assert s.ship_evidence_bundles() == 3
 
+    def test_offsite_listing_is_paginated_too(self, svc, monkeypatch):
+        """The skip-set must span pages, or page 2 gets re-uploaded every night."""
+        s, _, _ = svc
+        stub = _StubVault(
+            {f"bundles/sess-{i}.json": b"{}" for i in range(2)},
+            offsite={f"evidence-bundles/sess-{i}.json.enc": b"x" for i in range(2)},
+        )
+        stub.pages = 2
+        self._wire(s, monkeypatch, stub)
+
+        assert s.ship_evidence_bundles() == 0, "re-shipped bundles found on offsite page 2"
+        assert stub.get_calls == [], "read a bundle that was already offsite"
+
+    def test_unconfigured_storage_is_counted_not_silent(self, svc, monkeypatch):
+        """An un-counted early return is the fail-open the docstring denies."""
+        s, _, _ = svc
+        seen: list[tuple[str, str]] = []
+        monkeypatch.setattr(s, "record_failopen",
+                            lambda stage, reason, exc=None: seen.append((stage, reason)))
+        monkeypatch.setattr("warden.storage.s3._get_client", lambda: None)
+        monkeypatch.setattr(s, "_offsite_client", lambda: (None, ""))
+
+        assert s.ship_evidence_bundles() == 0
+        assert seen and seen[0][0] == "evidence_ship_offsite"
+
     def test_unconfigured_offsite_is_a_no_op(self, svc, monkeypatch):
         s, _, _ = svc
         stub = _StubVault({"bundles/sess-1.json": b"{}"})
