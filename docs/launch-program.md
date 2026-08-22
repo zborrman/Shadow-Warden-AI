@@ -194,14 +194,14 @@ For a machine-to-machine platform the front door is a package install, not a
 
 | Workstream | Detail |
 |---|---|
-| Publish the SDKs | `shadow-warden-client` to PyPI, `@shadow-warden/sdk` to npm. Tag-triggered release job in `ci.yml` so versions never drift from the gateway. |
+| Publish the SDKs | `shadow-warden-sdk` to PyPI, `@shadow-warden/sdk` to npm. Tag-triggered release job so versions never drift from the gateway. Prerequisite done 2026-08-22: three Python packages and two identical-named npm packages were consolidated to one each — the repo could not publish before it agreed with itself. Needs `PYPI_API_TOKEN` and `NPM_TOKEN`. |
 | API versioning | 562 unversioned paths cannot evolve without breaking callers. `/v1`, a deprecation header, a published support window. |
 | Ten-minute quickstart | One page, one path: register an agent, publish a listing, receive a settled payment. |
 | Agent-native discovery | Extend `/.well-known/agent.json` with the protocol manifest so a foreign agent negotiates without human docs. |
 | Surface consolidation | Portal for tenants, SOC dashboard for operators, Streamlit internal-only. Freeze the split. |
 
 **Exit criteria**
-- [ ] `pip install shadow-warden-client` and `npm i @shadow-warden/sdk` both resolve.
+- [ ] `pip install shadow-warden-sdk` and `npm i @shadow-warden/sdk` both resolve.
 - [ ] A developer outside the project completes the quickstart unaided, timed.
 - [ ] Every new route ships under `/v1`; the legacy surface has a published sunset date.
 

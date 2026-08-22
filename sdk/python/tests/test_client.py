@@ -100,27 +100,24 @@ class TestWardenClientFilter:
         assert exc_info.value.status_code == 500
 
     def test_timeout_raises(self):
-        with WardenClient(gateway_url=BASE, timeout=0.001) as c:
-            with respx.mock:
-                respx.post(f"{BASE}/filter").mock(side_effect=httpx.TimeoutException("timeout"))
-                with pytest.raises(WardenTimeoutError):
-                    c.filter("test")
+        with WardenClient(gateway_url=BASE, timeout=0.001) as c, respx.mock:
+            respx.post(f"{BASE}/filter").mock(side_effect=httpx.TimeoutException("timeout"))
+            with pytest.raises(WardenTimeoutError):
+                c.filter("test")
 
     def test_fail_open_on_timeout(self):
-        with WardenClient(gateway_url=BASE, fail_open=True) as c:
-            with respx.mock:
-                respx.post(f"{BASE}/filter").mock(side_effect=httpx.TimeoutException("timeout"))
-                result = c.filter("test")
+        with WardenClient(gateway_url=BASE, fail_open=True) as c, respx.mock:
+            respx.post(f"{BASE}/filter").mock(side_effect=httpx.TimeoutException("timeout"))
+            result = c.filter("test")
         assert result.allowed is True
         assert result.risk_level == "low"
 
     def test_fail_open_on_gateway_error(self):
-        with WardenClient(gateway_url=BASE, fail_open=True) as c:
-            with respx.mock:
-                respx.post(f"{BASE}/filter").mock(
-                    return_value=httpx.Response(503, text="Service Unavailable")
-                )
-                result = c.filter("test")
+        with WardenClient(gateway_url=BASE, fail_open=True) as c, respx.mock:
+            respx.post(f"{BASE}/filter").mock(
+                return_value=httpx.Response(503, text="Service Unavailable")
+            )
+            result = c.filter("test")
         assert result.allowed is True
 
     @respx.mock
