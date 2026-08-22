@@ -509,10 +509,30 @@ class CorpusHealthMonitor:
     def __init__(self, guard: DataPoisoningGuard) -> None:
         self._guard = guard
         self._running = False
+        # Health of the previous cycle. Starts True so the first DEGRADED cycle
+        # counts as a transition and alerts once; see the dispatch below.
+        self._was_healthy = True
 
     async def run(self) -> None:
         self._running = True
         log.info("CorpusHealthMonitor started (interval=%ds)", _MONITOR_INTERVAL)
+
+        # ── Arm the rollback (OB-F12) ────────────────────────────────────────
+        # A snapshot was only ever written on a HEALTHY cycle, and rollback is
+        # only ever attempted on an UNHEALTHY one. A corpus that has never been
+        # healthy therefore never gets a snapshot, so every rollback logs
+        # "no corpus snapshot found ... rollback skipped" and returns False.
+        # Production ran in exactly that state: 288 rollback attempts in three
+        # hours, none of which could do anything, because the canary coverage
+        # hole meant the corpus was DEGRADED from the first cycle onward.
+        #
+        # The shipped corpus is known-good by construction — it is what is in
+        # git, and test_corpus_canary_coverage.py gates it on every push — so
+        # seeding from it is safe and makes the first rollback possible.
+        if not _SNAPSHOT_BASE.with_suffix(".npz").exists():
+            log.info("Self-Healing: no snapshot on disk — seeding from the shipped corpus")
+            await self._guard.save_snapshot_async()
+
         while self._running:
             await asyncio.sleep(_MONITOR_INTERVAL)
             try:
@@ -533,16 +553,27 @@ class CorpusHealthMonitor:
                         rolled_back = await self._guard.restore_snapshot_async()
                         if rolled_back:
                             log.info("Self-Healing: corpus rollback complete")
-                        # Fire Telegram + Slack alert (non-blocking)
-                        try:
-                            from warden import alerting
-                            asyncio.create_task(alerting.alert_corpus_rollback(
-                                failing_canaries = report.failing_canaries,
-                                drift            = report.centroid_drift,
-                                detail           = report.detail,
-                            ))
-                        except Exception as _ae:
-                            log.debug("Rollback alert dispatch error: %s", _ae)
+                        # ── Alert on the transition, not on every cycle ─────
+                        # This dispatch had no edge condition: a corpus that
+                        # stays degraded posted "Corpus poisoning detected —
+                        # auto-rollback executed" to Slack and Telegram once per
+                        # monitor interval, forever. On production that was a
+                        # page every ~75 seconds for a corpus with drift 0.00000
+                        # and no rollback actually performed — the alert was
+                        # both untrue and unrelenting, which is how a channel
+                        # stops being read. Grafana's own corpus-canary rule
+                        # (warden-canary-failing) carries the standing signal;
+                        # this one is here to announce the change of state.
+                        if self._was_healthy:
+                            try:
+                                from warden import alerting
+                                asyncio.create_task(alerting.alert_corpus_rollback(
+                                    failing_canaries = report.failing_canaries,
+                                    drift            = report.centroid_drift,
+                                    detail           = report.detail,
+                                ))
+                            except Exception as _ae:
+                                log.debug("Rollback alert dispatch error: %s", _ae)
                 else:
                     log.info(
                         "corpus_health: OK — drift=%.5f min_canary=%.4f",
@@ -550,6 +581,7 @@ class CorpusHealthMonitor:
                     )
                     # Corpus is healthy — save a fresh snapshot for future rollbacks
                     await self._guard.save_snapshot_async()
+                self._was_healthy = report.healthy
             except Exception as exc:
                 log.error("CorpusHealthMonitor error: %s", exc)
 
