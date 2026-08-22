@@ -1,31 +1,43 @@
 """
 warden/tests/test_corpus_canary_coverage.py — OB-F12 corpus guard.
 
-`poison.py` holds ten canary attacks that must always score at least
-CANARY_MIN_SCORE (0.70) against the jailbreak corpus. Any canary dropping below
-that is read as corpus poisoning: the health monitor marks the corpus DEGRADED,
-attempts a rollback and pages `critical` through Grafana.
+The corpus canaries exist to detect the corpus moving away from them — an
+`add_examples()` hot-reload that shifts the embedding space until real attacks
+stop matching. What they were actually measured against was an absolute 0.70
+floor, and seven of the ten had been under it since the day they were written
+(production 2026-08-21: `warden_corpus_canary_failing` 7, min score 0.4057,
+`warden_corpus_drift_score` 0.00000, `warden_pipeline_canary_missed` 0 — so
+nothing was poisoned and nothing was getting through).
 
-Seven of the ten had been below it since the canaries were written. Measured on
-production 2026-08-21: `warden_corpus_canary_failing` 7, min score 0.4057,
-`warden_corpus_drift_score` 0.00000 and `warden_pipeline_canary_missed` 0 — so
-nothing had been poisoned and nothing was getting through. The corpus simply did
-not cover the region those canaries live in, and the alert for a real poisoning
-event had nowhere left to go, because it was already firing.
+That floor could not be satisfied honestly. Rewriting the corpus with sixteen
+genuinely distinct attacks drawn from the same seven families moved the canaries
+by nothing: still 7 under 0.70, closest new neighbour 0.6559. Above roughly
+0.70, all-MiniLM-L6-v2 cosine similarity is a paraphrase relation — the only
+entries that lift a canary over the line are restatements of that canary, which
+makes the check measure its own input.
 
-That is only fixable once. Without this test the corpus drifts back the moment
-someone edits either list, and the alert returns to being furniture.
+So `poison.py` compares each canary against the score it had at startup, and
+these tests cover what that has to guarantee:
 
-The check is the same arithmetic the monitor performs — cosine similarity of
-each canary against every corpus entry, take the best — so it fails here, on a
-push, instead of on the pager.
+  * the corpus as shipped reports healthy — no permanent `critical` alert;
+  * a corpus that has been poisoned is still caught — the check can fire;
+  * the absolute floor still catches a wiped corpus;
+  * growing the corpus does not drag benign prompts toward the block threshold.
+
+The second one is the one that matters. A health check that cannot fail is the
+same defect as an alert that always fires, wearing the opposite mask.
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from warden.brain.poison import CANARY_EXAMPLES, CANARY_MIN_SCORE
+from warden.brain.poison import (
+    CANARY_ABSOLUTE_FLOOR,
+    CANARY_DRIFT_TOLERANCE,
+    CANARY_EXAMPLES,
+    DataPoisoningGuard,
+)
 
 pytestmark = pytest.mark.slow
 
@@ -55,55 +67,162 @@ BENIGN_CONTROLS = [
 _BENIGN_CEILING = 0.60
 
 
-def _best_scores(model, queries: list[str], corpus: list[str]) -> np.ndarray:
-    """Max cosine similarity of each query against the corpus."""
-    q = model.encode(queries, convert_to_numpy=True, show_progress_bar=False)
-    c = model.encode(corpus, convert_to_numpy=True, show_progress_bar=False)
-    q = q / np.linalg.norm(q, axis=1, keepdims=True)
-    c = c / np.linalg.norm(c, axis=1, keepdims=True)
-    return (q @ c.T).max(axis=1)
+class _FakeBrainGuard:
+    """Minimal stand-in for SemanticGuard — the poison guard only reads embeddings."""
+
+    def __init__(self, embeddings) -> None:
+        self._corpus_embeddings = embeddings
 
 
 @pytest.fixture(scope="module")
-def scored():
-    """(canary scores, benign scores) against the shipped corpus."""
+def model():
     try:
-        from warden.brain.semantic import _JAILBREAK_CORPUS, _load_model
+        from warden.brain.semantic import _load_model
 
-        model = _load_model()
-    except Exception as exc:  # noqa: BLE001 — offline runner, no model cache
+        return _load_model()
+    except Exception as exc:   # offline runner with no model cache
         pytest.skip(f"sentence-transformer model unavailable: {exc}")
 
-    corpus = list(_JAILBREAK_CORPUS)
-    return (
-        _best_scores(model, list(CANARY_EXAMPLES), corpus),
-        _best_scores(model, BENIGN_CONTROLS, corpus),
+
+@pytest.fixture(scope="module")
+def shipped_corpus():
+    from warden.brain.semantic import _JAILBREAK_CORPUS
+
+    return list(_JAILBREAK_CORPUS)
+
+
+def _encode(model, texts):
+    import torch
+
+    return torch.tensor(
+        model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
     )
 
 
-def test_every_canary_is_covered_by_the_corpus(scored) -> None:
-    canary_scores, _ = scored
-    failing = [
-        f"{score:.4f} < {CANARY_MIN_SCORE} — {text}"
-        for score, text in zip(canary_scores, CANARY_EXAMPLES, strict=True)
-        if score < CANARY_MIN_SCORE
+def _guard_on(model, corpus):
+    """A DataPoisoningGuard initialised against an arbitrary corpus."""
+    guard = DataPoisoningGuard(_FakeBrainGuard(_encode(model, corpus)))
+    guard._initialise_sync()
+    assert guard._ready, "poison guard failed to initialise"
+    return guard
+
+
+def test_shipped_corpus_reports_healthy(model, shipped_corpus) -> None:
+    guard = _guard_on(model, shipped_corpus)
+    report = guard._corpus_health_sync()
+    assert report.healthy, (
+        "The corpus as shipped reports DEGRADED, which means the corpus-canary "
+        f"alert fires `critical` on a clean deploy: {report.detail}"
+    )
+    assert report.failing_canaries == 0, report.detail
+
+
+def test_poisoning_is_still_detected(model, shipped_corpus) -> None:
+    """
+    The check has to be able to fail. Simulated exactly as a poisoning would
+    arrive — the corpus is replaced, after the baseline was taken, with entries
+    that carry none of the attack semantics.
+    """
+    guard = _guard_on(model, shipped_corpus)
+    diluted = [
+        "The quarterly revenue figures are attached to this message.",
+        "Our office is closed on public holidays and reopens the next weekday.",
+        "Please find the meeting notes summarised in the document below.",
+        "The train departs from platform four at seven minutes past the hour.",
+        "Recipes in this collection use metric measurements throughout.",
     ]
-    assert not failing, (
-        f"{len(failing)}/{len(CANARY_EXAMPLES)} canaries score below "
-        f"CANARY_MIN_SCORE against the shipped corpus. The corpus-canary alert "
-        f"will fire `critical` continuously and a real poisoning event will have "
-        f"nowhere to be seen:\n  " + "\n  ".join(failing)
+    guard._guard._corpus_embeddings = _encode(model, diluted)
+
+    report = guard._corpus_health_sync()
+    assert not report.healthy, (
+        "A corpus stripped of every attack example still reports healthy — the "
+        "poisoning check cannot fire"
+    )
+    assert report.failing_canaries > 0, report.detail
+
+
+def test_absolute_floor_catches_a_collapsed_corpus(model, shipped_corpus) -> None:
+    guard = _guard_on(model, shipped_corpus)
+    guard._guard._corpus_embeddings = _encode(
+        model, ["Rainfall totals for the month were slightly above average."]
+    )
+    report = guard._corpus_health_sync()
+    assert report.min_canary_score < CANARY_ABSOLUTE_FLOOR, (
+        f"expected a collapsed corpus to fall under the absolute floor, "
+        f"got {report.min_canary_score}"
+    )
+    assert not report.healthy
+    assert "absolute floor" in report.detail
+
+
+def test_a_small_drop_stays_within_tolerance(model, shipped_corpus) -> None:
+    """
+    Tolerance is not zero for a reason: legitimate `add_examples()` growth moves
+    canary scores slightly, and a check that fires on that is the alert storm
+    this work removed. Dropping a single corpus entry must stay healthy.
+    """
+    guard = _guard_on(model, shipped_corpus)
+    guard._guard._corpus_embeddings = _encode(model, shipped_corpus[:-1])
+    report = guard._corpus_health_sync()
+    assert report.healthy, (
+        f"removing one corpus entry moved a canary by more than "
+        f"{CANARY_DRIFT_TOLERANCE}: {report.detail}"
     )
 
 
-def test_benign_prompts_keep_their_margin(scored) -> None:
-    _, benign_scores = scored
+def test_benign_prompts_keep_their_margin(model, shipped_corpus) -> None:
+    corpus = model.encode(shipped_corpus, convert_to_numpy=True, show_progress_bar=False)
+    benign = model.encode(BENIGN_CONTROLS, convert_to_numpy=True, show_progress_bar=False)
+    corpus = corpus / np.linalg.norm(corpus, axis=1, keepdims=True)
+    benign = benign / np.linalg.norm(benign, axis=1, keepdims=True)
+    scores = (benign @ corpus.T).max(axis=1)
+
     over = [
         f"{score:.4f} — {text}"
-        for score, text in zip(benign_scores, BENIGN_CONTROLS, strict=True)
+        for score, text in zip(scores, BENIGN_CONTROLS, strict=True)
         if score >= _BENIGN_CEILING
     ]
     assert not over, (
         "Corpus growth pulled benign prompts toward the 0.72 block threshold:\n  "
         + "\n  ".join(over)
+    )
+
+
+def test_a_snapshot_this_build_wrote_is_recognised(model, shipped_corpus, tmp_path, monkeypatch) -> None:
+    from warden.brain import poison as poison_mod
+
+    base = tmp_path / "corpus_snapshot"
+    monkeypatch.setattr(poison_mod, "_SNAPSHOT_BASE", base)
+    guard = _guard_on(model, shipped_corpus)
+    assert guard._save_snapshot_sync(), "snapshot save failed"
+
+    assert DataPoisoningGuard.snapshot_matches_shipped_corpus(base.with_suffix(".npz"))
+
+
+def test_a_snapshot_from_an_earlier_build_is_not_trusted(tmp_path) -> None:
+    """
+    A snapshot written before a corpus change holds that older, narrower corpus.
+    Restoring it would roll coverage backwards with nothing said about it, so an
+    unrecognised — or absent — digest has to read as stale.
+    """
+    import numpy as np_
+
+    stale = tmp_path / "old_snapshot.npz"
+    np_.savez_compressed(stale, embeddings=np_.zeros((3, 384), dtype="float32"))
+    assert not DataPoisoningGuard.snapshot_matches_shipped_corpus(stale)
+
+    wrong = tmp_path / "wrong_digest.npz"
+    np_.savez_compressed(
+        wrong,
+        embeddings=np_.zeros((3, 384), dtype="float32"),
+        corpus_digest=np_.array("0" * 64),
+    )
+    assert not DataPoisoningGuard.snapshot_matches_shipped_corpus(wrong)
+
+
+def test_every_canary_has_a_baseline(model, shipped_corpus) -> None:
+    guard = _guard_on(model, shipped_corpus)
+    assert len(guard._canary_baseline) == len(CANARY_EXAMPLES), (
+        "a canary without a baseline is never compared against anything, so it "
+        "silently stops being a canary"
     )

@@ -125,10 +125,10 @@ def _referenced_symbols() -> set[str]:
     return referenced
 
 
-def test_every_alerted_metric_has_a_writer() -> None:
-    declared = _symbol_by_metric_name()
-    referenced = _referenced_symbols()
-
+def _unwritten_alert_metrics(
+    declared: dict[str, str], referenced: set[str]
+) -> list[str]:
+    """Alerted metrics whose declaring symbol appears in no application module."""
     unwritten: list[str] = []
     for metric in sorted(_metrics_queried_by_alerts()):
         base = _base_name(metric, set(declared))
@@ -138,6 +138,11 @@ def test_every_alerted_metric_has_a_writer() -> None:
             continue
         if symbol not in referenced:
             unwritten.append(f"{metric} (declared as {symbol}, referenced nowhere)")
+    return unwritten
+
+
+def test_every_alerted_metric_has_a_writer() -> None:
+    unwritten = _unwritten_alert_metrics(_symbol_by_metric_name(), _referenced_symbols())
 
     assert not unwritten, (
         "Grafana alert rules page on metrics that no code path ever writes.\n"
@@ -152,8 +157,8 @@ def test_the_guard_can_see_an_unwritten_metric() -> None:
     """
     The guard above is only worth its runtime if it fails on the real defect.
     A test fixture agreeing with the bug is how the ghost-schema guard shipped
-    blind, so this asserts against the actual production case: strip the
-    peering gauge's writer out of the reference set and the check must catch it.
+    blind, so this reproduces the actual production case: take the peering
+    gauge's writer back out of the reference set, and the check must name it.
     """
     declared = _symbol_by_metric_name()
     symbol = declared.get("warden_community_peering_connections")
@@ -163,4 +168,11 @@ def test_the_guard_can_see_an_unwritten_metric() -> None:
     assert symbol in referenced, (
         f"{symbol} has no writer — this is the OB-F12 defect itself, "
         "not a broken test"
+    )
+
+    # The negative control: the state production was actually in.
+    caught = _unwritten_alert_metrics(declared, referenced - {symbol})
+    assert any("warden_community_peering_connections" in entry for entry in caught), (
+        "with the peering gauge's only writer removed the guard reported nothing, "
+        f"so it cannot see the defect it exists for. Reported: {caught}"
     )
