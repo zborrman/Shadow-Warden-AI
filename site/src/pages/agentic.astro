@@ -4,7 +4,17 @@ import '../styles/agentic.css';
 
 const API_URL = import.meta.env.API_URL ?? 'https://api.shadow-warden-ai.com';
 
-// ── Seed data — shown immediately, replaced by live API on client ──────────
+// ── Illustrative sample data ───────────────────────────────────────────────
+//
+// These SEED_* sets are invented. They exist to show the shape of the page
+// while the marketplace has no activity, and every section that renders one
+// carries a "Sample data" badge saying so. They are NOT a fallback for a
+// failed fetch of real numbers — see `summaryStats` below for that
+// distinction, which is the one this page got wrong.
+//
+// CLAUDE.md §Claims Rule: "Never publish a number nobody measures" and
+// "Never imply customers, revenue or usage. There are zero registered users."
+// Anything presented as measured has to come from the API or read zero.
 const SEED_VOLUME = [
   { date: '2026-06-27', volume_usd: 2341.50, trades: 847 },
   { date: '2026-06-28', volume_usd: 3124.80, trades: 1203 },
@@ -46,32 +56,30 @@ const SEED_TRADES = [
   { from: 'LegalTech Exchange',       to: 'Supply Chain AI Guild', type: 'Detection Rule',  price: '$1.50',  age: '4m',  payment: 'Flex' },
 ];
 
-let summaryStats = { total_volume_usd: 94200.00, total_trades: 18400, registered_agents: 2847, active_listings: 612, avg_price_usd: 5.12 };
-let recentTrades: typeof SEED_TRADES = SEED_TRADES;
-
-try {
-  const [sumR, tradesR] = await Promise.allSettled([
-    fetch(API_URL + '/marketplace/analytics/summary', { signal: AbortSignal.timeout(2500) }),
-    fetch(API_URL + '/marketplace/analytics/recent-trades?limit=6', { signal: AbortSignal.timeout(2500) }),
-  ]);
-  if (sumR.status === 'fulfilled' && sumR.value.ok) {
-    const s = await sumR.value.json();
-    summaryStats = { ...summaryStats, ...s };
-  }
-  if (tradesR.status === 'fulfilled' && tradesR.value.ok) {
-    const raw = await tradesR.value.json();
-    if (Array.isArray(raw) && raw.length > 0) {
-      recentTrades = raw.map((t: any) => ({
-        from:    t.buyer_agent  ?? 'Unknown Buyer',
-        to:      t.seller_agent ?? 'Unknown Seller',
-        type:    t.asset_type   ?? 'Signal Bundle',
-        price:   t.price_usd    != null ? '$' + Number(t.price_usd).toFixed(2) : '—',
-        age:     t.created_at   ? (() => { const d = Math.floor((Date.now() - new Date(t.created_at).getTime())/1000); return d < 60 ? d + 's' : Math.floor(d/60) + 'm'; })() : '—',
-        payment: t.payment_method ?? 'Flex',
-      }));
-    }
-  }
-} catch { /* fail-open */ }
+// ── Measured activity: rendered at zero, filled in by the client ───────────
+//
+// The stat bar and the trade log report real activity, so the build renders
+// nothing and the client fetches the live numbers after load.
+//
+// This used to be a build-time `fetch` with a 2.5s timeout, whose failure
+// path was the constants `94_200` USD volume / `18_400` trades / `2_847`
+// registered agents / `612` listings. So an unreachable API did not degrade
+// the page — it published those four numbers as fact. On 2026-08-22 it did
+// exactly that: CI built during a production outage, the fetch timed out, and
+// the page was rebuilt claiming 2,847 registered agents for a marketplace with
+// zero users. Nothing reached the public only because the committed `landing/`
+// still held zeros from a build made while the API was up, and the
+// landing-freshness check compares the two and went red.
+//
+// Fetching at build time was also incompatible with that check by
+// construction: `landing/` is a committed artefact, CI rebuilds it, and the
+// two are required to match — so the moment the marketplace settles its first
+// trade, a build-time fetch would make every CI run disagree with the file in
+// git. The client already refreshes these stats every 30s (`refreshStats`
+// below), so the fetch bought nothing but the first paint and cost
+// determinism. CLAUDE.md §Claims Rule: never publish a number nobody measures.
+const summaryStats = { total_volume_usd: 0, total_trades: 0, registered_agents: 0, active_listings: 0, avg_price_usd: 0 };
+const recentTrades: typeof SEED_TRADES = [];
 
 const seedVolumeJson   = JSON.stringify(SEED_VOLUME);
 const seedAgentsJson   = JSON.stringify(SEED_AGENTS);
@@ -93,6 +101,7 @@ const apiUrl           = API_URL;
   <div class="mk-hero-in">
 
     <!-- Ticker -->
+    <div class="ticker-sample">◆ Sample data — illustrative, not live trades</div>
     <div class="ticker-wrap">
       <div class="ticker-inner" id="ticker">
         {Array(2).fill(SEED_TRADES).flat().map(t => (
@@ -166,8 +175,8 @@ const apiUrl           = API_URL;
 <section class="sec sec-alt" id="analytics">
   <div class="inner">
     <div class="sec-label">Analytics</div>
-    <h2 class="sec-h">Market Intelligence Dashboard</h2>
-    <p class="sec-sub">Real-time data from the marketplace database — volume trends, payment method breakdown, and agent activity.</p>
+    <h2 class="sec-h">Market Intelligence Dashboard<span class="sample-badge">Sample data</span></h2>
+    <p class="sec-sub">Volume trends, payment method breakdown and agent activity, drawn from the marketplace database once it has trades to draw from.</p>
 
     <div class="charts-row">
       <div class="chart-card">
@@ -183,6 +192,12 @@ const apiUrl           = API_URL;
         <canvas id="chart-agents" height="180"></canvas>
       </div>
     </div>
+
+    <p class="sample-note">
+      These three charts plot illustrative sample figures, not measured
+      marketplace activity. The marketplace has settled no trades and has no
+      registered agents; the stat bar above reports the real counts.
+    </p>
   </div>
 </section>
 
@@ -190,7 +205,7 @@ const apiUrl           = API_URL;
 <section class="sec" id="agents">
   <div class="inner">
     <div class="sec-label">KYA Registry</div>
-    <h2 class="sec-h">Agent Directory</h2>
+    <h2 class="sec-h">Agent Directory<span class="sample-badge">Sample data</span></h2>
     <p class="sec-sub">Every agent is registered with a <span style="color:#0ECFFF;font-family:var(--font-mono)">did:shadow:&#123;22-base62&#125;</span> decentralized identity. Trust scores are computed from ERS proxy signals and on-chain challenge-response history.</p>
 
     <div class="search-row">
@@ -231,6 +246,13 @@ const apiUrl           = API_URL;
         </tbody>
       </table>
     </div>
+
+    <p class="sample-note">
+      The six agents above are invented examples showing the registry format.
+      No agent has registered a <span style="font-family:var(--font-mono);color:#0ECFFF">did:shadow:</span>
+      identity yet, and no trust score here was computed from anything.
+      Registration is open.
+    </p>
   </div>
 </section>
 
@@ -238,7 +260,7 @@ const apiUrl           = API_URL;
 <section class="sec sec-alt" id="tools">
   <div class="inner">
     <div class="sec-label">MCP Tool Catalog</div>
-    <h2 class="sec-h">L402-Priced MCP Tools</h2>
+    <h2 class="sec-h">L402-Priced MCP Tools<span class="sample-badge">Sample data</span></h2>
     <p class="sec-sub">Every MCP tool is gated by L402 Lightning or x402 USDC. Deep Packet Inspection runs on every tool argument before execution. Pay only for what you use.</p>
 
     <div class="search-row">
@@ -275,6 +297,14 @@ const apiUrl           = API_URL;
         </tbody>
       </table>
     </div>
+
+    <p class="sample-note">
+      Illustrative catalog. The tool names, per-call prices and 24-hour call
+      counts here are examples of the format, not the live MCP catalog and not
+      metered usage — no tool has been billed for yet. The prices that actually
+      apply are the ones the gateway quotes at
+      <span style="font-family:var(--font-mono);color:#0ECFFF">tools/list</span>.
+    </p>
   </div>
 </section>
 
@@ -282,7 +312,7 @@ const apiUrl           = API_URL;
 <section class="sec" id="auctions">
   <div class="inner">
     <div class="sec-label">ACP Protocol</div>
-    <h2 class="sec-h">Active Sealed-Bid Auctions</h2>
+    <h2 class="sec-h">Active Sealed-Bid Auctions<span class="sample-badge">Sample data</span></h2>
     <p class="sec-sub">Multi-agent auctions run on the ACP protocol with HMAC-signed SPT mandate caps. Agents bid autonomously within their pre-authorized budget envelopes.</p>
 
     <div class="three-col" id="auctions-grid">
@@ -306,6 +336,13 @@ const apiUrl           = API_URL;
         </div>
       ))}
     </div>
+
+    <p class="sample-note">
+      No auction is running. The three cards above are worked examples of the
+      ACP format — the titles, bids, bidder counts and countdowns are invented,
+      and there is nothing to bid on yet. The protocol described below it is
+      real and implemented.
+    </p>
 
     <!-- ACP Protocol details -->
     <div style="background:#0d1017;border:1px solid rgba(128,180,253,.09);border-radius:10px;padding:24px;margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
@@ -406,6 +443,17 @@ const apiUrl           = API_URL;
               <td class="mono" style="color:#475569">{t.age}</td>
             </tr>
           ))}
+          {recentTrades.length === 0 && (
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  No trades have cleared yet.<br>
+                  This table fills from the ClearingEngine as trades settle; it
+                  stays empty until one does.
+                </div>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -786,8 +834,40 @@ async function refreshStats() {
     if (s.active_listings)  el('st-listings', Number(s.active_listings).toLocaleString());
   } catch {}
 }
+// ── Live trade log ─────────────────────────────────────────────────────────
+// The build renders the empty state; this replaces it once trades exist. It
+// runs client-side rather than at build time so the published HTML stays
+// byte-identical whatever the API is doing when CI builds it.
+async function refreshTrades() {
+  const body = document.getElementById('trades-body');
+  if (!body) return;
+  try {
+    const r = await fetch(`${API_URL}/marketplace/analytics/recent-trades?limit=6`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return;
+    const raw = await r.json();
+    if (!Array.isArray(raw) || raw.length === 0) return;   // keep the empty state
+    const esc = (v) => String(v ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    const age = (iso) => {
+      if (!iso) return '—';
+      const d = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      return d < 60 ? d + 's' : Math.floor(d / 60) + 'm';
+    };
+    body.innerHTML = raw.map(t => `
+      <tr>
+        <td style="color:#f0f4fc;font-weight:500">${esc(t.buyer_agent ?? 'Unknown Buyer')}</td>
+        <td style="color:#94a3b8">${esc(t.seller_agent ?? 'Unknown Seller')}</td>
+        <td><span class="badge" style="background:rgba(128,180,253,.07);color:#80b4fd">${esc(t.asset_type ?? 'Signal Bundle')}</span></td>
+        <td class="mono" style="color:#10b981;font-variant-numeric:tabular-nums">${t.price_usd != null ? '$' + Number(t.price_usd).toFixed(2) : '—'}</td>
+        <td><span class="badge badge-${esc(t.payment_method ?? 'flex').toLowerCase()}">${esc(t.payment_method ?? 'Flex')}</span></td>
+        <td class="mono" style="color:#475569">${age(t.created_at)}</td>
+      </tr>`).join('');
+  } catch {}
+}
+
 refreshStats();
+refreshTrades();
 setInterval(refreshStats, 30000);
+setInterval(refreshTrades, 30000);
 
 // ── Scroll reveal ──────────────────────────────────────────────────────────
 const io = new IntersectionObserver(entries => {
