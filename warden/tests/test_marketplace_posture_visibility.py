@@ -151,14 +151,31 @@ class TestProtocolManifestHonesty:
 
         `simulated` is a statement about the configuration. Returning it when the
         registry could not be read states a fact that was never established.
-        """
-        from warden.marketplace import api
 
+        Asserted through the manifest with the *real* failure — a `get_chain`
+        that raises — rather than by patching the discovery helper. Patching the
+        helper passed while every per-chain lookup failing still reported
+        `simulated`, because the loop swallowed each failure individually.
+        """
         def _boom(*_a, **_kw):
             raise RuntimeError("registry unavailable")
 
-        monkeypatch.setattr(api, "_discover_chains", _boom)
-        assert api._escrow_settlement_mode() == "unknown"
+        monkeypatch.setattr("warden.web3.chains.get_chain", _boom)
+        escrow = self._manifest()["escrow"]
+        assert escrow["settlement_mode"] == "unknown"
+        assert escrow["chains"] == []
+
+    def test_one_bad_chain_entry_does_not_hide_the_rest(self, monkeypatch):
+        """A single broken entry is noise; it must not mask a working config."""
+        def _one_bad(chain):
+            if chain == "polygon_amoy":
+                raise RuntimeError("bad entry")
+            return {"rpc_url": "https://rpc.example" if chain == "sepolia" else ""}
+
+        monkeypatch.setattr("warden.web3.chains.get_chain", _one_bad)
+        escrow = self._manifest()["escrow"]
+        assert escrow["settlement_mode"] == "testnet"
+        assert escrow["chains"] == ["sepolia"]
 
     # ── The manifest is the contract; these assert it, not the helpers ────────
 

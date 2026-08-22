@@ -67,12 +67,21 @@ def _discover_chains() -> list[str]:
     """
     from warden.web3.chains import VALID_CHAINS, get_chain
     found: list[str] = []
+    failed = 0
     for chain in sorted(VALID_CHAINS):
         try:
             if get_chain(chain).get("rpc_url", ""):
                 found.append(chain)
         except Exception:  # noqa: S112 - one bad chain entry must not hide the rest
+            failed += 1
             continue
+    # One bad entry is noise the loop above is allowed to skip. *Every* entry
+    # failing is not a configuration finding, it is a broken registry — and
+    # returning `[]` for it would report "nothing is configured" on the strength
+    # of a lookup that never worked. Same defect this function was written to
+    # fix, one level further down.
+    if VALID_CHAINS and failed == len(VALID_CHAINS):
+        raise RuntimeError(f"chain registry unreadable: all {failed} lookups failed")
     return found
 
 
