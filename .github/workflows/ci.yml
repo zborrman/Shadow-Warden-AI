@@ -1337,18 +1337,18 @@ jobs:
           #
           # Alert rules, contact points and dashboards live in bind-mounted files.
           # Changing one alters neither the image nor the compose config, so both
-          # `docker compose up` passes are a correct no-op for grafana — and the
+          # \`docker compose up\` passes are a correct no-op for grafana — and the
           # container goes on evaluating the rules it read at startup. The file on
           # disk and the rule in memory then disagree indefinitely.
           #
-          # Not hypothetical: the `warden-community-peer-down` guard shipped in
+          # Not hypothetical: the \`warden-community-peer-down\` guard shipped in
           # Track O and production kept paging critical on the pre-guard rule until
           # 2026-08-22, when a manual restart finally loaded it.
           #
           # Keyed to a stamp of the tree, NOT to this run's git diff. The first
           # version of this check compared ORIG_HEAD..HEAD, and the very deploy
           # meant to prove it lost the change: its pull advanced ORIG_HEAD, the run
-          # then failed on an unrelated stale-`landing/` gate, and the next deploy
+          # then failed on an unrelated stale-\`landing/\` gate, and the next deploy
           # diffed from the already-advanced ref and correctly saw nothing. Any
           # interrupted deploy consumes the window exactly once, silently, in the
           # direction that leaves production on stale rules. A stamp cannot be
