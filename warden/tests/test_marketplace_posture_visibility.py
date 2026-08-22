@@ -146,6 +146,64 @@ class TestProtocolManifestHonesty:
         monkeypatch.setattr("warden.web3.chains.get_chain", lambda _c: {"rpc_url": ""})
         assert _configured_chains() == []
 
+    def test_unreadable_chain_registry_is_unknown_not_simulated(self, monkeypatch):
+        """"We could not look" is not "we looked and found nothing".
+
+        `simulated` is a statement about the configuration. Returning it when the
+        registry could not be read states a fact that was never established.
+
+        Asserted through the manifest with the *real* failure — a `get_chain`
+        that raises — rather than by patching the discovery helper. Patching the
+        helper passed while every per-chain lookup failing still reported
+        `simulated`, because the loop swallowed each failure individually.
+        """
+        def _boom(*_a, **_kw):
+            raise RuntimeError("registry unavailable")
+
+        monkeypatch.setattr("warden.web3.chains.get_chain", _boom)
+        escrow = self._manifest()["escrow"]
+        assert escrow["settlement_mode"] == "unknown"
+        assert escrow["chains"] == []
+
+    def test_one_bad_chain_entry_does_not_hide_the_rest(self, monkeypatch):
+        """A single broken entry is noise; it must not mask a working config."""
+        def _one_bad(chain):
+            if chain == "polygon_amoy":
+                raise RuntimeError("bad entry")
+            return {"rpc_url": "https://rpc.example" if chain == "sepolia" else ""}
+
+        monkeypatch.setattr("warden.web3.chains.get_chain", _one_bad)
+        escrow = self._manifest()["escrow"]
+        assert escrow["settlement_mode"] == "testnet"
+        assert escrow["chains"] == ["sepolia"]
+
+    # ── The manifest is the contract; these assert it, not the helpers ────────
+
+    def _escrow(self, monkeypatch, rpc_for: str | None) -> dict:
+        """Manifest `escrow` block with an RPC configured for `rpc_for` only."""
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://rpc.example" if c == rpc_for else ""},
+        )
+        return dict(self._manifest()["escrow"])
+
+    def test_manifest_reports_simulated_and_no_chains_without_an_rpc(self, monkeypatch):
+        escrow = self._escrow(monkeypatch, None)
+        assert escrow["settlement_mode"] == "simulated"
+        assert escrow["chains"] == []
+
+    def test_manifest_reports_testnet_and_names_the_test_chain(self, monkeypatch):
+        escrow = self._escrow(monkeypatch, "sepolia")
+        assert escrow["settlement_mode"] == "testnet"
+        assert escrow["chains"] == ["sepolia"]
+
+    def test_manifest_reports_onchain_only_for_mainnet(self, monkeypatch):
+        from warden.web3.chains import MAINNET_CHAINS
+        mainnet = sorted(MAINNET_CHAINS)[0]
+        escrow = self._escrow(monkeypatch, mainnet)
+        assert escrow["settlement_mode"] == "onchain"
+        assert escrow["chains"] == [mainnet]
+
     def test_manifest_probes_never_raise(self, monkeypatch):
         """A discovery endpoint must not 500 because a probe failed."""
         from warden.marketplace.api import _escrow_settlement_mode, _signed_offers_required

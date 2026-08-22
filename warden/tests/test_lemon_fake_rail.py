@@ -184,8 +184,12 @@ class TestWebhookSecurity:
             sub_id="sub-10", event_id="fixed-event-id",
         )
         billing.handle_webhook(payload, signature)
-        # Downgrade behind the provider's back, then replay the original event.
-        billing._upsert("t-10", "fake-customer-1", "sub-10", "starter", "active", None)
+        # Move the tenant off the plan through the public path — a second, valid
+        # signed event — then replay the original. Asserting through the webhook
+        # contract rather than through storage internals means this test still
+        # fails if idempotency breaks after a refactor of the tables.
+        ctx.lemon.deliver(billing, "subscription_cancelled", sub_id="sub-10")
+        assert billing.get_plan("t-10") == "starter"
         billing.handle_webhook(payload, signature)
         assert billing.get_plan("t-10") == "starter", (
             "replayed event re-applied itself — idempotency is not holding"
@@ -213,10 +217,25 @@ class TestFakeGuarantees:
         ctx.lemon.deliver(billing, "subscription_created", tenant_id="t-11", plan="pro")
         checkout = ctx.lemon.request("POST", "/checkouts", {"data": {}})
         assert checkout["data"]["attributes"]["test_mode"] is True
+        assert checkout["data"]["attributes"]["_fake_provider"] == "FakeLemonSqueezy"
         envelope = ctx.lemon.events_named("subscription_created")[0]
         assert envelope["meta"]["test_mode"] is True
         assert envelope["meta"]["_fake_provider"] == "FakeLemonSqueezy"
         assert envelope["data"]["attributes"]["test_mode"] is True
+        assert envelope["data"]["attributes"]["_fake_provider"] == "FakeLemonSqueezy"
+
+    def test_provenance_survives_a_caller_override(self, rail):
+        """A caller must not be able to dress a fake payload as a live one."""
+        ctx, _billing = rail
+        _payload, _sig = ctx.lemon.emit(
+            "subscription_created",
+            tenant_id="t-13",
+            plan="pro",
+            attributes={"test_mode": False, "_fake_provider": "lemonsqueezy"},
+        )
+        attrs = ctx.lemon.events_named("subscription_created")[0]["data"]["attributes"]
+        assert attrs["test_mode"] is True
+        assert attrs["_fake_provider"] == "FakeLemonSqueezy"
 
     def test_no_network_call_is_made(self, rail):
         """The REST seam is replaced, so nothing reaches urllib."""
