@@ -1192,6 +1192,29 @@ jobs:
             echo "   warden pinned: \${WARDEN_IMAGE}"
           fi
 
+          # node-exporter and cadvisor sit behind the \`monitoring\` compose
+          # profile because they need Linux shared mount propagation, which
+          # Windows/WSL2 dev machines do not have. Production is Linux, so the
+          # profile is activated here rather than removed — local
+          # \`docker compose up\` keeps working unchanged.
+          #
+          # Without this, neither container had ever started in production.
+          # Prometheus scraped both anyway and both had been \`down\` since the
+          # scrape config was written: node_filesystem_avail_bytes and
+          # container_memory_usage_bytes had ZERO series, ever. The one rule
+          # that consumes them — "Host disk usage above 80%" — was set to
+          # \`noDataState: OK\`, so an alert with no data read as healthy and
+          # could not fire at any disk level, on a 38 GB volume that the prune
+          # step below exists because it fills.
+          #
+          # Set once, before any compose call: the script invokes
+          # \`docker compose\` 28 times including the down+up fallback path, and
+          # a per-command --profile flag is one missed edit away from silently
+          # dropping these two again. COMPOSE_PROFILES also keeps
+          # \`--remove-orphans\` from treating the profile's containers as
+          # orphans once they are running.
+          export COMPOSE_PROFILES=monitoring
+
           echo "── [1/4] Code already pulled via git ──────────────────────"
 
           echo "── [1b/4] Build Astro marketing site ───────────────────────"
