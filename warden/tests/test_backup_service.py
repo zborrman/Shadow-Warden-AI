@@ -246,3 +246,110 @@ class TestOffsiteShip:
         s, _, _ = svc
         client, bucket = s._offsite_client()
         assert client is None and bucket == ""
+
+
+class _StubVault:
+    """Both ends of the mirror: a local Evidence Vault and an offsite bucket."""
+
+    def __init__(self, bundles: dict[str, bytes], offsite: dict[str, bytes] | None = None):
+        self.bundles = bundles                      # key → body, as in MinIO
+        self.offsite: dict[str, bytes] = offsite or {}
+        self.pages = 1                              # >1 forces pagination
+        self.get_calls: list[str] = []
+
+    # ── local side ────────────────────────────────────────────────────────
+    def list_objects_v2(self, Bucket, Prefix, ContinuationToken=None):  # noqa: N803
+        if Prefix.startswith("evidence-bundles/"):
+            keys = sorted(k for k in self.offsite if k.startswith(Prefix))
+        else:
+            keys = sorted(k for k in self.bundles if k.startswith(Prefix))
+        if self.pages > 1 and ContinuationToken is None and keys:
+            return {"Contents": [{"Key": keys[0]}], "IsTruncated": True,
+                    "NextContinuationToken": "page-2"}
+        rest = keys[1:] if (self.pages > 1 and ContinuationToken) else keys
+        return {"Contents": [{"Key": k} for k in rest], "IsTruncated": False}
+
+    def get_object(self, Bucket, Key):  # noqa: N803
+        self.get_calls.append(Key)
+        return {"Body": _Body(self.bundles[Key])}
+
+    # ── offsite side ──────────────────────────────────────────────────────
+    def put_object(self, Bucket, Key, Body, ContentType):  # noqa: N803
+        self.offsite[Key] = Body
+
+
+class _Body:
+    def __init__(self, raw: bytes):
+        self._raw = raw
+
+    def read(self) -> bytes:
+        return self._raw
+
+
+class TestEvidenceBundleReplication:
+    """P0: the vault's bundles lived on one box while SOC 2 material cited them."""
+
+    def _wire(self, s, monkeypatch, stub):
+        monkeypatch.setattr("warden.storage.s3._get_client", lambda: stub)
+        monkeypatch.setattr(s, "_offsite_client", lambda: (stub, "warden-offsite"))
+
+    def test_bundles_are_mirrored_encrypted(self, svc, monkeypatch):
+        s, _, _ = svc
+        stub = _StubVault({"bundles/sess-1.json": b'{"bundle_hash":"sha256:aa"}'})
+        self._wire(s, monkeypatch, stub)
+
+        assert s.ship_evidence_bundles() == 1
+        assert list(stub.offsite) == ["evidence-bundles/sess-1.json.enc"]
+        stored = stub.offsite["evidence-bundles/sess-1.json.enc"]
+        assert b"bundle_hash" not in stored, "bundle shipped offsite in plaintext"
+        assert s._fernet().decrypt(stored) == b'{"bundle_hash":"sha256:aa"}'
+
+    def test_replication_is_incremental(self, svc, monkeypatch):
+        s, _, _ = svc
+        stub = _StubVault({"bundles/sess-1.json": b"{}"})
+        self._wire(s, monkeypatch, stub)
+
+        assert s.ship_evidence_bundles() == 1
+        assert s.ship_evidence_bundles() == 0, "re-uploaded a bundle already offsite"
+        assert stub.get_calls == ["bundles/sess-1.json"]
+
+    def test_every_page_is_replicated(self, svc, monkeypatch):
+        """list_objects_v2 caps at 1000 keys; a job that stops there loses evidence."""
+        s, _, _ = svc
+        stub = _StubVault({f"bundles/sess-{i}.json": b"{}" for i in range(3)})
+        stub.pages = 2
+        self._wire(s, monkeypatch, stub)
+
+        assert s.ship_evidence_bundles() == 3
+
+    def test_unconfigured_offsite_is_a_no_op(self, svc, monkeypatch):
+        s, _, _ = svc
+        stub = _StubVault({"bundles/sess-1.json": b"{}"})
+        monkeypatch.setattr("warden.storage.s3._get_client", lambda: stub)
+        monkeypatch.setattr(s, "_offsite_client", lambda: (None, ""))
+        assert s.ship_evidence_bundles() == 0
+        assert stub.offsite == {}
+
+    def test_missing_key_refuses_to_ship_plaintext(self, svc, monkeypatch):
+        """Fail-CLOSED: no VAULT_MASTER_KEY must mean no copy, not a plaintext copy."""
+        s, _, _ = svc
+        stub = _StubVault({"bundles/sess-1.json": b"{}"})
+        self._wire(s, monkeypatch, stub)
+        monkeypatch.delenv("VAULT_MASTER_KEY", raising=False)
+        assert s.ship_evidence_bundles() == 0
+        assert stub.offsite == {}
+
+    def test_one_bad_bundle_does_not_stop_the_rest(self, svc, monkeypatch):
+        s, _, _ = svc
+        stub = _StubVault({"bundles/ok.json": b"{}", "bundles/bad.json": b"{}"})
+        self._wire(s, monkeypatch, stub)
+        real_get = stub.get_object
+
+        def _flaky(Bucket, Key):  # noqa: N803
+            if Key.endswith("bad.json"):
+                raise RuntimeError("read failed")
+            return real_get(Bucket=Bucket, Key=Key)
+
+        monkeypatch.setattr(stub, "get_object", _flaky)
+        assert s.ship_evidence_bundles() == 1
+        assert list(stub.offsite) == ["evidence-bundles/ok.json.enc"]

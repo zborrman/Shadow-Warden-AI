@@ -1050,14 +1050,22 @@ async def sova_nightly_backup(ctx: dict) -> dict:
     from warden.observability import Reason, record_failopen  # noqa: PLC0415
 
     try:
-        from warden.backup.service import run_backup  # noqa: PLC0415
+        from warden.backup.service import run_backup, ship_evidence_bundles  # noqa: PLC0415
         label = f"nightly-{datetime.now(UTC).strftime('%Y%m%d')}"
         snap_dir = await asyncio.to_thread(run_backup, label, ship=True)
         dbs = len(list(snap_dir.glob("*.enc")))
         log.info("nightly_backup: %d DBs → %s", dbs, snap_dir)
         if dbs == 0:
             await _slack("⚠️ *Nightly DB backup* produced 0 snapshots — check WARDEN_DATA_DIR.")
-        return {"status": "ok", "snapshot": str(snap_dir), "dbs": dbs}
+
+        # Evidence Vault bundles are not databases, so run_backup never saw them:
+        # they lived only in MinIO on this VPS while the SOC 2 material cited the
+        # vault as durable. Incremental, so most nights this copies nothing.
+        bundles = await asyncio.to_thread(ship_evidence_bundles)
+        if bundles:
+            log.info("nightly_backup: %d evidence bundles mirrored offsite", bundles)
+
+        return {"status": "ok", "snapshot": str(snap_dir), "dbs": dbs, "bundles": bundles}
     except Exception as exc:
         log.error("nightly_backup: FAILED — %s", exc)
         record_failopen("backup_nightly", Reason.BACKEND_ERROR, exc)

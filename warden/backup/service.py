@@ -378,6 +378,117 @@ def _put_all(client: Any, bucket: str, snap_dir: Path, target: str) -> int:
     return shipped
 
 
+def _local_evidence_client() -> tuple[Any | None, str]:
+    """boto3 client for the platform MinIO plus the evidence bucket name.
+
+    One lazy import shared by both shippers: ``warden.storage.s3`` pulls boto3,
+    which is an optional dependency here.
+    """
+    from warden.storage.s3 import S3_BUCKET_EVIDENCE, _get_client  # noqa: PLC0415
+    return _get_client(), S3_BUCKET_EVIDENCE
+
+
+#: Where mirrored Evidence Vault bundles land in the offsite bucket. Deliberately
+#: not ``bundles/``: the offsite copy is Fernet-encrypted and the local one is
+#: not, so the two prefixes must never be mistaken for the same artifact.
+_EVIDENCE_OFFSITE_PREFIX = "evidence-bundles/"
+
+
+def _offsite_keys(client: Any, bucket: str, prefix: str) -> set[str]:
+    """Every key already under ``prefix`` offsite, paginated."""
+    seen: set[str] = set()
+    token: str | None = None
+    while True:
+        kwargs: dict[str, Any] = {"Bucket": bucket, "Prefix": prefix}
+        if token:
+            kwargs["ContinuationToken"] = token
+        resp = client.list_objects_v2(**kwargs)
+        seen.update(o["Key"] for o in resp.get("Contents", []))
+        token = resp.get("NextContinuationToken")
+        if not resp.get("IsTruncated") or not token:
+            return seen
+
+
+def _local_bundle_keys(client: Any, bucket: str) -> list[str]:
+    """Every Evidence Vault bundle key, paginated.
+
+    ``storage.s3.list_bundles()`` issues a single ``list_objects_v2`` and so stops
+    at 1 000 keys. A replication job that silently skips everything past the first
+    page would report success while leaving evidence behind, which is the exact
+    class of quiet-zero this vault work exists to remove.
+    """
+    keys: list[str] = []
+    token: str | None = None
+    while True:
+        kwargs: dict[str, Any] = {"Bucket": bucket, "Prefix": "bundles/"}
+        if token:
+            kwargs["ContinuationToken"] = token
+        resp = client.list_objects_v2(**kwargs)
+        keys.extend(o["Key"] for o in resp.get("Contents", []))
+        token = resp.get("NextContinuationToken")
+        if not resp.get("IsTruncated") or not token:
+            return keys
+
+
+def ship_evidence_bundles() -> int:
+    """Mirror the Evidence Vault to the offsite bucket, encrypted. Returns copies made.
+
+    Bundles were the one class of SOC 2 material with a single copy. The nightly
+    snapshot ships databases; bundles live in MinIO **on the same VPS**, so host
+    loss took the evidence with it and the R6 restore drill never covered them —
+    while the SOC 2 material cites the vault as durable.
+
+    Incremental by design: a bundle already offsite is skipped, so this is cheap
+    to run nightly and bundles are immutable once written (the ``bundle_hash``
+    makes any later edit detectable, so re-uploading would be the wrong repair).
+
+    Fernet-encrypted with the same key as the snapshots. The vault holds metadata
+    rather than prompt content, but an offsite bucket is a different blast radius
+    than the box that produced it, and encrypting is what makes the two copies
+    equivalent under the same key-loss assumptions the R6 drill already tests.
+
+    Degrades rather than raises, like ``ship_backup`` — but every degradation is
+    counted, so an evidence trail that stops replicating is alertable.
+    """
+    copied = 0
+    try:
+        local, evidence_bucket = _local_evidence_client()
+        off_client, off_bucket = _offsite_client()
+        if local is None or off_client is None or not off_bucket:
+            log.debug("evidence ship: local or offsite storage not configured — skipped")
+            return 0
+
+        f = _fernet()  # fail-CLOSED: never mirror an unencrypted bundle offsite
+        already = _offsite_keys(off_client, off_bucket, _EVIDENCE_OFFSITE_PREFIX)
+
+        for key in _local_bundle_keys(local, evidence_bucket):
+            name = key[len("bundles/"):]
+            if not name:
+                continue
+            off_key = f"{_EVIDENCE_OFFSITE_PREFIX}{name}.enc"
+            if off_key in already:
+                continue
+            try:
+                body = local.get_object(Bucket=evidence_bucket, Key=key)["Body"].read()
+                off_client.put_object(
+                    Bucket=off_bucket,
+                    Key=off_key,
+                    Body=f.encrypt(body),
+                    ContentType="application/octet-stream",
+                )
+                copied += 1
+            except Exception as exc:  # one bad bundle must not stop the rest
+                log.warning("evidence ship: %s → offsite failed — %s", off_key, exc)
+                record_failopen("evidence_ship_offsite", Reason.NETWORK_ERROR, exc)
+
+        if copied:
+            log.info("evidence ship: %d bundles mirrored offsite (%s)", copied, off_bucket)
+    except Exception as exc:
+        log.warning("evidence ship: unavailable — %s", exc)
+        record_failopen("evidence_ship_offsite", Reason.BACKEND_ERROR, exc)
+    return copied
+
+
 def ship_backup(snap_dir: Path) -> int:
     """
     Best-effort off-box ship of encrypted snapshot files (``*.enc`` — SQLite and
@@ -393,10 +504,9 @@ def ship_backup(snap_dir: Path) -> int:
     """
     shipped = 0
     try:
-        from warden.storage.s3 import S3_BUCKET_EVIDENCE, _get_client  # noqa: PLC0415
-        client = _get_client()
+        client, evidence_bucket = _local_evidence_client()
         if client is not None:
-            shipped += _put_all(client, S3_BUCKET_EVIDENCE, snap_dir, "local S3/MinIO")
+            shipped += _put_all(client, evidence_bucket, snap_dir, "local S3/MinIO")
     except Exception as exc:  # noqa: BLE001
         log.debug("backup: S3 ship unavailable: %s", exc)
         record_failopen("backup_ship", Reason.BACKEND_ERROR, exc)

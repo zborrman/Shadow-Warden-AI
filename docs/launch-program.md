@@ -70,9 +70,10 @@ and `escrow.chains` is derived from configuration rather than hard-coded.
 - [ ] Capability matrix published; every public claim reconciled against it.
 - [~] An evidence bundle written to MinIO and to the offsite bucket, verified by hand.
       MinIO half done 2026-08-21: generated, landed at `bundles/…json`, read back
-      through the S3 API, `verify` returns `valid: true`. Offsite half **open** —
-      that bucket carries only the nightly `backups/` snapshots, so bundles exist
-      on one box and the R6 restore drill does not cover them.
+      through the S3 API, `verify` returns `valid: true`. Offsite half built
+      2026-08-22 — `ship_evidence_bundles()` mirrors the vault encrypted into
+      `evidence-bundles/` from the nightly 03:30 job — and stays `[~]` until the
+      first run is confirmed offsite by hand. Built is not verified.
 - [x] Liquidity dashboard live in Grafana, reporting honest zeros.
       `marketplace.json` — Active Agents, Active Escrows, Total Trade Volume, Open
       Negotiations, Listings & Purchases — provisioned and mounted in the running
