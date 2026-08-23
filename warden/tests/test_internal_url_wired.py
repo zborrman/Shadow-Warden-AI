@@ -18,7 +18,9 @@ class already has its own memory entry; this is the ratchet.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -52,6 +54,31 @@ def _env_keys(svc: dict) -> dict[str, str]:
     return out
 
 
+#: Hosts that only ever resolve to the container itself.
+_LOOPBACK = {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"}
+
+
+def _effective(value: str) -> str:
+    """Resolve a compose value to what the container would actually receive.
+
+    `${VAR:-default}` and `${VAR-default}` fall back to the default whenever the
+    host environment does not set VAR, which is the normal case on this
+    deployment — so the default IS the effective value, and a substring check
+    against the raw `${...}` text would happily pass a default of
+    `http://localhost:8001`. `${VAR}` with no default resolves to empty, which is
+    worse than unset: it silently overrides the code's own fallback.
+    """
+    v = value.strip()
+    m = re.fullmatch(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-(.*))?\}", v)
+    if m:
+        return (m.group(2) or "").strip()
+    return v
+
+
+def _host(url: str) -> str:
+    return (urlparse(url).hostname or "").strip().lower()
+
+
 @pytest.mark.parametrize("name", sorted(_MUST_SET))
 def test_service_sets_the_internal_url(name: str) -> None:
     services = _services()
@@ -63,9 +90,16 @@ def test_service_sets_the_internal_url(name: str) -> None:
         f"WARDEN_INTERNAL_URL, and does not set it. It would fall back to "
         f"http://localhost:8001, which inside that container is nothing."
     )
-    assert "localhost" not in env["WARDEN_INTERNAL_URL"], (
-        f"{name} points WARDEN_INTERNAL_URL at localhost — only the gateway "
-        f"container can do that."
+
+    effective = _effective(env["WARDEN_INTERNAL_URL"])
+    assert effective, (
+        f"{name} sets WARDEN_INTERNAL_URL to an interpolation with no default, so "
+        f"it resolves to an empty string whenever the host env does not define it "
+        f"— which overrides the code's own fallback with nothing."
+    )
+    assert _host(effective) not in _LOOPBACK, (
+        f"{name} resolves WARDEN_INTERNAL_URL to {effective!r}, a loopback host. "
+        f"Only the gateway container can reach the gateway that way."
     )
 
 
@@ -75,5 +109,5 @@ def test_gateway_is_not_required_to_set_it() -> None:
     if _GATEWAY not in services:
         pytest.skip("gateway service not defined")
     env = _env_keys(services[_GATEWAY])
-    value = env.get("WARDEN_INTERNAL_URL", "http://localhost:8001")
-    assert "localhost" in value or "warden" in value
+    value = _effective(env.get("WARDEN_INTERNAL_URL", "http://localhost:8001"))
+    assert _host(value) in _LOOPBACK | {"warden"}
