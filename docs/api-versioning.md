@@ -61,6 +61,19 @@ Matching is on segment boundaries, never bare prefixes — `/healthy-agents` is 
 API route that merely shares five letters with `/health`, and a substring match
 would have exempted it silently.
 
+## `/v1` was not empty
+
+`warden/openai_proxy.py` mounts the OpenAI-compatible surface at
+`APIRouter(prefix="/v1")` — `/v1/chat/completions`, `/v1/models`,
+`/v1/embeddings` — because that is where every OpenAI client looks. Those paths
+are specified by someone else and are not ours to alias.
+
+So the middleware does not ask "does this start with `/v1`". It asks the router
+whether anything already answers at the full path, and steps aside when something
+does. That is derived from the route table rather than a hand-kept list, so a
+future router claiming a `/v1/...` path keeps it without anyone remembering this
+file. A method mismatch on an owned path still returns 405, not a rewrite.
+
 ## The promise
 
 - **Additive changes** — a new optional field, a new endpoint — happen inside

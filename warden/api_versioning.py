@@ -42,6 +42,7 @@ import os
 from datetime import UTC, datetime
 
 from starlette.datastructures import MutableHeaders
+from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 #: The only version that exists. A second one changes this module, not 562 routes.
@@ -86,6 +87,36 @@ def is_exempt(path: str) -> bool:
     return any(path == e or path.startswith(e + "/") for e in _EXEMPT)
 
 
+def _already_routed(scope: Scope) -> bool:
+    """True when the app already owns this exact path, prefix included.
+
+    `/v1` is not ours alone: `warden/openai_proxy.py` mounts the
+    OpenAI-compatible surface at `APIRouter(prefix="/v1")`, because that is where
+    every OpenAI client looks — `/v1/chat/completions`, `/v1/models`,
+    `/v1/embeddings`. Stripping the prefix off those turns a working
+    externally-specified endpoint into a 404, which is exactly what the test
+    suite reported.
+
+    So the question is not "does this start with /v1" but "does something already
+    answer here". Asked of the router itself rather than a hand-kept list, so a
+    future router that legitimately claims a `/v1/...` path keeps it without
+    anyone remembering to update this module. `Match.PARTIAL` counts: it means the
+    path is owned and only the method differs, and a 405 is the right answer there
+    rather than a rewrite.
+    """
+    router = getattr(scope.get("app"), "router", None)
+    if router is None:
+        return False
+    for route in getattr(router, "routes", []):
+        try:
+            match, _child = route.matches(scope)
+        except Exception:  # a route type that cannot match this scope
+            continue
+        if match in (Match.FULL, Match.PARTIAL):
+            return True
+    return False
+
+
 class APIVersionMiddleware:
     """Serve every route under `/v1`, and date-stamp the unversioned form."""
 
@@ -101,6 +132,10 @@ class APIVersionMiddleware:
 
         # ── Versioned request: strip the prefix and route as normal ──────────
         if path == _PREFIX or path.startswith(_PREFIX + "/"):
+            # …unless the app already serves this path with the prefix intact.
+            if _already_routed(scope):
+                await self.app(scope, receive, send)
+                return
             stripped = path[len(_PREFIX):] or "/"
             scope = dict(scope)
             scope["path"] = stripped

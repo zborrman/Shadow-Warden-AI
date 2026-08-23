@@ -32,6 +32,12 @@ def client() -> TestClient:
     async def _health() -> dict:
         return {"status": "ok"}
 
+    @app.post("/v1/chat/completions")
+    async def _openai() -> dict:
+        # The OpenAI-compatible surface genuinely lives under /v1 — that is where
+        # every OpenAI client looks — and must not be rewritten away.
+        return {"object": "chat.completion"}
+
     @app.get("/.well-known/agent.json")
     async def _card() -> dict:
         return {"schema_version": "1.0"}
@@ -69,6 +75,25 @@ class TestUnversionedPath:
         link = client.get("/filter-ish").headers["Link"]
         successor = link.split("<", 1)[1].split(">", 1)[0]
         assert client.get(successor).json() == {"ok": True}
+
+
+class TestPathsThatAlreadyOwnV1:
+    def test_openai_compatible_surface_is_not_rewritten(self, client):
+        """Stripping /v1 here turns a working endpoint into a 404.
+
+        This is what the CI suite caught: `warden/openai_proxy.py` mounts
+        `APIRouter(prefix="/v1")`, so `/v1/chat/completions` is a real route.
+        """
+        r = client.post("/v1/chat/completions", json={})
+        assert r.status_code == 200, r.status_code
+        assert r.json() == {"object": "chat.completion"}
+
+    def test_alias_still_works_for_paths_nobody_owns(self, client):
+        assert client.get("/v1/filter-ish").json() == {"ok": True}
+
+    def test_wrong_method_on_an_owned_v1_path_is_405_not_404(self, client):
+        """Match.PARTIAL means the path is owned; 405 is the honest answer."""
+        assert client.get("/v1/chat/completions").status_code == 405
 
 
 class TestExemptions:
