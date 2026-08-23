@@ -77,6 +77,7 @@ from warden.api.docs_router import router as _docs_router
 from warden.api.masking import router as _masking_router
 from warden.api.ws_events import broadcast_event as _ws_broadcast_event
 from warden.api.ws_events import subscriber_count as _ws_subscriber_count
+from warden.api_versioning import APIVersionMiddleware
 from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
 from warden.auth_guard import (
@@ -1636,6 +1637,16 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+# ── API versioning (P2) ───────────────────────────────────────────────────────
+#
+# Added LAST so it sits OUTERMOST: Starlette runs the most recently added
+# middleware first, and `/v1` has to be stripped before anything that makes a
+# decision from the path — auth exemptions, mTLS exemptions, quota, region — or
+# `/v1/health` would be treated as an authenticated API call and every one of
+# those path lists would need a second, versioned copy.
+app.add_middleware(APIVersionMiddleware)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
