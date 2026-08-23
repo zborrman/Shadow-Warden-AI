@@ -106,7 +106,9 @@ class TestDriftBaseline:
             "a check that never ran must be distinguishable from one that passed"
         )
         assert out["drift_count"] == 0
-        assert any(stage == "settings_watcher_drift" for stage, _ in counted)
+        assert ("settings_watcher_drift", sw.Reason.MODEL_NOT_LOADED) in counted, (
+            f"expected the skip to be counted with its own reason, got {counted}"
+        )
 
     @pytest.mark.asyncio
     async def test_present_baseline_is_compared(self, watcher, monkeypatch, tmp_path):
