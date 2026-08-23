@@ -68,6 +68,38 @@ class TestCanaryOutcomes:
         assert ("settings_watcher_canary", sw.Reason.NETWORK_ERROR) in counted
 
     @pytest.mark.asyncio
+    async def test_refused_is_not_reported_as_unreachable(self, watcher, monkeypatch):
+        """A gateway that answers 401 is not a gateway you could not reach.
+
+        Measured on production 2026-08-23: WARDEN_API_KEY was never passed to the
+        arq-worker container, so every probe since this watchdog shipped came
+        back 401 — and the operator was told the probe "could not reach
+        http://warden:8001", about a host it had just talked to successfully.
+        The canary is the only continuous check that the filter still blocks a
+        known jailbreak in production, and it had never once completed.
+        """
+        sw, sent, counted = watcher
+        monkeypatch.setattr(sw, "_canary_probe", _probe({
+            "blocked": None, "fault": "rejected", "status": 401,
+            "error": "HTTP 401 from http://warden:8001/filter",
+        }))
+
+        out = await sw.watch_config_drift({})
+
+        assert out["canary_reachable"] is False
+        joined = "\n".join(sent)
+        assert "CANARY REFUSED" in joined
+        assert "CANARY UNREACHABLE" not in joined, (
+            "an auth rejection was reported as a connectivity fault"
+        )
+        assert "NOT blocked by the filter pipeline" not in joined, (
+            "an auth rejection was reported as the filter passing a jailbreak"
+        )
+        assert "WARDEN_API_KEY" in joined, "the alert must name its own fix"
+        assert ("settings_watcher_canary", sw.Reason.BACKEND_ERROR) in counted
+        assert ("settings_watcher_canary", sw.Reason.NETWORK_ERROR) not in counted
+
+    @pytest.mark.asyncio
     async def test_reachable_but_allowed_is_the_critical_alert(self, watcher, monkeypatch):
         sw, sent, _counted = watcher
         monkeypatch.setattr(sw, "_canary_probe",

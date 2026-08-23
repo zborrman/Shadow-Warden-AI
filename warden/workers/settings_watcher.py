@@ -56,7 +56,24 @@ async def _get_live_config() -> dict:
 
 
 async def _canary_probe() -> dict:
-    """Fire a known-jailbreak payload; verify it is blocked."""
+    """Fire a known-jailbreak payload; verify it is blocked.
+
+    Returns `fault` alongside `blocked` so the caller can tell three failure
+    modes apart:
+
+        fault=None       the probe completed; `blocked` is the verdict
+        fault="network"  the request never reached the gateway
+        fault="rejected" it reached the gateway and was refused (HTTP status)
+
+    The third case used to be folded into the second. A 401 raised inside
+    `raise_for_status()` and landed in the same `except`, so the caller logged
+    "canary probe could not reach http://warden:8001" about a gateway it had
+    just successfully talked to. That sent an operator hunting a network fault
+    for what was a missing WARDEN_API_KEY in this container — and the code
+    directly above already makes this argument about not collapsing "not
+    blocked" into "not reached". Refused is a third incident with a third
+    owner, and it names its own fix.
+    """
     api_key = settings.warden_api_key
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -65,13 +82,23 @@ async def _canary_probe() -> dict:
                 json={"content": _CANARY_PAYLOAD, "tenant_id": "canary-watcher"},
                 headers={"X-API-Key": api_key},
             )
-            r.raise_for_status()
+            if r.status_code >= 400:
+                return {
+                    "blocked": None,
+                    "fault":   "rejected",
+                    "status":  r.status_code,
+                    "error":   f"HTTP {r.status_code} from {_WARDEN_BASE}/filter",
+                }
             data = r.json()
             blocked = not data.get("allowed", True)
-            return {"blocked": blocked, "risk_level": data.get("risk_level", "UNKNOWN")}
+            return {
+                "blocked":    blocked,
+                "fault":      None,
+                "risk_level": data.get("risk_level", "UNKNOWN"),
+            }
     except Exception as exc:
         log.warning("settings_watcher: canary probe failed: %s", exc)
-        return {"blocked": None, "error": str(exc)}
+        return {"blocked": None, "fault": "network", "error": str(exc)}
 
 
 async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
@@ -94,7 +121,26 @@ async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
     reachable = canary.get("blocked") is not None
     canary_ok = canary.get("blocked") is True
 
-    if not reachable:
+    if not reachable and canary.get("fault") == "rejected":
+        # The gateway answered — it refused us. Almost always this container's
+        # credentials, not the gateway's health, and it is fail-closed on
+        # WARDEN_API_KEY by design.
+        record_failopen("settings_watcher_canary", Reason.BACKEND_ERROR)
+        log.error(
+            "settings_watcher: canary probe was REFUSED by %s (HTTP %s) — the "
+            "filter was NOT verified this cycle. Check WARDEN_API_KEY in this "
+            "container; the gateway is fail-closed on it.",
+            _WARDEN_BASE, canary.get("status"),
+        )
+        await _slack(
+            f":warning: *Settings Watcher — CANARY REFUSED* [{ts[:19]}]\n"
+            f"The gateway at `{_WARDEN_BASE}` answered `HTTP "
+            f"{canary.get('status')}`, so the filter was not verified this "
+            f"cycle. This is an authentication/authorisation fault — check "
+            f"`WARDEN_API_KEY` in the arq-worker container. It is neither a "
+            f"connectivity fault nor a detection failure."
+        )
+    elif not reachable:
         record_failopen("settings_watcher_canary", Reason.NETWORK_ERROR)
         log.error(
             "settings_watcher: canary probe could not reach %s — the filter was "
