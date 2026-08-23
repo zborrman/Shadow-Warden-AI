@@ -96,6 +96,19 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # The `and sum(rate(..._count)) > 0` guard is load-bearing, not
+              # decoration. With no traffic every bucket rate is 0,
+              # histogram_quantile returns NaN, and the threshold evaluator
+              # treats NaN as breaching — so this rule fired once a minute,
+              # continuously, for saying "nobody called us". Verified on prod
+              # 2026-08-22: /filter rate 0/s, 40 requests total since the
+              # counter began, P99 = NaN, and both latency rules sending to the
+              # notifier every 60s. `noDataState: OK` does not catch it, because
+              # there IS data — the series exist and are all zero.
+              #
+              # A latency SLO over zero requests has no value to report. The
+              # guard makes the rule return an empty vector instead of NaN,
+              # which is the honest answer.
               expr: >
                 histogram_quantile(
                   0.99,
@@ -106,6 +119,11 @@ groups:
                     }[5m])
                   )
                 )
+                and
+                sum(rate(http_request_duration_seconds_count{
+                  job="warden",
+                  handler="/filter"
+                }[5m])) > 0
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -154,6 +172,10 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # Traffic guard — see warden-high-p99-latency above. Without it a
+              # zero-rate histogram yields NaN, which the threshold evaluator
+              # reads as a breach, and the SLO rule reports a violation of a
+              # 50 ms commitment during hours when nothing was served.
               expr: >
                 histogram_quantile(
                   0.99,
@@ -164,6 +186,11 @@ groups:
                     }[15m])
                   )
                 )
+                and
+                sum(rate(http_request_duration_seconds_count{
+                  job="warden",
+                  handler="/filter"
+                }[15m])) > 0
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -668,14 +695,26 @@ groups:
             growth requiring a higher cap.
 
       # ── 9. Host Disk Usage High (R4) ─────────────────────────────────────────
-      # Requires node-exporter running (COMPOSE_PROFILES=monitoring in prod
-      # .env — profile-gated off by default for Windows/WSL2 dev, where the
-      # required host-mount propagation isn't available). Prometheus already
-      # scrapes node-exporter:9100 (job "node") regardless of whether the
-      # target is actually up, so this alert simply has no data until the
-      # profile is enabled — noDataState: OK below avoids a false page from
-      # that dev-default gap, but "no data" here in prod means node-exporter
-      # isn't running and should be investigated too.
+      # Requires node-exporter, which is profile-gated off by default because
+      # Windows/WSL2 dev machines lack the host-mount propagation it needs.
+      # The deploy step now exports COMPOSE_PROFILES=monitoring, so production
+      # starts it — in git, rather than as a hand-set line in the server .env.
+      #
+      # This block previously said the profile requirement out loud, and set
+      # noDataState: OK on the strength of it, with the note that "no data here
+      # in prod means node-exporter isn't running and should be investigated
+      # too". Nobody was ever in a position to investigate it: the profile was
+      # never enabled on the server, node-exporter had never once started, and
+      # noDataState: OK meant an alert with zero series read as healthy. Checked
+      # on prod 2026-08-22 — node_filesystem_avail_bytes had 0 series, ever,
+      # while the host sat at 56% of 38 GB and the deploy prunes 4-5 GB of build
+      # cache a week precisely because that disk fills. The rule could not have
+      # fired at any disk level since it was written. The documentation was the
+      # mitigation, which is not a mitigation.
+      #
+      # noDataState is NoData for that reason: with the profile enabled, data
+      # exists in prod, so its absence means the exporter has stopped and the
+      # disk is unwatched — which is the thing worth saying.
       - uid: warden-host-disk-high
         title: "Warden — Host disk usage above 80%"
         condition: C
@@ -702,7 +741,7 @@ groups:
             model:
               type: math
               expression: "$A > 80"
-        noDataState: OK
+        noDataState: NoData
         execErrState: OK
         for: 10m
         labels:
@@ -1008,7 +1047,19 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))
+              # `noDataState: OK` above covers voice being idle *today*, while
+              # the metric has never been written and there are no series at
+              # all. It stops covering it the moment one voice session runs:
+              # the bucket series are created and then persist, so a later idle
+              # window is no longer "no data" but a zero rate — NaN out of
+              # histogram_quantile, which the evaluator reads as a breach. That
+              # is precisely how the two /filter latency rules came to fire
+              # continuously off 40 lifetime requests. The traffic guard is what
+              # actually makes an idle subsystem silent.
+              expr: >
+                histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))
+                and
+                sum(rate(warden_voice_e2e_latency_ms_count[5m])) > 0
               intervalMs: 60000
               maxDataPoints: 43200
               refId: A
