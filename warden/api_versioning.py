@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from datetime import UTC, datetime
 
 from starlette.datastructures import MutableHeaders
@@ -58,6 +59,9 @@ _PREFIX = f"/{API_VERSION}"
 #: is a promise being kept, shortening it is not, and both belong in a PR body.
 _DEFAULT_SUNSET = "2027-08-23"
 
+#: Zero-padded ISO calendar date, nothing else.
+_CANONICAL_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
 
 def _validated_sunset(raw: str) -> str:
     """A date we can actually serve, or the built-in default.
@@ -69,16 +73,23 @@ def _validated_sunset(raw: str) -> str:
     availability incident for a documentation one; refusing the *value* costs
     nothing and keeps the contract well-formed.
     """
-    try:
-        datetime.strptime(raw, "%Y-%m-%d")
-        return raw
-    except ValueError:
-        log.error(
-            "API_SUNSET_DATE=%r is not YYYY-MM-DD — ignoring it and publishing %s. "
-            "The sunset window is a promise to callers; it cannot be a malformed string.",
-            raw, _DEFAULT_SUNSET,
-        )
-        return _DEFAULT_SUNSET
+    # strptime alone accepts `2027-8-3`, which then gets published verbatim in
+    # `unversioned_supported_until`. A date a client has to guess the padding of
+    # is not a date it can compare, so the shape is pinned before parsing.
+    if _CANONICAL_DATE.fullmatch(raw or ""):
+        try:
+            datetime.strptime(raw, "%Y-%m-%d")
+            return raw
+        except ValueError:
+            pass
+    # The rejected value is not echoed: it is operator-controlled text heading
+    # into a log line, and naming the variable is enough to fix it.
+    log.error(
+        "API_SUNSET_DATE is not a canonical YYYY-MM-DD date — ignoring it and "
+        "publishing %s. The sunset window is a promise to callers; it cannot be "
+        "a malformed string.", _DEFAULT_SUNSET,
+    )
+    return _DEFAULT_SUNSET
 
 
 SUNSET_DATE = _validated_sunset(os.getenv("API_SUNSET_DATE", _DEFAULT_SUNSET))
@@ -190,11 +201,13 @@ class APIVersionMiddleware:
                 headers["Deprecation"] = "true"
                 headers["Sunset"] = _sunset_http_date()
                 link = f'<{successor}>; rel="successor-version"'
-                existing = headers.get("Link")
-                # Link is a comma-separated list (RFC 8288). Assigning would
-                # discard whatever a handler already advertised — pagination
-                # links, for one.
-                headers["Link"] = f"{existing}, {link}" if existing else link
+                # Link is a comma-separated list (RFC 8288) AND may be sent as
+                # several headers. `.get()` returns only the first, so assigning
+                # its value back would silently drop the rest — a paginated
+                # response advertising `next` and `prev` as two headers would
+                # come out holding one. getlist() takes all of them.
+                existing = headers.getlist("Link")
+                headers["Link"] = ", ".join([*existing, link])
             await send(message)
 
         await self.app(scope, receive, _send)
