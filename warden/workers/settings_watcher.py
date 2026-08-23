@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from warden.config import settings
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.workers.settings_watcher")
 
@@ -81,10 +82,32 @@ async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
     live = await _get_live_config()
 
     # ── Canary probe ──────────────────────────────────────────────────────────
+    #
+    # Three outcomes, not two. "The filter passed a known jailbreak" and "the
+    # probe never reached the filter" are different incidents with different
+    # owners, and collapsing them is how this job spent a day and a half paging
+    # `A known jailbreak was NOT blocked` every fifteen minutes while the payload
+    # was never sent at all — WARDEN_INTERNAL_URL was unset in this container, so
+    # every probe died on `localhost:8001`. An alert that cries detection failure
+    # for a connection error burns the one alert that must never be ignored.
     canary = await _canary_probe()
+    reachable = canary.get("blocked") is not None
     canary_ok = canary.get("blocked") is True
 
-    if not canary_ok:
+    if not reachable:
+        record_failopen("settings_watcher_canary", Reason.NETWORK_ERROR)
+        log.error(
+            "settings_watcher: canary probe could not reach %s — the filter was "
+            "NOT verified this cycle: %s", _WARDEN_BASE, canary.get("error"),
+        )
+        await _slack(
+            f":warning: *Settings Watcher — CANARY UNREACHABLE* [{ts[:19]}]\n"
+            f"The probe could not reach the gateway at `{_WARDEN_BASE}`, so the "
+            f"filter was not verified this cycle. This is a connectivity fault, "
+            f"not a detection failure.\n"
+            f"Error: `{canary.get('error')}`"
+        )
+    elif not canary_ok:
         await _slack(
             f":rotating_light: *Settings Watcher — CANARY PROBE FAILED* [{ts[:19]}]\n"
             f"A known jailbreak was NOT blocked by the filter pipeline.\n"
@@ -95,8 +118,19 @@ async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
 
     # ── Drift detection ───────────────────────────────────────────────────────
     if not _SNAPSHOT_PATH.exists():
-        log.info("settings_watcher: no snapshot found — skipping drift check")
-        return {"ts": ts, "drift_count": 0, "canary_ok": canary_ok}
+        # Counted, not just logged at INFO. With no baseline this watchdog has
+        # never compared anything — 35 skips in 24h on production, reporting
+        # `drift_count: 0` each time, which reads exactly like "no drift". A
+        # check that cannot run must not be indistinguishable from a check that
+        # ran and found nothing.
+        record_failopen("settings_watcher_drift", Reason.MODEL_NOT_LOADED)
+        log.warning(
+            "settings_watcher: no baseline at %s — drift check SKIPPED, not passed. "
+            "POST /api/settings/snapshot with X-Admin-Key to approve the current "
+            "config as the baseline.", _SNAPSHOT_PATH,
+        )
+        return {"ts": ts, "drift_count": 0, "drift_checked": False,
+                "canary_ok": canary_ok, "canary_reachable": reachable}
 
     try:
         baseline = json.loads(_SNAPSHOT_PATH.read_text())
