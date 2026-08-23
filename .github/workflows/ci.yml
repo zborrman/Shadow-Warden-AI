@@ -1341,16 +1341,63 @@ jobs:
           # container goes on evaluating the rules it read at startup. The file on
           # disk and the rule in memory then disagree indefinitely.
           #
-          # That is not hypothetical: the \`warden-community-peer-down\` guard shipped
-          # in Track O and production kept paging critical on the pre-guard rule
-          # until 2026-08-22, when a manual restart finally loaded it. Same class as
-          # the posture flags that were set in .env and never reached the container.
+          # Not hypothetical: the \`warden-community-peer-down\` guard shipped in
+          # Track O and production kept paging critical on the pre-guard rule until
+          # 2026-08-22, when a manual restart finally loaded it.
           #
-          # Restart only when those files actually changed — ORIG_HEAD is set by the
-          # \`git reset --hard\` in the pull step, so an unchanged deploy is a no-op.
-          if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^grafana/provisioning/'; then
+          # Keyed to a stamp of the tree, NOT to this run's git diff. The first
+          # version of this check compared ORIG_HEAD..HEAD, and the very deploy
+          # meant to prove it lost the change: its pull advanced ORIG_HEAD, the run
+          # then failed on an unrelated stale-\`landing/\` gate, and the next deploy
+          # diffed from the already-advanced ref and correctly saw nothing. Any
+          # interrupted deploy consumes the window exactly once, silently, in the
+          # direction that leaves production on stale rules. A stamp cannot be
+          # consumed: it disagrees until a restart actually happens.
+          # Every \$ and backtick below is escaped: this heredoc is UNQUOTED
+          # (<< ENDSSH), so an unescaped one is expanded by the GitHub runner
+          # before the script is ever sent. \`\$PROV_STAMP\` would arrive empty —
+          # and under \`set -u\` on the runner it fails the step outright — while
+          # \`\$(find ...)\` would hash the runner's checkout instead of the host's.
+          PROV_SHA=\$(find grafana/provisioning -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d" " -f1)
+          PROV_STAMP=".deploy-grafana-prov.sha"
+          if [ "\$PROV_SHA" = "\$(cat "\$PROV_STAMP" 2>/dev/null || true)" ]; then
+            echo "── Grafana provisioning unchanged — no restart"
+          else
             echo "── Grafana provisioning changed — restarting so it re-reads the files"
-            docker compose restart grafana 2>&1 | tail -3
+            # The stamp is written only after grafana comes back HEALTHY, not
+            # merely after the restart command returns 0. Malformed provisioning
+            # does not fail the restart — it crash-loops the container afterwards,
+            # which this file has caused twice (a pinned datasource uid, then
+            # secure_settings). Stamping on the exit code would record a
+            # crash-looping grafana as "rules loaded" and never retry.
+            RELOADED=0
+            if docker compose restart grafana; then
+              for _ in \$(seq 1 30); do
+                STATE=\$(docker inspect --format '{{.State.Health.Status}}' warden-grafana 2>/dev/null || echo "missing")
+                case "\$STATE" in
+                  healthy)  RELOADED=1; break ;;
+                  missing)  break ;;
+                esac
+                sleep 4
+              done
+            fi
+            if [ "\$RELOADED" = "1" ]; then
+              echo "\$PROV_SHA" > "\$PROV_STAMP"
+              echo "   grafana healthy — provisioning loaded"
+            else
+              echo "::warning title=Grafana not reloaded::grafana did not return healthy after the provisioning restart — the rules on disk are NOT loaded. Stamp left unwritten, so the next deploy retries."
+              docker compose logs --tail 30 grafana 2>&1 | tail -30 || true
+            fi
+          fi
+
+          # The wake-up channel only wakes anyone at ntfy priority 5. The topic
+          # URL is a secret and lives in the host .env, so the host is the only
+          # place that can see whether it carries the parameter the design
+          # depends on. Warned, never enforced: a deploy must not fail over a
+          # notification query string, but nobody should learn this mid-incident.
+          NTFY_CHECK=\$(grep -m1 "^NTFY_URL=" .env 2>/dev/null || true)
+          if [ -n "\$NTFY_CHECK" ] && ! printf '%s' "\$NTFY_CHECK" | grep -qE 'priority=(urgent|5)'; then
+            echo "::warning title=ntfy priority::NTFY_URL has no priority=urgent — critical alerts will not ring through Do Not Disturb."
           fi
 
           echo "── [3b/4] Prune build cache ────────────────────────────────"

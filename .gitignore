@@ -134,3 +134,6 @@ docker/seccomp/chrome.json.sha256
 mutants/
 mutmut-stats.json
 .mutmut-cache
+
+# Deploy-side stamp: hash of grafana/provisioning last loaded by a restart (ci.yml)
+.deploy-grafana-prov.sha
