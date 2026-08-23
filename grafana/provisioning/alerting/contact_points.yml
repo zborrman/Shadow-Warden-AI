@@ -18,7 +18,7 @@ apiVersion: 1
 # non-delivery; that is the whole lesson of OB-F3.
 #
 # Severity vocabulary matches the labels the rules already carry:
-#   critical → PagerDuty + Slack   (wake someone)
+#   critical → ntfy + Slack        (wake someone)
 #   warning  → Slack               (file it)
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -83,18 +83,30 @@ contactPoints:
           url: ${GF_NTFY_URL}
           httpMethod: POST
 
+  # ── warden-pagerduty: removed 2026-08-22 ────────────────────────────────────
+  #
+  # PagerDuty was never configured — `PAGERDUTY_ROUTING_KEY` is empty on
+  # production — so every critical notification produced a `400 Invalid routing
+  # key` in the notification log: 576 of them in one 24h window. OB-3 chose that
+  # loud failure deliberately over silent non-delivery, and it did its job: the
+  # question got asked and answered. The answer was ntfy, which delivers the same
+  # wake-up for nothing, so the receiver had no remaining purpose — an alerting
+  # path that can only fail is worse than one that does not exist, because it
+  # trains the operator to read delivery errors as normal.
+  #
+  # Restoring it is a receiver block plus a route: both are in this file's git
+  # history, and `docs/sla.md` §5 still names PagerDuty as the Enterprise channel,
+  # so an Enterprise SLA is when this comes back — with a key, not before.
+  #
+  # Deleting the block above is not enough. Grafana provisioning is ADDITIVE: a
+  # contact point it has already written to its database stays there when the
+  # definition disappears from the file, exactly as the four orphaned UI alert
+  # rules did until OB-6 removed them explicitly. `deleteContactPoints` is what
+  # actually retires it on the next restart.
+
+deleteContactPoints:
   - orgId: 1
-    name: warden-pagerduty
-    receivers:
-      - uid: warden-pagerduty-events
-        type: pagerduty
-        disableResolveMessage: false
-        settings:
-          integrationKey: ${GF_PAGERDUTY_ROUTING_KEY}
-          severity: critical
-          class: shadow-warden
-          component: '{{ index .CommonLabels "category" }}'
-          summary: '{{ template "default.title" . }}'
+    uid: warden-pagerduty-events
 
 policies:
 
@@ -106,20 +118,10 @@ policies:
     repeat_interval: 4h
     routes:
 
-      # critical → page, and still land in Slack for the written record.
+      # critical → phone push, and still land in Slack for the written record.
       # `continue: true` is what makes the notification reach both receivers;
-      # without it matching stops at the first route and PagerDuty would be
-      # the only destination.
-      - receiver: warden-pagerduty
-        object_matchers:
-          - [severity, "=", critical]
-        group_wait: 10s
-        repeat_interval: 1h
-        continue: true
-
-      # critical → phone push. Same `continue: true` reasoning as above: this
-      # is a third destination for the same notification, not an alternative
-      # to either of the other two.
+      # without it matching stops at the first route and ntfy would be the only
+      # destination.
       - receiver: warden-ntfy
         object_matchers:
           - [severity, "=", critical]

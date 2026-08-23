@@ -196,6 +196,99 @@ def test_alert_routing_is_in_version_control() -> None:
     )
 
 
+def _receivers_and_routes(docs: list[dict]) -> tuple[set[str], set[str], list[str]]:
+    """(defined contact points, uids marked for deletion, receivers routed to).
+
+    Routes nest arbitrarily in Grafana's notification tree, and a dangling
+    receiver three levels down drops its notifications exactly as silently as one
+    at the top — so the walk is recursive.
+    """
+    defined: set[str] = set()
+    deleted_uids: set[str] = set()
+    routed: list[str] = []
+
+    def _walk(node: dict) -> None:
+        if node.get("receiver"):
+            routed.append(node["receiver"])
+        for child in node.get("routes") or []:
+            _walk(child)
+
+    for doc in docs:
+        for cp in doc.get("contactPoints") or []:
+            if cp.get("name"):
+                defined.add(cp["name"])
+        for d in doc.get("deleteContactPoints") or []:
+            if d.get("uid"):
+                deleted_uids.add(d["uid"])
+        for policy in doc.get("policies") or []:
+            _walk(policy)
+
+    return defined, deleted_uids, routed
+
+
+def _dangling(docs: list[dict]) -> list[str]:
+    defined, _deleted, routed = _receivers_and_routes(docs)
+    return sorted({r for r in routed if r not in defined})
+
+
+def test_every_route_names_a_contact_point_that_exists() -> None:
+    """A route to a receiver that is not defined drops its notifications.
+
+    Retiring a contact point is two edits — the definition and every route that
+    names it — plus a `deleteContactPoints` entry, because provisioning is
+    additive and a receiver already written to Grafana's database survives the
+    removal of its definition. Miss the route and critical alerts route to
+    nothing; miss the deletion and the retired receiver keeps failing delivery,
+    which is how four orphaned UI rules survived until OB-6.
+    """
+    docs = [yaml.safe_load(p.read_text(encoding="utf-8")) or {} for p in _alert_files()]
+    defined, deleted_uids, _routed = _receivers_and_routes(docs)
+
+    assert not _dangling(docs), (
+        f"routes point at contact points that are not defined: {_dangling(docs)}. "
+        f"Defined: {sorted(defined)}. Notifications matching those routes go nowhere."
+    )
+
+    # A receiver being deleted must not also still be defined, or provisioning is
+    # asked to create and destroy the same thing on every restart.
+    for doc in docs:
+        for cp in doc.get("contactPoints") or []:
+            for recv in cp.get("receivers") or []:
+                assert recv.get("uid") not in deleted_uids, (
+                    f"{cp.get('name')} defines uid {recv.get('uid')} and "
+                    f"deleteContactPoints removes it in the same provisioning pass."
+                )
+
+
+def test_a_dangling_route_is_caught_at_any_depth() -> None:
+    """The guard above is only worth having if it sees the nested case."""
+    nested = {
+        "contactPoints": [{"name": "warden-slack", "receivers": [{"uid": "x"}]}],
+        "policies": [{
+            "receiver": "warden-slack",
+            "routes": [{
+                "receiver": "warden-slack",
+                "routes": [{"receiver": "warden-retired"}],
+            }],
+        }],
+    }
+    assert _dangling([nested]) == ["warden-retired"]
+
+    top = {
+        "contactPoints": [{"name": "warden-slack", "receivers": [{"uid": "x"}]}],
+        "policies": [{"receiver": "warden-slack",
+                      "routes": [{"receiver": "warden-retired"}]}],
+    }
+    assert _dangling([top]) == ["warden-retired"]
+
+    clean = {
+        "contactPoints": [{"name": "warden-slack", "receivers": [{"uid": "x"}]}],
+        "policies": [{"receiver": "warden-slack",
+                      "routes": [{"receiver": "warden-slack"}]}],
+    }
+    assert _dangling([clean]) == []
+
+
 def test_every_alert_rule_declares_severity_and_nodata_handling() -> None:
     missing: list[str] = []
     for path in _alert_files():
