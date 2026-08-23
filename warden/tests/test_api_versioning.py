@@ -40,7 +40,10 @@ def client() -> TestClient:
 
     @app.get("/with-link")
     async def _paged(response: Response) -> dict:
-        response.headers["Link"] = '</page/2>; rel="next"'
+        # Two separate Link headers, which is legal and is what a paginated
+        # response often sends. `.get()` would see only the first.
+        response.headers.append("Link", '</page/2>; rel="next"')
+        response.headers.append("Link", '</page/0>; rel="prev"')
         return {"page": 1}
 
     @app.get("/.well-known/agent.json")
@@ -107,10 +110,13 @@ class TestSuccessorLink:
         link = client.get("/filter-ish", params={"cursor": "abc"}).headers["Link"]
         assert link == '</v1/filter-ish?cursor=abc>; rel="successor-version"'
 
-    def test_an_existing_link_header_is_not_discarded(self, client):
-        """Link is a list (RFC 8288); assigning would drop a handler's own links."""
+    def test_every_existing_link_header_survives(self, client):
+        """Link is a list (RFC 8288) and may arrive as several headers."""
         links = client.get("/with-link").headers["Link"]
         assert '</page/2>; rel="next"' in links
+        assert '</page/0>; rel="prev"' in links, (
+            f"a second Link header was dropped: {links}"
+        )
         assert 'rel="successor-version"' in links
 
 
@@ -137,6 +143,41 @@ class TestContract:
     def test_a_malformed_override_is_refused_not_published(self):
         """`Sunset: whenever` is not a deprecation notice, it is a broken header."""
         assert _sunset_http_date("whenever") == "Mon, 23 Aug 2027 00:00:00 GMT"
+
+    @pytest.mark.parametrize("bad", ["whenever", "2027-8-3", "", "2027-13-01"])
+    def test_a_bad_env_value_never_reaches_the_published_window(
+        self, monkeypatch, bad
+    ):
+        """The validation runs at import, so the test has to import it again.
+
+        `2027-8-3` is the interesting one: `strptime` accepts it, and it would
+        have been published verbatim as the date callers must compare against.
+        """
+        import importlib
+
+        import warden.api_versioning as av
+
+        monkeypatch.setenv("API_SUNSET_DATE", bad)
+        reloaded = importlib.reload(av)
+        try:
+            assert reloaded.SUNSET_DATE == "2027-08-23"
+            assert reloaded.version_info()["unversioned_supported_until"] == "2027-08-23"
+        finally:
+            monkeypatch.delenv("API_SUNSET_DATE", raising=False)
+            importlib.reload(av)
+
+    def test_a_good_env_value_is_honoured(self, monkeypatch):
+        import importlib
+
+        import warden.api_versioning as av
+
+        monkeypatch.setenv("API_SUNSET_DATE", "2029-01-31")
+        reloaded = importlib.reload(av)
+        try:
+            assert reloaded.SUNSET_DATE == "2029-01-31"
+        finally:
+            monkeypatch.delenv("API_SUNSET_DATE", raising=False)
+            importlib.reload(av)
 
     def test_version_info_publishes_the_window(self):
         info = version_info()
