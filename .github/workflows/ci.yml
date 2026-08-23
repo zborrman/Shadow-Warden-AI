@@ -1376,52 +1376,19 @@ jobs:
           # interrupted deploy consumes the window exactly once, silently, in the
           # direction that leaves production on stale rules. A stamp cannot be
           # consumed: it disagrees until a restart actually happens.
-          # Every \$ and backtick below is escaped: this heredoc is UNQUOTED
-          # (<< ENDSSH), so an unescaped one is expanded by the GitHub runner
-          # before the script is ever sent. \`\$PROV_STAMP\` would arrive empty —
-          # and under \`set -u\` on the runner it fails the step outright — while
-          # \`\$(find ...)\` would hash the runner's checkout instead of the host's.
-          PROV_SHA=\$(find grafana/provisioning -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d" " -f1)
-          PROV_STAMP=".deploy-grafana-prov.sha"
-          if [ "\$PROV_SHA" = "\$(cat "\$PROV_STAMP" 2>/dev/null || true)" ]; then
-            echo "── Grafana provisioning unchanged — no restart"
-          else
-            echo "── Grafana provisioning changed — restarting so it re-reads the files"
-            # The stamp is written only after grafana comes back HEALTHY, not
-            # merely after the restart command returns 0. Malformed provisioning
-            # does not fail the restart — it crash-loops the container afterwards,
-            # which this file has caused twice (a pinned datasource uid, then
-            # secure_settings). Stamping on the exit code would record a
-            # crash-looping grafana as "rules loaded" and never retry.
-            RELOADED=0
-            if docker compose restart grafana; then
-              for _ in \$(seq 1 30); do
-                STATE=\$(docker inspect --format '{{.State.Health.Status}}' warden-grafana 2>/dev/null || echo "missing")
-                case "\$STATE" in
-                  healthy)  RELOADED=1; break ;;
-                  missing)  break ;;
-                esac
-                sleep 4
-              done
-            fi
-            if [ "\$RELOADED" = "1" ]; then
-              echo "\$PROV_SHA" > "\$PROV_STAMP"
-              echo "   grafana healthy — provisioning loaded"
-            else
-              echo "::warning title=Grafana not reloaded::grafana did not return healthy after the provisioning restart — the rules on disk are NOT loaded. Stamp left unwritten, so the next deploy retries."
-              docker compose logs --tail 30 grafana 2>&1 | tail -30 || true
-            fi
-          fi
-
-          # The wake-up channel only wakes anyone at ntfy priority 5. The topic
-          # URL is a secret and lives in the host .env, so the host is the only
-          # place that can see whether it carries the parameter the design
-          # depends on. Warned, never enforced: a deploy must not fail over a
-          # notification query string, but nobody should learn this mid-incident.
-          NTFY_CHECK=\$(grep -m1 "^NTFY_URL=" .env 2>/dev/null || true)
-          if [ -n "\$NTFY_CHECK" ] && ! printf '%s' "\$NTFY_CHECK" | grep -qE 'priority=(urgent|5)'; then
-            echo "::warning title=ntfy priority::NTFY_URL has no priority=urgent — critical alerts will not ring through Do Not Disturb."
-          fi
+          # Grafana reads grafana/provisioning/** at startup only, and those
+          # files are bind-mounted — so changing a rule alters neither the image
+          # nor the compose config, both \`docker compose up\` passes above are a
+          # correct no-op, and the container keeps evaluating what it loaded.
+          #
+          # The logic lives in a script rather than here for two reasons: this
+          # heredoc is unquoted, so every \$ and backtick in it is expanded by the
+          # runner before the script is sent (which broke this block twice), and
+          # code reaches this server by routes other than the deploy job — a
+          # person pulling by hand, an agent session over ssh. Those pulls left
+          # Grafana on stale rules with nothing recording it. One command here,
+          # the same command available to whoever else pulls.
+          bash scripts/reload_grafana_if_changed.sh || echo "::warning title=Grafana not reloaded::provisioning changed but grafana did not come back healthy — rules on disk are NOT loaded; the stamp is unwritten so the next deploy retries."
 
           echo "── [3b/4] Prune build cache ────────────────────────────────"
           # On a 40 GB disk the Docker build cache accumulates ~4-5 GB per week
