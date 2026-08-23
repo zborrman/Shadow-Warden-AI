@@ -136,7 +136,7 @@ from warden.xai.explainer import explain as _xai_explain
 #: parsing for them since it was written, against a formatter that emitted
 #: neither (OB-F11): the Loki `risk_level` label an operator would filter on was
 #: always empty, and the extraction was a no-op.
-_LOG_EXTRA_FIELDS = ("request_id", "tenant_id", "risk_level", "session_id")
+_LOG_EXTRA_FIELDS = ("request_id", "tenant_id", "risk_level", "session_id", "outcome")
 
 
 def _active_trace_ids() -> tuple[str | None, str | None]:
@@ -1965,6 +1965,42 @@ async def _ship_bypass(background_tasks, entry: dict) -> None:
 
 # ── Core filter logic (shared by /filter and /filter/batch) ──────────────────
 
+def _log_verdict(
+    rid:        str,
+    tenant_id:  str,
+    risk_level: str,
+    payload:    FilterRequest,
+    outcome:    str,
+) -> None:
+    """Emit the one log line that carries the pipeline's correlation fields.
+
+    `_LOG_EXTRA_FIELDS` and promtail's json stage have both carried these names
+    since OB-9, but no call site ever passed them, so the `risk_level` label an
+    operator filters Loki on could not exist (OB-F16).
+
+    This must be called before *every* terminal return, not just the normal one.
+    `_run_filter_pipeline` also returns early for circuit-breaker bypasses,
+    cache hits and honeytrap responses — and those are precisely the outcomes
+    worth filtering for. A label that silently omits cache hits (most of
+    production traffic) and fail-opens is worse than no label: it looks
+    complete. `outcome` distinguishes them so a query can separate a real
+    verdict from a bypass without inspecting anything else.
+
+    GDPR: identifiers and a verdict, never content, decoded text or PII — the
+    same allowlist Rule.md §21 applies to span attributes.
+    """
+    log.info(
+        "filter verdict",
+        extra={
+            "request_id": rid,
+            "tenant_id":  tenant_id,
+            "risk_level": risk_level,
+            "session_id": (payload.context or {}).get("session_id"),
+            "outcome":    outcome,
+        },
+    )
+
+
 async def _run_filter_pipeline(
     payload:          FilterRequest,
     rid:              str,
@@ -2005,6 +2041,7 @@ async def _run_filter_pipeline(
                 processing_ms = 0,
                 store         = _webhook_store,
             ))
+        _log_verdict(rid, tenant_id, RiskLevel.LOW.value, payload, "circuit_breaker_open")
         return FilterResponse(
             allowed          = True,
             risk_level       = RiskLevel.LOW,
@@ -2116,6 +2153,13 @@ async def _run_filter_pipeline(
         try:
             cached = json.loads(cached_json)
             log.info(json.dumps({"event": "cache_hit", "request_id": rid}))
+            _log_verdict(
+                rid,
+                auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id,
+                str(cached.get("risk_level", RiskLevel.LOW.value)),
+                payload,
+                "cache_hit",
+            )
             return FilterResponse(**cached)
         except Exception as _exc:  # noqa: BLE001
             log.debug("suppressed exception: %r", _exc)
@@ -2614,6 +2658,9 @@ async def _run_filter_pipeline(
                         rid                 = rid,
                     )
                 timings["total"] = round((time.perf_counter() - start) * 1000, 2)
+                _log_verdict(
+                    rid, tenant_id, guard_result.risk_level.value, payload, "honeytrap"
+                )
                 return FilterResponse(
                     allowed          = True,   # honey looks like "success" to attacker
                     risk_level       = guard_result.risk_level,
@@ -2933,25 +2980,9 @@ async def _run_filter_pipeline(
     )
 
     # ── Correlation line (OB-F16) ─────────────────────────────────────
-    # The one place the pipeline's own identifiers are written to the log.
-    # `_LOG_EXTRA_FIELDS` and promtail's json stage have both carried these
-    # four names since OB-9, but no call site ever passed them — so the
-    # `risk_level` label an operator filters Loki on could not exist, however
-    # healthy the pipeline underneath it was. The formatter emits a key only
-    # when it is not None, so a request without a session_id still produces a
-    # clean line.
-    #
-    # GDPR: identifiers and a verdict, never content, decoded text or PII —
-    # the same allowlist Rule.md §21 applies to span attributes.
-    log.info(
-        "filter verdict",
-        extra={
-            "request_id": rid,
-            "tenant_id":  tenant_id,
-            "risk_level": guard_result.risk_level.value,
-            "session_id": (payload.context or {}).get("session_id"),
-        },
-    )
+    # See `_log_verdict`. This is the normal path; the three early returns
+    # above call the same helper so no terminal outcome is missing from Loki.
+    _log_verdict(rid, tenant_id, guard_result.risk_level.value, payload, "filtered")
 
     # ── Cache write ───────────────────────────────────────────────────
     if allowed:

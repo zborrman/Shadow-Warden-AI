@@ -75,6 +75,13 @@ scrape_configs:
                   logger:     logger
                   request_id: request_id
                   risk_level: risk_level
+                  # Extracted but deliberately NOT promoted to a label below.
+                  # `outcome` separates a real verdict from a cache hit,
+                  # circuit-breaker bypass or honeytrap; four values is bounded,
+                  # but every label multiplies Loki's stream count against
+                  # risk_level/level/logger, and a line filter
+                  # (`| json | outcome="cache_hit"`) answers it for free.
+                  outcome:    outcome
             - labels:
                 level:
                 logger:
