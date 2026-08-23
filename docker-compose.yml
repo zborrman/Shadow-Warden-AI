@@ -377,6 +377,15 @@ services:
           memory: 128M
     environment:
       - ARQ_MODE=1
+      # The canary probe in `settings_watcher.watch_config_drift` calls the
+      # gateway's own /filter over the compose network, and the gateway is
+      # fail-closed on WARDEN_API_KEY. This variable was never passed to this
+      # container, so `settings.warden_api_key` resolved empty and every probe
+      # since the watchdog shipped came back 401 — 16 in the last six hours
+      # alone. The consequence is not a noisy log line: the canary is the only
+      # continuous check that the filter still blocks a known jailbreak in
+      # production, and it has never once completed.
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
       # Must match warden's data dir so the nightly backup (which runs HERE)
       # discovers the module DBs warden writes — they share the ./data bind
       # mount. Without this, arq-worker's data_dir() is its own isolated /tmp
