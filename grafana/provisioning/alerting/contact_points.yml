@@ -97,6 +97,16 @@ contactPoints:
   # Restoring it is a receiver block plus a route: both are in this file's git
   # history, and `docs/sla.md` §5 still names PagerDuty as the Enterprise channel,
   # so an Enterprise SLA is when this comes back — with a key, not before.
+  #
+  # Deleting the block above is not enough. Grafana provisioning is ADDITIVE: a
+  # contact point it has already written to its database stays there when the
+  # definition disappears from the file, exactly as the four orphaned UI alert
+  # rules did until OB-6 removed them explicitly. `deleteContactPoints` is what
+  # actually retires it on the next restart.
+
+deleteContactPoints:
+  - orgId: 1
+    uid: warden-pagerduty-events
 
 policies:
 

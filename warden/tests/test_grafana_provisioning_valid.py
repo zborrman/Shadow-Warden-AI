@@ -196,6 +196,54 @@ def test_alert_routing_is_in_version_control() -> None:
     )
 
 
+def test_every_route_names_a_contact_point_that_exists() -> None:
+    """A route to a receiver that is not defined drops its notifications.
+
+    Retiring a contact point is two edits — the definition and every route that
+    names it — plus a `deleteContactPoints` entry, because provisioning is
+    additive and a receiver already written to Grafana's database survives the
+    removal of its definition. Miss the route and critical alerts route to
+    nothing; miss the deletion and the retired receiver keeps failing delivery,
+    which is how four orphaned UI rules survived until OB-6.
+    """
+    defined: set[str] = set()
+    deleted_uids: set[str] = set()
+    routed: list[tuple[str, str]] = []
+
+    for path in _alert_files():
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for cp in doc.get("contactPoints") or []:
+            if cp.get("name"):
+                defined.add(cp["name"])
+        for d in doc.get("deleteContactPoints") or []:
+            if d.get("uid"):
+                deleted_uids.add(d["uid"])
+        for policy in doc.get("policies") or []:
+            if policy.get("receiver"):
+                routed.append((path.name, policy["receiver"]))
+            for route in policy.get("routes") or []:
+                if route.get("receiver"):
+                    routed.append((path.name, route["receiver"]))
+
+    dangling = sorted({(f, r) for f, r in routed if r not in defined})
+    assert not dangling, (
+        f"routes point at contact points that are not defined: {dangling}. "
+        f"Defined: {sorted(defined)}. Notifications matching those routes go "
+        f"nowhere."
+    )
+
+    # A receiver being deleted must not also still be defined, or provisioning
+    # is asked to create and destroy the same thing on every restart.
+    for path in _alert_files():
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for cp in doc.get("contactPoints") or []:
+            for recv in cp.get("receivers") or []:
+                assert recv.get("uid") not in deleted_uids, (
+                    f"{cp.get('name')} defines uid {recv.get('uid')} and "
+                    f"deleteContactPoints removes it in the same provisioning pass."
+                )
+
+
 def test_every_alert_rule_declares_severity_and_nodata_handling() -> None:
     missing: list[str] = []
     for path in _alert_files():
