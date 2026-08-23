@@ -1720,6 +1720,76 @@ groups:
             with it off, a failure here still means the audit trail is incomplete.
             Dashboard: http://127.0.0.1:3001/d/sw-l1-finops
 
+      # ── OB-F18: the alerting layer watching itself ──────────────────
+      #
+      # Every rule in this file measures the product. None measured whether the
+      # rules can reach a human. Verified 2026-08-23 on a running instance:
+      # grafana_alerting_notifications_failed_total was 124 against
+      # grafana_alerting_notifications_total 124 — a 100% delivery failure rate,
+      # across all three integrations, for as long as the counters had run, and
+      # nothing anywhere reported it. Contact points existing in version control
+      # (OB-3) is not the same property as contact points delivering.
+      #
+      # The obvious objection is real: an alert about notification failure
+      # cannot be notified either. It is still worth having. It renders on the
+      # alert list and on the platform dashboard, it is queryable, and it turns
+      # "silence means healthy" into a claim something checks. Read it as an
+      # instrument, not as a page.
+      #
+      # `for: 15m` so a single transient webhook 500 does not trip it; the
+      # condition is a *rate* rather than a count so a long-dead channel stays
+      # firing instead of ageing out of a 24h increase() window.
+      - uid: warden-notification-delivery-failing
+        title: "Warden — Alert delivery is failing (the alerting layer cannot reach anyone)"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(rate(grafana_alerting_notifications_failed_total[30m]))
+                /
+                clamp_min(sum(rate(grafana_alerting_notifications_total[30m])), 0.0001)
+              intervalMs: 60000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.5"
+        # NoData is OK on purpose: with no alert firing anywhere, Grafana
+        # attempts no notifications and both counters stay flat, which is the
+        # healthy resting state — not evidence of a broken channel.
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: critical
+          team: warden
+          category: alerting
+        annotations:
+          summary: "More than half of alert notifications are failing to send"
+          description: >
+            grafana_alerting_notifications_failed_total is outpacing
+            grafana_alerting_notifications_total — alerts are evaluating and
+            firing correctly but not reaching their destination, so every other
+            rule in this file is silently unable to page. Check the integration
+            credentials first: SLACK_WEBHOOK_URL, PAGERDUTY_ROUTING_KEY and
+            NTFY_URL all fall back to unroutable placeholders when unset, and an
+            unset variable produces exactly this signature. Grafana's own log
+            names the failing integration:
+            docker logs warden-grafana | grep "Notify for alerts failed"
+            Dashboard: http://127.0.0.1:3001/d/sw-l2-platform
+
 # ── OB-6 follow-up: retire the pre-provisioning UI rules ─────────────────────
 #
 # Four alert rules were created through the Grafana UI before OB-3 put routing

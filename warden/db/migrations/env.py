@@ -8,6 +8,7 @@ DATABASE_URL is read from the environment — same as the application.
 """
 from __future__ import annotations
 
+import logging
 import os
 from logging.config import fileConfig
 
@@ -17,9 +18,29 @@ from sqlalchemy import engine_from_config, pool, text
 # Alembic Config object
 config = context.config
 
-# Set up logging from alembic.ini
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# ── Logging: do NOT clobber the application's configuration (OB-F19) ─────────
+# `fileConfig()` tears down the root logger and rebuilds it from alembic.ini.
+# That is correct for the standalone `alembic` CLI and destructive inside the
+# gateway, which runs `alembic upgrade head` during startup: alembic.ini sets
+# `[logger_root] level = WARN` and a plain
+# `%(levelname)-5.5s [%(name)s] %(message)s` formatter, so from the moment
+# migrations run the process
+#
+#   * drops every INFO and DEBUG line for the rest of its life, and
+#   * stops emitting JSON, which is the format promtail's pipeline parses.
+#
+# The whole OB-9 correlation chain sat downstream of this: `_JsonFormatter` was
+# installed at import, replaced a few seconds later, and every structured field
+# after that point went nowhere. Verified on a running gateway 2026-08-23 — the
+# last JSON line in the log is an alembic startup line.
+#
+# So configure logging only when nothing else already has. Under the CLI the
+# root logger is bare and alembic.ini applies as before; under the gateway
+# `_configure_json_logging()` has already installed its handler, and we leave it
+# alone. `disable_existing_loggers=False` is belt-and-braces for the CLI path so
+# loggers created before this point keep working.
+if config.config_file_name is not None and not logging.getLogger().handlers:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Read DATABASE_URL from environment (convert asyncpg → psycopg2 for sync migrations)
 _url = os.environ.get("DATABASE_URL", "")

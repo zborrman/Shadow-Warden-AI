@@ -17,8 +17,12 @@ services:
 
   warden:
     volumes:
-      # Source hot-reload
-      - ./warden:/app/warden:ro
+      # Source hot-reload. This MUST land on /warden, not /app/warden: the image
+      # sets WORKDIR /warden and the package resolves to /warden/__init__.py, so
+      # a mount anywhere else is inert — uvicorn --reload would fire on an edit
+      # and then re-import the stale copy baked into the image. That is the same
+      # "running code is not the checkout" failure as OB-F10, one level down.
+      - ./warden:/warden:delegated
       # Persist model weights locally (avoid re-download)
       - ./warden/models:/warden/models
       # Writable log/rule files land on the host
@@ -28,7 +32,7 @@ services:
         --host 0.0.0.0
         --port 8001
         --reload
-        --reload-dir /app/warden
+        --reload-dir /warden
         --log-level debug
     environment:
       LOG_LEVEL: debug
@@ -53,14 +57,18 @@ services:
 
   analytics:
     volumes:
-      - ./analytics:/app/analytics:ro
+      # analytics/Dockerfile sets WORKDIR /analytics and copies main.py there,
+      # so the module is `main:app` and the source lives at /analytics — not
+      # `analytics.main:app` under /app. The previous values crash-looped the
+      # container with ModuleNotFoundError: No module named 'analytics'.
+      - ./analytics:/analytics:ro
       - ./data:/data:ro
     command: >
-      uvicorn analytics.main:app
+      uvicorn main:app
         --host 0.0.0.0
         --port 8002
         --reload
-        --reload-dir /app/analytics
+        --reload-dir /analytics
         --log-level debug
     environment:
       LOG_LEVEL: debug
@@ -84,14 +92,20 @@ services:
       - ./grafana/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   grafana:
-    ports:
-      - "3001:3000"    # direct access in dev only
+    # No `ports:` here. The base compose file already publishes 3001 -> 3000 on
+    # 127.0.0.1 (OB-7). Compose APPENDS overlay port entries rather than
+    # replacing them, so re-declaring 3001 here produced two publishes of the
+    # same host port and the container failed to start with
+    # "failed to bind host port 3001: address already in use". Loopback is the
+    # binding we want in dev anyway.
     environment:
       GF_LOG_LEVEL: debug
 
   jaeger:
     ports:
-      - "16686:16686"  # Jaeger UI in dev only
+      # 16686 is NOT re-declared here — the base file publishes it on
+      # 127.0.0.1 already, and appending a second publish of the same host port
+      # breaks container start. See the grafana note above.
       - "4317:4317"    # OTLP gRPC from host in dev only
 
   dashboard:
