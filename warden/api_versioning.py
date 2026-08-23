@@ -38,12 +38,15 @@ they are not moving.
 """
 from __future__ import annotations
 
+import logging
 import os
 from datetime import UTC, datetime
 
 from starlette.datastructures import MutableHeaders
 from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+log = logging.getLogger("warden.api_versioning")
 
 #: The only version that exists. A second one changes this module, not 562 routes.
 API_VERSION = "v1"
@@ -53,7 +56,32 @@ _PREFIX = f"/{API_VERSION}"
 #: deprecation with no date is a preference, and callers correctly ignore it.
 #: Overridable so the window can be extended without a code change — extending it
 #: is a promise being kept, shortening it is not, and both belong in a PR body.
-SUNSET_DATE = os.getenv("API_SUNSET_DATE", "2027-08-23")
+_DEFAULT_SUNSET = "2027-08-23"
+
+
+def _validated_sunset(raw: str) -> str:
+    """A date we can actually serve, or the built-in default.
+
+    `Sunset: whenever` is not a deprecation notice, it is a malformed header — a
+    client parsing it gets nothing and the promise is not made. Rather than
+    publish that, a malformed override is refused and logged, and the compiled-in
+    date stands. Refusing to boot over a notification header would trade an
+    availability incident for a documentation one; refusing the *value* costs
+    nothing and keeps the contract well-formed.
+    """
+    try:
+        datetime.strptime(raw, "%Y-%m-%d")
+        return raw
+    except ValueError:
+        log.error(
+            "API_SUNSET_DATE=%r is not YYYY-MM-DD — ignoring it and publishing %s. "
+            "The sunset window is a promise to callers; it cannot be a malformed string.",
+            raw, _DEFAULT_SUNSET,
+        )
+        return _DEFAULT_SUNSET
+
+
+SUNSET_DATE = _validated_sunset(os.getenv("API_SUNSET_DATE", _DEFAULT_SUNSET))
 
 #: Path *trees* that are not part of the versioned API contract. Matched on
 #: segment boundaries, never as bare prefixes: `"/healthy-agents".startswith(
@@ -74,11 +102,8 @@ _EXEMPT = (
 
 def _sunset_http_date(date_str: str = "") -> str:
     """RFC 1123 date for the `Sunset` header, which is an HTTP-date, not ISO."""
-    raw = date_str or SUNSET_DATE
-    try:
-        dt = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=UTC)
-    except ValueError:
-        return raw
+    raw = _validated_sunset(date_str or SUNSET_DATE)
+    dt = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=UTC)
     return dt.strftime("%a, %d %b %Y 00:00:00 GMT")
 
 
@@ -151,12 +176,25 @@ class APIVersionMiddleware:
             return
 
         # ── Unversioned request: serve it, and say when that stops ───────────
+        query = scope.get("query_string") or b""
+        successor = f"{_PREFIX}{path}"
+        if query:
+            # A successor link that drops the query points at a different
+            # resource — `/search?cursor=abc` and `/search` are not the same
+            # answer, and a client following the link would silently restart.
+            successor = f"{successor}?{query.decode('latin-1')}"
+
         async def _send(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(raw=message["headers"])
                 headers["Deprecation"] = "true"
                 headers["Sunset"] = _sunset_http_date()
-                headers["Link"] = f'<{_PREFIX}{path}>; rel="successor-version"'
+                link = f'<{successor}>; rel="successor-version"'
+                existing = headers.get("Link")
+                # Link is a comma-separated list (RFC 8288). Assigning would
+                # discard whatever a handler already advertised — pagination
+                # links, for one.
+                headers["Link"] = f"{existing}, {link}" if existing else link
             await send(message)
 
         await self.app(scope, receive, _send)
