@@ -4,7 +4,7 @@
 
 Every endpoint is reachable two ways today:
 
-```
+```http
 POST https://api.shadow-warden-ai.com/v1/filter     ← use this
 POST https://api.shadow-warden-ai.com/filter        ← works, deprecated
 ```
@@ -81,9 +81,15 @@ file. A method mismatch on an owned path still returns 405, not a rewrite.
 - **Breaking changes** — a removed or renamed field, a changed status code, a
   narrowed input — require `v2`, and `v1` continues for at least 12 months from
   the date `v2` ships.
-- **Unversioned paths** are served until the `Sunset` date above. Extending that
+- **Unversioned paths** (every non-exempt one — see the table above) are
+  served until the `Sunset` date above. Extending that
   date is keeping a promise and needs only `API_SUNSET_DATE`; shortening it is
   breaking one, and belongs in a pull request that says so.
+
+A malformed `API_SUNSET_DATE` is refused and logged rather than published: a
+client parsing `Sunset: whenever` gets nothing, so the promise would not have been
+made. The compiled-in date stands instead. Refusing to boot over a notification
+header would trade an availability incident for a documentation one.
 
 The window is also published in the discovery document, so an agent can read it
 without this page:
