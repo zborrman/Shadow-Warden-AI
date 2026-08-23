@@ -195,7 +195,7 @@ For a machine-to-machine platform the front door is a package install, not a
 | Workstream | Detail |
 |---|---|
 | Publish the SDKs | `shadow-warden-sdk` to PyPI, `@shadow-warden/sdk` to npm. Tag-triggered release job so versions never drift from the gateway. Prerequisite done 2026-08-22: three Python packages and two identical-named npm packages were consolidated to one each — the repo could not publish before it agreed with itself. Needs `PYPI_API_TOKEN` and `NPM_TOKEN`. |
-| API versioning | 562 unversioned paths cannot evolve without breaking callers. `/v1`, a deprecation header, a published support window. |
+| API versioning | Done 2026-08-23. `/v1` is an alias resolved by one ASGI middleware — no route declared twice — and every unversioned response carries `Deprecation`, `Sunset: 2027-08-23` and a `Link: rel="successor-version"`. Policy in `docs/api-versioning.md`, window published in the discovery document. Freezing `v1`'s schemas against a conformance suite is separate. |
 | Ten-minute quickstart | One page, one path: register an agent, publish a listing, receive a settled payment. |
 | Agent-native discovery | Extend `/.well-known/agent.json` with the protocol manifest so a foreign agent negotiates without human docs. |
 | Surface consolidation | Portal for tenants, SOC dashboard for operators, Streamlit internal-only. Freeze the split. |

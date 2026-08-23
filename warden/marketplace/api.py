@@ -99,6 +99,16 @@ def _configured_chains() -> list[str]:
         return []
 
 
+def _api_version_info() -> dict:
+    """Versioning contract for the manifest; never breaks discovery if absent."""
+    try:
+        from warden.api_versioning import version_info
+        return version_info()
+    except Exception as exc:
+        log.debug("manifest: version info unavailable: %s", exc)
+        return {}
+
+
 def _escrow_settlement_mode() -> str:
     """What kind of value this marketplace can actually settle (MP-7, P1a).
 
@@ -228,6 +238,9 @@ async def get_market_protocol(response: Response) -> dict:
             "rate_limit_rpm": int(os.getenv("BRAND_AGENT_MAX_RPM", "60")),
         },
         "schema_discovery": "/marketplace/protocol/schema/{action_name}",
+        # A foreign agent that reads this manifest is exactly who needs to know
+        # the unversioned paths have a date on them (P2).
+        "api_version": _api_version_info(),
     }
 
 
