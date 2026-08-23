@@ -40,7 +40,20 @@ async def _slack(msg: str) -> None:
         log.warning("settings_watcher slack failed: %s", exc)
 
 
-async def _get_live_config() -> dict:
+async def _get_live_config() -> tuple[dict, str | None]:
+    """Return (config, error). `error` is None only when the fetch succeeded.
+
+    This used to return `{}` on failure, indistinguishable from a gateway that
+    genuinely reported no settings. The drift check then compared every baseline
+    key against `None` and announced them all as changed — so on 2026-08-23 a
+    401 from a missing WARDEN_API_KEY was reported to operators as
+    "24 drifted keys", with a Slack message naming each one and its supposed old
+    and new value. Not one of those keys had changed.
+
+    A config-drift alert is a claim that somebody altered production. Fabricating
+    it from a failed request is worse than staying silent, because it is
+    specific, plausible and actionable — someone will go and look.
+    """
     api_key = settings.warden_api_key
     try:
         async with httpx.AsyncClient(timeout=10) as c:
@@ -49,10 +62,10 @@ async def _get_live_config() -> dict:
                 headers={"X-API-Key": api_key},
             )
             r.raise_for_status()
-            return r.json()
+            return r.json(), None
     except Exception as exc:
         log.warning("settings_watcher: could not fetch live config: %s", exc)
-        return {}
+        return {}, str(exc)
 
 
 async def _canary_probe() -> dict:
@@ -106,7 +119,7 @@ async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
     ARQ job: compare live config vs snapshot, canary probe, alert on drift.
     """
     ts = datetime.now(UTC).isoformat()
-    live = await _get_live_config()
+    live, live_error = await _get_live_config()
 
     # ── Canary probe ──────────────────────────────────────────────────────────
     #
@@ -163,6 +176,28 @@ async def watch_config_drift(ctx: dict[str, Any]) -> dict[str, Any]:
         log.error("settings_watcher: canary probe not blocked! result=%s", canary)
 
     # ── Drift detection ───────────────────────────────────────────────────────
+    if live_error is not None:
+        # Counted, not merely logged. A drift check that cannot read the live
+        # config has not passed — and must not be reported as though it ran and
+        # found 24 changes. Same distinction the canary above draws between
+        # "not blocked" and "never reached".
+        record_failopen("settings_watcher_drift", Reason.BACKEND_ERROR)
+        log.error(
+            "settings_watcher: live config unreadable (%s) — drift check SKIPPED, "
+            "not passed. Nothing is known about whether the config changed. Check "
+            "WARDEN_API_KEY in this container; the gateway is fail-closed on it.",
+            live_error,
+        )
+        await _slack(
+            f":warning: *Settings Watcher — DRIFT CHECK SKIPPED* [{ts[:19]}]\n"
+            f"The live config could not be read from `{_WARDEN_BASE}`, so drift "
+            f"was not evaluated this cycle. This is not a report that the config "
+            f"is unchanged — it is a report that nothing was compared.\n"
+            f"Error: `{live_error}`"
+        )
+        return {"ts": ts, "drift_count": 0, "drift_checked": False,
+                "canary_ok": canary_ok, "canary_reachable": reachable}
+
     if not _SNAPSHOT_PATH.exists():
         # Counted, not just logged at INFO. With no baseline this watchdog has
         # never compared anything — 35 skips in 24h on production, reporting
