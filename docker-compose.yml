@@ -407,6 +407,13 @@ services:
       - IMPACT_COST_PER_BLOCK_USD=${IMPACT_COST_PER_BLOCK_USD:-100.0}
       - GEO_WEBHOOK_URL=${GEO_WEBHOOK_URL:-}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      # WARDEN_INTERNAL_URL is how in-cluster code reaches the gateway. It
+      # defaults to http://localhost:8001, which is correct only inside the
+      # gateway container itself — everywhere else it resolves to nothing. It was
+      # set on `portal` alone, so settings_watcher's canary probe here died on
+      # every run for the life of the deployment and paged "a known jailbreak was
+      # NOT blocked" 35 times a day without ever sending the payload.
+      - WARDEN_INTERNAL_URL=${WARDEN_INTERNAL_URL:-http://warden:8001}
       # R1 — the nightly backup cron (sova_nightly_backup) runs HERE, not in the
       # gateway. Without VAULT_MASTER_KEY it fail-closes every night; without the
       # S3_*/OFFSITE_S3_* vars ship=True silently ships nothing.
@@ -707,6 +714,8 @@ services:
     environment:
       - LOGS_PATH=/data/logs.json
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-7}
+      # 9_Billing.py calls the gateway through this. Same default trap as above.
+      - WARDEN_INTERNAL_URL=${WARDEN_INTERNAL_URL:-http://warden:8001}
     volumes:
       - ./data:/data:ro
     depends_on:
