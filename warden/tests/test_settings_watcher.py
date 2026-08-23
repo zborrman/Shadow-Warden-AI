@@ -14,6 +14,7 @@ nothing.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -31,8 +32,8 @@ def watcher(monkeypatch, tmp_path):
     async def _fake_slack(msg: str) -> None:
         sent.append(msg)
 
-    async def _fake_live() -> dict:
-        return {"semantic_threshold": 0.72}
+    async def _fake_live() -> tuple[dict, str | None]:
+        return {"semantic_threshold": 0.72}, None
 
     monkeypatch.setattr(sw, "_slack", _fake_slack)
     monkeypatch.setattr(sw, "_get_live_config", _fake_live)
@@ -121,6 +122,45 @@ class TestCanaryOutcomes:
 
         assert out["canary_ok"] is True
         assert not [m for m in sent if "CANARY" in m]
+
+
+class TestDriftFetchFailure:
+    @pytest.mark.asyncio
+    async def test_unreadable_live_config_is_not_reported_as_drift(
+        self, watcher, monkeypatch, tmp_path
+    ):
+        """A config we could not read is not a config that changed.
+
+        Measured on production 2026-08-23: `_get_live_config` 401'd and returned
+        `{}`, so every baseline key compared against `None` and the watchdog
+        announced "24 drifted keys" — naming each one and its supposed old and
+        new value in Slack. Not one had changed. A drift alert is a claim that
+        somebody altered production; fabricating it from a failed request is
+        worse than silence, because it is specific enough that someone acts on it.
+        """
+        sw, sent, counted = watcher
+        snap = tmp_path / "snapshot.json"
+        snap.write_text(json.dumps({
+            "semantic_threshold": 0.72, "strict_mode": False, "rate_limit_per_minute": 60,
+        }), encoding="utf-8")
+        monkeypatch.setattr(sw, "_SNAPSHOT_PATH", snap)
+
+        async def _broken_live() -> tuple[dict, str | None]:
+            return {}, "Client error '401 Unauthorized'"
+
+        monkeypatch.setattr(sw, "_get_live_config", _broken_live)
+        monkeypatch.setattr(sw, "_canary_probe", _probe({"blocked": True, "fault": None}))
+
+        out = await sw.watch_config_drift({})
+
+        assert out["drift_checked"] is False
+        assert out["drift_count"] == 0
+        joined = "\n".join(sent)
+        assert "DRIFT CHECK SKIPPED" in joined
+        assert "drifted" not in joined.lower(), (
+            "an unreadable config was reported as changed keys"
+        )
+        assert ("settings_watcher_drift", sw.Reason.BACKEND_ERROR) in counted
 
 
 class TestDriftBaseline:
