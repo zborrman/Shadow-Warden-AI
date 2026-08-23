@@ -2458,3 +2458,24 @@ ANS_CA_KEY_PATH=
 EDGE_PACK_MAX_SENSORS=50
 EDGE_PACK_TIMEOUT_S=30
 ```
+
+## Grafana provisioning: reload after any pull
+
+Grafana reads `grafana/provisioning/**` at startup only, and those files are
+bind-mounted — changing a rule alters neither the image nor the compose config,
+so `docker compose up` is a correct no-op and the container keeps evaluating what
+it loaded. Production paged `critical` for weeks on a rule whose fix had already
+shipped, for exactly that reason.
+
+The deploy job handles this. **If you pull by hand, run it yourself:**
+
+```bash
+cd /opt/shadow-warden
+git pull
+bash scripts/reload_grafana_if_changed.sh
+```
+
+It is idempotent — it compares a hash of the provisioning tree against
+`.deploy-grafana-prov.sha` and does nothing when they agree — and it writes that
+stamp only after Grafana comes back healthy, so a crash-looping container is
+retried rather than recorded as loaded.
