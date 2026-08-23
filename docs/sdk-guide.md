@@ -281,7 +281,7 @@ try {
 Shadow Warden ships as a LangChain `Tool` that pre-screens every user message:
 
 ```typescript
-// sdks/node/examples/ai-frameworks/langchain.ts
+// sdk/typescript/examples/ai-frameworks/langchain.ts
 import { ShadowWardenFilterTool } from "./langchain";
 
 const tool = new ShadowWardenFilterTool(client, "acme");
@@ -311,7 +311,7 @@ Full guide available in the `sdk/` directory.
 ## Generating the client from OpenAPI
 
 ```bash
-cd sdks/node
+cd sdk/typescript
 npm install
 npm run generate   # reads ../../openapi.json → writes src/generated/
 ```
@@ -321,7 +321,7 @@ npm run generate   # reads ../../openapi.json → writes src/generated/
 ## Publishing
 
 ```bash
-# In sdks/node/
+# In sdk/typescript/
 npm version patch    # or minor / major
 npm publish --access public
 # prepublishOnly hook runs npm run build && npm test automatically

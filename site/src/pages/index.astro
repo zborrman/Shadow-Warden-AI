@@ -869,11 +869,11 @@ const shipped = roadmap.filter(r => r.status === 'shipped').length;
       <div class="rounded-lg border overflow-hidden" style="border-color:rgba(128,180,253,0.09)">
         <div class="px-4 py-2.5 border-b flex items-center justify-between"
              style="background:#0c1020;border-color:rgba(128,180,253,0.08)">
-          <span style="font-size:11px;color:#6b7c96">Python SDK — 3 lines to secure any agent</span>
+          <span style="font-size:11px;color:#6b7c96">Python SDK — 3 lines to secure any agent (pre-release)</span>
           <span class="font-mono px-2 py-0.5 rounded" style="font-size:10px;color:#34d399;background:rgba(52,211,153,0.08)">pip install shadow-warden-sdk</span>
         </div>
         <pre class="p-4 overflow-x-auto" style="background:#070910;font-size:12px;color:#a8b8d0"><code><span style="color:#6b7c96"># Any AI agent — mandate-controlled purchasing</span>
-<span style="color:#80b4fd">from</span> shadow_warden_sdk <span style="color:#80b4fd">import</span> SecureAgent
+<span style="color:#80b4fd">from</span> shadow_warden <span style="color:#80b4fd">import</span> SecureAgent
 
 agent  = SecureAgent(api_key=<span style="color:#34d399">"sw-..."</span>, tenant_id=<span style="color:#34d399">"acme"</span>)
 mandate = agent.create_mandate(max_amount=<span style="color:#fbbf24">200.0</span>)

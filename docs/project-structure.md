@@ -202,7 +202,7 @@ k6/                     # k6 load test specs
 
 ```bash
 # Core gateway
-pip install shadow-warden-ai
+pip install shadow-warden-sdk
 
 # With post-quantum cryptography (liboqs)
 pip install "shadow-warden-ai[pqc]"

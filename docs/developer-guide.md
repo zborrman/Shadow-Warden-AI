@@ -28,7 +28,7 @@ shadow-warden-ai/
 ├── dashboard/               # Next.js 14 SOC Dashboard
 ├── portal/                  # Next.js 14 Customer Portal
 ├── site/                    # Astro 4 marketing site
-├── sdks/node/               # @shadow-warden/sdk (TypeScript)
+├── sdk/typescript/          # @shadow-warden/sdk (TypeScript)
 ├── obsidian-plugin/         # TypeScript Obsidian plugin
 ├── grafana/                 # Grafana dashboards + alert rules
 ├── docker/                  # Caddy config

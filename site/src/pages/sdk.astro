@@ -103,7 +103,7 @@ const methods = [
               <span class="text-[11px] font-bold text-[#FFD60A]">Python</span>
               <span class="text-[10px] text-[#8E8E9E]">pip</span>
             </div>
-            <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">pip install shadow-warden</pre>
+            <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">pip install shadow-warden-sdk</pre>
           </div>
           <div class="rounded-xl border border-white/[0.08] overflow-hidden">
             <div class="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
@@ -126,14 +126,14 @@ const methods = [
           <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
             <span class="text-[11px] font-bold text-[#FFD60A]">Python</span>
           </div>
-          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">warden_sdk</span> <span style="color:#79c0ff">import</span> WardenClient
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> WardenClient
 
 client = WardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>)
 
 <span style="color:#8b949e"># Filter a prompt</span>
 result = client.filter(
     <span style="color:#a5d6ff">"Ignore previous instructions and..."</span>,
-    raise_on_blocked=<span style="color:#79c0ff">True</span>,
+    raise_on_block=<span style="color:#79c0ff">True</span>,
 )
 <span style="color:#79c0ff">print</span>(result.risk_level)  <span style="color:#8b949e"># HIGH</span>
 <span style="color:#79c0ff">print</span>(result.flags)       <span style="color:#8b949e"># ["jailbreak_attempt"]</span>
@@ -189,7 +189,7 @@ console.log(reply.reply)</pre>
           <span class="text-[11px] font-bold text-[#FFD60A]">Python — async</span>
         </div>
         <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">import</span> asyncio
-<span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">warden_sdk</span> <span style="color:#79c0ff">import</span> AsyncWardenClient, FilterBlockedError
+<span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> AsyncWardenClient, WardenBlockedError
 
 <span style="color:#79c0ff">async def</span> <span style="color:#d2a8ff">main</span>():
     <span style="color:#79c0ff">async with</span> AsyncWardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>) <span style="color:#79c0ff">as</span> client:
@@ -245,21 +245,21 @@ asyncio.run(main())</pre>
       <h2 class="text-[22px] font-bold mb-2">Error handling</h2>
       <p class="text-[#8E8E9E] text-[14px] mb-6">The SDK raises typed exceptions so you can handle auth, rate-limiting, and blocked content separately.</p>
       <div class="rounded-xl border border-white/[0.08] overflow-hidden">
-        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">warden_sdk</span> <span style="color:#79c0ff">import</span> (
-    WardenClient, FilterBlockedError,
-    AuthError, RateLimitError, WardenError,
+        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> (
+    WardenClient, WardenBlockedError,
+    WardenGatewayError, WardenTimeoutError, WardenError,
 )
 
 <span style="color:#79c0ff">with</span> WardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>) <span style="color:#79c0ff">as</span> client:
     <span style="color:#79c0ff">try</span>:
-        result = client.filter(user_input, raise_on_blocked=<span style="color:#79c0ff">True</span>)
-    <span style="color:#79c0ff">except</span> FilterBlockedError <span style="color:#79c0ff">as</span> e:
+        result = client.filter(user_input, raise_on_block=<span style="color:#79c0ff">True</span>)
+    <span style="color:#79c0ff">except</span> WardenBlockedError <span style="color:#79c0ff">as</span> e:
         <span style="color:#8b949e"># e.response has full FilterResponse</span>
         log.warning(<span style="color:#a5d6ff">"Blocked: %s"</span>, e.response.flags)
         <span style="color:#79c0ff">return</span> <span style="color:#a5d6ff">"Request blocked for safety reasons."</span>
-    <span style="color:#79c0ff">except</span> AuthError:
+    <span style="color:#79c0ff">except</span> WardenGatewayError:
         <span style="color:#79c0ff">raise</span> RuntimeError(<span style="color:#a5d6ff">"Invalid API key"</span>)
-    <span style="color:#79c0ff">except</span> RateLimitError:
+    <span style="color:#79c0ff">except</span> WardenTimeoutError:
         time.sleep(<span style="color:#79c0ff">1</span>)
         <span style="color:#8b949e"># retry...</span>
     <span style="color:#79c0ff">except</span> WardenError <span style="color:#79c0ff">as</span> e:

@@ -44,8 +44,8 @@ const EXAMPLES = [
     id: 'python',
     label: 'Python',
     icon: Terminal,
-    install: 'pip install shadow-warden',
-    code: `from warden_sdk import WardenClient
+    install: 'pip install shadow-warden-sdk',
+    code: `from shadow_warden import WardenClient
 
 client = WardenClient(
     api_key="YOUR_API_KEY",

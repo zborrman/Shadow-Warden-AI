@@ -1,5 +1,5 @@
 """
-shadow_warden_sdk/client.py
+shadow_warden/commerce.py
 ShadowWardenClient — sync and async HTTP client for the Shadow Warden AI API.
 """
 from __future__ import annotations
