@@ -1085,7 +1085,17 @@ services:
     image: grafana/promtail:2.9.4
     container_name: warden-promtail
     restart: unless-stopped
-    command: -config.file=/etc/promtail/promtail.yml
+    # -config.expand-env resolves ${COMPOSE_PROJECT_NAME} in promtail.yml, so
+    # the docker_sd label filter tracks the project this stack actually runs
+    # under instead of a hardcoded name (OB-F13). promtail.yml contains no other
+    # `$`, so enabling expansion cannot disturb the pipeline stages.
+    command: -config.file=/etc/promtail/promtail.yml -config.expand-env=true
+    environment:
+      # Compose substitutes this before the container starts; it falls back to
+      # the directory-derived project name, which is what promtail needs to
+      # match. The `:-shadow-warden` default inside promtail.yml covers the case
+      # where this is somehow unset.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME:-shadow-warden}
     volumes:
       - ./grafana/promtail.yml:/etc/promtail/promtail.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

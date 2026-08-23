@@ -16,12 +16,36 @@ scrape_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
         filters:
+          # ── OB-F13 ────────────────────────────────────────────────────────
+          # This filter is a NAME, and the name is derived from the directory
+          # compose was started in. It read `shadow-warden` unconditionally,
+          # which is right on the VPS (/opt/shadow-warden) and wrong on any
+          # checkout whose folder is named anything else. When it is wrong,
+          # promtail discovers zero containers and sends zero lines: Loki holds
+          # no labels at all, and every log panel renders empty rather than
+          # erroring — indistinguishable from "nothing was logged".
+          #
+          # Requires `-config.expand-env=true` on the promtail command line and
+          # COMPOSE_PROJECT_NAME in the container env. The default keeps
+          # production behaviour byte-identical.
           - name: label
-            values: ["com.docker.compose.project=shadow-warden"]
+            values: ["com.docker.compose.project=${COMPOSE_PROJECT_NAME:-shadow-warden}"]
     relabel_configs:
       - source_labels: [__meta_docker_container_name]
         target_label: container
-      - source_labels: [__meta_docker_compose_service]
+      # ── OB-F14 ──────────────────────────────────────────────────────────
+      # `__meta_docker_compose_service` is not a meta label promtail's docker
+      # SD produces. Compose labels arrive as
+      # `__meta_docker_container_label_<label>`, so the old source name matched
+      # nothing and `service` was written empty for every container.
+      #
+      # Consequence chain: with no `service` label, the two `match:` stages
+      # below select on `{service="warden"}` / `{service="analytics"}` and can
+      # never fire — so the json stages never run and `level`, `logger` and
+      # `risk_level` were never attached to any line. OB-F11 fixed the
+      # formatter so those fields are emitted; this is the second half, the
+      # reason the labels still would not have appeared.
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
         target_label: service
       - source_labels: [__meta_docker_container_log_stream]
         target_label: stream

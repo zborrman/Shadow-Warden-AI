@@ -2932,6 +2932,27 @@ async def _run_filter_pipeline(
         business_intel           = _business_intel,
     )
 
+    # ── Correlation line (OB-F16) ─────────────────────────────────────
+    # The one place the pipeline's own identifiers are written to the log.
+    # `_LOG_EXTRA_FIELDS` and promtail's json stage have both carried these
+    # four names since OB-9, but no call site ever passed them — so the
+    # `risk_level` label an operator filters Loki on could not exist, however
+    # healthy the pipeline underneath it was. The formatter emits a key only
+    # when it is not None, so a request without a session_id still produces a
+    # clean line.
+    #
+    # GDPR: identifiers and a verdict, never content, decoded text or PII —
+    # the same allowlist Rule.md §21 applies to span attributes.
+    log.info(
+        "filter verdict",
+        extra={
+            "request_id": rid,
+            "tenant_id":  tenant_id,
+            "risk_level": guard_result.risk_level.value,
+            "session_id": (payload.context or {}).get("session_id"),
+        },
+    )
+
     # ── Cache write ───────────────────────────────────────────────────
     if allowed:
         set_cached(payload.content, response.model_dump_json())
