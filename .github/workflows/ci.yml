@@ -1353,11 +1353,11 @@ jobs:
           # interrupted deploy consumes the window exactly once, silently, in the
           # direction that leaves production on stale rules. A stamp cannot be
           # consumed: it disagrees until a restart actually happens.
-          # Every $ and backtick below is escaped: this heredoc is UNQUOTED
+          # Every \$ and backtick below is escaped: this heredoc is UNQUOTED
           # (<< ENDSSH), so an unescaped one is expanded by the GitHub runner
-          # before the script is ever sent. `\$PROV_STAMP` would arrive empty —
-          # and under `set -u` on the runner it fails the step outright — while
-          # `\$(find ...)` would hash the runner's checkout instead of the host's.
+          # before the script is ever sent. \`\$PROV_STAMP\` would arrive empty —
+          # and under \`set -u\` on the runner it fails the step outright — while
+          # \`\$(find ...)\` would hash the runner's checkout instead of the host's.
           PROV_SHA=\$(find grafana/provisioning -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d" " -f1)
           PROV_STAMP=".deploy-grafana-prov.sha"
           if [ "\$PROV_SHA" = "\$(cat "\$PROV_STAMP" 2>/dev/null || true)" ]; then
