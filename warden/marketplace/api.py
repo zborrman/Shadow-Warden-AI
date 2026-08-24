@@ -138,6 +138,16 @@ def _escrow_settlement_mode() -> str:
     ``/health``, not a change in what this marketplace offers.
     """
     try:
+        # Capability first, configuration second. An RPC URL says where we would
+        # send a transaction, not that one can be sent: `BASE_RPC_URL` defaults
+        # to the public Base endpoint, so "a mainnet RPC is configured" is true
+        # on every deployment including a laptop, while `deploy_escrow()` has
+        # always returned a simulated address. Production advertised `onchain`
+        # on exactly that basis, with no contract, no signer and $0 settled.
+        from warden.web3.smart_contract import settlement_capability
+        if not settlement_capability().get("can_settle"):
+            return "simulated"
+
         from warden.web3.chains import MAINNET_CHAINS
         configured = set(_discover_chains())
         if configured & MAINNET_CHAINS:

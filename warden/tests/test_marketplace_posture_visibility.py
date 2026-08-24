@@ -99,6 +99,32 @@ class TestProtocolManifestHonesty:
         monkeypatch.setenv("MARKETPLACE_REQUIRE_SIGNED_OFFERS", "true")
         assert self._manifest()["negotiation"]["signature_enforced"] is True
 
+    def _capable(self, monkeypatch) -> None:
+        """Pretend the escrow contract path is wired.
+
+        Every chain-selection test below is about *which* mode a configuration
+        produces once settlement is possible at all. Today it is not — the
+        contract functions are stubs — so without this the answer is `simulated`
+        for every input and the tests would assert nothing.
+        """
+        monkeypatch.setattr(
+            "warden.web3.smart_contract.settlement_capability",
+            lambda: {"can_settle": True, "reason": "", "detail": ""},
+        )
+
+    def test_settlement_is_simulated_while_the_contract_path_is_a_stub(self, monkeypatch):
+        """The state of production: mainnet RPC configured, nothing settleable.
+
+        `BASE_RPC_URL` defaults to the public Base endpoint, so a mainnet chain
+        looks configured on every deployment. `deploy_escrow()` returns a
+        simulated address regardless. Configuration must not outvote capability.
+        """
+        monkeypatch.setattr(
+            "warden.web3.chains.get_chain",
+            lambda c: {"rpc_url": "https://mainnet.base.org" if c == "base" else ""},
+        )
+        assert self._manifest()["escrow"]["settlement_mode"] == "simulated"
+
     def test_escrow_settlement_mode_is_advertised(self):
         """Advertising `chains` without this reads as an on-chain guarantee."""
         mode = self._manifest()["escrow"]["settlement_mode"]
@@ -118,6 +144,8 @@ class TestProtocolManifestHonesty:
         at Sepolia, with $0 ever settled — which also made "manifest reports
         onchain" unusable as the P1a exit gate.
         """
+        self._capable(monkeypatch)
+        self._capable(monkeypatch)
         from warden.marketplace.api import _escrow_settlement_mode
         monkeypatch.setattr(
             "warden.web3.chains.get_chain",
@@ -126,6 +154,7 @@ class TestProtocolManifestHonesty:
         assert _escrow_settlement_mode() == "testnet"
 
     def test_settlement_mode_is_onchain_only_for_a_mainnet_chain(self, monkeypatch):
+        self._capable(monkeypatch)
         from warden.marketplace.api import _escrow_settlement_mode
         from warden.web3.chains import MAINNET_CHAINS
         mainnet = sorted(MAINNET_CHAINS)[0]
@@ -137,6 +166,7 @@ class TestProtocolManifestHonesty:
 
     def test_advertised_chains_are_the_configured_ones(self, monkeypatch):
         """`eth_tester` is an in-process EVM, not a settlement venue."""
+        self._capable(monkeypatch)
         from warden.marketplace.api import _configured_chains
         monkeypatch.setattr(
             "warden.web3.chains.get_chain",
@@ -157,6 +187,7 @@ class TestProtocolManifestHonesty:
         helper passed while every per-chain lookup failing still reported
         `simulated`, because the loop swallowed each failure individually.
         """
+        self._capable(monkeypatch)
         def _boom(*_a, **_kw):
             raise RuntimeError("registry unavailable")
 
@@ -167,6 +198,7 @@ class TestProtocolManifestHonesty:
 
     def test_one_bad_chain_entry_does_not_hide_the_rest(self, monkeypatch):
         """A single broken entry is noise; it must not mask a working config."""
+        self._capable(monkeypatch)
         def _one_bad(chain):
             if chain == "polygon_amoy":
                 raise RuntimeError("bad entry")
@@ -180,6 +212,7 @@ class TestProtocolManifestHonesty:
     # ── The manifest is the contract; these assert it, not the helpers ────────
 
     def _escrow(self, monkeypatch, rpc_for: str | None) -> dict:
+        self._capable(monkeypatch)
         """Manifest `escrow` block with an RPC configured for `rpc_for` only."""
         monkeypatch.setattr(
             "warden.web3.chains.get_chain",

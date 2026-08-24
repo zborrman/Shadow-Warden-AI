@@ -23,6 +23,40 @@ def _sim_address(buyer: str, seller: str, listing_id: str, nonce: str, chain: st
     return "0x" + hashlib.sha256(raw).hexdigest()[:40]
 
 
+#: Whether this build can execute a real escrow transaction.
+#:
+#: `deploy_escrow` sets `real_address = None` unconditionally and `call_escrow`
+#: returns True without touching a contract — both carry a comment saying the
+#: ABI is not wired yet. So no deployment of this code settles on-chain,
+#: whatever RPC it is pointed at, and anything derived from "an RPC is
+#: configured" is measuring the wrong thing.
+#:
+#: Wiring the ABI and bytecode is what flips this, and it must flip HERE, next
+#: to the stubs, so the claim and the capability cannot drift apart again.
+_ESCROW_ABI_WIRED = False
+
+
+def settlement_capability() -> dict:
+    """Can this build move value on-chain, and if not, why not.
+
+    Read by the marketplace manifest so `settlement_mode` describes what the
+    software can do rather than what its configuration suggests. Production
+    advertised `onchain` for a week on the strength of `BASE_RPC_URL` defaulting
+    to the public Base endpoint — a URL that is always present, attached to a
+    contract path that always simulates.
+    """
+    if not _ESCROW_ABI_WIRED:
+        return {
+            "can_settle": False,
+            "reason": "escrow_abi_not_wired",
+            "detail": (
+                "deploy_escrow() and call_escrow() are stubs: no contract is "
+                "deployed and no transaction is signed, on any chain."
+            ),
+        }
+    return {"can_settle": True, "reason": "", "detail": ""}
+
+
 def deploy_escrow(
     buyer: str,
     seller: str,

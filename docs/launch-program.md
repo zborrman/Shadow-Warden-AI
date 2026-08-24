@@ -106,7 +106,7 @@ measured in cents.
 
 | Workstream | Detail |
 |---|---|
-| Mainnet settlement | `warden/web3/chains.py` knows only Sepolia, Polygon Amoy and Arbitrum Sepolia. Add Base mainnet + USDC; `GET /marketplace/protocol` must report `settlement_mode: onchain`. |
+| Mainnet settlement | Base mainnet + USDC are registered (2026-08-19) with the token address verified on-chain. **The phase is larger than this row assumed.** `warden/web3/smart_contract.py` is a stub — `deploy_escrow()` returns a simulated address on live nodes too and `call_escrow()` returns True without touching a contract — so no RPC endpoint or funded wallet makes settlement real on its own. Wiring `Escrow.sol` (ABI, bytecode, a signer, a deployed address per chain) is the work; the RPC and the wallet are inputs to it, not substitutes for it. |
 | Flip `AUTHORIZE_PAYMENT_ENFORCED` | Prerequisite shipped: `kya.screen_agent()` grants a default L2 policy on VERIFIED, so the flag is no longer a kill switch. Stage it. |
 | Per-trade value cap | Cap the first 90 days. Clearing once settled every trade at $0.00 with tests that agreed; assume that bug class is still latent and reconcile by hand initially. |
 
