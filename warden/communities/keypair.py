@@ -46,6 +46,7 @@ import base64
 import hashlib
 import logging
 import os
+from functools import lru_cache
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
@@ -73,6 +74,24 @@ log = logging.getLogger("warden.communities.keypair")
 
 # ── Vault key for wrapping community private keys ─────────────────────────────
 
+@lru_cache(maxsize=1)
+def _ephemeral_vault_key() -> bytes:
+    """Dev-only key, stable for the life of the process.
+
+    Stable is the whole point. This used to be `Fernet.generate_key()` inline in
+    `_get_vault_fernet()`, so a keypair encrypted by one call could never be
+    decrypted by the next — `register_asset` signs with a keypair it creates in
+    the same request and raised `InvalidToken` every time on any checkout without
+    the variable set. The warning below says "lost on restart"; they were lost
+    between two lines of one request.
+    """
+    log.warning(
+        "COMMUNITY_VAULT_KEY not set — using an ephemeral key. Community private "
+        "keys will be lost on restart. Set COMMUNITY_VAULT_KEY in production."
+    )
+    return Fernet.generate_key()
+
+
 def _get_vault_fernet() -> Fernet:
     """
     Return a Fernet instance for wrapping community private keys.
@@ -83,15 +102,7 @@ def _get_vault_fernet() -> Fernet:
       3. Auto-generate ephemeral key (dev/test only — keys lost on restart)
     """
     raw = os.getenv("COMMUNITY_VAULT_KEY") or os.getenv("VAULT_MASTER_KEY")
-    if raw:
-        key = raw.encode() if isinstance(raw, str) else raw
-    else:
-        log.warning(
-            "COMMUNITY_VAULT_KEY not set — generating ephemeral key. "
-            "Community private keys will be lost on restart. "
-            "Set COMMUNITY_VAULT_KEY in production."
-        )
-        key = Fernet.generate_key()
+    key = (raw.encode() if isinstance(raw, str) else raw) if raw else _ephemeral_vault_key()
     return Fernet(key)
 
 

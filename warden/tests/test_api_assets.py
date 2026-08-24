@@ -200,3 +200,32 @@ def test_list_assets_by_agent_filters_correctly():
     assert len(assets_a) == 2
     assert len(assets_b) == 1
     assert all(r["seller_agent_id"] == agent_a.agent_id for r in assets_a)
+
+
+class TestEphemeralVaultKeyIsStable:
+    """A dev key regenerated per call cannot decrypt what it just encrypted.
+
+    `_get_vault_fernet()` minted a fresh Fernet on every call when neither
+    COMMUNITY_VAULT_KEY nor VAULT_MASTER_KEY is set, so `register_asset` — which
+    signs with a keypair it creates in the same request — raised `InvalidToken`
+    every time on a fresh checkout. The warning said "lost on restart"; they were
+    lost between two lines of one request.
+    """
+
+    def test_two_calls_share_one_key(self, monkeypatch):
+        monkeypatch.delenv("COMMUNITY_VAULT_KEY", raising=False)
+        monkeypatch.delenv("VAULT_MASTER_KEY", raising=False)
+        from warden.communities import keypair as kp
+        kp._ephemeral_vault_key.cache_clear()
+
+        token = kp._get_vault_fernet().encrypt(b"private-key-material")
+        assert kp._get_vault_fernet().decrypt(token) == b"private-key-material"
+
+    def test_an_explicit_key_still_wins(self, monkeypatch):
+        from cryptography.fernet import Fernet
+
+        from warden.communities import keypair as kp
+        explicit = Fernet.generate_key().decode()
+        monkeypatch.setenv("COMMUNITY_VAULT_KEY", explicit)
+        token = kp._get_vault_fernet().encrypt(b"x")
+        assert Fernet(explicit.encode()).decrypt(token) == b"x"
