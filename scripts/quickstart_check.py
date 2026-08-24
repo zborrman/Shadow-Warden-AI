@@ -58,7 +58,7 @@ def _show(step: str, resp: Any, note: str = "") -> dict:
         body = {"raw": getattr(resp, "text", "")[:120]}
     ok = 200 <= code < 300
     mark = "ok  " if ok else "FAIL"
-    tail = f" — {note}" if note else ""
+    tail = f" - {note}" if note else ""
     print(f"  [{mark}] {step:<34} {code}{tail}")
     if not ok:
         print(f"         {json.dumps(body)[:200]}")
@@ -96,11 +96,27 @@ def main() -> int:
         return 1
     print(f"         agent_id={agent_id[:48]}")
 
-    # ── 3. Publish a listing ─────────────────────────────────────────────────
+    # ── 3. Register the asset being sold ─────────────────────────────────────
+    #
+    # A listing points at an asset; it does not carry one. The first version of
+    # this script guessed otherwise and got a 422 on `asset_id`, which is the
+    # error a quickstart written from the source and never executed ships with.
+    asset = _show("POST /marketplace/assets", client.post(
+        "/marketplace/assets",
+        json={"tenant_id": tenant, "seller_agent_id": agent_id,
+              "asset_type": "rule",
+              "raw_data": {"pattern": "ignore (all )?previous instructions",
+                           "note": "created by scripts/quickstart_check.py"}},
+    ))
+    asset_id = asset.get("asset_id") or asset.get("id") or ""
+    if not asset_id:
+        print("\n  Stopped: no asset id returned.")
+        return 1
+
+    # ── 4. Publish a listing for it ──────────────────────────────────────────
     listing = _show("POST /marketplace/listings", client.post(
         "/marketplace/listings",
-        json={"title": "Quickstart capability", "description": "Created by "
-              "scripts/quickstart_check.py", "seller_agent_id": agent_id,
+        json={"asset_id": asset_id, "seller_agent_id": agent_id,
               "community_id": "default", "tenant_id": tenant,
               "asset_type": "rule", "price_usd": 1.0},
     ))
@@ -109,22 +125,29 @@ def main() -> int:
         print("\n  Stopped: no listing id returned.")
         return 1
 
-    # ── 4. Buy it ────────────────────────────────────────────────────────────
+    # ── 5. Buy it ────────────────────────────────────────────────────────────
     buy = _show(
-        "POST …/listings/{id}/purchase",
+        "POST /listings/{id}/purchase",
         client.post(f"/marketplace/listings/{listing_id}/purchase",
                     json={"buyer_agent_id": agent_id},
                     headers={"Idempotency-Key": uuid.uuid4().hex}),
         note="Idempotency-Key is mandatory (FT-3)",
     )
 
-    # ── 5. What settled? ─────────────────────────────────────────────────────
+    # ── 6. What settled? ─────────────────────────────────────────────────────
     print("\nWhat that produced")
     print(f"  purchase state : {buy.get('status', buy.get('state', '?'))}")
-    print(f"  amount         : {buy.get('price_usd', buy.get('amount', '?'))}")
+    amount = buy.get("price_paid", buy.get("price_usd", buy.get("amount")))
+    if amount is None:
+        # Say which keys came back rather than printing a bare "?": the next
+        # person needs to know whether the field moved or the purchase is silent
+        # about what it cost.
+        print(f"  amount         : not reported; keys={sorted(buy)[:8]}")
+    else:
+        print(f"  amount         : {amount}")
     print(f"  settlement     : {settlement}"
-          + ("  ← real value moved" if settlement == "onchain"
-             else "  ← state machine only, no value moved"))
+          + ("  <- real value moved" if settlement == "onchain"
+             else "  <- state machine only, no value moved"))
     print("\nRerun with --base-url to check a live gateway.\n")
     return 0
 
