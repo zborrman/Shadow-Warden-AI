@@ -80,7 +80,7 @@ groups:
           description: >
             HTTP 5xx responses have exceeded 1% of total traffic for 5 minutes.
             Check warden container logs and /health endpoint.
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── 2. High P99 Latency on /filter ───────────────────────────────────────
       - uid: warden-high-p99-latency
@@ -220,7 +220,7 @@ groups:
             only if it persists or coincides with warden-high-p99-latency.
             Check ML model contention, Redis cache hit rate, and whether the
             HyperbolicBrain stage is falling back to a cold model load.
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── 3. Corpus Canary Failure (Self-Healing trigger) ───────────────────────
       - uid: warden-canary-failing
@@ -368,7 +368,7 @@ groups:
             The success rate for all Warden endpoints has fallen below 99.9% over
             the past hour. This breaches the Enterprise SLA commitment.
             Immediate investigation required.
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── 6. Shadow Ban Rate Spike ───────────────────────────────────────────────
       - uid: warden-shadow-ban-spike
@@ -413,7 +413,7 @@ groups:
             Shadow ban events are firing at > 12 per minute for 3 consecutive minutes.
             This indicates a sustained automated attack campaign targeting this Warden
             instance. Review ERS scores and consider temporary IP-level blocks upstream.
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── 5. Data Poisoning Spike ───────────────────────────────────────────────
       - uid: warden-poisoning-spike
@@ -549,7 +549,7 @@ groups:
             budget will be gone in ~50 hours.
             Immediate investigation required.
             Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── 8. SLO Burn-Rate — Slow Burn (Warning / Ticket) ─────────────────────
       #
@@ -634,7 +634,7 @@ groups:
             monthly error budget is consumed every 6 hours.
             File a ticket and investigate during business hours.
             Runbook: docs.shadow-warden-ai.com/guides/slo-burn-runbook
-            Dashboard: http://localhost:3000/d/warden-overview
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
 
       # ── R5: Redis Memory Near Cap ─────────────────────────────────────────────
       # redis-exporter:9121 already scraped (job "redis"). R5 set
