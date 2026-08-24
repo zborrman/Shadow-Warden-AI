@@ -25,18 +25,22 @@ from warden.main import _LATENCY_BUCKETS
 _SLO_SECONDS = 0.05  # docs/sla.md — P99 < 50 ms
 
 
-def test_last_bucket_is_infinite() -> None:
-    assert math.isinf(_LATENCY_BUCKETS[-1]), "prometheus requires a +Inf bucket"
+def test_last_bucket_is_positive_infinity() -> None:
+    # `math.isinf` alone would accept -inf, which is not a bucket edge at all —
+    # and would then be counted by the SLO check below as an edge under 50 ms.
+    assert _LATENCY_BUCKETS[-1] == float("inf"), (
+        "prometheus requires the terminal bucket to be +Inf, exactly"
+    )
 
 
 def test_edges_are_sorted_and_unique() -> None:
-    finite = [b for b in _LATENCY_BUCKETS if not math.isinf(b)]
+    finite = [b for b in _LATENCY_BUCKETS if math.isfinite(b)]
     assert finite == sorted(set(finite)), f"bucket edges must ascend uniquely: {finite}"
 
 
 def test_slo_is_resolvable() -> None:
     """Enough edges below the SLO to place a quantile, not just bracket it."""
-    below = [b for b in _LATENCY_BUCKETS if b <= _SLO_SECONDS]
+    below = [b for b in _LATENCY_BUCKETS if math.isfinite(b) and b <= _SLO_SECONDS]
     assert len(below) >= 3, (
         f"only {len(below)} bucket edges at or below the {_SLO_SECONDS*1000:.0f} ms "
         "SLO. With too few, histogram_quantile interpolates inside one bucket and "
@@ -51,7 +55,7 @@ def test_tail_is_resolvable() -> None:
     while P50 was 19 ms. With 2.5 s as the top finite edge, P99 read exactly
     2500 ms — the edge itself — for hours.
     """
-    top = max(b for b in _LATENCY_BUCKETS if not math.isinf(b))
+    top = max(b for b in _LATENCY_BUCKETS if math.isfinite(b))
     assert top >= 10.0, (
         f"top finite bucket is {top}s. A request slower than that is "
         "indistinguishable from one that took a minute, and any quantile landing "
