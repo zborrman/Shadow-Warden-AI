@@ -109,7 +109,8 @@ class TestProtocolManifestHonesty:
         """
         monkeypatch.setattr(
             "warden.web3.smart_contract.settlement_capability",
-            lambda: {"can_settle": True, "reason": "", "detail": ""},
+            lambda chain="": {"can_settle": True, "reason": "", "detail": "",
+                              "chain": chain},
         )
 
     def test_settlement_is_simulated_while_the_contract_path_is_a_stub(self, monkeypatch):

@@ -144,16 +144,22 @@ def _escrow_settlement_mode() -> str:
         # on every deployment including a laptop, while `deploy_escrow()` has
         # always returned a simulated address. Production advertised `onchain`
         # on exactly that basis, with no contract, no signer and $0 settled.
-        from warden.web3.smart_contract import settlement_capability
-        if not settlement_capability().get("can_settle"):
-            return "simulated"
-
         from warden.web3.chains import MAINNET_CHAINS
+        from warden.web3.smart_contract import settlement_capability
+
+        # Asked per chain, because capability is per chain: an escrow contract
+        # deployed on Base says nothing about Sepolia. Asking only the default
+        # chain would let one configured testnet vouch for a mainnet claim.
         configured = set(_discover_chains())
-        if configured & MAINNET_CHAINS:
+        capable = {c for c in configured if settlement_capability(c).get("can_settle")}
+        if capable & MAINNET_CHAINS:
             return "onchain"
-        if configured:
+        if capable:
             return "testnet"
+        # Configured but not capable is still simulated: an RPC URL says where a
+        # transaction would go, not that one can be sent. `BASE_RPC_URL` defaults
+        # to the public Base endpoint, so this is the ordinary case, and it read
+        # `onchain` in production for a week.
         return "simulated"
     except Exception as exc:
         log.debug("manifest: escrow mode probe unavailable: %s", exc)
