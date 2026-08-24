@@ -246,8 +246,18 @@ except ImportError:
 # http_request_duration_seconds_bucket data is not comparable across this
 # change, and the burn-rate alerts should be re-checked against real numbers
 # once a full window has elapsed.
+# Upper edges added 2026-08-24. With 2.5 as the last finite bucket, production
+# measured P99 = exactly 2500 ms for hours — not a latency, but the top edge,
+# with histogram_quantile unable to say whether the real value was 3 s or 30 s.
+# 2.6% of /filter requests (6 of 230 in 25 min) land above 2.5 s while P50 is
+# 19 ms, so the SLO breach is entirely a tail the histogram could not resolve.
+# You cannot fix a latency you cannot measure.
+#
+# 5 / 10 / 30 s bracket the plausible causes: a 5 s client timeout (three exist
+# in warden/alerting.py), a 10 s httpx default, and anything beyond that.
 _LATENCY_BUCKETS = (
-    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1.0, 2.5, float("inf"),
+    0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0,
+    float("inf"),
 )
 
 # Anchored on purpose. `excluded_handlers` entries are regexes matched with
