@@ -106,6 +106,63 @@ def test_the_disk_alert_can_still_fail(rules: list[dict]) -> None:
     )
 
 
+def test_restart_reset_gauges_are_read_over_a_window(rules: list[dict]) -> None:
+    """A third instance of the same defect, found 2026-08-24.
+
+    ``warden_arq_job_last_success_timestamp`` is an in-process prometheus_client
+    Gauge. It is unset until the job next succeeds, so it vanishes from an
+    *instant* query every time the arq-worker container is recreated — which
+    every deploy does. The samples survive in the TSDB; only the instant read of
+    them disappears.
+
+    The nightly-backup rule read the bare gauge with ``noDataState: OK``. On any
+    day the worker restarted after the 03:30 run, a backup that never happened
+    produced NoData and was reported healthy — and deploys made that most days.
+    Measured on production at one instant, the two forms disagreed completely::
+
+        time() - max(...)                    -> NoData   (silently OK)
+        time() - max(max_over_time(...30h))  -> 13.3h    (matches MinIO)
+
+    Reading over a window makes the gauge's absence irrelevant and restores the
+    meaning of NoData: no success recorded at all in the lookback, which is the
+    condition the rule exists to detect.
+    """
+    offenders = []
+    for rule in rules:
+        expr = _exprs(rule)
+        if "warden_arq_job_last_success_timestamp" not in expr:
+            continue
+        if "max_over_time" not in expr and rule.get("noDataState") == "OK":
+            offenders.append(rule["uid"])
+
+    assert not offenders, (
+        "These rules read a restart-resetting gauge instantaneously and map its "
+        "absence to healthy: " + ", ".join(offenders) + ". After any arq-worker "
+        "restart the gauge is unset, so the rule reports OK without measuring "
+        "anything. Wrap the metric in max_over_time(...[<window longer than the "
+        "threshold>]) and set noDataState: Alerting."
+    )
+
+
+def test_the_backup_alert_can_still_fail(rules: list[dict]) -> None:
+    """Pin both halves of the repair, the way the disk alert above is pinned."""
+    backup = [r for r in rules if r.get("uid") == "warden-backup-stale"]
+    assert backup, "warden-backup-stale is gone — re-check this guard"
+    rule = backup[0]
+    expr = _exprs(rule)
+
+    assert "max_over_time" in expr, (
+        "The backup alert is back on an instant read of "
+        "warden_arq_job_last_success_timestamp. That gauge is unset after every "
+        "arq-worker restart, so the rule stops measuring anything."
+    )
+    assert rule.get("noDataState") == "Alerting", (
+        "The backup alert is back on noDataState: OK. With max_over_time, NoData "
+        "no longer means 'the worker restarted' — it means no successful backup "
+        "in the whole lookback, which is precisely what must page."
+    )
+
+
 def test_profile_gated_exporters_are_started_in_production() -> None:
     """
     node-exporter and cadvisor are behind the `monitoring` profile for a real
