@@ -204,6 +204,15 @@ services:
       # OpenTelemetry — enable by setting OTEL_ENABLED=true in .env
       - OTEL_ENABLED=${OTEL_ENABLED:-false}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      # These three were set in .env and never reached the container, because
+      # compose only forwards what is listed here. Production ran with
+      # OTEL_SAMPLE_RATE=1.0 in .env and sample_rate=0.10 in the process —
+      # head sampling at 10 %, which makes a 2.6 % latency tail invisible.
+      # Same shape as the posture-flag no-op: the file said one thing, the
+      # container had another, and a flip looked applied when it was not.
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-shadow-warden}
+      - OTEL_SAMPLE_RATE=${OTEL_SAMPLE_RATE:-0.1}
+      - OTEL_SAMPLE_RATE_HIGH=${OTEL_SAMPLE_RATE_HIGH:-1.0}
       # Security features
       - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
       - HONEY_MODE=${HONEY_MODE:-false}

@@ -55,6 +55,7 @@ import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
+from urllib.parse import urlparse
 
 from warden.config import settings
 
@@ -99,19 +100,42 @@ def setup_telemetry(app: Any = None) -> None:
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 
-        # Prefer gRPC exporter (OTel Collector); fall back to HTTP for local dev
+        # ── Pick the exporter from the endpoint, not from what happens to be
+        # installed ──────────────────────────────────────────────────────────
+        # This used to prefer gRPC whenever the gRPC package imported, whatever
+        # the endpoint said. Production had
+        # OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 — Jaeger's OTLP *HTTP*
+        # port — so the gRPC exporter spoke HTTP/2 at an HTTP/1.1 server and
+        # every export failed:
+        #
+        #   StatusCode.UNAVAILABLE ... Failed parsing HTTP/2 (Expected SETTINGS
+        #   frame as the first frame, got frame type 80) (Trying to connect an
+        #   http1.x server (HTTP status 400))
+        #
+        # Nothing surfaced it. `force_flush()` returned True on that path, the
+        # BatchSpanProcessor swallowed the failures, and the startup line still
+        # read "using gRPC exporter". Tracing reported healthy and delivered
+        # nothing.
+        #
+        # 4318 is the OTLP/HTTP port by convention and 4317 is OTLP/gRPC. Honour
+        # that rather than guessing, and say plainly which one was chosen.
+        _port = urlparse(_ENDPOINT).port
+        _want_http = _port == 4318
+        exporter: Any
         try:
+            if _want_http:
+                raise ImportError("endpoint is an OTLP/HTTP port")
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
                 OTLPSpanExporter as GrpcExporter,
             )
-            exporter: Any = GrpcExporter(endpoint=_ENDPOINT, insecure=True)
+            exporter = GrpcExporter(endpoint=_ENDPOINT, insecure=True)
             log.info("OTel: using gRPC exporter → %s", _ENDPOINT)
-        except ImportError:
+        except ImportError as _why:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
                 OTLPSpanExporter as HttpExporter,
             )
             exporter = HttpExporter(endpoint=f"{_ENDPOINT}/v1/traces")
-            log.info("OTel: grpc exporter not available; using HTTP → %s/v1/traces", _ENDPOINT)
+            log.info("OTel: using HTTP exporter → %s/v1/traces (%s)", _ENDPOINT, _why)
 
         resource = Resource.create({SERVICE_NAME: _SERVICE_NAME})
         sampler  = TraceIdRatioBased(_SAMPLE_RATE)
@@ -126,6 +150,36 @@ def setup_telemetry(app: Any = None) -> None:
                 app,
                 excluded_urls="/health,/metrics",   # skip high-frequency probes
             )
+            # ── The instrumentation only lands on the *next* stack build ──────
+            # instrument_app does not insert middleware. It replaces
+            # app.build_middleware_stack with a wrapper that will add the OTel
+            # middleware the next time the stack is built:
+            #
+            #   app._original_build_middleware_stack = app.build_middleware_stack
+            #   app.build_middleware_stack = types.MethodType(...)
+            #
+            # We are called from lifespan(), and Starlette builds the stack once,
+            # before lifespan startup runs. So the wrapper was installed after the
+            # only build that would ever happen, and the live stack never carried
+            # the middleware. Nothing raised — the startup line logged success —
+            # and Jaeger held zero HTTP spans.
+            #
+            # Measured on production 2026-08-24 with sampling at 100 %: 250
+            # requests through /filter produced 23 operations and not one of them
+            # was a request. Stage spans (`ml_inference`, `data_poison`, …) still
+            # arrived, but as orphan roots — one span per trace — so there was no
+            # request timeline to read a latency tail from.
+            #
+            # Rebuilding picks up the wrapper. Safe here: startup has not
+            # completed, so no request is in flight, and Starlette re-reads
+            # self.middleware_stack on every call.
+            if getattr(app, "middleware_stack", None) is not None:
+                app.middleware_stack = app.build_middleware_stack()
+                log.info("OTel: middleware stack rebuilt — request spans active")
+            else:
+                # Called before the first build (an app factory, say). The
+                # wrapper will run on its own.
+                log.info("OTel: instrumented before first stack build")
 
         _initialized = True
         log.info(
