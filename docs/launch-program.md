@@ -106,7 +106,7 @@ measured in cents.
 
 | Workstream | Detail |
 |---|---|
-| Mainnet settlement | Base mainnet + USDC are registered (2026-08-19) with the token address verified on-chain. **The phase is larger than this row assumed.** `warden/web3/smart_contract.py` is a stub — `deploy_escrow()` returns a simulated address on live nodes too and `call_escrow()` returns True without touching a contract — so no RPC endpoint or funded wallet makes settlement real on its own. Wiring `Escrow.sol` (ABI, bytecode, a signer, a deployed address per chain) is the work; the RPC and the wallet are inputs to it, not substitutes for it. |
+| Mainnet settlement | Integration wired 2026-08-24: `call_escrow()` builds, signs and sends a real transaction and returns the receipt status, **failing closed** — the stub returned True on every error, so a release that never reached the chain looked like one that did. `settlement_capability(chain)` derives the answer from ABI + deployed address + signer, per chain, and names which piece is missing. What remains is operational, and yours: deploy the escrow contract on Base, set `ESCROW_ABI_PATH`, `ESCROW_CONTRACT_BASE`, `WEB3_SIGNER_KEY`, fund the signer. `settlement_mode` reads `onchain` when all of it is true and not before. |
 | Flip `AUTHORIZE_PAYMENT_ENFORCED` | Prerequisite shipped: `kya.screen_agent()` grants a default L2 policy on VERIFIED, so the flag is no longer a kill switch. Stage it. |
 | Per-trade value cap | Cap the first 90 days. Clearing once settled every trade at $0.00 with tests that agreed; assume that bug class is still latent and reconcile by hand initially. |
 

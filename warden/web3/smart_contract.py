@@ -10,11 +10,18 @@ no RPC URL is set for the target chain, keeping all tests green.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
+import os
+from functools import lru_cache
 
+from warden.observability import Reason, record_failopen
 from warden.web3.chains import DEFAULT_CHAIN, get_chain
 
 log = logging.getLogger("warden.web3.smart_contract")
+
+#: Seconds to wait for a receipt before calling the transaction failed.
+_TX_TIMEOUT_S = int(os.getenv("ESCROW_TX_TIMEOUT_S", "180"))
 
 
 def _sim_address(buyer: str, seller: str, listing_id: str, nonce: str, chain: str) -> str:
@@ -23,38 +30,70 @@ def _sim_address(buyer: str, seller: str, listing_id: str, nonce: str, chain: st
     return "0x" + hashlib.sha256(raw).hexdigest()[:40]
 
 
-#: Whether this build can execute a real escrow transaction.
+#: Config that turns simulation into settlement. All three are required, per
+#: chain, because each answers a different question: the ABI says what the
+#: contract exposes, the address says which deployed instance we mean, and the
+#: signer says who pays for and authorises the transaction. Two out of three
+#: cannot move value, so two out of three must not report that it can.
 #:
-#: `deploy_escrow` sets `real_address = None` unconditionally and `call_escrow`
-#: returns True without touching a contract — both carry a comment saying the
-#: ABI is not wired yet. So no deployment of this code settles on-chain,
-#: whatever RPC it is pointed at, and anything derived from "an RPC is
-#: configured" is measuring the wrong thing.
-#:
-#: Wiring the ABI and bytecode is what flips this, and it must flip HERE, next
-#: to the stubs, so the claim and the capability cannot drift apart again.
-_ESCROW_ABI_WIRED = False
+#:   ESCROW_ABI_PATH        JSON ABI of the deployed escrow contract
+#:   ESCROW_CONTRACT_<CHAIN>  e.g. ESCROW_CONTRACT_BASE=0x…
+#:   WEB3_SIGNER_KEY        hex private key that signs escrow calls
+_ABI_PATH_VAR = "ESCROW_ABI_PATH"
+_SIGNER_VAR = "WEB3_SIGNER_KEY"
 
 
-def settlement_capability() -> dict:
-    """Can this build move value on-chain, and if not, why not.
+def _contract_address(chain: str) -> str:
+    return os.getenv(f"ESCROW_CONTRACT_{chain.upper()}", "").strip()
+
+
+@lru_cache(maxsize=4)
+def _load_abi(path: str) -> list | None:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            abi = json.load(fh)
+        return abi if isinstance(abi, list) else abi.get("abi")
+    except Exception as exc:
+        log.error("escrow ABI at %s could not be loaded: %s", _ABI_PATH_VAR, exc)
+        return None
+
+
+def settlement_capability(chain: str = DEFAULT_CHAIN) -> dict:
+    """Can this deployment move value on `chain`, and if not, exactly why.
 
     Read by the marketplace manifest so `settlement_mode` describes what the
     software can do rather than what its configuration suggests. Production
     advertised `onchain` for a week on the strength of `BASE_RPC_URL` defaulting
-    to the public Base endpoint — a URL that is always present, attached to a
-    contract path that always simulates.
+    to the public Base endpoint — a URL that is always present, in front of a
+    contract path that always simulated.
+
+    The reason string is part of the answer. "Cannot settle" with no cause is how
+    an operator ends up believing it is a network blip.
     """
-    if not _ESCROW_ABI_WIRED:
-        return {
-            "can_settle": False,
-            "reason": "escrow_abi_not_wired",
-            "detail": (
-                "deploy_escrow() and call_escrow() are stubs: no contract is "
-                "deployed and no transaction is signed, on any chain."
-            ),
-        }
-    return {"can_settle": True, "reason": "", "detail": ""}
+    def _no(reason: str, detail: str) -> dict:
+        return {"can_settle": False, "reason": reason, "detail": detail, "chain": chain}
+
+    try:
+        import web3  # noqa: F401,PLC0415
+    except Exception:
+        return _no("web3_not_installed", "the web3 package is not available in this image")
+
+    if not get_chain(chain).get("rpc_url"):
+        return _no("no_rpc", f"no RPC endpoint configured for {chain}")
+
+    abi_path = os.getenv(_ABI_PATH_VAR, "").strip()
+    if not abi_path:
+        return _no("abi_not_configured", f"{_ABI_PATH_VAR} is unset")
+    if _load_abi(abi_path) is None:
+        return _no("abi_unreadable", f"{_ABI_PATH_VAR} points at something unusable")
+
+    if not _contract_address(chain):
+        return _no("no_contract", f"ESCROW_CONTRACT_{chain.upper()} is unset — "
+                                  "nothing is deployed on this chain")
+    if not os.getenv(_SIGNER_VAR, "").strip():
+        return _no("no_signer", f"{_SIGNER_VAR} is unset — no key to sign with")
+
+    return {"can_settle": True, "reason": "", "detail": "", "chain": chain}
 
 
 def deploy_escrow(
@@ -64,38 +103,23 @@ def deploy_escrow(
     nonce: str,
     chain: str = DEFAULT_CHAIN,
 ) -> str:
+    """Return the escrow contract address for this trade, as `<address>:<chain>`.
+
+    When settlement is configured, that is the deployed contract named by
+    `ESCROW_CONTRACT_<CHAIN>` — one audited instance per chain, not a fresh
+    deployment per trade. Deploying per trade needs bytecode in the image and
+    costs gas for every listing bought; a singleton escrow holding per-trade
+    state is the ordinary shape and the one the operator can actually verify on
+    a block explorer.
+
+    Otherwise the deterministic simulated address, as before. It is derived from
+    the trade so it is stable across retries, and it is not a real address —
+    which is why `settlement_capability()` exists rather than callers guessing
+    from the string.
     """
-    Deploy (or simulate) an Escrow contract on the specified chain.
-
-    Returns a contract address string:
-      - Real address when Web3 + RPC are available.
-      - Simulated deterministic address otherwise (fail-open).
-
-    The returned value embeds the chain as a suffix:
-        <0x_address>:<chain>
-    so callers can always recover which network the contract lives on.
-    """
-    cfg = get_chain(chain)
-    rpc_url = cfg["rpc_url"]
-
-    real_address: str | None = None
-    if rpc_url:
-        try:
-            from web3 import Web3  # noqa: PLC0415
-            w3 = Web3(Web3.HTTPProvider(rpc_url))
-            if w3.is_connected():
-                # Full deploy path — requires ABI + bytecode in prod.
-                # Here we use the existing ChainConnector for the actual call
-                # and just supply the chain-specific w3 instance.
-                log.info("deploy_escrow: connected to %s (chain_id=%s)", chain, cfg["chain_id"])
-                # For now simulate on live nodes too until Escrow.sol ABI is wired in.
-                # Production: pass ABI/bytecode via env var / file.
-                real_address = None
-        except Exception as exc:
-            log.debug("deploy_escrow Web3 error on %s: %s", chain, exc)
-
-    address = real_address or _sim_address(buyer, seller, listing_id, nonce, chain)
-    return f"{address}:{chain}"
+    if settlement_capability(chain)["can_settle"]:
+        return f"{_contract_address(chain)}:{chain}"
+    return f"{_sim_address(buyer, seller, listing_id, nonce, chain)}:{chain}"
 
 
 def strip_chain_suffix(contract_address: str) -> tuple[str, str]:
@@ -112,23 +136,57 @@ def call_escrow(
     params: dict,
     chain: str = DEFAULT_CHAIN,
 ) -> bool:
-    """
-    Call a function on an Escrow contract.  Fail-open (returns True) when
-    Web3 is not installed or the chain has no RPC configured.
-    """
-    cfg = get_chain(chain)
-    rpc_url = cfg["rpc_url"]
-    if not rpc_url:
-        return True  # simulation mode
+    """Call a function on the escrow contract. Returns whether it took effect.
 
+    Two modes, and the difference is the whole point of this module:
+
+    * **Simulated** — settlement is not configured for this chain. Returns True
+      as it always has, because the caller's state machine is the only thing
+      running and refusing here would break a flow that never claimed to move
+      money. `settlement_capability()` is what tells anyone that.
+    * **Real** — ABI, address and signer are present. The transaction is built,
+      signed and sent, and this returns whether the receipt says it succeeded.
+      **Fail-CLOSED**: a revert, a timeout or an unreachable node returns False.
+      The stub returned True on every error, which meant an escrow release that
+      never happened was indistinguishable from one that did — the failure mode
+      that turns a marketplace into a way to lose other people's money.
+    """
+    cap = settlement_capability(chain)
+    if not cap["can_settle"]:
+        log.debug("call_escrow %s simulated on %s (%s)", fn_name, chain, cap["reason"])
+        return True
+
+    address, _ = strip_chain_suffix(contract_address or _contract_address(chain))
     try:
         from web3 import Web3  # noqa: PLC0415
-        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        w3 = Web3(Web3.HTTPProvider(get_chain(chain)["rpc_url"]))
         if not w3.is_connected():
-            return True
-        log.debug("call_escrow %s on %s", fn_name, chain)
-        # Real ABI call would go here; stub returns True until ABI is wired.
-        return True
+            log.error("call_escrow %s: %s RPC unreachable — treating as FAILED", fn_name, chain)
+            return False
+
+        abi = _load_abi(os.getenv(_ABI_PATH_VAR, "").strip())
+        contract = w3.eth.contract(address=Web3.to_checksum_address(address), abi=abi)
+        account = w3.eth.account.from_key(os.getenv(_SIGNER_VAR, "").strip())
+
+        fn = getattr(contract.functions, fn_name)(**params)
+        tx = fn.build_transaction({
+            "from": account.address,
+            "nonce": w3.eth.get_transaction_count(account.address),
+            "chainId": get_chain(chain)["chain_id"],
+        })
+        signed = account.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=_TX_TIMEOUT_S)
+
+        ok = int(receipt.get("status", 0)) == 1
+        log.info(
+            "call_escrow %s on %s tx=%s status=%s",
+            fn_name, chain, tx_hash.hex()[:18], "success" if ok else "REVERTED",
+        )
+        return ok
     except Exception as exc:
-        log.debug("call_escrow %s error: %s", fn_name, exc)
-        return True
+        # Fail-CLOSED on the real path. The caller must be able to tell "the
+        # chain accepted this" from "something went wrong on the way there".
+        log.error("call_escrow %s on %s FAILED: %s", fn_name, chain, exc)
+        record_failopen("escrow_call", Reason.BACKEND_ERROR, exc)
+        return False
