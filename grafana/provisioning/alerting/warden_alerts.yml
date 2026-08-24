@@ -1540,8 +1540,26 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # max_over_time, not the bare gauge.
+              #
+              # warden_arq_job_last_success_timestamp is an in-process
+              # prometheus_client Gauge. It is unset until the job next
+              # succeeds, so it vanishes from the instant query every time the
+              # arq-worker container is recreated — which every deploy does. The
+              # samples are not lost, they are in the TSDB; only the *instant*
+              # read of them disappears. Looking back over a window recovers the
+              # real answer across restarts.
+              #
+              # Measured on production 2026-08-24 at one instant, both queries:
+              #   time() - max(...)                   -> NoData
+              #   time() - max(max_over_time(...30h)) -> 13.3h  (matches the
+              #                                          03:30 snapshot in MinIO)
+              #
+              # The window must exceed the 26h threshold, or a genuinely stale
+              # backup falls out of the lookback and reads as NoData instead of
+              # as a large age.
               expr: >
-                time() - max(warden_arq_job_last_success_timestamp{task="sova_nightly_backup"})
+                time() - max(max_over_time(warden_arq_job_last_success_timestamp{task="sova_nightly_backup"}[30h]))
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -1554,12 +1572,24 @@ groups:
             model:
               type: math
               expression: "$A > 93600"
-        # NoData here means the gauge has not been set since the last worker
-        # restart, not that the backup failed — prometheus_client gauges start
-        # unset and there is no cross-restart persistence. Worker liveness is
-        # covered by warden-arq-worker-down above; treating NoData as Alerting
-        # would page on every deploy that happens outside the 03:30 window.
-        noDataState: OK
+        # Alerting, now that the query looks back over a window.
+        #
+        # This was OK, and correctly so while the expression read the bare
+        # gauge: NoData then meant "the worker restarted since the last
+        # success", which is routine. But it also meant the only condition this
+        # rule exists to detect was indistinguishable from that routine case —
+        # on any day the worker restarted after 03:30, a backup that never ran
+        # produced NoData and was silently reported healthy. Deploys recreate
+        # that container, so that was most days.
+        #
+        # With max_over_time the gauge's absence no longer produces NoData.
+        # NoData now means something specific and bad: no successful backup
+        # recorded anywhere in the last 30 hours. That is exactly the alert.
+        #
+        # Cost of the change: a Prometheus with no history — a fresh volume, or
+        # a retention wipe — pages once until the next 03:30 run. That is a fair
+        # trade for a rule that can otherwise never fire.
+        noDataState: Alerting
         execErrState: Alerting
         for: 10m
         labels:
