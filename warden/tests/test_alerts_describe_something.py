@@ -27,6 +27,7 @@ wearing opposite masks, and the same rule file held both.
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -160,6 +161,40 @@ def test_the_backup_alert_can_still_fail(rules: list[dict]) -> None:
         "The backup alert is back on noDataState: OK. With max_over_time, NoData "
         "no longer means 'the worker restarted' — it means no successful backup "
         "in the whole lookback, which is precisely what must page."
+    )
+
+
+def test_alert_dashboard_links_resolve() -> None:
+    """Every /d/<uid> in an alert annotation must be a dashboard that exists.
+
+    A uid is a URL. Six alerts pointed at `/d/warden-overview`; the provisioned
+    dashboard's uid is `shadow-warden-overview`, so following the link from any
+    of them landed on "Dashboard not found" — at exactly the moment the link is
+    for. Grafana does not validate annotation text, and a dashboard rename is
+    invisible to the rules that reference it.
+    """
+    import glob
+
+    dash_dir = _ROOT / "grafana" / "dashboards"
+    if not _ALERTS.exists() or not dash_dir.is_dir():
+        pytest.skip("grafana provisioning not present in this checkout")
+
+    uids = set()
+    for path in glob.glob(str(dash_dir / "*.json")):
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        if doc.get("uid"):
+            uids.add(doc["uid"])
+    assert uids, "no provisioned dashboards found — this guard would check nothing"
+
+    linked = set(re.findall(r"/d/([a-zA-Z0-9_-]+)", _ALERTS.read_text(encoding="utf-8")))
+    assert linked, "no dashboard links found in the alert rules — check the regex"
+
+    broken = sorted(linked - uids)
+    assert not broken, (
+        "Alert annotations link to dashboards that do not exist: "
+        + ", ".join(broken)
+        + f". Provisioned uids are: {sorted(uids)}. An operator following the "
+        "link from a firing alert gets 'Dashboard not found'."
     )
 
 
