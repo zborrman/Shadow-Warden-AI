@@ -34,6 +34,14 @@ def test_last_bucket_is_positive_infinity() -> None:
 
 
 def test_edges_are_sorted_and_unique() -> None:
+    # Assert finiteness *before* filtering on it. Every other check in this file
+    # derives its working list with `if math.isfinite(b)`, so a stray -inf in a
+    # non-terminal slot is silently dropped by all of them and the malformed
+    # tuple passes the whole suite. This is the one place that looks at the
+    # values the others discard.
+    assert all(math.isfinite(b) for b in _LATENCY_BUCKETS[:-1]), (
+        f"every bucket edge before the terminal +Inf must be finite: {_LATENCY_BUCKETS}"
+    )
     finite = [b for b in _LATENCY_BUCKETS if math.isfinite(b)]
     assert finite == sorted(set(finite)), f"bucket edges must ascend uniquely: {finite}"
 
