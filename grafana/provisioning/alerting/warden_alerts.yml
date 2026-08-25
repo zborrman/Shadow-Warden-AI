@@ -1239,6 +1239,66 @@ groups:
             stage/reason in Prometheus. Common causes: Redis down (redis_unavailable),
             model not loaded (model_not_loaded), upstream timeout.
 
+      # ── Detached background task failed ──────────────────────────────────────
+      # process_blocked / alert_block_event / alert_push_verdict / the Telegram
+      # block alert were moved off the request path (they were costing every
+      # blocked request ~2s, because BaseHTTPMiddleware makes add_task run
+      # inline). Detaching removes the caller that would have seen an exception,
+      # so this rule is that caller.
+      #
+      # increase(), not the raw counter: a Counter that has never been
+      # incremented still exports nothing, and a rule written against the bare
+      # value would either sit at 0 forever or read NoData forever. Neither is a
+      # signal. Firing on an actual increase is.
+      #
+      # noDataState OK is correct *here* and not a copy of the backup rule's
+      # Alerting: no series means the counter was never touched, which means no
+      # task has failed. Absence is the healthy case, not the alarming one.
+      - uid: warden-background-task-failing
+        title: "Warden — Detached background task failing"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: >
+                sum(increase(warden_background_task_failures_total[15m]))
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 900
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        noDataState: OK
+        execErrState: Alerting
+        for: 0m
+        labels:
+          severity: warning
+          team: warden
+        annotations:
+          summary: "A detached background task raised — rule learning or alerting is silently degraded"
+          description: >
+            warden_background_task_failures_total increased in the last 15
+            minutes. These tasks run detached from the request (see
+            warden/background.py), so nothing awaits them and a failure has no
+            caller to surface it — this alert is the replacement for that caller.
+            Break down by the `task` label. process_blocked failing means the
+            Evolution Engine is not learning from blocked attacks;
+            alert_block_event or the push/Telegram alerts failing means block
+            notifications are not reaching anyone. Neither degrades detection
+            itself, which is why this is warning and not critical.
+            Dashboard: http://localhost:3000/d/shadow-warden-overview
+
       # ── R3: Pipeline-timeout bypass (whole request skipped security filtering) ──
       # Distinct from the per-stage fail-open above: this fires when the ENTIRE
       # pipeline timed out (PIPELINE_TIMEOUT_MS) and WARDEN_FAIL_STRATEGY=open let

@@ -36,6 +36,23 @@ try:
             "warden_tool_blocks_total"
         ))
 
+    # ── Detached background task failures ────────────────────────────────────
+    # Incremented by warden/background.py when a spawn()ed task raises.
+    #
+    # Moving work off the request path trades a latency problem for a silence
+    # problem: nobody is awaiting the result, so a failure has no caller to
+    # surface it. This counter is the replacement for that caller.
+    try:
+        BACKGROUND_TASK_FAILURES = Counter(
+            "warden_background_task_failures_total",
+            "Detached background tasks that terminated with an exception",
+            ["task"],
+        )
+    except ValueError:
+        BACKGROUND_TASK_FAILURES = cast(Counter, REGISTRY._names_to_collectors.get(
+            "warden_background_task_failures_total"
+        ))
+
     # ── Sandbox capability violations ────────────────────────────────────────
     # Incremented by ToolCallGuard when SandboxRegistry denies a tool call.
     #
@@ -931,6 +948,11 @@ except ImportError:
             pass
 
     SANDBOX_VIOLATIONS_TOTAL        = _Noop()  # type: ignore[assignment]
+    # cast rather than a suppression comment: the ratchet counts every one in
+    # the tree by literal string match, and this one is avoidable. cast()
+    # does not evaluate its first argument, so naming Counter here is safe
+    # even though the import above is what failed.
+    BACKGROUND_TASK_FAILURES        = cast("Counter", _Noop())
     AGENT_SESSIONS_REVOKED_TOTAL    = _Noop()  # type: ignore[assignment]
     TOOL_BLOCKS                 = _Noop()  # type: ignore[assignment]
     AGENT_SESSIONS_ACTIVE       = _Noop()  # type: ignore[assignment]
