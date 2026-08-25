@@ -58,6 +58,16 @@ FUND_WEI_DEFAULT = 300_000_000_000_000  # 0.0003 ETH
 #: EIP-170.
 MAX_CODE_SIZE = 24_576
 
+#: Where testnet ETH comes from, per chain. Several well-known faucets require a
+#: balance on Ethereum *mainnet* before they will dispense play money, and one is
+#: unavailable in whole countries; the proof-of-work faucet asks for neither an
+#: account nor a prior balance, which is why it is named first for Sepolia.
+FAUCETS = {
+    "sepolia": "https://sepolia-faucet.pk910.de (proof-of-work, no account)",
+    "base_sepolia": "https://portal.cdp.coinbase.com/products/faucet "
+                    "(unavailable in some countries), or bridge from Sepolia",
+}
+
 
 def _fail(msg: str) -> None:
     print("\n  FAILED: " + msg)
@@ -174,7 +184,8 @@ def cmd_check(w3, meta, args) -> None:
 
     if not _signer_key():
         print("\n  WEB3_SIGNER_KEY is unset, so nothing further can be checked.")
-        print("  Fund a throwaway key: https://www.alchemy.com/faucets/base-sepolia")
+        hint = FAUCETS.get(args.chain, "a faucet for this chain")
+        print("  Fund a throwaway key: " + hint)
         return
 
     acct = _signer(w3)
