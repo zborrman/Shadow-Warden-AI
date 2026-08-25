@@ -63,10 +63,23 @@ def test_the_solidity_source_defines_what_the_abi_claims() -> None:
     )
 
 
-def test_the_abi_is_marked_unverified_until_compiled() -> None:
-    """A hand-written ABI must say so, in the file, where it is read."""
+def test_the_contract_states_its_status() -> None:
+    """An unaudited escrow that reads as finished is how the money gets lost."""
     src = _SOL.read_text(encoding="utf-8")
-    assert "NOT COMPILED" in src and "NOT AUDITED" in src, (
-        "the contract must state its status; an unaudited escrow that reads as "
-        "finished is how the money gets lost"
+    assert "NOT AUDITED" in src and "NOT DEPLOYED" in src, (
+        "the contract must keep saying what it has not had"
     )
+
+
+def test_the_abi_can_decode_this_contract_reverts() -> None:
+    """Custom errors must be in the ABI or every revert is opaque.
+
+    The hand-written ABI omitted all six. Nothing in it was wrong — no phantom
+    function to revert on — but a failed `confirmReceipt` would have surfaced as
+    an unnamed execution error instead of `WrongState(2)`, and the operator
+    reading it has money sitting in a contract.
+    """
+    declared = {e["name"] for e in _abi() if e.get("type") == "error"}
+    expected = {"NotArbiter", "NotBuyer", "WrongState", "TradeExists",
+                "TransferFailed", "DeadlineNotReached"}
+    assert expected <= declared, f"missing from the ABI: {sorted(expected - declared)}"

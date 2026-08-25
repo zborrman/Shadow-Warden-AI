@@ -11,13 +11,15 @@ pragma solidity ^0.8.24;
 ///         from the caller rather than invented, so nothing has to be renamed on
 ///         either side to make them meet.
 ///
-/// @dev NOT COMPILED, NOT AUDITED, NOT DEPLOYED. This is a draft for review.
-///      `scripts/build_escrow.sh` produces the ABI and bytecode via solc in
-///      Docker; `contracts/escrow.abi.json` is hand-written to match this source
-///      and is verified against it by `test_escrow_abi_matches_callers`. Neither
-///      that test nor this comment is a substitute for an audit: real money on a
-///      mainnet contract is exactly the thing this repository has spent weeks
-///      refusing to claim before it is true.
+/// @dev COMPILED, NOT AUDITED, NOT DEPLOYED.
+///      solc 0.8.24, --optimize --optimize-runs 200, via `scripts/build_escrow.sh`.
+///      Artefacts: `contracts/escrow.abi.json`, `contracts/escrow.bin`
+///      (sha256 4e7b3b0088bb6d82102467d36ac97923…).
+///      Rebuild and diff before trusting either. Compilation proves the source is
+///      well-formed and nothing else — not that the logic is right, not that the
+///      funds are safe. An audit is a separate thing this has not had, and real
+///      money on a mainnet contract is exactly what this repository has spent
+///      weeks refusing to claim before it is true.
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function transfer(address to, uint256 amount) external returns (bool);
