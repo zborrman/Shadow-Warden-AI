@@ -23,7 +23,7 @@ const STATS = [
 const FEATURES = [
   { icon: ShieldCheck, text: '9-layer AI security pipeline' },
   { icon: Zap,         text: 'Real-time jailbreak detection' },
-  { icon: Lock,        text: 'Post-Quantum Cryptography (v6.8)' },
+  { icon: Lock,        text: 'Post-Quantum Cryptography' },
 ]
 
 export default function LoginPage() {
@@ -79,7 +79,7 @@ export default function LoginPage() {
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest mb-4"
                  style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)' }}>
-              ◇ VERSION 5.2 — LATEST
+              ◇ VERSION 7.9 — LATEST
             </div>
             <h2 className="text-[28px] font-black leading-tight text-white mb-3">
               Your AI<br />
@@ -212,7 +212,7 @@ export default function LoginPage() {
           </p>
 
           <p className="text-center text-[10px] mt-8" style={{ color: '#1e293b' }}>
-            Shadow Warden AI v6.8 · GDPR compliant · All systems operational
+            Shadow Warden AI v7.9 · GDPR compliant · All systems operational
           </p>
         </div>
       </div>

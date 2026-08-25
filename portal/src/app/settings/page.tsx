@@ -456,22 +456,35 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 function InstallSection() {
+  // Mirrors docker-compose.yml default profile (22 services). node-exporter and
+  // cadvisor sit behind `--profile monitoring` and are listed separately below.
   const services = [
-    { name: 'proxy',      port: '80/443',   desc: 'Caddy v2 — TLS, QUIC/H3, HSTS, hostname routing' },
-    { name: 'warden',     port: '8001',     desc: 'FastAPI gateway — /filter, agents, all API routes' },
-    { name: 'app',        port: '8000',     desc: 'Application server' },
-    { name: 'analytics',  port: '8002',     desc: 'Streamlit — Settings, Enterprise, Community, Secrets' },
-    { name: 'dashboard',  port: '8501',     desc: 'Streamlit security dashboard' },
-    { name: 'postgres',   port: '5432',     desc: 'TimescaleDB — probe hypertable, 30-day retention' },
-    { name: 'redis',      port: '6379',     desc: 'Cache, ERS, SOVA memory, rate-limit' },
-    { name: 'prometheus', port: '9090',     desc: 'Metrics scrape' },
-    { name: 'grafana',    port: '3000',     desc: 'SLO alerts + dashboards' },
-    { name: 'minio',      port: '9000/9001',desc: 'On-prem S3 — Evidence Vault + screencasts' },
-    { name: 'minio-init', port: '—',        desc: 'Bucket bootstrap sidecar (exits after init)' },
+    { name: 'proxy',        port: '80/443',    desc: 'Caddy v2 — TLS, QUIC/H3, HSTS, hostname routing' },
+    { name: 'warden',       port: '8001',      desc: 'FastAPI gateway — /filter, agents, all API routes' },
+    { name: 'arq-worker',   port: '—',         desc: 'ARQ worker — SOVA cron jobs, Evolution, healer' },
+    { name: 'portal',       port: '3001',      desc: 'Next.js tenant portal (this app)' },
+    { name: 'dashboard',    port: '3002',      desc: 'Next.js SOC dashboard' },
+    { name: 'analytics',    port: '8002',      desc: 'Streamlit — analytics and enterprise consoles' },
+    { name: 'admin',        port: '8502',      desc: 'Streamlit admin console' },
+    { name: 'postgres',     port: '5432',      desc: 'TimescaleDB — probe hypertable, retention policies' },
+    { name: 'redis',        port: '6379',      desc: 'Cache, ERS, SOVA memory, rate-limit' },
+    { name: 'clickhouse',   port: '8123',      desc: 'Columnar store for GSAM telemetry' },
+    { name: 'minio',        port: '9000/9091', desc: 'On-prem S3 — Evidence Vault + screencasts' },
+    { name: 'minio-init',   port: '—',         desc: 'Bucket bootstrap sidecar (exits after init)' },
+    { name: 'prometheus',   port: '9090',      desc: 'Metrics scrape' },
+    { name: 'grafana',      port: '3000',      desc: 'SLO alerts + dashboards' },
+    { name: 'loki',         port: '3100',      desc: 'Log aggregation' },
+    { name: 'promtail',     port: '—',         desc: 'Ships container logs to Loki' },
+    { name: 'jaeger',       port: '16686',     desc: 'Trace UI — OTel spans' },
+    { name: 'otel-collector', port: '4317',    desc: 'OTLP gRPC collector — traces to Jaeger' },
+    { name: 'redis-exporter',    port: '9121', desc: 'Redis metrics for Prometheus' },
+    { name: 'postgres-exporter', port: '9187', desc: 'Postgres metrics for Prometheus' },
+    { name: 'autoheal',     port: '—',         desc: 'Restarts containers that fail their healthcheck' },
+    { name: 'cloudflared',  port: '—',         desc: 'Cloudflare Tunnel — public ingress' },
   ]
 
   return (
-    <Section title="Install / Uninstall" description="Shadow Warden AI v6.8 — Docker Compose, 11 services, single command" icon={Package}>
+    <Section title="Install / Uninstall" description={`Shadow Warden AI v7.9 — Docker Compose, ${services.length} services, single command`} icon={Package}>
       <div className="space-y-5 max-w-xl">
 
         {/* Quick Start */}
@@ -486,7 +499,7 @@ cp .env.example .env
 # Edit: SECRET_KEY  WARDEN_API_KEY  POSTGRES_PASS
 # Optional: ANTHROPIC_API_KEY  SLACK_WEBHOOK_URL
 
-# 3. Start all 11 services
+# 3. Start all ${services.length} services
 docker compose up --build -d
 
 # 4. Verify
@@ -504,7 +517,7 @@ python scripts/warden_doctor.py \\
 
         {/* Services */}
         <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Services (11)</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Services ({services.length})</p>
           <div className="rounded-xl border border-white/[0.06] overflow-hidden text-xs">
             {services.map((s, i) => (
               <div key={s.name} className={`flex items-start gap-3 px-4 py-2.5 ${i < services.length - 1 ? 'border-b border-white/[0.04]' : ''}`}>
@@ -514,6 +527,9 @@ python scripts/warden_doctor.py \\
               </div>
             ))}
           </div>
+          <p className="text-xs text-slate-500 mt-2">
+            <span className="font-mono text-slate-400">node-exporter</span> and <span className="font-mono text-slate-400">cadvisor</span> are opt-in: <span className="font-mono text-slate-400">docker compose --profile monitoring up -d</span>.
+          </p>
         </div>
 
         {/* Update */}
