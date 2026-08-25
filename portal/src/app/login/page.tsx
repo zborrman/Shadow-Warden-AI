@@ -23,7 +23,7 @@ const STATS = [
 const FEATURES = [
   { icon: ShieldCheck, text: '9-layer AI security pipeline' },
   { icon: Zap,         text: 'Real-time jailbreak detection' },
-  { icon: Lock,        text: 'Post-Quantum Cryptography (v6.8)' },
+  { icon: Lock,        text: 'Post-Quantum Cryptography' },
 ]
 
 export default function LoginPage() {
