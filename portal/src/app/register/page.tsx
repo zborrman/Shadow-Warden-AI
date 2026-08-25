@@ -84,7 +84,7 @@ export default function RegisterPage() {
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest mb-4"
                  style={{ color: '#818cf8', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)' }}>
-              ◇ VERSION 5.2 — LATEST RELEASE
+              ◇ VERSION 7.9 — LATEST RELEASE
             </div>
             <h2 className="text-[28px] font-black leading-tight text-white mb-3">
               Protect your AI<br />
@@ -248,7 +248,7 @@ export default function RegisterPage() {
           </p>
 
           <p className="text-center text-[10px] mt-8" style={{ color: '#1e293b' }}>
-            Shadow Warden AI v6.8 · All systems operational
+            Shadow Warden AI v7.9 · All systems operational
           </p>
         </div>
       </div>

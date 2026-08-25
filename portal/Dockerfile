@@ -22,9 +22,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# Copy standalone bundle + static assets
+# Copy standalone bundle + static assets.
+# `output: 'standalone'` does NOT bundle .next/static or public/ — both must be
+# copied explicitly or every /logo.png, /favicon.ico, ... 404s at runtime.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 EXPOSE 3001
 
