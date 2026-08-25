@@ -86,6 +86,7 @@ from warden.auth_guard import (
     require_ext_auth,
     set_default_rate_limit,
 )
+from warden.background import spawn
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
 from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
@@ -2699,7 +2700,14 @@ async def _run_filter_pipeline(
         and background_tasks is not None
         and _RISK_ORDER.index(guard_result.risk_level) >= _RISK_ORDER.index(RiskLevel.HIGH)
     ):
-        background_tasks.add_task(
+        # ── spawn(), not add_task() ───────────────────────────────────────
+        # This app has five BaseHTTPMiddleware instances in its stack, and
+        # BaseHTTPMiddleware awaits the inner call — background tasks included —
+        # before releasing the response. So add_task() here was not backgrounded:
+        # every HIGH/BLOCK request waited for the Evolution Engine and the
+        # outbound alerts. Traced on production, a blocked request finished the
+        # filter at +77ms and sent its response at +1728ms. See warden/background.py.
+        spawn(
             _evolve.process_blocked,
             content    = payload.content,
             flags      = guard_result.flags,
@@ -2726,7 +2734,7 @@ async def _run_filter_pipeline(
         top_flag = guard_result.top_flag
         try:
             from warden.alerting import alert_block_event
-            background_tasks.add_task(
+            spawn(
                 alert_block_event,
                 attack_type  = top_flag.flag.value if top_flag else "unknown",
                 risk_level   = guard_result.risk_level.value,
@@ -2738,7 +2746,7 @@ async def _run_filter_pipeline(
         # Mobile SOC push notifications (MO-01)
         try:
             from warden.alerting import alert_push_verdict
-            background_tasks.add_task(
+            spawn(
                 alert_push_verdict,
                 tenant_id    = tenant_id,
                 risk_level   = guard_result.risk_level.value,
@@ -2750,7 +2758,7 @@ async def _run_filter_pipeline(
             pass
         # Telegram channel (per-tenant chat_id from onboarding)
         tg_chat = _onboarding.get_telegram_chat_id(tenant_id) if _onboarding else None
-        background_tasks.add_task(
+        spawn(
             _tg_block_alert,
             tenant_id      = tenant_id,
             risk_level     = guard_result.risk_level.value,
