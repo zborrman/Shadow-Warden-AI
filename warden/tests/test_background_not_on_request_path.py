@@ -162,3 +162,48 @@ def test_the_slow_block_path_tasks_do_not_use_add_task() -> None:
         "Under BaseHTTPMiddleware that runs on the request path — use "
         "warden.background.spawn() instead."
     )
+
+
+@pytest.mark.asyncio
+async def test_spawned_work_is_traced() -> None:
+    """Detaching must not make the work invisible.
+
+    The first deploy of spawn() removed these calls from the traces entirely —
+    Starlette instruments the BackgroundTasks it runs, nothing instruments a bare
+    create_task. A blocked request still took 1.99s with a 1.84s hole in its
+    timeline where the work used to be named. A span is the only thing that will
+    ever mention detached work again, so it is part of the helper.
+    """
+    pytest.importorskip("opentelemetry.sdk")
+
+    from opentelemetry import trace
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    import warden.telemetry as tel
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider(resource=Resource.create({SERVICE_NAME: "t"}))
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    # trace_stage() is a no-op unless telemetry initialised; drive it directly.
+    prev_tracer, prev_enabled = tel._tracer, tel._ENABLED
+    tel._tracer = trace.get_tracer("test", tracer_provider=provider)
+    tel._ENABLED = True
+    try:
+        marker: list = []
+        task = spawn(_slow_job, marker, name="slow_job")
+        assert task is not None
+        await asyncio.wait_for(task, timeout=5)
+    finally:
+        tel._tracer, tel._ENABLED = prev_tracer, prev_enabled
+
+    names = [s.name for s in exporter.get_finished_spans()]
+    assert any("slow_job" in n for n in names), (
+        f"spawned work produced no span naming it: {names} — detached work that "
+        "nothing traces is work nothing can account for"
+    )
