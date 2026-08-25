@@ -47,6 +47,12 @@ dev = [
     "pytest-cov>=5.0.0",
     "httpx>=0.27.0",
     "ruff>=0.4.0",
+    # Local EVM for warden/tests/test_escrow_contract_on_evm.py. Listed here so
+    # CI runs those tests rather than skipping them: an escrow whose lifecycle is
+    # only ever executed on someone's laptop is an unchecked contract holding
+    # other people's money, and a guard that silently skips is the failure this
+    # repository keeps finding.
+    "eth-tester[py-evm]>=0.11.0",
     "mypy>=1.10.0",
     # Lower bound matches warden/constraints.txt's mutmut==3.6.0 pin — the
     # [tool.mutmut] block below is written for the 3.x config schema
