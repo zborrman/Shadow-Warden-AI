@@ -95,6 +95,38 @@ def _on_done(task: asyncio.Task[Any]) -> None:
         pass
 
 
+async def _traced(
+    fn: Callable[..., Coroutine[Any, Any, Any]],
+    name: str,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> Any:
+    """Keep detached work visible.
+
+    Moving these calls off ``BackgroundTasks`` removed their spans: Starlette
+    instruments the tasks it runs, and nothing instruments a bare
+    ``create_task``. The first post-deploy trace showed the cost of that — a
+    blocked request still took 1.99s, with ``decision`` at +147ms, ``append`` at
+    +1990ms, and *nothing at all* in the 1.84s between them. The latency did not
+    move; only the evidence for it disappeared.
+
+    So the span is part of the helper, not an optional extra. Detaching work is
+    exactly when you can least afford to stop measuring it: no caller is waiting
+    on the result, so a span is the only thing that will ever mention it again.
+
+    The task inherits the request's OTel context, so this lands as a child of the
+    request span and can outlive it — which is the shape we want. A detached span
+    that ends after its parent is how "this work was started by that request, and
+    is still going" should read.
+    """
+    try:
+        from warden.telemetry import trace_stage
+    except Exception:            # pragma: no cover - telemetry must never break work
+        return await fn(*args, **kwargs)
+    with trace_stage(f"spawn.{name}"):
+        return await fn(*args, **kwargs)
+
+
 def spawn(
     fn: Callable[..., Coroutine[Any, Any, Any]],
     /,
@@ -119,7 +151,7 @@ def spawn(
         return None
 
     task: asyncio.Task[Any] = loop.create_task(
-        fn(*args, **kwargs), name=task_name
+        _traced(fn, task_name, args, kwargs), name=task_name
     )
     _INFLIGHT.add(task)
     task.add_done_callback(_on_done)
