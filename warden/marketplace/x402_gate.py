@@ -33,7 +33,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from warden.billing.pricing import MARKETPLACE_SEARCH_FEE_USD
-from warden.config import data_path
+from warden.config import data_path, settings
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
 from warden.payments.x402_balance import X402_BALANCES_DDL, deduct_floor, get_balance
@@ -41,7 +41,8 @@ from warden.payments.x402_balance import X402_BALANCES_DDL, deduct_floor, get_ba
 log = logging.getLogger("warden.marketplace.x402_gate")
 _x402_audit_log = logging.getLogger("warden.x402.audit")
 
-_X402_ENABLED      = os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
+#: Single source of truth, shared with the A2A discovery document.
+_X402_ENABLED      = settings.x402_gate_enabled
 # Same price as one prepaid credit — the payment rail an agent picks must not
 # change what a search is worth. See warden/billing/pricing.py.
 _SEARCH_FEE_USD    = Decimal(

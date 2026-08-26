@@ -13,12 +13,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from warden import __version__
 from warden.config import settings
 
 _BASE_URL    = settings.a2a_card_base_url
 _AGENT_NAME  = settings.a2a_agent_name
 _AGENT_DID   = settings.a2a_agent_did
-_AGENT_VER   = "5.6.0"
+#: The discovery document is this node's machine-readable identity, so its
+#: version has to be the real one. It was pinned at "5.6.0" while the gateway
+#: shipped 7.9.0 — a foreign agent negotiating against it was reading a
+#: two-major-version-old description of what this node does. pyproject.toml
+#: already calls warden.__version__ the single version of record; this now
+#: agrees with it, and test_agent_card_truth.py keeps them from parting again.
+_AGENT_VER   = __version__
 
 
 def _e2e_pub_key() -> str:
