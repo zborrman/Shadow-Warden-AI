@@ -114,3 +114,54 @@ def test_export_prefix_is_recognised(tmp_path: Path) -> None:
 
     assert result.returncode == 1, "an `export `-prefixed assignment was missed"
     assert "SHADOWED: TOKEN" in result.stdout
+
+# ── Trailing newline ─────────────────────────────────────────────────────────
+# An env file whose last line has no newline turns any append into a silent
+# corruption: `echo K=V >> .env` concatenates onto the previous key's *value*
+# rather than starting a line. Production 2026-08-26:
+#
+#     NVIDIA_API_KEY=nvapi-xxxxEXAMPLEWARDEN_TRACE_MIDDLEWARE=true
+#
+# One line, so one key. The credential was corrupted and the appended flag did
+# not exist. Recovered from a backup taken seconds before; without it the
+# original value would have been unrecoverable.
+
+
+def test_a_file_ending_mid_line_is_reported(tmp_path) -> None:
+    from scripts.check_env_duplicates import missing_trailing_newline
+
+    p = tmp_path / ".env"
+    p.write_bytes(b"A=1" + bytes([10]) + b"NVIDIA_API_KEY=secret")
+    assert missing_trailing_newline(p) == "NVIDIA_API_KEY", (
+        "an unterminated final line was not reported; the next append to this "
+        "file would corrupt that key's value with no warning"
+    )
+
+
+def test_a_properly_terminated_file_is_quiet(tmp_path) -> None:
+    from scripts.check_env_duplicates import missing_trailing_newline
+
+    p = tmp_path / ".env"
+    p.write_bytes(b"A=1" + bytes([10]) + b"B=2" + bytes([10]))
+    assert missing_trailing_newline(p) is None
+
+
+def test_the_key_name_is_reported_but_never_the_value(tmp_path) -> None:
+    """This runs on hosts and its output gets pasted into tickets."""
+    from scripts.check_env_duplicates import missing_trailing_newline
+
+    p = tmp_path / ".env"
+    p.write_bytes(b"A=1" + bytes([10]) + b"TOKEN=super-secret-value")
+    out = missing_trailing_newline(p)
+    assert out == "TOKEN"
+    assert "super-secret-value" not in str(out)
+
+
+def test_a_trailing_comment_or_blank_is_not_blamed_on_a_key(tmp_path) -> None:
+    from scripts.check_env_duplicates import missing_trailing_newline
+
+    p = tmp_path / ".env"
+    p.write_bytes(b"A=1" + bytes([10]) + b"# a dangling comment")
+    assert missing_trailing_newline(p) == "<final line>", (
+        "a comment has no key to corrupt, so it must not be reported as one"
+    )
