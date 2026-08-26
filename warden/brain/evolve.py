@@ -42,6 +42,7 @@ from warden.cache import _get_client as _get_redis
 from warden.config import settings
 from warden.metrics import EVOLUTION_SKIPPED_TOTAL
 from warden.schemas import RiskLevel, SemanticFlag
+from warden.telemetry import trace_stage as _trace_stage
 
 log = logging.getLogger("warden.brain.evolve")
 
@@ -610,12 +611,14 @@ class EvolutionEngine:
         )
 
         try:
-            evolution, user_prompt = await self._call_claude(content, flags, risk_level)
+            with _trace_stage("evo.llm_call"):
+                evolution, user_prompt = await self._call_claude(content, flags, risk_level)
         except Exception as exc:
             log.error("EvolutionEngine: Claude API error — %s", exc)
             return None
 
-        rule = self._build_rule(content_hash, evolution)
+        with _trace_stage("evo.build_rule"):
+            rule = self._build_rule(content_hash, evolution)
 
         # ── Dataset collection — append fine-tuning sample ──────────────────
         try:
@@ -634,7 +637,8 @@ class EvolutionEngine:
 
         # ── #2: ReDoS gate — reject unsafe AI-generated regex patterns ────────
         if evolution.new_rule.rule_type == "regex_pattern":
-            _ok, _reason = self._validate_regex_safety(evolution.new_rule.value)
+            with _trace_stage("evo.regex_gate"):
+                _ok, _reason = self._validate_regex_safety(evolution.new_rule.value)
             if not _ok:
                 log.warning(
                     "EvolutionEngine: regex_pattern rejected by safety gate (%s) — "
@@ -642,7 +646,8 @@ class EvolutionEngine:
                 )
                 return None
 
-        self._persist(rule)
+        with _trace_stage("evo.persist"):
+            self._persist(rule)
 
         # ── Write to rule ledger ─────────────────────────────────────────────
         if self._ledger is not None:
@@ -694,7 +699,8 @@ class EvolutionEngine:
                 log.debug("Poison guard corpus vetting skipped: %s", _pe)
 
             if examples:
-                self._guard.add_examples(examples)
+                with _trace_stage("evo.add_examples"):
+                    self._guard.add_examples(examples)
                 corpus_updated = True
                 self._corpus_count += 1
                 log.info(
