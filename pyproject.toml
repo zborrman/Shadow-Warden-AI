@@ -123,6 +123,12 @@ version = { attr = "warden.__version__" }
 where = ["."]
 include = ["warden*", "analytics*"]
 
+# The escrow ABI is a build artifact of contracts/Escrow.sol and ships with the
+# package: contracts/ is outside the warden Docker build context, so there was
+# nothing in the image for ESCROW_ABI_PATH to point at.
+[tool.setuptools.package-data]
+"warden.web3" = ["abi/*.json"]
+
 # ── Ruff (linter) ─────────────────────────────────────────────────────────────
 
 [tool.ruff]

@@ -112,6 +112,10 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
     for col, defn in [
         ("name",         "TEXT NOT NULL DEFAULT ''"),
         ("budget_limit", "REAL NOT NULL DEFAULT 1000.0"),
+        # Where this agent is paid when a trade settles on-chain. Ed25519 is a
+        # signing identity, not an account: no Ethereum address can be derived
+        # from `public_key`, so a seller that wants settlement has to say where.
+        ("payout_address", "TEXT NOT NULL DEFAULT ''"),
     ]:
         try:
             con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
@@ -142,6 +146,7 @@ class MarketplaceAgent:
     status:       str
     mandate_id:   str
     created_at:   str
+    payout_address: str = ""   # EIP-55 address; empty means "cannot be paid on-chain"
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -150,6 +155,8 @@ class MarketplaceAgent:
 
 
 def _row_to_agent(row: sqlite3.Row) -> MarketplaceAgent:
+    # `in row` would test sqlite3.Row's *values*, not its keys.
+    keys = row.keys()
     return MarketplaceAgent(
         agent_id=row["agent_id"],
         community_id=row["community_id"],
@@ -159,6 +166,8 @@ def _row_to_agent(row: sqlite3.Row) -> MarketplaceAgent:
         status=row["status"],
         mandate_id=row["mandate_id"],
         created_at=row["created_at"],
+        # Defensive: older rows and test fixtures predate the column.
+        payout_address=(row["payout_address"] if "payout_address" in keys else ""),
     )
 
 
@@ -236,6 +245,37 @@ def register_agent(
             ),
         )
     return agent
+
+
+def set_payout_address(
+    agent_id: str, address: str, db_path: str | None = None
+) -> bool:
+    """Record where this agent is paid when a trade settles on-chain.
+
+    Validated here rather than at send time. A malformed address is a
+    configuration error, and discovering it from a failed transaction costs gas
+    and tells the operator only that something reverted.
+
+    An empty string is accepted and clears the address — an agent that no longer
+    wants on-chain settlement should be able to say so without deleting itself.
+    """
+    address = (address or "").strip()
+    if address:
+        try:
+            from web3 import Web3  # noqa: PLC0415
+        except Exception as exc:  # pragma: no cover - web3 is a hard dependency
+            raise ValueError(f"cannot validate an address without web3: {exc}") from exc
+        if not Web3.is_address(address):
+            raise ValueError(f"{address!r} is not an Ethereum address")
+        address = Web3.to_checksum_address(address)
+
+    with _conn(db_path) as con:
+        cur = con.execute(
+            "UPDATE marketplace_agents SET payout_address=? WHERE agent_id=?",
+            (address, agent_id),
+        )
+        con.commit()
+        return cur.rowcount > 0
 
 
 def get_agent(agent_id: str, db_path: str | None = None) -> MarketplaceAgent | None:
