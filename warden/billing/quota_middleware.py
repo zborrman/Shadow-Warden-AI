@@ -32,10 +32,12 @@ ENV
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 from datetime import UTC, datetime
+from functools import lru_cache
 
 log = logging.getLogger("warden.billing.quota_middleware")
 
@@ -44,8 +46,29 @@ _HARD_BLOCK    = os.getenv("QUOTA_HARD_BLOCK", "true").lower() != "false"
 _KEY_TTL       = 35 * 86400  # ~35 days
 
 
+@lru_cache(maxsize=1)
 def _redis():
-    """Return a sync Redis client (None on failure)."""
+    """Return a sync Redis client, built once per process (None on failure).
+
+    This used to call ``from_url`` on every request. ``from_url`` builds a new
+    ConnectionPool each time, so every request opened its own TCP connection to
+    Redis and threw it away — the pool existed but was never reused. Most of the
+    time that is invisible against a local Redis; occasionally the connect
+    stalls, and the client then spends its whole retry budget
+    (``socket_connect_timeout`` 2s plus ``socket_timeout`` 1s, retried) before
+    giving up.
+
+    Measured on production: a stall of 5028-5168 ms, attributed to this
+    middleware by per-layer spans —
+
+        mw.QuotaMiddleware      own = 5067.9ms
+        mw.RegionMiddleware     own =      0.5ms   (the next layer down)
+        every layer above it    own =  0.0-0.5ms
+
+    The client is cheap to hold and thread-safe, so it is cached. The retry
+    budget is unchanged: the point is to stop paying connection setup per
+    request, not to hide a Redis outage.
+    """
     try:
         import redis as _r
 
@@ -199,10 +222,22 @@ class QuotaMiddleware:
             return
 
         try:
-            key       = _quota_key(tenant_id)
-            new_total = r.incr(key)
-            if new_total == 1:
-                r.expire(key, _KEY_TTL)
+            key = _quota_key(tenant_id)
+
+            # ── Off the event loop ────────────────────────────────────────────
+            # redis-py's client is synchronous. These calls sat directly in an
+            # async ASGI __call__, so a slow Redis operation did not just delay
+            # this request — it pinned the whole event loop, and every other
+            # request in flight stalled for the same duration. That is why the
+            # 5s stalls appeared on unrelated, otherwise-clean requests, before
+            # their bodies had even been read.
+            def _bump() -> int:
+                total = r.incr(key)
+                if total == 1:
+                    r.expire(key, _KEY_TTL)
+                return int(total)
+
+            new_total = await asyncio.to_thread(_bump)
         except Exception as exc:
             log.warning("quota_middleware: Redis INCR error tenant=%s: %s", tenant_id, exc)
             await self.app(scope, receive, send)
