@@ -27,6 +27,16 @@
   },
   {
     "inputs": [],
+    "name": "NotParty",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotSeller",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TradeExists",
     "type": "error"
   },
@@ -44,6 +54,11 @@
       }
     ],
     "name": "WrongState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroArbiter",
     "type": "error"
   },
   {

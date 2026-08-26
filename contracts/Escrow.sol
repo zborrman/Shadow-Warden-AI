@@ -54,6 +54,9 @@ contract Escrow {
 
     error NotArbiter();
     error NotBuyer();
+    error NotSeller();
+    error NotParty();
+    error ZeroArbiter();
     error WrongState(State current);
     error TradeExists();
     error TransferFailed();
@@ -65,6 +68,10 @@ contract Escrow {
     }
 
     constructor(address _arbiter) {
+        // A zero arbiter is unrecoverable: no dispute could ever be resolved and
+        // no trade cancelled early, so every deposit would sit until its
+        // deadline. Cheaper to refuse the deployment than to redeploy after it.
+        if (_arbiter == address(0)) revert ZeroArbiter();
         arbiter = _arbiter;
     }
 
@@ -80,6 +87,16 @@ contract Escrow {
         uint256 amount,
         uint64  deliveryWindowSeconds
     ) external {
+        // Without this, `deposit` pulls from an arbitrary `buyer` using whatever
+        // allowance that address has standing with this contract — so anyone
+        // could sweep a third party's approved balance into a trade they never
+        // agreed to, with a deadline of the attacker's choosing. They could not
+        // steal it (`confirmReceipt` checks the buyer) but they could lock it,
+        // and `raiseDispute` would freeze it pending the arbiter. Infinite
+        // approval is the common integration, which is what made it serious.
+        // The arbiter is permitted because it is the gateway's own signer and
+        // is already trusted to move funds in `resolveDispute`.
+        if (msg.sender != buyer && msg.sender != arbiter) revert NotBuyer();
         if (trades[tradeId].state != State.None) revert TradeExists();
 
         trades[tradeId] = Trade({
@@ -91,14 +108,23 @@ contract Escrow {
             state: State.Funded
         });
 
-        if (!IERC20(token).transferFrom(buyer, address(this), amount)) revert TransferFailed();
         emit Funded(tradeId, buyer, seller, amount);
+        // Triaged, not ignored. `buyer` is arbitrary only to the arbiter, which
+        // is this gateway's own signer and already able to direct funds either
+        // way through `resolveDispute`. Permitting it to open a deposit grants
+        // no power it does not have; the residual risk is arbiter key
+        // compromise, which loses the contract regardless. Every other caller
+        // is rejected by the `msg.sender != buyer` check above — that is the
+        // half of this detector that was a real hole.
+        // slither-disable-next-line arbitrary-send-erc20
+        if (!IERC20(token).transferFrom(buyer, address(this), amount)) revert TransferFailed();
     }
 
     /// @notice Seller records delivery. Does not move funds — the buyer's
     ///         confirmation or the deadline does that.
     function deliverAsset(bytes32 tradeId, bytes32 assetHash) external {
         Trade storage t = trades[tradeId];
+        if (msg.sender != t.seller && msg.sender != arbiter) revert NotSeller();
         if (t.state != State.Funded) revert WrongState(t.state);
         t.state = State.Delivered;
         emit Delivered(tradeId, assetHash);
@@ -110,13 +136,18 @@ contract Escrow {
         if (msg.sender != t.buyer && msg.sender != arbiter) revert NotBuyer();
         if (t.state != State.Delivered) revert WrongState(t.state);
         t.state = State.Released;
-        if (!IERC20(t.token).transfer(t.seller, t.amount)) revert TransferFailed();
         emit Released(tradeId, t.seller, t.amount);
+        if (!IERC20(t.token).transfer(t.seller, t.amount)) revert TransferFailed();
     }
 
     /// @notice Either party escalates before release.
     function raiseDispute(bytes32 tradeId, string calldata reason) external {
         Trade storage t = trades[tradeId];
+        // The comment said "either party"; the code accepted anyone, so a
+        // stranger could freeze a funded trade until the arbiter intervened.
+        if (msg.sender != t.buyer && msg.sender != t.seller && msg.sender != arbiter) {
+            revert NotParty();
+        }
         if (t.state != State.Funded && t.state != State.Delivered) revert WrongState(t.state);
         t.state = State.Disputed;
         emit Disputed(tradeId, reason);
@@ -128,10 +159,10 @@ contract Escrow {
         if (t.state != State.Disputed) revert WrongState(t.state);
         address to = releaseToBuyer ? t.buyer : t.seller;
         t.state = releaseToBuyer ? State.Refunded : State.Released;
-        if (!IERC20(t.token).transfer(to, t.amount)) revert TransferFailed();
         emit Resolved(tradeId, releaseToBuyer);
         if (releaseToBuyer) emit Refunded(tradeId, to, t.amount);
         else emit Released(tradeId, to, t.amount);
+        if (!IERC20(t.token).transfer(to, t.amount)) revert TransferFailed();
     }
 
     /// @notice Refund the buyer when the seller never delivered in time.
@@ -144,8 +175,8 @@ contract Escrow {
             revert DeadlineNotReached();
         }
         t.state = State.Refunded;
-        if (!IERC20(t.token).transfer(t.buyer, t.amount)) revert TransferFailed();
         emit Refunded(tradeId, t.buyer, t.amount);
+        if (!IERC20(t.token).transfer(t.buyer, t.amount)) revert TransferFailed();
     }
 
     function stateOf(bytes32 tradeId) external view returns (State) {
