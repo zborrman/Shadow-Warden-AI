@@ -23,6 +23,7 @@ Claude API usage
 """
 from __future__ import annotations
 
+import asyncio
 import concurrent.futures
 import hashlib
 import json
@@ -30,6 +31,7 @@ import logging
 import os
 import re
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -185,9 +187,81 @@ _EVOLUTION_COST_TENANT = "system:evolution"
 EVOLUTION_DAILY_BUDGET_USD = float(os.getenv("EVOLUTION_DAILY_BUDGET_USD", "5.0"))
 
 
+# Cached spend reading. (value, expires_at_monotonic)
+_BUDGET_CACHE: tuple[float, float] = (0.0, 0.0)
+_BUDGET_CACHE_TTL_S = 60.0
+
+
+def _read_daily_spend() -> float:
+    """Blocking read of today's evolution spend. Never call this from the loop.
+
+    Every statement here is a remote round-trip. `staff` is a Turso-backed
+    logical DB in production, so `_conn()` alone costs one round-trip for
+    `_ensure_columns` before the SUM even runs. Measured in the production
+    container:
+
+        _ensure_columns   521.2 ms      (one statement)
+        SELECT 1          540.9 ms      (pure latency, not query cost)
+        SUM(cost_usd)     421.7 ms
+        get_cost_since   1778-1942 ms   end to end
+
+    The result is currently always 0.0 — `staff_action_costs` holds 0 rows,
+    because evolution spend is not recorded there (the FM-7 finding). So this
+    was ~1.8s of blocked event loop to read a constant.
+    """
+    from datetime import UTC, datetime
+
+    from warden.staff.economics import get_tracker
+    midnight = int(
+        datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    )
+    return float(get_tracker().get_cost_since(_EVOLUTION_COST_TENANT, midnight))
+
+
+async def _is_over_daily_budget_async() -> bool:
+    """Same gate, off the event loop and cached.
+
+    Two changes, both needed:
+
+    * `asyncio.to_thread` — the read is a synchronous network call. It was being
+      made from `process_blocked`, which is a coroutine, so it pinned the whole
+      event loop for ~1.8s. Traced on production: `spawn.process_blocked` ran
+      1972ms while `evo.llm_call` inside it took 133ms, and *no span from any
+      request* started during the first 1.84s of it. Detaching the call in #389
+      could not help, because a detached task still runs on the loop.
+
+    * A 60s TTL — a daily spend ceiling does not need per-request freshness, and
+      without the cache every blocked request would still pay 1.8s, merely in a
+      worker thread instead. Under a burst that exhausts the thread pool and the
+      stall returns by another route. 60s bounds the overshoot to at most one
+      window's spend, which for a $5/day ceiling is not a meaningful overrun.
+
+    Fail-open is unchanged: an unreadable cost store allows the call. Detection
+    quality must not depend on the FinOps database being up.
+    """
+    if EVOLUTION_DAILY_BUDGET_USD <= 0:
+        return False
+    global _BUDGET_CACHE
+    spent, expires = _BUDGET_CACHE
+    now = time.monotonic()
+    if now < expires:
+        return spent >= EVOLUTION_DAILY_BUDGET_USD
+    try:
+        spent = await asyncio.to_thread(_read_daily_spend)
+        _BUDGET_CACHE = (spent, now + _BUDGET_CACHE_TTL_S)
+        return spent >= EVOLUTION_DAILY_BUDGET_USD
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        record_failopen("evolution_budget", Reason.BACKEND_ERROR, exc)
+        return False
+
+
 def _is_over_daily_budget() -> bool:
     """
     True when today's evolution spend has hit EVOLUTION_DAILY_BUDGET_USD.
+
+    Synchronous variant, kept for non-async callers. On the request path use
+    ``_is_over_daily_budget_async`` — this one blocks for ~1.8s in production.
 
     Fail-open: an unreadable cost store returns False (allow). Detection quality
     must not depend on the FinOps database being up — the ceiling is a cost
@@ -592,7 +666,7 @@ class EvolutionEngine:
         # Checked here, after dedup and rate, so the cheapest rejections
         # happen first. Same retry semantics: not marked as seen, so the
         # attack is reconsidered tomorrow.
-        if _is_over_daily_budget():
+        if await _is_over_daily_budget_async():
             EVOLUTION_SKIPPED_TOTAL.labels(reason="daily_budget").inc()
             log.warning(
                 "EvolutionEngine: daily budget $%.2f exhausted — skipping until UTC midnight.",
