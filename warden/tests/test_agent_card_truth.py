@@ -75,23 +75,26 @@ class TestBooleansAreBooleans:
                       if s["scheme"].startswith("x402"))
         assert scheme["enabled"] is True
 
-    def test_the_setting_only_accepts_true(self, monkeypatch):
+    @pytest.mark.parametrize("raw,expected", [
+        ("true", True), ("TRUE", True), ("  true  ", False),
+        ("yes", False), ("1", False), ("false", False), ("", False),
+    ])
+    def test_the_setting_only_accepts_true(self, monkeypatch, raw, expected):
         """The gate enables on "true" alone; the card must not disagree.
 
-        `_bool()` in config.py treats anything that is not false/0/no/off as
-        true, which would have made X402_GATE_ENABLED=yes mean "off" at the gate
-        and "on" in the document.
-        """
-        import importlib
+        `_bool()` in config.py treats anything not in false/0/no/off as true,
+        which would have made X402_GATE_ENABLED=yes mean "off" at the gate and
+        "on" in the document.
 
-        import warden.config as cfg
-        for raw, expected in (("true", True), ("TRUE", True), ("yes", False),
-                              ("false", False), ("1", False), ("", False)):
-            monkeypatch.setenv("X402_GATE_ENABLED", raw)
-            fresh = importlib.reload(cfg).Settings()
-            assert fresh.x402_gate_enabled is expected, f"{raw!r} → {expected}"
-        monkeypatch.delenv("X402_GATE_ENABLED", raising=False)
-        importlib.reload(cfg)
+        A fresh `Settings()` re-runs every `default_factory`, so it reads the
+        patched environment without `importlib.reload`. Reloading the module
+        would swap `warden.config.settings` for a new object while every
+        importer still holds the old one — which broke three unrelated tests
+        further down the run the first time this was written.
+        """
+        from warden.config import Settings
+        monkeypatch.setenv("X402_GATE_ENABLED", raw)
+        assert Settings().x402_gate_enabled is expected
 
 
 class TestTheDocumentSurvivesSerialisation:
