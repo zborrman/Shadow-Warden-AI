@@ -52,6 +52,7 @@ import contextlib
 import functools
 import inspect
 import logging
+import os
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
@@ -72,6 +73,76 @@ _initialized  = False
 
 
 # ── Initialisation ─────────────────────────────────────────────────────────────
+
+_TRACE_MIDDLEWARE = os.getenv("WARDEN_TRACE_MIDDLEWARE", "false").lower() in ("1", "true", "yes")
+
+
+def _wrap_middleware_class(cls: Any) -> Any:
+    """Return an ASGI-compatible wrapper that times one middleware layer.
+
+    Each wrapper's span covers that layer *and everything beneath it*, so the
+    per-layer cost is the difference between consecutive spans. That is what
+    localises a stall: a 5s gap that appears at layer N but not at layer N+1 was
+    spent in layer N.
+    """
+    class _TracedMiddleware:
+        def __init__(self, app: Any, *args: Any, **kwargs: Any) -> None:
+            self._inner = cls(app, *args, **kwargs)
+            self._label = f"mw.{getattr(cls, '__name__', cls)}"
+
+        async def __call__(self, scope: Any, receive: Any, send: Any) -> Any:
+            if scope.get("type") != "http":
+                return await self._inner(scope, receive, send)
+            with trace_stage(self._label):
+                return await self._inner(scope, receive, send)
+
+    _TracedMiddleware.__name__ = f"Traced{getattr(cls, '__name__', 'Middleware')}"
+    return _TracedMiddleware
+
+
+def instrument_middleware_stack(app: Any) -> int:
+    """Wrap every user middleware so the chain shows up in traces.
+
+    Why this exists
+    ───────────────
+    A ~5.03s stall sits between the request span opening and the app reading the
+    body — before any handler code runs. Measured on production across three
+    organic requests:
+
+        01:15:00.356  total 7500ms   body read at 01:15:05.388   (5031ms)
+        02:30:00.552  total 7470ms   body read at 02:30:05.587   (5035ms)
+        06:21:00.864  total 5241ms   body read at 06:21:05.905   (5042ms)
+
+    Ruled out by measurement, not by reading: it is not process_blocked (that
+    window starts *after* the body is read, zero overlap), not container cold
+    start (stalls on an instance up for hours), not the proxy (reproduces on
+    localhost inside the container), not worker recycling (no
+    --limit-max-requests).
+
+    Nothing is instrumented in that window, and "no span" is not "no work" —
+    five of the nine middlewares are BaseHTTPMiddleware and none of them are
+    traced. This makes the chain visible, including the layers we do not own
+    (CORSMiddleware, the Prometheus instrumentator), which is why it wraps
+    generically instead of editing each class.
+
+    Off by default. The stall is rare — three occurrences in twelve hours — so
+    this is a diagnostic to switch on while hunting, not a permanent per-request
+    cost: WARDEN_TRACE_MIDDLEWARE=true.
+
+    Returns the number of layers wrapped.
+    """
+    stack = getattr(app, "user_middleware", None)
+    if not stack:
+        return 0
+    wrapped = 0
+    for entry in stack:
+        cls = getattr(entry, "cls", None)
+        if cls is None or getattr(cls, "__name__", "").startswith("Traced"):
+            continue
+        entry.cls = _wrap_middleware_class(cls)
+        wrapped += 1
+    return wrapped
+
 
 def setup_telemetry(app: Any = None) -> None:
     """
@@ -150,6 +221,10 @@ def setup_telemetry(app: Any = None) -> None:
                 app,
                 excluded_urls="/health,/metrics",   # skip high-frequency probes
             )
+            if _TRACE_MIDDLEWARE:
+                n = instrument_middleware_stack(app)
+                log.info("OTel: middleware chain traced (%d layers wrapped)", n)
+
             # ── The instrumentation only lands on the *next* stack build ──────
             # instrument_app does not insert middleware. It replaces
             # app.build_middleware_stack with a wrapper that will add the OTel
