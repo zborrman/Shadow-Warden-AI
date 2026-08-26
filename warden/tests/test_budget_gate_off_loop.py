@@ -53,9 +53,14 @@ async def _loop_lag(stop: asyncio.Event, out: list) -> None:
 async def test_the_gate_does_not_block_the_event_loop(monkeypatch) -> None:
     """The whole point. A slow spend read must not stall unrelated work."""
     monkeypatch.setattr(evolve, "EVOLUTION_DAILY_BUDGET_USD", 5.0)
-    monkeypatch.setattr(evolve, "_read_daily_spend", lambda: (time.sleep(_SLOW), 0.0)[1])
+    def _slow_read() -> float:
+        time.sleep(_SLOW)
+        return 0.0
 
-    stop, lags = asyncio.Event(), []
+    monkeypatch.setattr(evolve, "_read_daily_spend", _slow_read)
+
+    stop = asyncio.Event()
+    lags: list[float] = []
     sampler = asyncio.create_task(_loop_lag(stop, lags))
     await asyncio.sleep(0.02)
 
@@ -88,7 +93,8 @@ async def test_the_sync_variant_still_blocks(monkeypatch) -> None:
 
     monkeypatch.setattr(evolve, "_read_daily_spend", _slow_tracker)
 
-    stop, lags = asyncio.Event(), []
+    stop = asyncio.Event()
+    lags: list[float] = []
     sampler = asyncio.create_task(_loop_lag(stop, lags))
     await asyncio.sleep(0.02)
     time.sleep(_SLOW)          # what the old code did, from a coroutine
@@ -105,8 +111,13 @@ async def test_the_read_is_cached(monkeypatch) -> None:
     """Without a TTL every blocked request still pays 1.8s, just in a thread —
     and a burst then exhausts the pool and the stall returns by another route."""
     monkeypatch.setattr(evolve, "EVOLUTION_DAILY_BUDGET_USD", 5.0)
-    calls = []
-    monkeypatch.setattr(evolve, "_read_daily_spend", lambda: (calls.append(1), 0.0)[1])
+    calls: list[int] = []
+
+    def _counted_read() -> float:
+        calls.append(1)
+        return 0.0
+
+    monkeypatch.setattr(evolve, "_read_daily_spend", _counted_read)
 
     for _ in range(5):
         await evolve._is_over_daily_budget_async()
@@ -117,8 +128,13 @@ async def test_the_read_is_cached(monkeypatch) -> None:
 async def test_the_cache_expires(monkeypatch) -> None:
     monkeypatch.setattr(evolve, "EVOLUTION_DAILY_BUDGET_USD", 5.0)
     monkeypatch.setattr(evolve, "_BUDGET_CACHE_TTL_S", 0.05)
-    calls = []
-    monkeypatch.setattr(evolve, "_read_daily_spend", lambda: (calls.append(1), 0.0)[1])
+    calls: list[int] = []
+
+    def _counted_read() -> float:
+        calls.append(1)
+        return 0.0
+
+    monkeypatch.setattr(evolve, "_read_daily_spend", _counted_read)
 
     await evolve._is_over_daily_budget_async()
     await asyncio.sleep(0.08)
@@ -149,8 +165,13 @@ async def test_fail_open_on_an_unreadable_store(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_disabled_ceiling_reads_nothing(monkeypatch) -> None:
     monkeypatch.setattr(evolve, "EVOLUTION_DAILY_BUDGET_USD", 0.0)
-    calls = []
-    monkeypatch.setattr(evolve, "_read_daily_spend", lambda: (calls.append(1), 0.0)[1])
+    calls: list[int] = []
+
+    def _counted_read() -> float:
+        calls.append(1)
+        return 0.0
+
+    monkeypatch.setattr(evolve, "_read_daily_spend", _counted_read)
     assert await evolve._is_over_daily_budget_async() is False
     assert not calls, "a disabled ceiling still paid for a remote round-trip"
 
