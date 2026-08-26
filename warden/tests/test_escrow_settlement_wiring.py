@@ -54,7 +54,6 @@ class TestCapabilityIsDerived:
         assert cap["reason"], "a refusal with no reason reads as a network blip"
 
     @pytest.mark.parametrize("missing,reason", [
-        ("ESCROW_ABI_PATH", "abi_not_configured"),
         ("ESCROW_CONTRACT_BASE", "no_contract"),
         ("WEB3_SIGNER_KEY", "no_signer"),
     ])
@@ -65,6 +64,27 @@ class TestCapabilityIsDerived:
         cap = sc.settlement_capability("base")
         assert cap["can_settle"] is False
         assert cap["reason"] == reason
+
+    def test_the_abi_ships_with_the_build(self, monkeypatch, tmp_path):
+        """`ESCROW_ABI_PATH` used to be a fourth thing to configure, and there
+        was nothing in the image to point it at — `contracts/` is outside the
+        warden build context. The ABI is a build artifact of the contract, not
+        an operator decision, so it ships beside the module and the variable is
+        now only an override."""
+        _configure(monkeypatch, tmp_path)
+        monkeypatch.delenv("ESCROW_ABI_PATH", raising=False)
+        sc._load_abi.cache_clear()
+        assert sc._PACKAGED_ABI.exists()
+        assert sc.settlement_capability("base")["can_settle"] is True
+
+    def test_an_unreadable_abi_still_refuses(self, monkeypatch, tmp_path):
+        """Defaulting the path must not turn a wrong ABI into a silent one."""
+        _configure(monkeypatch, tmp_path)
+        monkeypatch.setenv("ESCROW_ABI_PATH", str(tmp_path / "nope.json"))
+        sc._load_abi.cache_clear()
+        cap = sc.settlement_capability("base")
+        assert cap["can_settle"] is False
+        assert cap["reason"] == "abi_unreadable"
 
     def test_an_rpc_alone_is_not_capability(self, monkeypatch):
         """The exact shape production shipped: a default RPC and nothing else."""

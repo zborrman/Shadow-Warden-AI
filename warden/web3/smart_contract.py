@@ -14,6 +14,7 @@ import json
 import logging
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from warden.observability import Reason, record_failopen
 from warden.web3.chains import DEFAULT_CHAIN, get_chain
@@ -41,6 +42,22 @@ def _sim_address(buyer: str, seller: str, listing_id: str, nonce: str, chain: st
 #:   WEB3_SIGNER_KEY        hex private key that signs escrow calls
 _ABI_PATH_VAR = "ESCROW_ABI_PATH"
 _SIGNER_VAR = "WEB3_SIGNER_KEY"
+
+#: The ABI ships beside this module. It is a build artifact of
+#: `contracts/Escrow.sol`, not an operator decision — and `contracts/` is not in
+#: the warden image (compose builds with `context: ./warden`), so there was
+#: nothing for `ESCROW_ABI_PATH` to point at. The interlock that matters is
+#: unchanged: a deployed address and a signing key remain two separate,
+#: deliberate decisions, and two out of three still cannot move value.
+_PACKAGED_ABI = Path(__file__).with_name("abi") / "escrow.abi.json"
+
+
+def _abi_path() -> str:
+    """The ABI to use: an explicit override, else the packaged one."""
+    explicit = os.getenv(_ABI_PATH_VAR, "").strip()
+    if explicit:
+        return explicit
+    return str(_PACKAGED_ABI) if _PACKAGED_ABI.exists() else ""
 
 
 def _contract_address(chain: str) -> str:
@@ -81,11 +98,12 @@ def settlement_capability(chain: str = DEFAULT_CHAIN) -> dict:
     if not get_chain(chain).get("rpc_url"):
         return _no("no_rpc", f"no RPC endpoint configured for {chain}")
 
-    abi_path = os.getenv(_ABI_PATH_VAR, "").strip()
+    abi_path = _abi_path()
     if not abi_path:
-        return _no("abi_not_configured", f"{_ABI_PATH_VAR} is unset")
+        return _no("abi_not_configured",
+                   f"{_ABI_PATH_VAR} is unset and no ABI ships with this build")
     if _load_abi(abi_path) is None:
-        return _no("abi_unreadable", f"{_ABI_PATH_VAR} points at something unusable")
+        return _no("abi_unreadable", f"{abi_path} could not be read as an ABI")
 
     if not _contract_address(chain):
         return _no("no_contract", f"ESCROW_CONTRACT_{chain.upper()} is unset — "
@@ -164,7 +182,7 @@ def call_escrow(
             log.error("call_escrow %s: %s RPC unreachable — treating as FAILED", fn_name, chain)
             return False
 
-        abi = _load_abi(os.getenv(_ABI_PATH_VAR, "").strip())
+        abi = _load_abi(_abi_path())
         contract = w3.eth.contract(address=Web3.to_checksum_address(address), abi=abi)
         account = w3.eth.account.from_key(os.getenv(_SIGNER_VAR, "").strip())
 

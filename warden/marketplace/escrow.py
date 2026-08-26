@@ -40,6 +40,7 @@ from datetime import UTC, datetime, timedelta
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.agent import get_agent
 
 log = logging.getLogger("warden.marketplace.escrow")
 
@@ -92,6 +93,8 @@ _ESCROW_DDL = """
         dispute_reason   TEXT NOT NULL DEFAULT '',
         chain            TEXT NOT NULL DEFAULT 'sepolia',
         memo             TEXT NOT NULL DEFAULT '',
+        buyer_address    TEXT NOT NULL DEFAULT '',
+        seller_address   TEXT NOT NULL DEFAULT '',
         created_at       TEXT NOT NULL,
         funded_at        TEXT,
         delivered_at     TEXT,
@@ -126,6 +129,14 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
         con.execute(
             "ALTER TABLE marketplace_escrow ADD COLUMN memo TEXT NOT NULL DEFAULT ''"
         )
+    # Snapshotted at creation, never looked up at send time: a seller who
+    # changes their payout address mid-trade must not be able to redirect a
+    # deposit that is already funded.
+    for _col in ("buyer_address", "seller_address"):
+        with contextlib.suppress(Exception):
+            con.execute(
+                f"ALTER TABLE marketplace_escrow ADD COLUMN {_col} TEXT NOT NULL DEFAULT ''"
+            )
 
 
 @contextmanager
@@ -154,6 +165,8 @@ class Escrow:
     dispute_reason:   str
     chain:            str
     created_at:       str
+    buyer_address:    str
+    seller_address:   str
     funded_at:        str | None
     delivered_at:     str | None
     confirmed_at:     str | None
@@ -185,6 +198,8 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
         dispute_reason=row["dispute_reason"],
         chain=row["chain"] if "chain" in keys else "sepolia",
         created_at=row["created_at"],
+        buyer_address=row["buyer_address"] if "buyer_address" in keys else "",
+        seller_address=row["seller_address"] if "seller_address" in keys else "",
         funded_at=row["funded_at"],
         delivered_at=row["delivered_at"],
         confirmed_at=row["confirmed_at"],
@@ -270,7 +285,70 @@ class EscrowService:
             delivered_at=None,
             confirmed_at=None,
             expires_at=expires,
+            buyer_address=self._payout_address(buyer_agent_id),
+            seller_address=self._payout_address(seller_agent_id),
         )
+
+    def _deposit_params(self, esc: Escrow) -> dict | None:
+        """The arguments `deposit` has always wanted, or None to refuse.
+
+        Three outcomes, and the middle one is the whole point of Phase 1:
+
+        * **Settlement not configured** — return ``{}``. `call_escrow` simulates
+          and returns before it looks at parameters, and the state machine is
+          allowed to run where no value was ever claimed to move. This is every
+          deployment today, which is why nothing here changes production
+          behaviour.
+        * **Configured but not ready** — preflight names the reason (no payout
+          address, no token on this chain, an allowance the buyer never granted)
+          and the escrow stays in `pending_deposit`. Better here than as a
+          `TransferFailed()` revert that costs gas and says nothing.
+        * **Ready** — the full six arguments.
+        """
+        from warden.web3.settlement import (  # noqa: PLC0415
+            SettlementRefused,
+            deposit_params,
+            settlement_preflight,
+        )
+
+        pre = settlement_preflight(
+            escrow_id=esc.escrow_id,
+            amount_usd=esc.amount_usd,
+            buyer_address=esc.buyer_address,
+            seller_address=esc.seller_address,
+            chain=esc.chain,
+        )
+        if not pre.configured:
+            return {}
+        if not pre.ok:
+            log.error(
+                "escrow %s: settlement preflight refused (%s): %s",
+                esc.escrow_id, pre.reason, pre.detail,
+            )
+            return None
+        try:
+            return deposit_params(
+                pre, esc.buyer_address, esc.seller_address,
+                _DELIVERY_TIMEOUT_HOURS * 3600,
+            )
+        except SettlementRefused as exc:
+            log.error("escrow %s: %s", esc.escrow_id, exc)
+            return None
+
+    @staticmethod
+    def _payout_address(agent_id: str) -> str:
+        """The agent's on-chain address, or '' if it has none.
+
+        Never raises: an agent without a payout address can still trade in a
+        deployment that does not settle, which is every deployment today. The
+        refusal belongs in preflight, where it can name itself.
+        """
+        try:
+            agent = get_agent(agent_id)
+            return agent.payout_address if agent else ""
+        except Exception as exc:
+            log.debug("payout address lookup failed for %s: %s", agent_id, exc)
+            return ""
 
     @staticmethod
     def insert_escrow(con: sqlite3.Connection, escrow: Escrow) -> None:
@@ -283,15 +361,16 @@ class EscrowService:
             """INSERT INTO marketplace_escrow
                (escrow_id, purchase_id, listing_id, buyer_agent, seller_agent,
                 amount_usd, contract_address, status, asset_hash, dispute_reason,
-                chain, created_at, funded_at, delivered_at, confirmed_at, expires_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                chain, created_at, funded_at, delivered_at, confirmed_at, expires_at,
+                buyer_address, seller_address)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 escrow.escrow_id, escrow.purchase_id, escrow.listing_id,
                 escrow.buyer_agent, escrow.seller_agent, escrow.amount_usd,
                 escrow.contract_address, escrow.status, escrow.asset_hash,
                 escrow.dispute_reason, escrow.chain, escrow.created_at,
                 escrow.funded_at, escrow.delivered_at, escrow.confirmed_at,
-                escrow.expires_at,
+                escrow.expires_at, escrow.buyer_address, escrow.seller_address,
             ),
         )
 
@@ -300,7 +379,11 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "pending_deposit":
             return False
-        if not self._call_contract(esc.contract_address, "deposit", {}):
+        params = self._deposit_params(esc)
+        if params is None:
+            # Preflight refused and said why. The escrow stays where it is.
+            return False
+        if not self._call_contract(esc.contract_address, "deposit", params, escrow_id):
             log.error("escrow %s: on-chain deposit failed; not marking funded", escrow_id)
             return False
         self._update_status(escrow_id, "funded", {"funded_at": datetime.now(UTC).isoformat()}, db_path)
@@ -317,7 +400,7 @@ class EscrowService:
         if esc is None or esc.status != "funded":
             return False
         if not self._call_contract(esc.contract_address, "deliverAsset",
-                                   {"assetHash": asset_hash}):
+                                   {"assetHash": asset_hash}, escrow_id):
             log.error("escrow %s: on-chain deliverAsset failed; state unchanged", escrow_id)
             return False
         self._update_status(
@@ -339,7 +422,7 @@ class EscrowService:
             return False
         # The release. A confirmation the chain refused must not finalise the
         # purchase, or the seller is recorded as paid without being paid.
-        if not self._call_contract(esc.contract_address, "confirmReceipt", {}):
+        if not self._call_contract(esc.contract_address, "confirmReceipt", {}, escrow_id):
             log.error("escrow %s: on-chain release failed; not confirming", escrow_id)
             return False
         now = datetime.now(UTC).isoformat()
@@ -363,7 +446,8 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status not in ("funded", "delivered"):
             return False
-        if not self._call_contract(esc.contract_address, "raiseDispute", {"reason": reason}):
+        if not self._call_contract(esc.contract_address, "raiseDispute", {"reason": reason},
+                                   escrow_id):
             log.error("escrow %s: on-chain dispute failed; state unchanged", escrow_id)
             return False
         with _db_lock, _conn(db_path) as con:
@@ -420,7 +504,8 @@ class EscrowService:
                 log.warning("DAO check failed: %s", exc)
         verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
         if not self._call_contract(
-            esc.contract_address, "resolveDispute", {"releaseToBuyer": release_to_buyer}
+            esc.contract_address, "resolveDispute",
+            {"releaseToBuyer": release_to_buyer}, escrow_id,
         ):
             log.error("escrow %s: on-chain dispute resolution failed; verdict not "
                       "recorded", escrow_id)
@@ -437,7 +522,7 @@ class EscrowService:
             return False
         if not esc.is_expired():
             return False
-        if not self._call_contract(esc.contract_address, "cancelDeposit", {}):
+        if not self._call_contract(esc.contract_address, "cancelDeposit", {}, escrow_id):
             log.error("escrow %s: on-chain refund failed; not marking cancelled", escrow_id)
             return False
         self._update_status(escrow_id, "cancelled", {}, db_path)
@@ -570,8 +655,22 @@ class EscrowService:
         raw = f"{buyer}:{seller}:{listing_id}:{nonce}:{chain}".encode()
         return "0x" + hashlib.sha256(raw).hexdigest()[:40] + f":{chain}"
 
-    def _call_contract(self, contract_address: str, fn_name: str, params: dict) -> bool:
+    def _call_contract(
+        self,
+        contract_address: str,
+        fn_name: str,
+        params: dict,
+        escrow_id: str = "",
+    ) -> bool:
         """Attempt the on-chain call. Returns whether value actually moved.
+
+        `escrow_id` is how `tradeId` reaches the contract. **Every function in
+        the escrow ABI takes one** — `deposit`, `deliverAsset`, `confirmReceipt`,
+        `raiseDispute`, `resolveDispute` and `cancelDeposit` alike — and the
+        gateway supplied it to none of them, so five of the six calls named a
+        function correctly and then told it nothing about which trade. Injecting
+        it here rather than at each call site means a new call site cannot
+        reintroduce the omission.
 
         This used to return None and drop `call_escrow`'s answer on the floor,
         so a settlement that never reached the chain was indistinguishable from
@@ -584,6 +683,15 @@ class EscrowService:
         run where no value was ever claimed to move. `settlement_mode` is what
         tells a counterparty which of the two they are getting.
         """
+        if escrow_id and "tradeId" not in params:
+            try:
+                from warden.web3.settlement import trade_id_for  # noqa: PLC0415
+                params = {"tradeId": bytes.fromhex(trade_id_for(escrow_id)[2:]), **params}
+            except Exception as exc:
+                # Fail CLOSED. A call that cannot identify its trade must not be
+                # sent, and a chain that would accept it is worse, not better.
+                log.error("escrow %s: cannot derive tradeId: %s", escrow_id, exc)
+                return False
         try:
             from warden.web3.smart_contract import call_escrow, strip_chain_suffix  # noqa: PLC0415
             addr, chain = strip_chain_suffix(contract_address)

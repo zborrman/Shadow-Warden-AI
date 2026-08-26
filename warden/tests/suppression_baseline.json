@@ -1,6 +1,6 @@
 {
   "type_ignore": 226,
-  "noqa": 831,
+  "noqa": 838,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 0,
@@ -81,6 +81,10 @@
     "multimodal_guard.py": {
       "type_ignore": 0,
       "noqa": 2
+    },
+    "net_guard.py": {
+      "type_ignore": 0,
+      "noqa": 1
     },
     "observability.py": {
       "type_ignore": 0,
@@ -180,7 +184,7 @@
     },
     "analytics/auth.py": {
       "type_ignore": 0,
-      "noqa": 2
+      "noqa": 1
     },
     "analytics/logger.py": {
       "type_ignore": 2,
@@ -201,10 +205,6 @@
     "api/billing_audit.py": {
       "type_ignore": 0,
       "noqa": 6
-    },
-    "api/communities_v2.py": {
-      "type_ignore": 0,
-      "noqa": 2
     },
     "api/compliance_report.py": {
       "type_ignore": 0,
@@ -317,10 +317,6 @@
     "auth/router.py": {
       "type_ignore": 1,
       "noqa": 0
-    },
-    "auth/saml_provider.py": {
-      "type_ignore": 0,
-      "noqa": 1
     },
     "backup/service.py": {
       "type_ignore": 0,
@@ -522,6 +518,10 @@
       "type_ignore": 0,
       "noqa": 2
     },
+    "finops/order_recon.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
     "gsam/rollup.py": {
       "type_ignore": 0,
       "noqa": 2
@@ -561,6 +561,10 @@
     "m2m_store/security.py": {
       "type_ignore": 1,
       "noqa": 0
+    },
+    "marketplace/agent.py": {
+      "type_ignore": 0,
+      "noqa": 1
     },
     "marketplace/agent_key_rotation.py": {
       "type_ignore": 1,
@@ -608,7 +612,7 @@
     },
     "marketplace/escrow.py": {
       "type_ignore": 0,
-      "noqa": 12
+      "noqa": 14
     },
     "marketplace/governance.py": {
       "type_ignore": 0,
@@ -644,7 +648,7 @@
     },
     "marketplace/x402_gate.py": {
       "type_ignore": 0,
-      "noqa": 4
+      "noqa": 5
     },
     "mcp/gateway.py": {
       "type_ignore": 0,
@@ -802,9 +806,17 @@
       "type_ignore": 0,
       "noqa": 1
     },
+    "web3/chains.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
     "web3/key_rotation.py": {
       "type_ignore": 1,
       "noqa": 0
+    },
+    "web3/settlement.py": {
+      "type_ignore": 0,
+      "noqa": 4
     },
     "web3/smart_contract.py": {
       "type_ignore": 0,

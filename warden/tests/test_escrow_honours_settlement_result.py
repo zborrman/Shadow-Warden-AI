@@ -94,6 +94,9 @@ class TestTheHelperReturnsAnAnswerAtAll:
     def test_call_contract_is_not_none_returning(self):
         """The defect in one line: a bool-shaped question answered with None."""
         import inspect
-        src = inspect.getsource(EscrowService._call_contract)
-        assert "-> bool" in src.splitlines()[0], "the signature must promise an answer"
-        assert "return bool(call_escrow" in src
+        sig = inspect.signature(EscrowService._call_contract)
+        # `from __future__ import annotations` keeps annotations as strings.
+        assert sig.return_annotation in (bool, "bool"), (
+            "the signature must promise an answer"
+        )
+        assert "return bool(call_escrow" in inspect.getsource(EscrowService._call_contract)
