@@ -213,6 +213,11 @@ services:
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-shadow-warden}
       - OTEL_SAMPLE_RATE=${OTEL_SAMPLE_RATE:-0.1}
       - OTEL_SAMPLE_RATE_HIGH=${OTEL_SAMPLE_RATE_HIGH:-1.0}
+      # Diagnostic: wrap every middleware layer in a timing span. Off by
+      # default. Listed here because a flag compose does not forward is a flag
+      # that silently stays off — setting it in .env would change nothing, and
+      # the conclusion drawn from the un-instrumented run would be wrong.
+      - WARDEN_TRACE_MIDDLEWARE=${WARDEN_TRACE_MIDDLEWARE:-false}
       # Security features
       - SESSION_GUARD_ENABLED=${SESSION_GUARD_ENABLED:-true}
       - HONEY_MODE=${HONEY_MODE:-false}
