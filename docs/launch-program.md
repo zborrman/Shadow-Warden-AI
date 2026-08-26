@@ -199,14 +199,14 @@ For a machine-to-machine platform the front door is a package install, not a
 
 | Workstream | Detail |
 |---|---|
-| Publish the SDKs | `shadow-warden-sdk` to PyPI, `@shadow-warden/sdk` to npm. Tag-triggered release job so versions never drift from the gateway. Prerequisite done 2026-08-22: three Python packages and two identical-named npm packages were consolidated to one each — the repo could not publish before it agreed with itself. Needs `PYPI_API_TOKEN` and `NPM_TOKEN`. |
+| Publish the SDKs | **Done 2026-08-26.** `shadow-warden-sdk` 1.0.0 on PyPI and `@shadow-warden/sdk` 1.0.0 on npm, both from tag `sdk-v1.0.0` so the two can never drift from each other or from the gateway. Verified by querying both registries rather than by reading the workflow's own report. Prerequisite done 2026-08-22: three Python packages and two identically-named npm packages were consolidated to one each — the repo could not publish until it agreed with itself about what its SDK was called. The npm half failed first time with a 403: a granular token cannot publish unless **Bypass 2FA** is set on the token itself, because CI has no way to answer a 2FA prompt. |
 | API versioning | Done 2026-08-23. `/v1` is an alias resolved by one ASGI middleware — no route declared twice — and every response on a non-exempt unversioned path carries `Deprecation`, `Sunset: 2027-08-23` and a `Link: rel="successor-version"` (health, metrics, docs and `/.well-known/*` are exempt: they are not moving). Policy in `docs/api-versioning.md`, window published in the discovery document. Freezing `v1`'s schemas against a conformance suite is separate. |
 | Ten-minute quickstart | Done 2026-08-24. `docs/quickstart.md` — four calls, every response copied from `scripts/quickstart_check.py` running against the build. The script ships with it so the page can be re-verified rather than believed; it also runs against a live gateway with `--base-url`. Writing it found two defects: the listing step needs an asset that nothing documented, and the dev vault key was regenerated per call so asset registration raised `InvalidToken` on any fresh checkout. |
 | Agent-native discovery | Done. `/.well-known/agent.json` returns the A2A card and the marketplace manifest merged, so a foreign agent gets `settlement_mode`, `escrow.chains`, pricing, negotiation and `api_version` without human docs. Audited 2026-08-26 for whether those fields are *true* rather than merely present, which found two: `version` was pinned at `5.6.0` while the gateway shipped `7.9.0` — a two-major-version-old identity — and `payment_schemes[].enabled` was the **string** `"false"`, which every consumer language reads as true, so a disabled payment gate advertised itself as enabled. Both now derive from the single source of truth and are pinned by `test_agent_card_truth.py`. |
 | Surface consolidation | Portal for tenants, SOC dashboard for operators, Streamlit internal-only. Freeze the split. |
 
 **Exit criteria**
-- [ ] `pip install shadow-warden-sdk` and `npm i @shadow-warden/sdk` both resolve.
+- [x] `pip install shadow-warden-sdk` and `npm i @shadow-warden/sdk` both resolve. *(2026-08-26, both 1.0.0, checked against the registries.)*
 - [ ] A developer outside the project completes the quickstart unaided, timed.
 - [ ] Every new route ships under `/v1`; the legacy surface has a published sunset date.
 
