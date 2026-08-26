@@ -164,15 +164,30 @@ def test_every_otel_setting_reaches_the_container() -> None:
     env = compose["services"]["warden"].get("environment") or []
     forwarded = set(env) if isinstance(env, dict) else {e.split("=", 1)[0] for e in env}
 
-    config_src = (root / "warden" / "config.py").read_text(encoding="utf-8")
     import re
 
+    config_src = (root / "warden" / "config.py").read_text(encoding="utf-8")
     read_by_settings = set(re.findall(r'"(OTEL_[A-Z_]+)"', config_src))
     assert read_by_settings, "found no OTEL_* settings in config.py — guard is vacuous"
 
-    missing = sorted(read_by_settings - forwarded)
+    # Also the flags telemetry.py reads straight from the environment rather
+    # than through Settings. The narrower version of this guard checked only
+    # config.py, and so did not catch WARDEN_TRACE_MIDDLEWARE going out in #396
+    # with no compose entry — the same defect this test was written for, one
+    # module to the left.
+    telemetry_src = (root / "warden" / "telemetry.py").read_text(encoding="utf-8")
+    read_by_telemetry = set(
+        re.findall(r'os\.getenv\(\s*"((?:OTEL|WARDEN)_[A-Z_]+)"', telemetry_src)
+    )
+    assert read_by_telemetry, (
+        "found no env reads in telemetry.py — that half of the guard is vacuous"
+    )
+
+    missing = sorted((read_by_settings | read_by_telemetry) - forwarded)
     assert not missing, (
-        f"{missing} are read by warden/config.py but not forwarded to the warden "
-        "service in docker-compose.yml. Setting them in .env changes nothing; "
-        "the process keeps the code default."
+        f"{missing} are read by warden/config.py or warden/telemetry.py but not "
+        "forwarded to the warden service in docker-compose.yml. Setting them in "
+        ".env changes nothing; the process keeps the code default — and a flag "
+        "that silently stays off makes the run it was meant to instrument look "
+        "like evidence."
     )
