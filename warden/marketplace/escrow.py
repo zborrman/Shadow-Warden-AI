@@ -300,7 +300,9 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "pending_deposit":
             return False
-        self._call_contract(esc.contract_address, "deposit", {})
+        if not self._call_contract(esc.contract_address, "deposit", {}):
+            log.error("escrow %s: on-chain deposit failed; not marking funded", escrow_id)
+            return False
         self._update_status(escrow_id, "funded", {"funded_at": datetime.now(UTC).isoformat()}, db_path)
         return True
 
@@ -314,7 +316,10 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "funded":
             return False
-        self._call_contract(esc.contract_address, "deliverAsset", {"assetHash": asset_hash})
+        if not self._call_contract(esc.contract_address, "deliverAsset",
+                                   {"assetHash": asset_hash}):
+            log.error("escrow %s: on-chain deliverAsset failed; state unchanged", escrow_id)
+            return False
         self._update_status(
             escrow_id, "delivered",
             {"delivered_at": datetime.now(UTC).isoformat(), "asset_hash": asset_hash},
@@ -332,7 +337,11 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "delivered":
             return False
-        self._call_contract(esc.contract_address, "confirmReceipt", {})
+        # The release. A confirmation the chain refused must not finalise the
+        # purchase, or the seller is recorded as paid without being paid.
+        if not self._call_contract(esc.contract_address, "confirmReceipt", {}):
+            log.error("escrow %s: on-chain release failed; not confirming", escrow_id)
+            return False
         now = datetime.now(UTC).isoformat()
         self._update_status(escrow_id, "confirmed", {"confirmed_at": now}, db_path)
         # Finalize the purchase record
@@ -354,7 +363,9 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status not in ("funded", "delivered"):
             return False
-        self._call_contract(esc.contract_address, "raiseDispute", {"reason": reason})
+        if not self._call_contract(esc.contract_address, "raiseDispute", {"reason": reason}):
+            log.error("escrow %s: on-chain dispute failed; state unchanged", escrow_id)
+            return False
         with _db_lock, _conn(db_path) as con:
             con.execute(
                 "UPDATE marketplace_escrow SET status='disputed', dispute_reason=? WHERE escrow_id=?",
@@ -408,9 +419,12 @@ class EscrowService:
             except Exception as exc:
                 log.warning("DAO check failed: %s", exc)
         verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
-        self._call_contract(
+        if not self._call_contract(
             esc.contract_address, "resolveDispute", {"releaseToBuyer": release_to_buyer}
-        )
+        ):
+            log.error("escrow %s: on-chain dispute resolution failed; verdict not "
+                      "recorded", escrow_id)
+            return False
         self._update_status(escrow_id, verdict, {}, db_path)
         return True
 
@@ -423,7 +437,9 @@ class EscrowService:
             return False
         if not esc.is_expired():
             return False
-        self._call_contract(esc.contract_address, "cancelDeposit", {})
+        if not self._call_contract(esc.contract_address, "cancelDeposit", {}):
+            log.error("escrow %s: on-chain refund failed; not marking cancelled", escrow_id)
+            return False
         self._update_status(escrow_id, "cancelled", {}, db_path)
         log.info("Escrow %s cancelled (timeout)", escrow_id)
         return True
@@ -554,12 +570,24 @@ class EscrowService:
         raw = f"{buyer}:{seller}:{listing_id}:{nonce}:{chain}".encode()
         return "0x" + hashlib.sha256(raw).hexdigest()[:40] + f":{chain}"
 
-    def _call_contract(self, contract_address: str, fn_name: str, params: dict) -> None:
+    def _call_contract(self, contract_address: str, fn_name: str, params: dict) -> bool:
+        """Attempt the on-chain call. Returns whether value actually moved.
+
+        This used to return None and drop `call_escrow`'s answer on the floor,
+        so a settlement that never reached the chain was indistinguishable from
+        one that did — and the caller advanced the escrow to `funded` either way.
+        `call_escrow` was made to fail CLOSED precisely so that answer would mean
+        something; discarding it here undid that one layer up.
+
+        Unconfigured deployments still return True: `call_escrow` simulates when
+        no contract, ABI or signer is set, and the state machine is allowed to
+        run where no value was ever claimed to move. `settlement_mode` is what
+        tells a counterparty which of the two they are getting.
+        """
         try:
             from warden.web3.smart_contract import call_escrow, strip_chain_suffix  # noqa: PLC0415
             addr, chain = strip_chain_suffix(contract_address)
-            call_escrow(addr, fn_name, params, chain)
-            return
+            return bool(call_escrow(addr, fn_name, params, chain))
         except Exception as exc:
             log.debug("call_escrow (web3) failed: %s", exc)
         try:
@@ -569,8 +597,12 @@ class EscrowService:
             cc: Any = ChainConnector()
             if cc.is_connected():
                 cc.call(contract_address, fn_name, params)
+                return True
         except Exception:
             pass
+        # Neither path moved value. Simulated deployments never reach here:
+        # call_escrow returns True for them above.
+        return False
 
     def _get(self, escrow_id: str, db_path: str) -> Escrow | None:
         with _conn(db_path) as con:
