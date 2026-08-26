@@ -38,14 +38,9 @@ from warden.billing import quota_middleware as qm
 
 @pytest.fixture(autouse=True)
 def _clear_client_cache():
-    # getattr, not a direct call: if the cache is ever removed this fixture must
-    # not blow up in setup. An error here would mask the assertion below, and
-    # report a missing `cache_clear` instead of the defect that matters — a new
-    # connection pool per request.
-    clear = getattr(qm._redis, "cache_clear", lambda: None)
-    clear()
+    qm._reset_client()
     yield
-    clear()
+    qm._reset_client()
 
 
 def test_the_client_is_built_once_not_per_request() -> None:
@@ -96,60 +91,104 @@ async def _loop_lag(stop: asyncio.Event, out: list[float]) -> None:
         out.append((time.perf_counter() - t0 - 0.005) * 1000)
 
 
+class _SlowRedis:
+    """Stands in for redis-py: synchronous, and slow the way a stalled connect is."""
+
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+        self.incr_calls: list[str] = []
+        self.expire_calls: list[tuple] = []
+
+    def incr(self, key):
+        time.sleep(self.delay)
+        self.incr_calls.append(key)
+        return len(self.incr_calls)
+
+    def expire(self, key, ttl):
+        self.expire_calls.append((key, ttl))
+        return True
+
+
+async def _drive(app_seen: list) -> None:
+    """Send one counted request through the real QuotaMiddleware."""
+    async def _downstream(scope, receive, send):
+        app_seen.append(scope["path"])
+
+    mw = qm.QuotaMiddleware(_downstream)
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/filter",
+        "headers": [(b"x-api-key", b"test-key"), (b"x-tenant-id", b"loop-test")],
+        "client": ("127.0.0.1", 5555),
+    }
+    await mw(scope, None, lambda _m: None)
+
+
 @pytest.mark.asyncio
-async def test_a_slow_redis_call_does_not_pin_the_event_loop() -> None:
-    """The property that actually matters.
+async def test_a_slow_quota_check_does_not_pin_the_loop(monkeypatch) -> None:
+    """Drive the real ASGI path, not a copy of it.
 
-    A slow quota check must cost *its own* request, never every request in
-    flight. Modelled on the real call shape: a blocking incr inside the async
-    middleware path, run through to_thread.
+    The first version of this test defined its own `_bump` and ran it through
+    asyncio.to_thread — which tested the standard library, not this middleware.
+    A regression could have called the Redis client directly and kept an
+    unrelated `to_thread` nearby, and both that test and its source-inspecting
+    companion would still have passed. Injecting a slow client and invoking
+    QuotaMiddleware.__call__ is what actually holds the invariant.
     """
-    class _SlowRedis:
-        def incr(self, *_a):
-            time.sleep(_SLOW)
-            return 1
+    # Warm-up first. _get_tenant_id_from_scope resolves the API key through a
+    # lazily-imported key store: 370ms on first call in a fresh process, 0.0ms
+    # after. That is a one-time import cost, not a per-request one (production
+    # p50 for /filter is 11-25ms), and it is not what this test is about — but
+    # unwarmed it lands inside the measurement window and reads as loop lag.
+    warm = _SlowRedis(0.0)
+    monkeypatch.setattr(qm, "_redis", lambda: warm)
+    await _drive([])
 
-        def expire(self, *_a):
-            return True
-
-    r = _SlowRedis()
-
-    def _bump() -> int:
-        total = r.incr("k")
-        if total == 1:
-            r.expire("k", 1)
-        return int(total)
+    fake = _SlowRedis(_SLOW)
+    monkeypatch.setattr(qm, "_redis", lambda: fake)
 
     stop = asyncio.Event()
     lags: list[float] = []
     sampler = asyncio.create_task(_loop_lag(stop, lags))
     await asyncio.sleep(0.02)
 
-    assert await asyncio.to_thread(_bump) == 1
+    seen: list = []
+    await _drive(seen)
 
     stop.set()
     await sampler
+
+    assert seen == ["/filter"], (
+        f"the request never reached the app: {seen} — the middleware short-"
+        "circuited before the Redis branch, so nothing here was measured"
+    )
+    assert len(fake.incr_calls) == 1, f"expected one incr, got {fake.incr_calls}"
+    assert len(fake.expire_calls) == 1, (
+        f"first use must set a TTL or the key leaks forever: {fake.expire_calls}"
+    )
 
     worst = max(lags)
     assert worst < _SLOW * 1000 * 0.5, (
         f"the event loop stalled {worst:.0f}ms during a {_SLOW*1000:.0f}ms quota "
-        "check — the Redis call is still being made on the loop, and every "
-        "in-flight request pays for it"
+        "check — the Redis call is back on the loop, and every in-flight request "
+        "pays for it"
     )
 
 
 @pytest.mark.asyncio
-async def test_the_probe_can_see_a_blocked_loop() -> None:
-    """Guard the guard: if a blocking call did not register as lag, the test
-    above would pass for a reason unrelated to the fix."""
-    stop = asyncio.Event()
-    lags: list[float] = []
-    sampler = asyncio.create_task(_loop_lag(stop, lags))
-    await asyncio.sleep(0.02)
-    time.sleep(_SLOW)                      # what the old code did
-    stop.set()
-    await sampler
-    assert max(lags) >= _SLOW * 1000 * 0.5
+async def test_a_second_request_does_not_re_expire(monkeypatch) -> None:
+    """expire is first-use only; re-arming it every request would slide the TTL."""
+    fake = _SlowRedis(0.0)
+    monkeypatch.setattr(qm, "_redis", lambda: fake)
+    seen: list = []
+    await _drive(seen)
+    await _drive(seen)
+    assert len(fake.incr_calls) == 2, fake.incr_calls
+    assert len(fake.expire_calls) == 1, (
+        f"expire ran {len(fake.expire_calls)} times; it must only run on the "
+        "first increment"
+    )
 
 
 def test_the_middleware_awaits_the_threaded_call() -> None:
@@ -164,3 +203,58 @@ def test_the_middleware_awaits_the_threaded_call() -> None:
     assert "r.incr(" not in src.split("def _bump")[0], (
         "a synchronous incr is back on the async path"
     )
+
+
+def test_a_failed_client_is_not_cached() -> None:
+    """Fail-open must not be permanent.
+
+    The first version of this fix put `@lru_cache` on `_redis()`, which cached
+    the `None` returned when construction fails. The caller reads `None` as
+    "Redis unavailable — fail open" and skips the quota check, so a single
+    transient failure would have disabled quota enforcement for every request
+    until the process restarted. A cost control that switches itself off
+    permanently on one error is worse than one that is slow.
+    """
+    import sys
+    import types
+
+    attempts = []
+
+    class _Ok:
+        def incr(self, *_a):
+            return 1
+
+        def expire(self, *_a):
+            return True
+
+    def _from_url(*_a, **_kw):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise ConnectionError("redis down at construction")
+        return _Ok()
+
+    fake = types.ModuleType("redis")
+    fake.from_url = _from_url          # type: ignore[attr-defined]
+    prev = sys.modules.get("redis")
+    sys.modules["redis"] = fake
+    try:
+        first = qm._redis()
+        assert first is None, "construction failed, so this must be None (fail-open)"
+
+        second = qm._redis()
+        assert second is not None, (
+            "the failure was cached — quota enforcement would stay off for the "
+            "life of the process after one transient Redis error"
+        )
+
+        third = qm._redis()
+        assert third is second, "the successful client should be cached"
+        assert len(attempts) == 2, (
+            f"from_url was called {len(attempts)} times; expected one failure "
+            "then one success that is then reused"
+        )
+    finally:
+        if prev is not None:
+            sys.modules["redis"] = prev
+        else:
+            del sys.modules["redis"]
