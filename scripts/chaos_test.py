@@ -42,7 +42,6 @@ import random
 import threading
 
 from locust import HttpUser, between, events, task
-from locust.env import Environment
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 

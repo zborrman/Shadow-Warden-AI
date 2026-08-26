@@ -244,21 +244,21 @@ After export, set in .env:
         try:
             q_output = os.path.abspath(args.quantize_output)
             int8_path = quantize_int8(output, q_output)
-            print(f"\nINT8 quantization complete")
+            print("\nINT8 quantization complete")
             print(f"  model.onnx : {int8_path}")
             print(f"  directory  : {q_output}")
-            print(f"\nRecommended .env setting:")
+            print("\nRecommended .env setting:")
             print(f"  ONNX_MODEL_PATH={q_output}")
-            print(f"  ONNX_THREADS=1")
-            print(f"  ONNX_INTRA_THREADS=2   # 2 threads/worker × 4 uvicorn workers = 8 vCPU")
+            print("  ONNX_THREADS=1")
+            print("  ONNX_INTRA_THREADS=2   # 2 threads/worker × 4 uvicorn workers = 8 vCPU")
         except Exception as exc:
             print(f"\nWARNING: INT8 quantization failed ({exc})")
-            print(f"  Ensure onnxruntime>=1.18.0 is installed: pip install onnxruntime")
-            print(f"  Falling back to FP32 model.")
+            print("  Ensure onnxruntime>=1.18.0 is installed: pip install onnxruntime")
+            print("  Falling back to FP32 model.")
             print(f"\nAdd to .env:  ONNX_MODEL_PATH={output}")
     else:
         print(f"\nAdd to .env:  ONNX_MODEL_PATH={output}")
-        print(f"Tip: run with --quantize for additional 1.5-2.5× speedup via INT8")
+        print("Tip: run with --quantize for additional 1.5-2.5× speedup via INT8")
 
 
 if __name__ == "__main__":

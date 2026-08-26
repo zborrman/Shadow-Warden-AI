@@ -224,7 +224,7 @@ its own first seller.
 
 | Workstream | Detail |
 |---|---|
-| First-party supply | Twenty listings from capabilities that already run: `/filter` metered, document intelligence, compliance posture scoring, threat-intel feeds. |
+| First-party supply | `scripts/seed_first_party_supply.py` — twenty listings, each refusing to exist unless its capability does. Every entry names a route that must be present in the **live** OpenAPI of the gateway being seeded, not in the source tree; an unserved route is skipped and reported. Dry run by default, idempotent by sku. Writing it found that the marketplace could not express its own supply: `register_asset` accepted only `{rule, model, signals}`, so `/filter` metered and a compliance posture score had to be mislabelled as "rule" to be listed at all. Added `service` and `report`. Also found `/marketplace/protocol` advertising `asset_type: "general"`, which `register_asset` rejects with a 422 — the enum was written out twice, so the machine-readable schema and the enforcement had drifted. One definition now. **Not yet run against production.** |
 | Design-partner demand | Five pilot buyer agents through real KYA to VERIFIED. Their integration friction is the next quarter's roadmap. |
 | Referral loop | `warden/billing/referral.py` exists and is unwired. Agent-to-agent referral is the natural M2M growth mechanic. |
 | Liquidity reporting | Weekly: listings, active agents, GMV, settled trades, fill rate, time-to-first-fill. A flat week is an incident. |

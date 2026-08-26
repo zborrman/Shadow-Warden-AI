@@ -239,6 +239,7 @@ def deploy(rpc_url: str, private_key: str, dry_run: bool = False) -> str:
 
 def smoke_test(rpc_url: str, private_key: str, contract_address: str) -> None:
     import hashlib
+
     from web3 import Web3
     from web3.middleware import ExtraDataToPOAMiddleware
 

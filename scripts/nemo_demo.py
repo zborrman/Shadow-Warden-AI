@@ -22,9 +22,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 _repo_root = Path(__file__).parent.parent
@@ -32,7 +30,6 @@ sys.path.insert(0, str(_repo_root))
 
 from warden.integrations.nemo_bridge import (
     ColangEvolutionSynthesizer,
-    DualOutputGuard,
     GeometricThreatBridge,
     ThreatClass,
     ThreatCoordinates,
@@ -226,13 +223,13 @@ async def run_demo(args: argparse.Namespace) -> None:
         )
         if path:
             print(f"  Generated: {path}")
-            print(f"  Content preview:\n")
+            print("  Content preview:\n")
             print(path.read_text()[:400])
         else:
             print("  Skipped (no ANTHROPIC_API_KEY or anthropic package)")
 
     print(f"\n{BOLD}{'═'*60}{RESET}")
-    print(f"  Demo complete.\n")
+    print("  Demo complete.\n")
 
 
 def main() -> None:

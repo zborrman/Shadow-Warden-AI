@@ -30,6 +30,7 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.service import VALID_ASSET_TYPES
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -748,7 +749,7 @@ _PROTOCOL_SCHEMAS: dict[str, dict] = {
         "properties": {
             "query":      {"type": "string", "description": "Natural-language search query"},
             "limit":      {"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
-            "asset_type": {"type": "string", "enum": ["rule", "model", "signals", "general"]},
+            "asset_type": {"type": "string", "enum": sorted(VALID_ASSET_TYPES)},  # from the enforcer, never restated
         },
     },
     "send_proposal": {

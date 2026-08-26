@@ -33,10 +33,11 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
 from statistics import mean, median, quantiles
-from typing import Callable
 
 # Add repo root to sys.path for local imports
 _repo = Path(__file__).resolve().parent.parent
@@ -152,8 +153,8 @@ def _make_filter_fn() -> Callable[[str], dict]:
     api_key  = os.getenv("WARDEN_API_KEY", "")
 
     if live_url:
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         def call_live(text: str) -> dict:
             payload = json.dumps({"content": text, "tenant_id": "benchmark"}).encode()
@@ -177,6 +178,7 @@ def _make_filter_fn() -> Callable[[str], dict]:
     os.environ.setdefault("SEMANTIC_THRESHOLD", "0.72")
 
     from fastapi.testclient import TestClient
+
     from warden.main import app
 
     client = TestClient(app, raise_server_exceptions=False)
@@ -313,7 +315,7 @@ def print_report(results: dict[str, BenchResult]) -> None:
 
 
 def build_json(results: dict[str, BenchResult]) -> dict:
-    from datetime import datetime, timezone
+    from datetime import datetime
     categories = []
     all_latencies: list[float] = []
 
@@ -333,7 +335,7 @@ def build_json(results: dict[str, BenchResult]) -> dict:
 
     qs = quantiles(all_latencies, n=100) if len(all_latencies) >= 2 else [0] * 100
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "version":      "2.3",
         "corpus_size":  len(CORPUS),
         "categories":   categories,

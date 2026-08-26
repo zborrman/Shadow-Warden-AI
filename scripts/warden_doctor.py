@@ -52,16 +52,15 @@ import time
 import wave
 import zlib
 from dataclasses import dataclass, field
-from typing import Any
 
 import httpx
 
 # ── Optional rich ─────────────────────────────────────────────────────────────
 try:
+    from rich import box
     from rich.console import Console
     from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
     from rich.table import Table
-    from rich import box
     _RICH = True
 except ImportError:
     _RICH = False
