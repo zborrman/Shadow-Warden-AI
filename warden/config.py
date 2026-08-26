@@ -1237,8 +1237,15 @@ class Settings:
     marketplace_search_fee_usd: str = field(
         default_factory=lambda: _env("MARKETPLACE_SEARCH_FEE_USD", "0.001")
     )
-    x402_gate_enabled: str = field(
-        default_factory=lambda: _env("X402_GATE_ENABLED", "false")
+    # Boolean, not the *string* "false". It is published verbatim in
+    # /.well-known/agent.json, where every consumer language treats a non-empty
+    # string as true — so a disabled gate advertised itself as enabled. The
+    # predicate is deliberately stricter than _bool(): only "true" enables,
+    # matching what warden/marketplace/x402_gate.py enforces. A flag that reads
+    # one way at the gate and another in the discovery document is worse than
+    # either answer.
+    x402_gate_enabled: bool = field(
+        default_factory=lambda: _env("X402_GATE_ENABLED", "false").lower() == "true"
     )
     home_jurisdiction: str = field(
         default_factory=lambda: _env("HOME_JURISDICTION", "EU")
