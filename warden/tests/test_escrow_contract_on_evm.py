@@ -185,3 +185,83 @@ class TestStateMachineIsEnforcedOnChain:
         escrow.functions.deliverAsset(tid, b"\x02" * 32).transact({"from": seller})
         with expect_revert("NotBuyer"):
             escrow.functions.confirmReceipt(tid).transact({"from": w3.eth.accounts[5]})
+
+
+class TestAccessControlAddedAfterSlither:
+    """The guards Slither's `arbitrary-send-erc20` pointed at, and two it missed.
+
+    Every test here fails against the contract as first written. That matters:
+    the twelve tests above all passed against the vulnerable version, because
+    they only ever called each function as the party entitled to call it. A
+    guard that no test exercises is indistinguishable from no guard.
+    """
+
+    def test_a_stranger_cannot_spend_a_buyers_standing_allowance(self, chain):
+        """The high finding, reproduced.
+
+        `deposit` pulls `amount` from a caller-supplied `buyer`. With no check on
+        `msg.sender`, anyone could sweep any address that had approved this
+        escrow into a trade of their own devising — attacker as seller, deadline
+        of their choosing. They could not complete it (`confirmReceipt` checks
+        the buyer) but the funds would be locked, and `raiseDispute` would freeze
+        them pending the arbiter. Infinite approval is the common integration.
+        """
+        w3, escrow, token, arbiter, buyer, seller = chain
+        attacker = w3.eth.accounts[6]
+        before = token.functions.balanceOf(buyer).call()
+
+        with expect_revert("NotBuyer"):
+            escrow.functions.deposit(
+                b"\x09" * 32, buyer, attacker, token.address, _AMOUNT, _WINDOW
+            ).transact({"from": attacker})
+
+        assert token.functions.balanceOf(buyer).call() == before
+
+    def test_the_buyer_may_deposit_for_itself(self, chain):
+        """The guard must not break the ordinary direct-buyer integration."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x0a" * 32
+        escrow.functions.deposit(
+            tid, buyer, seller, token.address, _AMOUNT, _WINDOW
+        ).transact({"from": buyer})
+        assert escrow.functions.stateOf(tid).call() == 1, "expected Funded"
+
+    def test_a_stranger_cannot_claim_delivery(self, chain):
+        """Slither did not flag this; `deliverAsset` had no sender check at all."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = _deposit(escrow, token, buyer, seller, arbiter)
+        with expect_revert("NotSeller"):
+            escrow.functions.deliverAsset(tid, b"\x02" * 32).transact(
+                {"from": w3.eth.accounts[6]}
+            )
+
+    def test_a_stranger_cannot_freeze_a_funded_trade(self, chain):
+        """The comment said "either party"; the code accepted anyone.
+
+        A stranger moving a trade to Disputed locks the funds until the arbiter
+        rules — a denial of service on every trade in flight, for the price of
+        one transaction each.
+        """
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = _deposit(escrow, token, buyer, seller, arbiter)
+        with expect_revert("NotParty"):
+            escrow.functions.raiseDispute(tid, "not mine").transact(
+                {"from": w3.eth.accounts[6]}
+            )
+        assert escrow.functions.stateOf(tid).call() == 1, "still Funded"
+
+    def test_both_real_parties_may_still_dispute(self, chain):
+        w3, escrow, token, arbiter, buyer, seller = chain
+        for party, tid in ((buyer, b"\x0b" * 32), (seller, b"\x0c" * 32)):
+            _deposit(escrow, token, buyer, seller, arbiter, tid)
+            escrow.functions.raiseDispute(tid, "x").transact({"from": party})
+            assert escrow.functions.stateOf(tid).call() == 5
+
+    def test_a_zero_arbiter_deployment_is_refused(self, chain):
+        """Unrecoverable: no dispute could resolve, no trade cancel early."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        abi, code = _artifacts("escrow")
+        with pytest.raises(TransactionFailed):
+            w3.eth.contract(abi=abi, bytecode=code).constructor(
+                "0x" + "00" * 20
+            ).transact({"from": arbiter})
