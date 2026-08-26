@@ -60,6 +60,42 @@ def parse(path: Path) -> dict[str, list[tuple[int, str]]]:
     return seen
 
 
+def missing_trailing_newline(path: Path) -> str | None:
+    """Return the last key name if the file does not end in a newline.
+
+    An env file whose final line has no newline is a loaded gun. Any append —
+    ``echo K=V >> .env``, a provisioning script, an operator in a hurry —
+    concatenates onto the last key's *value* instead of starting a line:
+
+        NVIDIA_API_KEY=nvapi-xxxxEXAMPLEWARDEN_TRACE_MIDDLEWARE=true
+
+    (The value above is synthetic. The first draft of this docstring carried the
+    real key's last seven characters, copied from the incident, and gitleaks
+    caught it on a public repository — a partial credential is still a
+    credential. Illustrate with a fake one.)
+
+    That is one line, so it is one key. The credential is silently corrupted and
+    the appended key does not exist at all. Nothing warns: the file parses, the
+    key is "present", and compose forwards a value that is wrong at the end.
+
+    Hit on production 2026-08-26 doing exactly that. Recovered from a backup
+    taken seconds earlier; without one, a live API key would have been destroyed
+    with no record of its original value.
+
+    Reported by key name and length only — never the value.
+    """
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if not raw or raw.endswith(b"\n"):
+        return None
+    last = raw.splitlines()[-1].decode("utf-8", "replace")
+    if not last.strip() or last.lstrip().startswith("#") or "=" not in last:
+        return "<final line>"
+    return last.split("=", 1)[0].strip()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("path", nargs="?", default=".env", help="env file (default: .env)")
@@ -84,10 +120,22 @@ def main() -> int:
             continue
         (identical if len({v for _, v in hits}) == 1 else differing).append(key)
 
-    if not differing and not (identical and args.warn_identical):
+    unterminated = missing_trailing_newline(path)
+
+    if not differing and not (identical and args.warn_identical) and not unterminated:
         extra = f" ({len(identical)} identical duplicate(s) ignored)" if identical else ""
         print(f"OK — no shadowed keys in {path}{extra}")
         return 0
+
+    if unterminated:
+        print(f"no trailing newline: {path} ends mid-line on {unterminated}")
+        print(
+            "    The next `>> .env` will concatenate onto that key's value rather "
+            "than adding a line, corrupting it silently. Fix with: echo >> "
+            f"{path}"
+        )
+        if not differing and not (identical and args.warn_identical):
+            return 1
 
     for key in differing + (identical if args.warn_identical else []):
         hits = keys[key]
