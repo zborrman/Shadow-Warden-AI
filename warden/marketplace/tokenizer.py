@@ -35,6 +35,11 @@ log = logging.getLogger("warden.marketplace.tokenizer")
 
 _OSI_REQUIRED_FIELDS = {"osi_version", "id", "metrics", "dimensions"}
 
+#: A metered capability must say which route it bills and what a unit is, or the
+#: buyer has bought a name. `endpoint` is checked against the gateway's live route
+#: table by scripts/seed_first_party_supply.py before anything is listed.
+_SERVICE_REQUIRED_FIELDS = {"endpoint", "name"}
+
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -226,3 +231,40 @@ class AssetTokenizer:
             "count":      len(signals),
         }
         return _build_container("signals", payload, keypair, agent_id, community_id)
+
+    def tokenize_service(
+        self,
+        service_data: dict,
+        keypair: CommunityKeypair,
+        agent_id: str,
+        community_id: str,
+        kind: str = "service",
+    ) -> dict:
+        """Tokenize a metered capability (`service`) or a generated document (`report`).
+
+        The marketplace could previously express three things — a detection rule,
+        a semantic model, a batch of threat signals — none of which is what this
+        platform mostly sells. `/filter` billed per call is a service and a
+        compliance posture score is a report, and both had to be mislabelled as
+        "rule" to be listed at all. A catalogue whose types are lies is not a
+        catalogue anyone can search.
+
+        Raises ValueError when the endpoint or name is missing: a metered service
+        that does not name the route it meters cannot be delivered, and the buyer
+        finds out after paying.
+        """
+        missing = _SERVICE_REQUIRED_FIELDS - set(service_data.keys())
+        if missing:
+            raise ValueError(
+                f"{kind} asset is missing required field(s): {sorted(missing)}"
+            )
+        payload = {
+            "kind":        kind,
+            "endpoint":    service_data["endpoint"],
+            "name":        service_data["name"],
+            "description": service_data.get("description", ""),
+            "sku":         service_data.get("sku", ""),
+            "unit":        service_data.get("unit", "call"),
+            "issued_at":   datetime.now(UTC).isoformat(),
+        }
+        return _build_container(kind, payload, keypair, agent_id, community_id)

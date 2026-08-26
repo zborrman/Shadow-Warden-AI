@@ -60,7 +60,14 @@ def _db_path() -> str:
 
 _db_lock = threading.RLock()
 
-_VALID_ASSET_TYPES = {"rule", "model", "signals"}
+#: The one definition. It was previously duplicated in the protocol manifest,
+#: which advertised a fourth type — "general" — that this set rejects with a 422.
+#: An agent reading the machine-readable schema and believing it got an error.
+#: warden/marketplace/api.py now imports this rather than restating it.
+VALID_ASSET_TYPES: frozenset[str] = frozenset(
+    {"rule", "model", "signals", "service", "report"}
+)
+_VALID_ASSET_TYPES = VALID_ASSET_TYPES
 
 
 # ── Schema ────────────────────────────────────────────────────────────────────
@@ -129,6 +136,11 @@ def register_asset(
     elif asset_type == "model":
         model_data = raw_data if isinstance(raw_data, dict) else {}
         container = tokenizer.tokenize_model(model_data, keypair, seller_agent_id, community_id)
+    elif asset_type in ("service", "report"):
+        service_data = raw_data if isinstance(raw_data, dict) else {}
+        container = tokenizer.tokenize_service(
+            service_data, keypair, seller_agent_id, community_id, kind=asset_type
+        )
     else:  # signals
         signals = raw_data if isinstance(raw_data, list) else [raw_data]
         container = tokenizer.tokenize_signals(signals, keypair, seller_agent_id, community_id)

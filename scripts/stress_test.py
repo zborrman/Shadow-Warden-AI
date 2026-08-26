@@ -38,7 +38,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 # ── Payloads ──────────────────────────────────────────────────────────────────
 
@@ -259,7 +258,7 @@ async def run_stress_test(
     n_requests:   int,
     concurrency:  int,
     attack_ratio: float,
-    duration_s:   Optional[float],
+    duration_s:   float | None,
 ) -> StressTestResults:
     import aiohttp
 
@@ -396,7 +395,7 @@ def main() -> None:
         print("ERROR: aiohttp is required — run: pip install aiohttp")
         sys.exit(1)
 
-    print(f"\n  Shadow Warden AI — Stress Test")
+    print("\n  Shadow Warden AI — Stress Test")
     print(f"  Target:      {args.url}")
     print(f"  Requests:    {args.requests if not args.duration else f'~{args.duration}s'}")
     print(f"  Concurrency: {args.concurrency}")

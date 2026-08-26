@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import statistics
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -154,19 +153,18 @@ def run_scenario(
     workers: int,
 ) -> list[RequestResult]:
     results: list[RequestResult] = []
-    with httpx.Client() as client:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [
-                pool.submit(
-                    send_filter,
-                    client, url, key,
-                    payloads[i % len(payloads)],
-                    scenario,
-                )
-                for i in range(total_requests)
-            ]
-            for fut in as_completed(futures):
-                results.append(fut.result())
+    with httpx.Client() as client, ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [
+            pool.submit(
+                send_filter,
+                client, url, key,
+                payloads[i % len(payloads)],
+                scenario,
+            )
+            for i in range(total_requests)
+        ]
+        for fut in as_completed(futures):
+            results.append(fut.result())
     return results
 
 
