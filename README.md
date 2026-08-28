@@ -10,6 +10,31 @@ Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in
 
 ---
 
+## Machine-readable surfaces
+
+The public site answers non-browser clients as deliberately as it answers
+people. Every entry point below is covered by
+`warden/tests/test_site_agent_readiness.py` and `edge/negotiate.*.test.mjs`.
+
+| Surface | URL | Notes |
+|---|---|---|
+| Site index for machines | `/llms.txt` | Includes a **when to use this** section |
+| Agent instructions | `/.well-known/agent-instructions.md` | Best-fit jobs, when *not* to use it, status codes to handle, honesty notes |
+| Agent Card (A2A / ADP) | `/.well-known/agent.json` | Proxied to the API host, which owns it |
+| DID document | `/.well-known/did.json` | `did:web:shadow-warden-ai.com` |
+| OpenAPI 3.1 | `/openapi.json` | Every route |
+| Markdown pages | `Accept: text/markdown`, or append `.md` | `/`, `/pricing`, `/price`, `/doc`, `/sdk`, `/agentic`, `/trust` |
+| Structured data | JSON-LD on every page | Organization, WebSite, WebPage; SoftwareApplication on the homepage |
+| CLI | `pip install "shadow-warden-sdk>=1.1.0"` | `warden filter`, `health`, `impact`, `billing` |
+
+Content negotiation follows [acceptmarkdown.com](https://acceptmarkdown.com):
+markdown is served from the *same* URL as the HTML, both variants carry
+`Vary: Accept`, q-values decide, and a client that accepts neither gets `406`.
+`*/*` (curl, most crawlers) keeps getting HTML. Unknown paths return a real
+`404` whose body — HTML or markdown — lists the recovery routes above.
+
+---
+
 ## What's New in v7.9
 
 | Feature | Description |

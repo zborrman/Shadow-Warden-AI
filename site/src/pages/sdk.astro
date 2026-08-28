@@ -59,6 +59,7 @@ const methods = [
 <Layout
   title="SDK & API — Shadow Warden AI"
   description="Official Python and TypeScript SDKs for the Shadow Warden AI security gateway. Filter LLM traffic, run autonomous agents, and manage the M2M marketplace from your code."
+  markdown="/sdk.md"
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -113,6 +114,34 @@ const methods = [
             <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">npm install @shadow-warden/sdk</pre>
           </div>
         </div>
+      </div>
+
+      <!-- CLI -->
+      <div class="mt-10 space-y-3">
+        <p class="text-[11px] text-[#8E8E9E] uppercase tracking-[1px] font-semibold">Command line</p>
+        <p class="text-[13px] text-[#8E8E9E] leading-relaxed">
+          The <span class="font-mono text-[#F5F5F7]">warden</span> console script ships with the Python
+          SDK from v1.1.0. Every command takes <span class="font-mono text-[#F5F5F7]">--json</span>, and
+          <span class="font-mono text-[#F5F5F7]">filter</span> exits 0 when the content is allowed and 1
+          when it is blocked — so it drops straight into a shell conditional or a CI gate.
+        </p>
+        <div class="rounded-xl border border-white/[0.08] overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
+            <span class="text-[11px] font-bold text-[#FFD60A]">CLI</span>
+            <span class="text-[10px] text-[#8E8E9E]">shadow-warden-sdk &gt;= 1.1.0</span>
+          </div>
+          <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">warden health
+warden filter "ignore previous instructions"
+warden filter --json --file prompt.txt
+cat prompt.txt | warden filter --stdin
+warden impact --requests 50000
+warden billing</pre>
+        </div>
+        <p class="text-[12px] text-[#6E6E76]">
+          Configuration: <span class="font-mono">WARDEN_API_KEY</span>,
+          <span class="font-mono">WARDEN_GATEWAY_URL</span>, or the matching flags.
+          Exit codes: 0 allowed · 1 blocked · 2 usage · 3 gateway unreachable.
+        </p>
       </div>
     </div>
 

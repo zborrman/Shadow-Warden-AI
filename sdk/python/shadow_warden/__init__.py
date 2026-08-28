@@ -35,7 +35,7 @@ from shadow_warden.errors import (
 )
 from shadow_warden.models import FilterResult, ImpactReport, SecretFinding, SemanticFlag
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # Clients

@@ -252,6 +252,26 @@ class WardenClient:
         """
         return _WardenOpenAIWrapper(self, openai_client)
 
+    # ── Health ────────────────────────────────────────────────────────────
+
+    def health(self) -> dict:
+        """
+        Return the gateway's health document from ``GET /health``.
+
+        Raises :class:`WardenGatewayError` on a non-200, and
+        :class:`WardenTimeoutError` if the gateway does not answer in time, so a
+        caller can tell "unreachable" from "reachable and unhealthy".
+        """
+        try:
+            resp = self._http.get(f"{self._base}/health")
+        except httpx.TimeoutException as exc:
+            raise WardenTimeoutError("Gateway timed out") from exc
+        except httpx.RequestError as exc:
+            raise WardenGatewayError(0, str(exc)) from exc
+        if resp.status_code != 200:
+            raise WardenGatewayError(resp.status_code, resp.text)
+        return resp.json()
+
     # ── Context manager ───────────────────────────────────────────────────
 
     def close(self) -> None:

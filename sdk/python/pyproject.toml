@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shadow-warden-sdk"
-version = "1.0.0"
+version = "1.1.0"
 description = "Python SDK for the Shadow Warden AI security gateway"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,8 +35,12 @@ otel = [
     "opentelemetry-sdk>=1.24",
 ]
 
+[project.scripts]
+# `warden` — the CLI documented at https://shadow-warden-ai.com/sdk
+warden = "shadow_warden.cli:main"
+
 [project.urls]
-Homepage   = "https://shadowwarden.ai"
+Homepage   = "https://shadow-warden-ai.com"
 Repository = "https://github.com/zborrman/Shadow-Warden-AI"
 Issues     = "https://github.com/zborrman/Shadow-Warden-AI/issues"
 

@@ -43,6 +43,13 @@ jobs:
           path: site/dist/
           retention-days: 7
 
+      # Content negotiation (https://acceptmarkdown.com) decides what a
+      # non-browser client gets back. The unit tests pin the Accept rules; the
+      # e2e boots a stand-in for Vercel's routing over the build that just ran,
+      # so "markdown request returns HTML" fails here rather than in an audit.
+      - name: Test the edge negotiation
+        run: node --test edge/negotiate.test.mjs edge/negotiate.e2e.test.mjs
+
       # `landing/` must equal a fresh build of `site/`.
       #
       # This replaces two bots that both tried to publish it *after* merge and
@@ -94,6 +101,31 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           head -40 /tmp/landing_diff.txt
           exit 1
+
+  # ── SDK (published to PyPI as shadow-warden-sdk) ─────────────────────────────
+  sdk:
+    name: SDK + CLI tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install the SDK with its test extras
+        run: pip install -e ".[dev]"
+        working-directory: sdk/python
+
+      - name: Run the SDK and CLI tests
+        run: python -m pytest tests/ -q
+        working-directory: sdk/python
+
+      - name: The console script is installed and runs
+        run: |
+          warden version
+          warden --help > /dev/null
 
   # ── MkDocs Documentation Build ──────────────────────────────────────────────
   docs:

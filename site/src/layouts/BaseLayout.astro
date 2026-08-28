@@ -7,13 +7,72 @@ interface Props {
   title?: string;
   description?: string;
   ogImage?: string;
+  /**
+   * Markdown representation of this page, e.g. '/pricing.md'. Published as a
+   * `rel="alternate"` link so an agent can find it without guessing, and
+   * negotiated on this same URL by edge/negotiate.mjs. Must agree with
+   * MARKDOWN_ROUTES there — warden/tests/test_site_agent_readiness.py checks it.
+   */
+  markdown?: string;
+  /** Extra JSON-LD node(s) for this page, merged into the site-wide @graph. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 const {
   title = 'Shadow Warden AI — Zero-Trust AI Security Gateway',
-  description = '14-layer real-time AI security gateway. Blocks jailbreaks, strips PII, enforces compliance in <2ms. SOC 2 · GDPR · Post-Quantum Cryptography.',
+  description = 'Zero-trust AI security gateway. A nine-stage filter blocks jailbreaks, decodes obfuscated payloads and strips secrets and PII before a prompt reaches a model. Content is never logged.',
   ogImage = '/logo.png',
+  markdown,
+  jsonLd,
 } = Astro.props;
+
+const SITE_URL = 'https://shadow-warden-ai.com';
+// vercel.json serves this site with `cleanUrls` and `trailingSlash: false`,
+// so /pricing/ redirects to /pricing. Canonical must name the 200, not the 308.
+const canonicalPath = Astro.url.pathname.replace(/(.)\/$/, '$1');
+const canonicalUrl = new URL(canonicalPath, Astro.site ?? SITE_URL).href;
+
+// Structured identity, so an agent does not have to infer who this is from
+// marketing copy. Organization + WebSite ship on every page; a page may add its
+// own node (the homepage adds SoftwareApplication) via the `jsonLd` prop.
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'Shadow Warden AI',
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo.png`,
+      description: 'Zero-trust AI security gateway and machine-to-machine agent marketplace.',
+      sameAs: ['https://github.com/zborrman/Shadow-Warden-AI'],
+      contactPoint: [{
+        '@type': 'ContactPoint',
+        contactType: 'technical support',
+        url: `${SITE_URL}/contact`,
+        availableLanguage: ['en'],
+      }],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'Shadow Warden AI',
+      url: SITE_URL,
+      inLanguage: 'en',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+    {
+      '@type': 'WebPage',
+      '@id': `${canonicalUrl}#webpage`,
+      url: canonicalUrl,
+      name: title,
+      description,
+      isPartOf: { '@id': `${SITE_URL}/#website` },
+      ...(markdown ? { encoding: { '@type': 'MediaObject', encodingFormat: 'text/markdown', contentUrl: new URL(markdown, SITE_URL).href } } : {}),
+    },
+    ...(Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : []),
+  ],
+};
 
 const categories = [
   {
@@ -93,9 +152,13 @@ const isSettingsActive = isActive('/settings');
   <meta name="theme-color" content="#0a0a0f" />
   <link rel="icon" href="/logo.png" type="image/png" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="canonical" href={canonicalUrl} />
   <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
   <link rel="llms-txt" href="/llms.txt" type="text/plain" />
+  <link rel="alternate" type="text/markdown" href="/llms.txt" title="Site index for machines" />
+  {markdown && <link rel="alternate" type="text/markdown" href={markdown} title="Markdown version of this page" />}
   <title>{title}</title>
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />
   <!-- Anti-FOUC: apply stored/system theme before first paint -->
   <script is:inline>
     (function(){try{
