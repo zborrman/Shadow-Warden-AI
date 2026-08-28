@@ -67,13 +67,29 @@ and `escrow.chains` is derived from configuration rather than hard-coded.
 | Baseline instrumentation | One dashboard with the six numbers that define the business. All currently zero; make the zero visible daily. |
 
 **Exit criteria**
-- [ ] Capability matrix published; every public claim reconciled against it.
-- [~] An evidence bundle written to MinIO and to the offsite bucket, verified by hand.
+- [x] Capability matrix published; every public claim reconciled against it.
+      Reconciled and **enforced** 2026-08-28. The matrix always named the claims
+      to remove; nothing made removal stick — `"SOC 2 compliant"` was struck from
+      `AuthModal.astro` and survived untouched on the portal signup CTA, and a
+      `Sub-3ms` latency nothing instruments survived in `FeaturesGrid.astro`. Both
+      removed. `docs/capability-matrix.md` now carries a machine-readable
+      ```banned-claims``` block, and `test_public_claims_reconciled.py` greps every
+      published surface (`site/src`, `landing/`, `portal/src`, `dashboard/src`)
+      against it — the test holds no list of its own, so there is no second copy to
+      drift. Verified red against the pre-fix files. `scripts/capability_probe.py`
+      re-run against production the same day: pipeline OK, PQC OK, SDKs resolve,
+      `settlement_mode: simulated` (honest, and P1a's open item).
+- [x] An evidence bundle written to MinIO and to the offsite bucket, verified by hand.
       MinIO half done 2026-08-21: generated, landed at `bundles/…json`, read back
       through the S3 API, `verify` returns `valid: true`. Offsite half built
       2026-08-22 — `ship_evidence_bundles()` mirrors the vault encrypted into
-      `evidence-bundles/` from the nightly 03:30 job — and stays `[~]` until the
-      first run is confirmed offsite by hand. Built is not verified.
+      `evidence-bundles/` from the nightly 03:30 job.
+      **Confirmed by hand 2026-08-28**, and not by the file merely existing:
+      both bundles listed in the offsite bucket (written 2026-08-23 03:30), one
+      downloaded, Fernet-decrypted with `VAULT_MASTER_KEY`, parsed as JSON (12
+      keys, `bundle_hash: sha256:2a46aef4f…`), and compared field-by-field
+      against the MinIO original — **identical**. A copy that cannot be read
+      back is not a backup, which is the lesson the R6 drill already paid for.
 - [x] Liquidity dashboard live in Grafana, reporting honest zeros.
       `marketplace.json` — Active Agents, Active Escrows, Total Trade Volume, Open
       Negotiations, Listings & Purchases — provisioned and mounted in the running
