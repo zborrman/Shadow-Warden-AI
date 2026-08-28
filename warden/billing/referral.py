@@ -44,18 +44,40 @@ _BONUS_TTL = 35 * 86400  # ~1 month + 3 days
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
 
+_CLIENT: object | None = None
+
+
+def _reset_client() -> None:
+    """Drop the cached client (tests, and after a config change)."""
+    global _CLIENT
+    _CLIENT = None
+
+
 def _redis():
-    """Return a sync Redis client (None if unavailable)."""
+    """Return a sync Redis client (None if unavailable).
+
+    The client is cached at module scope. It used to be rebuilt on every call,
+    which meant a fresh ``ConnectionPool`` — and so a fresh TCP connect — per
+    invocation. ``get_bonus_requests`` is called from ``QuotaMiddleware`` on
+    every POST /filter, so that was a per-request connect on the ASGI hot path.
+
+    The ``None`` fail-open is deliberately NOT cached: a transient failure to
+    build the client must not disable referral bonuses until the next restart.
+    """
+    global _CLIENT
+    if _CLIENT is not None:
+        return _CLIENT
     try:
         import redis as _r
 
         from warden.config import settings
-        return _r.from_url(
+        _CLIENT = _r.from_url(
             settings.redis_url,
             decode_responses=True,
             socket_connect_timeout=2,
             socket_timeout=1,
         )
+        return _CLIENT
     except Exception:
         return None
 

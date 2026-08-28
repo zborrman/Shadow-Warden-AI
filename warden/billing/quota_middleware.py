@@ -169,6 +169,40 @@ def _get_plan_from_scope(scope: dict, tenant_id: str) -> str:
         return "starter"
 
 
+def _resolve_quota_context(scope: dict) -> tuple[str, str, dict, int | None]:
+    """Resolve (tenant_id, tier, limits, effective_limit) for *scope*.
+
+    EVERY call in here is synchronous and does I/O:
+
+      * ``resolve_tenant_id``  — first call lazily imports ``warden.auth_guard``
+      * ``get_plan``           — a SQLite query against lemon.db
+      * ``get_bonus_requests`` — a Redis GET
+
+    None of it may run on the event loop. ``QuotaMiddleware`` calls this through
+    ``asyncio.to_thread``; do not inline it back into ``__call__``.
+
+    ``effective_limit`` is ``None`` for unlimited plans, otherwise the plan
+    limit already extended by any referral bonus.
+    """
+    tenant_id = _get_tenant_id_from_scope(scope)
+    plan      = _get_plan_from_scope(scope, tenant_id)
+
+    from warden.billing.feature_gate import TIER_LIMITS, _normalize_tier
+    tier   = _normalize_tier(plan)
+    limits = TIER_LIMITS.get(tier, TIER_LIMITS["starter"])
+    limit  = limits.get("req_per_month")
+
+    if limit is not None:
+        # Extend limit with any referral bonuses earned this month
+        try:
+            from warden.billing.referral import get_bonus_requests
+            limit += get_bonus_requests(tenant_id)
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("suppressed exception: %r", _exc)
+
+    return tenant_id, tier, limits, limit
+
+
 async def _send_429(send, detail: str, upgrade_url: str) -> None:
     body = json.dumps({
         "detail":      detail,
@@ -212,25 +246,22 @@ class QuotaMiddleware:
             await self.app(scope, receive, send)
             return
 
-        tenant_id = _get_tenant_id_from_scope(scope)
-        plan      = _get_plan_from_scope(scope, tenant_id)
-
-        from warden.billing.feature_gate import TIER_LIMITS, _normalize_tier
-        tier   = _normalize_tier(plan)
-        limits = TIER_LIMITS.get(tier, TIER_LIMITS["starter"])
-        limit  = limits.get("req_per_month")
+        # Tenant/plan/bonus resolution is a SQLite query plus a Redis GET plus a
+        # lazy import. #401 moved the INCR off the loop but left this prelude on
+        # it, so the loop still stalled here for the whole resolution.
+        # Deliberately NOT wrapped in try/except. Before this change a failure
+        # here propagated and the caller got a 500; swallowing it would turn the
+        # same failure into a silent quota bypass, which is strictly more
+        # permissive than the code being replaced. This change is only about
+        # which thread the work runs on.
+        tenant_id, tier, limits, limit = await asyncio.to_thread(
+            _resolve_quota_context, scope
+        )
 
         # Enterprise / unlimited plan — skip quota check entirely
         if limit is None:
             await self.app(scope, receive, send)
             return
-
-        # Extend limit with any referral bonuses earned this month
-        try:
-            from warden.billing.referral import get_bonus_requests
-            limit += get_bonus_requests(tenant_id)
-        except Exception as _exc:  # noqa: BLE001
-            log.debug("suppressed exception: %r", _exc)
 
         # Increment Redis counter
         r = _redis()
