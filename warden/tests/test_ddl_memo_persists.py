@@ -5,11 +5,15 @@ The DDL registry's bookkeeping table was never written to.
 `ensure_schema` records what it applied with an INSERT into
 `_warden_ddl_applied`, then returned without committing. The INSERT sat in an
 open transaction and was discarded when the connection closed, so the table
-stayed permanently EMPTY. Every subsequent connection then read "nothing
-applied" and re-executed the full DDL script for every registered module.
+stayed EMPTY. Every subsequent connection then read "nothing applied" and
+re-executed the full DDL script.
 
-The docstring describes that full re-run as the rare path. It was the only
-path, on every connection open, for every module in the registry.
+Most databases hid this, because their modules write data and a later commit on
+the same connection flushes the orphaned tracking INSERT by accident: a
+production survey found 23 of 31 tracking tables populated. The databases that
+stay broken forever are the read-mostly ones nothing ever writes -- lemon.db,
+stripe.db, data_policy.db -- where no later commit ever comes. For those, the
+full re-run the docstring calls rare was the only path, on every open.
 
 Measured cost on production before the fix: `LemonBilling()` -- one
 `open_persistent_db` -- took **5009.5ms**, reproducibly, in three separate
