@@ -22,7 +22,13 @@ type Form = z.infer<typeof schema>
 const PERKS = [
   { icon: ShieldCheck, label: '1,000 req / month free',   desc: 'Full 9-layer pipeline' },
   { icon: Brain,       label: 'No credit card required',  desc: '14-day Pro trial included' },
-  { icon: Users,       label: 'GDPR & SOC 2 compliant',   desc: 'ISO 27001 ready' },
+  // This perk used to assert a SOC 2 certification and ISO 27001 readiness.
+  // Neither is true: there is no audit, auditor or report, and the ISO work is
+  // a control mapping. capability-matrix.md marks the first FABRICATED and the
+  // second SELF-ATTESTED. The identical claim was removed from AuthModal.astro
+  // and this copy survived it, which is why the guard now greps every surface
+  // rather than the file someone happened to remember.
+  { icon: Users,       label: 'GDPR controls built in',    desc: 'ISO 27001 control mapping' },
 ]
 
 const TIERS = [

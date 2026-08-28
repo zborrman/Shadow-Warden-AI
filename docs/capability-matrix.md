@@ -225,3 +225,39 @@ the fact.
   re-check them at the source before quoting them. Extending the probe to cover
   them is how this paragraph gets retired.
 - Rows only move toward `LIVE`. A row moving backwards is an incident.
+
+---
+
+## Enforced claim vocabulary
+
+The rows above prescribe actions; nothing made them stick. "SOC 2 compliant"
+was removed from `AuthModal.astro` and survived in `portal/src/app/register/`,
+because the fix went to the file someone remembered rather than to every
+surface that carried the claim.
+
+`warden/tests/test_public_claims_reconciled.py` reads the block below and greps
+every published surface — `site/src`, `landing/`, `portal/src`, `dashboard/src`
+— for each phrase. This block is the single source: the test holds no list of
+its own, so adding a phrase here is what bans it, and there is no second copy to
+disagree with.
+
+Phrases, one per line. A leading `#` is a comment.
+
+```banned-claims
+# Certification we do not hold. No audit, no auditor, no report.
+SOC 2 compliant
+ISO 27001 certified
+FIPS 203/204 certified
+# Coverage nothing measures — the per-vector percentages were fabricated.
+100% OWASP
+# Latency nothing instruments (matrix: UNMEASURED).
+sub-1ms
+sub-2ms
+sub-3ms
+# Settlement that does not happen. `settlement_mode` reads `simulated`.
+mainnet EVM
+no chargebacks
+escrow-backed
+# Regulatory posture overstated as a product feature.
+HIPAA compliance built in
+```
