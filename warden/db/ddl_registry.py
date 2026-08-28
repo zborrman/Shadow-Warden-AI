@@ -150,6 +150,21 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
         except Exception as exc:  # noqa: BLE001
             log.warning("ddl_registry: DDL failed for %s/%s: %s", db_key, module, exc)
 
+    # Persist the bookkeeping. Without this the INSERT above sits in an
+    # uncommitted transaction and is discarded when the connection closes, so
+    # `_warden_ddl_applied` stays permanently EMPTY -- and every subsequent
+    # connection reads "nothing applied" and re-executes the full DDL script.
+    # That is not a slow path taken rarely; it was taken on every single
+    # connection open, for every module in the registry. On a database held
+    # open by other workers the re-run then blocks on the write lock and burns
+    # the entire 5000ms busy_timeout: measured at 5009.5ms, reproducibly, for
+    # LemonBilling's first use in each uvicorn worker.
+    if applied:
+        try:
+            conn.commit()
+        except Exception as exc:
+            log.debug("ddl_registry: could not commit tracking for %s: %s", db_key, exc)
+
     return applied
 
 
