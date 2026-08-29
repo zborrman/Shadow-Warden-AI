@@ -1495,6 +1495,78 @@ groups:
             `monitoring` compose profile. If you enable that profile, drop the
             job!~ filter so they are covered too.
 
+  # ── The Evolution Engine must not be able to fail silently ──────────────────
+  #
+  # It produced nothing in production for months. `EVOLUTION_ENGINE=auto`
+  # selected a NIM backend on the mere PRESENCE of NVIDIA_API_KEY, and the
+  # fallback to Claude only fired if *construction* raised — which it never did.
+  # The model 404d at call time instead, on every single call, and nothing
+  # counted that: the error path incremented no metric, and the one counter that
+  # existed was written only with `.inc(0)` at startup.
+  #
+  # Deliberately a RATIO, not a "zero successes" rule. A rule of the shape
+  # `rule_generations == 0` would fire continuously on any quiet system with no
+  # attacks to learn from — which is exactly the OB-F12 defect of a critical
+  # alert that pages forever and describes nothing. This only evaluates when the
+  # engine is actually being invoked: if nothing is failing, $A is 0 and the
+  # condition is false regardless of what $B is.
+  - orgId: 1
+    name: warden_evolution
+    folder: Shadow Warden
+    interval: 1m
+    rules:
+      - uid: warden-evolution-failing
+        title: Warden — Evolution Engine failing most calls
+        condition: C
+        data:
+          - refId: A
+            queryType: ''
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'sum(rate(warden_evolution_failed_total[30m]))'
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: B
+            queryType: ''
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'sum(rate(warden_nemotron_evolution_total[30m]))'
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ''
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $A > 0 && ($A / ($A + $B)) > 0.5
+        noDataState: OK
+        execErrState: Alerting
+        for: 15m
+        labels:
+          severity: warning
+          team: warden
+        annotations:
+          summary: Evolution Engine is erroring on more than half its calls
+          description: >
+            Over 30 minutes, more than half of Evolution Engine attempts failed
+            rather than producing a rule. The `engine` and `reason` labels on
+            warden_evolution_failed_total say which backend and why —
+            `llm_error` is an upstream API failure (wrong model name, expired
+            key, account spend cap), `regex_gate` means generated rules are
+            being rejected as unsafe. The engine keeps logging "online" while
+            this is true, so startup logs will not show it.
+
   # ── OB-4: background worker ─────────────────────────────────────────────────
   #
   # The arq-worker container runs the money crons and the nightly encrypted

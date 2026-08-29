@@ -238,6 +238,28 @@ try:
             "warden_nemotron_evolution_total"
         )
 
+    # ── Evolution Engine failure counter ─────────────────────────────────────
+    # The engine can be selected, constructed, logged as "online", and fail
+    # every single call — that is exactly what happened for months: auto mode
+    # picked a NIM backend whose model 404s, and nothing anywhere counted it.
+    # A success counter alone cannot distinguish "no attacks to learn from"
+    # from "every call is erroring", so the failures need their own signal.
+    #
+    # Labels:
+    #   engine  "nemotron" | "claude"
+    #   reason  "llm_error"    — the upstream call raised (HTTP error, timeout)
+    #           "regex_gate"   — generated rule rejected by the ReDoS gate
+    try:
+        EVOLUTION_FAILED_TOTAL = Counter(
+            "warden_evolution_failed_total",
+            "Evolution Engine attempts that produced no rule, by backend and reason",
+            ["engine", "reason"],
+        )
+    except ValueError:
+        EVOLUTION_FAILED_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
+            "warden_evolution_failed_total"
+        )
+
     # ── Filter-stage latency (optional extension point) ───────────────────────
     # Already covered by prometheus-fastapi-instrumentator for HTTP-level
     # latency.  No extra histogram needed here yet.
@@ -985,6 +1007,7 @@ except ImportError:
     SHADOW_BAN_TOTAL                = _Noop()  # type: ignore[assignment]
     SHADOW_BAN_COST_SAVED_USD       = _Noop()  # type: ignore[assignment]
     NEMOTRON_EVOLUTION_TOTAL        = _Noop()  # type: ignore[assignment]
+    EVOLUTION_FAILED_TOTAL          = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CONVERT_TOTAL         = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CONVERT_ERRORS_TOTAL  = _Noop()  # type: ignore[assignment]
     DOC_INTEL_CACHE_HITS_TOTAL      = _Noop()  # type: ignore[assignment]

@@ -42,7 +42,11 @@ from pydantic import BaseModel, Field
 
 from warden.cache import _get_client as _get_redis
 from warden.config import settings
-from warden.metrics import EVOLUTION_SKIPPED_TOTAL
+from warden.metrics import (
+    EVOLUTION_FAILED_TOTAL,
+    EVOLUTION_SKIPPED_TOTAL,
+    NEMOTRON_EVOLUTION_TOTAL,
+)
 from warden.schemas import RiskLevel, SemanticFlag
 from warden.telemetry import trace_stage as _trace_stage
 
@@ -450,6 +454,12 @@ class EvolutionEngine:
             )
     """
 
+    #: Which backend this engine talks to. Used as the `engine` label on the
+    #: evolution counters, so "which engine is live" and "is it producing
+    #: anything" can be answered from the same metric. Subclasses override it.
+    ENGINE_LABEL = "claude"
+
+
     def __init__(
         self,
         semantic_guard=None,
@@ -689,10 +699,19 @@ class EvolutionEngine:
                 evolution, user_prompt = await self._call_claude(content, flags, risk_level)
         except Exception as exc:
             log.error("EvolutionEngine: Claude API error — %s", exc)
+            EVOLUTION_FAILED_TOTAL.labels(
+                engine=self.ENGINE_LABEL, reason="llm_error"
+            ).inc()
             return None
 
         with _trace_stage("evo.build_rule"):
             rule = self._build_rule(content_hash, evolution)
+
+        # The counter's own docstring says "rule generation calls". Until now
+        # every reference to it was `.inc(0)` at startup — label registration,
+        # never a write — so it read 0.0 whether the engine was working or had
+        # been dead for months. This is its only real increment.
+        NEMOTRON_EVOLUTION_TOTAL.labels(engine=self.ENGINE_LABEL).inc()
 
         # ── Dataset collection — append fine-tuning sample ──────────────────
         try:
@@ -718,6 +737,9 @@ class EvolutionEngine:
                     "EvolutionEngine: regex_pattern rejected by safety gate (%s) — "
                     "rule discarded, corpus unchanged.", _reason,
                 )
+                EVOLUTION_FAILED_TOTAL.labels(
+                    engine=self.ENGINE_LABEL, reason="regex_gate"
+                ).inc()
                 return None
 
         with _trace_stage("evo.persist"):

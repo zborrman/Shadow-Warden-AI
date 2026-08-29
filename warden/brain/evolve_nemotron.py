@@ -101,6 +101,10 @@ class NemotronEvolutionEngine(EvolutionEngine):
         # ... used exactly the same way in main.py BackgroundTasks
     """
 
+    #: This subclass talks to NVIDIA NIM, not Anthropic.
+    ENGINE_LABEL = "nemotron"
+
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self._nim = NimClient()
