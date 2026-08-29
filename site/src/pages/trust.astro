@@ -110,7 +110,7 @@ const reports = [
   { name: 'SOC 2 Type II Evidence Guide', description: 'Control mapping, auditor collection procedures, evidence bundles', href: '/doc/compliance', badge: 'SOC 2' },
   { name: 'ISO 27001:2022 Control Matrix', description: '93 controls across Organizational, People, Physical, Technological themes', href: '/doc/compliance', badge: 'ISO 27001' },
   { name: 'Security Model', description: '9-layer defense model, OWASP LLM Top 10 coverage, full threat model', href: '/doc/compliance', badge: 'Security' },
-  { name: 'SLA Document', description: 'Pro 99.9% / Enterprise 99.95% uptime, P99 < 50ms, incident response', href: '/doc/compliance', badge: 'SLA' },
+  { name: 'SLA Document', description: 'Pro 99.9% / Enterprise 99.95% uptime targets, incident response and escalation', href: '/doc/compliance', badge: 'SLA' },
   { name: 'OpenAPI Specification', description: 'Full API reference — 562 endpoints, v6.8.0', href: '/doc/api-reference', badge: 'API' },
 ];
 
@@ -119,7 +119,7 @@ const totalControls = categories.reduce((s, c) => s + c.controls.length, 0);
 
 <BaseLayout
   title="Trust Center — Shadow Warden AI"
-  description="Shadow Warden AI security controls, compliance posture, subprocessors, and audit reports. SOC 2 · GDPR · ISO 27001 · Post-Quantum."
+  description="Shadow Warden AI security controls, subprocessors and audit evidence. Self-attested control mappings for SOC 2, GDPR and ISO 27001:2022 — we hold no third-party certification."
   markdown="/trust.md"
 >
   <div class="trust-root" style="padding-top:56px">
