@@ -42,7 +42,14 @@ async function readIfFile(path) {
 
 /** vercel.json: cleanUrls + trailingSlash:false over a static Astro build. */
 async function resolveStatic(dist, pathname) {
-  const decoded = decodeURIComponent(pathname);
+  // `/%` throws URIError, which would reject the async listener and leave the
+  // response unsettled — the request would hang rather than 404.
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
   if (decoded.includes("..")) return null;
   const safe = normalize(decoded);
   const candidates = extname(safe)
