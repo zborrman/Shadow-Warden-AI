@@ -272,7 +272,13 @@ class WardenClient:
             raise WardenGatewayError(0, str(exc)) from exc
         if resp.status_code != 200:
             raise WardenGatewayError(resp.status_code, resp.text)
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError as exc:
+            # A proxy or captive portal answering 200 with HTML is "reachable
+            # and not the gateway" — the caller needs that as a gateway error,
+            # not as a decode traceback.
+            raise WardenGatewayError(resp.status_code, f"malformed health response: {exc}") from exc
 
     # ── Context manager ───────────────────────────────────────────────────
 

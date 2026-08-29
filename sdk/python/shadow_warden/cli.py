@@ -109,9 +109,26 @@ def _cmd_filter(args: argparse.Namespace) -> int:
         except (WardenGatewayError, WardenTimeoutError) as exc:
             return _fail(str(exc), EXIT_GATEWAY, args.json)
 
-    payload = asdict(result)
-    payload["blocked"] = result.blocked
-    payload["flags"] = result.flag_names
+    # The verdict travels; the content does not. `--json` output lands in CI
+    # logs and agent transcripts, so the matched secret *token* is never
+    # serialised — a `warden filter --json` that printed the AWS key it just
+    # caught would be a worse leak than the one it detected. The redacted text
+    # is available, but only when asked for explicitly.
+    payload = {
+        "allowed": result.allowed,
+        "blocked": result.blocked,
+        "risk_level": result.risk_level,
+        "flags": result.flag_names,
+        "secrets_found": [
+            {"kind": s.kind, "start": s.start, "end": s.end} for s in result.secrets_found
+        ],
+        "semantic_flags": [
+            {"flag": f.flag, "score": f.score, "detail": f.detail} for f in result.semantic_flags
+        ],
+        "processing_ms": result.processing_ms,
+    }
+    if args.show_filtered:
+        payload["filtered_content"] = result.filtered_content
 
     verdict = "ALLOWED" if result.allowed else "BLOCKED"
     lines = [f"{verdict}  risk={result.risk_level}"]
