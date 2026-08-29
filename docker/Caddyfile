@@ -392,9 +392,30 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 	# tells a crawler that every path it invents exists.
 	handle_errors {
 		root * /srv/landing
-		rewrite * /{err.status_code}.html
-		file_server {
-			status {err.status_code}
+
+		# A markdown client that lands on a missing path gets the markdown
+		# recovery body, not an HTML shell it cannot read. Same negotiation
+		# subset as the pages above.
+		@md_notfound {
+			expression {err.status_code} == 404
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+		}
+		handle @md_notfound {
+			rewrite * /404.md
+			header Content-Type "text/markdown; charset=utf-8"
+			header Vary "Accept, Accept-Encoding"
+			file_server {
+				status 404
+			}
+		}
+
+		handle {
+			rewrite * /{err.status_code}.html
+			file_server {
+				status {err.status_code}
+			}
 		}
 	}
 }

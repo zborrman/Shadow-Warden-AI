@@ -32,6 +32,14 @@ const structuredData = {
       sameAs: ['https://github.com/zborrman/Shadow-Warden-AI'],
     },
     {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'Shadow Warden AI',
+      url: SITE_URL,
+      inLanguage: 'en',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+    {
       '@type': 'WebPage',
       '@id': `${canonicalUrl}#webpage`,
       url: canonicalUrl,
@@ -52,6 +60,8 @@ const structuredData = {
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={`${SITE_URL}/logo.png`} />
     <meta name="theme-color" content="#03050F" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link
@@ -66,7 +76,7 @@ const structuredData = {
     <link rel="canonical" href={canonicalUrl} />
     <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
     <link rel="llms-txt" href="/llms.txt" type="text/plain" />
-    <link rel="alternate" type="text/markdown" href="/llms.txt" title="Site index for machines" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="Site index for machines" />
     {markdown && <link rel="alternate" type="text/markdown" href={markdown} title="Markdown version of this page" />}
     <title>{title}</title>
     <script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />

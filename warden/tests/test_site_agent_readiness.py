@@ -134,6 +134,15 @@ class TestNotFound:
             "the error page would be served with 200 — the status is the whole point"
         )
 
+    def test_the_apex_serves_the_markdown_404_to_a_markdown_client(self):
+        """
+        Both surfaces must answer a missing path the same way. The apex served
+        the HTML shell to every client until review of #409 caught it.
+        """
+        caddy = _read(_CADDYFILE)
+        assert "@md_notfound" in caddy, "the apex has no markdown branch for 404s"
+        assert "rewrite * /404.md" in caddy
+
 
 # ── Content negotiation ───────────────────────────────────────────────────────
 
@@ -223,6 +232,36 @@ class TestStructuredData:
         assert "SoftwareApplication" in src
         assert "AggregateOffer" in src
         assert "jsonLd={softwareApplication}" in src
+
+    def test_no_layout_references_a_json_ld_node_it_does_not_publish(self):
+        """
+        Layout.astro pointed WebPage.isPartOf at a WebSite node only BaseLayout
+        emitted, so every page built on it carried a dangling reference.
+        """
+        for layout in ("BaseLayout.astro", "Layout.astro"):
+            src = _read(_LAYOUTS / layout)
+            referenced = set(re.findall(r"'@id':\s*\{?\s*`\$\{SITE_URL\}/#(\w+)`", src))
+            declared = set(re.findall(r"'@id':\s*`\$\{SITE_URL\}/#(\w+)`", src))
+            assert referenced <= declared, (
+                f"{layout} references JSON-LD nodes it never declares: {referenced - declared}"
+            )
+
+    def test_the_llms_txt_alternate_is_typed_as_it_is_served(self):
+        """It is served as text/plain; advertising markdown invites a reject."""
+        for layout in ("BaseLayout.astro", "Layout.astro"):
+            src = _read(_LAYOUTS / layout)
+            link = re.search(r'<link rel="alternate" type="([^"]+)" href="/llms\.txt"', src)
+            assert link, f"{layout} no longer links llms.txt"
+            assert link.group(1) == "text/plain", f"{layout} mistypes the llms.txt alternate"
+
+    def test_open_graph_urls_are_absolute(self):
+        for layout in ("BaseLayout.astro", "Layout.astro"):
+            src = _read(_LAYOUTS / layout)
+            assert 'property="og:url"' in src, f"{layout} publishes no og:url"
+            image = re.search(r'property="og:image" content=\{([^}]+)\}', src)
+            assert image and "SITE_URL" in image.group(1), (
+                f"{layout} og:image is not an absolute URL"
+            )
 
     def test_both_layouts_publish_a_canonical(self):
         for layout in ("BaseLayout.astro", "Layout.astro"):

@@ -106,8 +106,14 @@ jobs:
   sdk:
     name: SDK + CLI tests
     runs-on: ubuntu-latest
+    # This job installs and executes package code; it needs to read the repo and
+    # nothing else, and it must not carry a writable token while doing it.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:

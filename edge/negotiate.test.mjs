@@ -51,6 +51,20 @@ test("equal q and equal specificity resolves to HTML", () => {
   assert.equal(chooseVariant("text/markdown, text/html"), "html");
 });
 
+test("an explicit exclusion is not revived by a broader wildcard", () => {
+  // RFC 9110 12.5.1: the most specific matching range decides. Scoring by the
+  // highest q instead let `*/*;q=1` outrank `text/html;q=0` and served HTML to
+  // a client that had excluded it — caught in review of #409.
+  assert.equal(chooseVariant("text/html;q=0, text/markdown;q=0.1, */*;q=1"), "markdown");
+  assert.equal(chooseVariant("text/html;q=0, */*;q=1"), "markdown");
+  assert.equal(chooseVariant("text/markdown;q=0, */*;q=1"), "html");
+});
+
+test("a type wildcard outranks a less specific one but not an exact match", () => {
+  assert.equal(chooseVariant("text/*;q=0.9, text/markdown;q=0.4"), "html");
+  assert.equal(chooseVariant("text/*;q=0.4, text/markdown;q=0.9"), "markdown");
+});
+
 test("a client that accepts neither gets 406", () => {
   assert.equal(chooseVariant("application/pdf"), "none");
   assert.equal(chooseVariant("image/png, image/jpeg"), "none");

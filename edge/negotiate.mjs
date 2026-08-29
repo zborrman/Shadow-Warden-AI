@@ -65,8 +65,16 @@ export function parseAccept(header) {
 
 /**
  * Best {q, specificity} a set of media types scores against an Accept header.
- * Specificity follows RFC 9110 §12.5.1: `type/subtype` beats `type/*` beats
- * `*​/*`, and only breaks a tie between equal q-values.
+ *
+ * RFC 9110 §12.5.1: "media ranges can be overridden by more specific media
+ * ranges" — the *most specific* matching range determines the q-value, and a
+ * higher q on a broader range does not override it. So
+ * `text/html;q=0, text/markdown;q=0.1, *​/*;q=1` excludes HTML outright
+ * rather than reviving it at q=1 through the wildcard.
+ *
+ * Specificity: `type/subtype` (2) beats `type/*` (1) beats `*​/*` (0). Across
+ * the alternative spellings of one format (text/markdown, text/x-markdown) the
+ * better *offer* still wins, so a higher q at equal specificity is taken.
  */
 function score(ranges, mediaTypes) {
   let best = { q: 0, specificity: -1 };
@@ -78,7 +86,10 @@ function score(ranges, mediaTypes) {
       else if (range.type === type && range.subtype === "*") specificity = 1;
       else if (range.type === "*" && range.subtype === "*") specificity = 0;
       else continue;
-      if (range.q > best.q || (range.q === best.q && specificity > best.specificity)) {
+      if (
+        specificity > best.specificity ||
+        (specificity === best.specificity && range.q > best.q)
+      ) {
         best = { q: range.q, specificity };
       }
     }

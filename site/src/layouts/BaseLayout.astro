@@ -147,7 +147,8 @@ const isSettingsActive = isActive('/settings');
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:type" content="website" />
-  <meta property="og:image" content={ogImage} />
+  <meta property="og:url" content={canonicalUrl} />
+  <meta property="og:image" content={new URL(ogImage, SITE_URL).href} />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="theme-color" content="#0a0a0f" />
   <link rel="icon" href="/logo.png" type="image/png" />
@@ -155,7 +156,7 @@ const isSettingsActive = isActive('/settings');
   <link rel="canonical" href={canonicalUrl} />
   <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
   <link rel="llms-txt" href="/llms.txt" type="text/plain" />
-  <link rel="alternate" type="text/markdown" href="/llms.txt" title="Site index for machines" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Site index for machines" />
   {markdown && <link rel="alternate" type="text/markdown" href={markdown} title="Markdown version of this page" />}
   <title>{title}</title>
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />
