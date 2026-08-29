@@ -133,6 +133,24 @@ jobs:
           warden version
           warden --help > /dev/null
 
+      # The TypeScript client is published from this repo too, and nothing ran
+      # its tests: #410 moved it onto the versioned surface and left the suite
+      # mocking the old paths, which only surfaced in a release dry run — the
+      # one workflow that does run them, and the last place you want to find out.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install the TypeScript SDK
+        run: npm ci || npm install
+        working-directory: sdk/typescript
+
+      - name: Build and test the TypeScript SDK
+        run: |
+          npm run build
+          npm test
+        working-directory: sdk/typescript
+
   # ── MkDocs Documentation Build ──────────────────────────────────────────────
   docs:
     name: Docs Build (MkDocs)

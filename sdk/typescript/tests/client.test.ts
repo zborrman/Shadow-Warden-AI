@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import { WardenClient } from "../src/client.js";
+import { API_VERSION, WardenClient } from "../src/client.js";
 import {
   WardenBlockedError,
   WardenGatewayError,
@@ -19,6 +19,9 @@ import type { FilterResult } from "../src/types.js";
 // ── MSW server ────────────────────────────────────────────────────────────────
 
 const BASE = "http://localhost:8001";
+// The client joins the API version itself (versionedBase), so the URL MSW
+// must handle is the versioned one while the client is still given BASE.
+const API = `${BASE}/${API_VERSION}`;
 
 const ALLOWED_RESPONSE = {
   allowed: true,
@@ -51,13 +54,13 @@ afterAll(() => server.close());
 
 function mockFilter(body: object, status = 200) {
   server.use(
-    http.post(`${BASE}/filter`, () => HttpResponse.json(body, { status }))
+    http.post(`${API}/filter`, () => HttpResponse.json(body, { status }))
   );
 }
 
 function mockBatch(body: object, status = 200) {
   server.use(
-    http.post(`${BASE}/filter/batch`, () => HttpResponse.json(body, { status }))
+    http.post(`${API}/filter/batch`, () => HttpResponse.json(body, { status }))
   );
 }
 
@@ -118,7 +121,7 @@ describe("WardenClient.filter()", () => {
   it("sends X-API-Key header", async () => {
     let capturedKey: string | null = null;
     server.use(
-      http.post(`${BASE}/filter`, ({ request }) => {
+      http.post(`${API}/filter`, ({ request }) => {
         capturedKey = request.headers.get("x-api-key");
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -130,7 +133,7 @@ describe("WardenClient.filter()", () => {
   it("sends tenantId in payload", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/filter`, async ({ request }) => {
+      http.post(`${API}/filter`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -143,7 +146,7 @@ describe("WardenClient.filter()", () => {
     const c = new WardenClient({ gatewayUrl: BASE, tenantId: "my_tenant" });
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/filter`, async ({ request }) => {
+      http.post(`${API}/filter`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -155,7 +158,7 @@ describe("WardenClient.filter()", () => {
   it("sends strict=true when strict option set", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/filter`, async ({ request }) => {
+      http.post(`${API}/filter`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -167,7 +170,7 @@ describe("WardenClient.filter()", () => {
   it("omits context when not provided", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/filter`, async ({ request }) => {
+      http.post(`${API}/filter`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -179,7 +182,7 @@ describe("WardenClient.filter()", () => {
   it("includes context when provided", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/filter`, async ({ request }) => {
+      http.post(`${API}/filter`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -195,7 +198,7 @@ describe("fail-open mode", () => {
   it("returns permissive result on timeout", async () => {
     const client = new WardenClient({ gatewayUrl: BASE, failOpen: true, timeoutMs: 1 });
     server.use(
-      http.post(`${BASE}/filter`, async () => {
+      http.post(`${API}/filter`, async () => {
         await new Promise((r) => setTimeout(r, 100)); // delay > timeout
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -215,7 +218,7 @@ describe("fail-open mode", () => {
   it("throws on timeout when failOpen=false (default)", async () => {
     const client = new WardenClient({ gatewayUrl: BASE, timeoutMs: 1 });
     server.use(
-      http.post(`${BASE}/filter`, async () => {
+      http.post(`${API}/filter`, async () => {
         await new Promise((r) => setTimeout(r, 100));
         return HttpResponse.json(ALLOWED_RESPONSE);
       })
@@ -240,7 +243,7 @@ describe("WardenClient.filterBatch()", () => {
   it("handles string items", async () => {
     let capturedBody: { items: unknown[] } | null = null;
     server.use(
-      http.post(`${BASE}/filter/batch`, async ({ request }) => {
+      http.post(`${API}/filter/batch`, async ({ request }) => {
         capturedBody = (await request.json()) as { items: unknown[] };
         return HttpResponse.json({ results: [ALLOWED_RESPONSE] });
       })
@@ -263,7 +266,7 @@ describe("WardenClient.getBillingStatus()", () => {
 
   it("returns billing status", async () => {
     server.use(
-      http.get(`${BASE}/stripe/status`, () =>
+      http.get(`${API}/stripe/status`, () =>
         HttpResponse.json({ plan: "pro", quota: 10000, used: 1500 })
       )
     );
@@ -274,7 +277,7 @@ describe("WardenClient.getBillingStatus()", () => {
 
   it("throws on error", async () => {
     server.use(
-      http.get(`${BASE}/stripe/status`, () => HttpResponse.json({}, { status: 404 }))
+      http.get(`${API}/stripe/status`, () => HttpResponse.json({}, { status: 404 }))
     );
     await expect(client.getBillingStatus()).rejects.toThrow(WardenGatewayError);
   });
