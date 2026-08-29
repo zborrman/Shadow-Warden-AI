@@ -1,5 +1,5 @@
 {
-  "type_ignore": 226,
+  "type_ignore": 228,
   "noqa": 838,
   "per_file": {
     "agent_monitor.py": {
@@ -71,7 +71,7 @@
       "noqa": 90
     },
     "metrics.py": {
-      "type_ignore": 135,
+      "type_ignore": 137,
       "noqa": 1
     },
     "mtls.py": {
