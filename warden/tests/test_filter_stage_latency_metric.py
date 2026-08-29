@@ -33,8 +33,10 @@ def _samples(metric_name: str) -> dict[tuple[tuple[str, str], ...], float]:
     return out
 
 
-def _count_for(stage: str) -> float:
-    key: tuple[tuple[str, str], ...] = (("le", "+Inf"), ("stage", stage))
+def _count_for(stage: str, source: str = "filter") -> float:
+    key: tuple[tuple[str, str], ...] = (
+        ("le", "+Inf"), ("source", source), ("stage", stage),
+    )
     return _samples("warden_filter_stage_duration_seconds_bucket").get(key, 0.0)
 
 
@@ -105,10 +107,26 @@ class TestTheObserverMovesTheMetric:
 
         _observe_stage_timings({"unit_probe": 2.0})
         sums = _samples("warden_filter_stage_duration_seconds_sum")
-        total = sums.get((("stage", "unit_probe"),))
+        total = sums.get((("source", "filter"), ("stage", "unit_probe")))
         assert total is not None, "the probe stage did not record"
         assert abs(total - 0.002) < 1e-9, f"2ms recorded as {total}s — check the /1000"
         assert REGISTRY is not None
+
+    def test_entry_points_do_not_share_a_series(self):
+        """
+        `_run_filter_pipeline` serves REST /filter, batch, multimodal and the
+        /ws/stream socket. Unlabelled, a socket burst would land in a panel
+        titled "/filter" and read as REST latency.
+        """
+        from warden.main import _observe_stage_timings
+
+        before_rest = _count_for("topology", "filter")
+        before_ws = _count_for("topology", "ws")
+        _observe_stage_timings({"topology": 1.0}, "ws")
+        assert _count_for("topology", "ws") == before_ws + 1
+        assert _count_for("topology", "filter") == before_rest, (
+            "WebSocket traffic landed in the REST series"
+        )
 
     @pytest.mark.parametrize(
         "timings",
@@ -152,7 +170,7 @@ class TestThePipelineIsWired:
         assert finalisers, "no filter path finalises a timings dict — re-check this guard"
         for n in finalisers:
             following = "".join(src[n + 1 : n + 3])
-            assert "_observe_stage_timings(timings)" in following, (
+            assert "_observe_stage_timings(timings" in following, (
                 f"main.py:{n + 1} finalises timings without observing them"
             )
 

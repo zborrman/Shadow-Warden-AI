@@ -2028,7 +2028,7 @@ def _log_verdict(
     )
 
 
-def _observe_stage_timings(timings: dict[str, float]) -> None:
+def _observe_stage_timings(timings: dict[str, float], source: str = "filter") -> None:
     """
     Aggregate one request's per-stage timings into the Prometheus histogram.
 
@@ -2042,6 +2042,11 @@ def _observe_stage_timings(timings: dict[str, float]) -> None:
     `total` is skipped deliberately: prometheus-fastapi-instrumentator already
     exports `http_request_duration_seconds{handler="/filter"}`, and two answers
     to "how long did the request take" disagree the moment one of them changes.
+
+    `source` is the entry point the timings came from — `_run_filter_pipeline`
+    serves REST `/filter`, the batch and multimodal routes and the `/ws/stream`
+    socket, and without the label a WebSocket burst would land in a panel
+    labelled `/filter` and read as REST latency.
 
     Cannot raise, by construction rather than by `except Exception`: the label
     must be a string and the value a real number, and both are checked here.
@@ -2057,7 +2062,9 @@ def _observe_stage_timings(timings: dict[str, float]) -> None:
             continue
         if ms != ms or ms in (float("inf"), float("-inf")):   # NaN or infinity
             continue
-        FILTER_STAGE_DURATION_SECONDS.labels(stage=stage).observe(float(ms) / 1000.0)
+        FILTER_STAGE_DURATION_SECONDS.labels(stage=stage, source=source).observe(
+            float(ms) / 1000.0
+        )
 
 
 async def _run_filter_pipeline(
@@ -2066,8 +2073,15 @@ async def _run_filter_pipeline(
     auth:             AuthResult,
     background_tasks: BackgroundTasks | None = None,
     client_ip:        str                    = "",
+    source:           str                    = "filter",
 ) -> FilterResponse:
-    """Execute the full filter pipeline and return a FilterResponse."""
+    """Execute the full filter pipeline and return a FilterResponse.
+
+    ``source`` names the entry point for the latency histogram — REST
+    ``/filter``, the batch and multimodal routes and the ``/ws/stream`` socket
+    all run this same body, and a panel that mixes them answers a question
+    nobody asked.
+    """
     start = time.perf_counter()
     _filter_window.append(start)   # record for bypass_rate_1m
     timings: dict[str, float] = {}
@@ -2717,7 +2731,7 @@ async def _run_filter_pipeline(
                         rid                 = rid,
                     )
                 timings["total"] = round((time.perf_counter() - start) * 1000, 2)
-                _observe_stage_timings(timings)
+                _observe_stage_timings(timings, source)
                 _log_verdict(
                     rid, tenant_id, guard_result.risk_level.value, payload, "honeytrap"
                 )
@@ -2808,7 +2822,7 @@ async def _run_filter_pipeline(
 
     elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
     timings["total"] = elapsed_ms
-    _observe_stage_timings(timings)
+    _observe_stage_timings(timings, source)
     log.info(
         json.dumps({
             "event":      "filter_done",
@@ -3373,7 +3387,8 @@ async def demo_filter(
 ) -> FilterResponse:
     rid = getattr(request.state, "request_id", str(uuid.uuid4()))
     client_ip = get_client_ip(request)
-    return await _run_filter_pipeline(payload, rid, _DEMO_AUTH, background_tasks, client_ip)
+    return await _run_filter_pipeline(payload, rid, _DEMO_AUTH, background_tasks, client_ip,
+                                      source="demo")
 
 
 # ── /ext/filter — browser extension endpoint ─────────────────────────────────
@@ -3572,7 +3587,8 @@ async def filter_batch(
     results = []
     for i, item in enumerate(payload.items):
         rid = f"{rid_base}:batch-{i}"
-        resp = await _run_filter_pipeline(item, rid, auth, background_tasks, client_ip)
+        resp = await _run_filter_pipeline(item, rid, auth, background_tasks, client_ip,
+                                          source="batch")
         results.append(resp)
     return _BatchResponse(results=results)
 
@@ -3689,7 +3705,8 @@ async def filter_multimodal(
             context   = payload.context,
         )
         client_ip = get_client_ip(request)
-        text_resp = await _run_filter_pipeline(filter_req, rid, auth, background_tasks, client_ip)
+        text_resp = await _run_filter_pipeline(filter_req, rid, auth, background_tasks,
+                                               client_ip, source="multimodal")
         text_risk  = text_resp.risk_level
         text_flags = list(text_resp.semantic_flags)
 
@@ -3895,7 +3912,8 @@ async def ws_stream(websocket: WebSocket):
     filter_payload = FilterRequest(content=content, tenant_id=tenant_id)
     bg_tasks       = BackgroundTasks()
     try:
-        filter_resp = await _run_filter_pipeline(filter_payload, rid, auth, bg_tasks)
+        filter_resp = await _run_filter_pipeline(filter_payload, rid, auth, bg_tasks,
+                                                 source="ws")
     except Exception as exc:
         log.exception(json.dumps({"event": "ws_filter_error", "request_id": rid, "error": str(exc)}))
         await _ws_send(websocket, {"type": "error", "code": 500, "detail": "Filter pipeline error."})
@@ -4228,7 +4246,7 @@ async def ws_filter_stream(websocket: WebSocket):
         reason = top.detail if top else f"Risk level: {guard_result.risk_level}"
 
     timings["total"] = round(sum(timings.values()), 2)
-    _observe_stage_timings(timings)
+    _observe_stage_timings(timings, "ws_filter")
 
     response = FilterResponse(
         allowed                  = allowed,

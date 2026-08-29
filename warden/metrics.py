@@ -1087,7 +1087,10 @@ try:
         FILTER_STAGE_DURATION_SECONDS = Histogram(
             "warden_filter_stage_duration_seconds",
             "Wall-clock duration of one stage of the /filter pipeline",
-            ["stage"],
+            # `source` separates the entry points that share this body: REST
+            # /filter, batch, multimodal, and the two WebSocket paths. Without
+            # it a socket burst lands in a panel labelled /filter.
+            ["stage", "source"],
             buckets=(0.0005, 0.001, 0.002, 0.003, 0.005, 0.008, 0.010,
                      0.025, 0.050, 0.100, 0.250, 0.500, 1.0, float("inf")),
         )

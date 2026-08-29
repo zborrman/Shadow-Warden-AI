@@ -1961,7 +1961,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Per-stage p95 in milliseconds. The published per-stage figures (<2ms topology, <8ms brain) may only be quoted from this panel — see the stage-latency rows in docs/capability-matrix.md.",
+      "description": "Per-stage p95 in milliseconds for REST /filter only — `source` separates the batch, multimodal and WebSocket entry points that share the same pipeline body. The published per-stage figures (<2ms topology, <8ms brain) may only be quoted from this panel; see the stage-latency rows in docs/capability-matrix.md.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1993,11 +1993,11 @@
           "sort": "desc"
         }
       },
-      "title": "p95 by stage — /filter",
+      "title": "p95 by stage — REST /filter",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(warden_filter_stage_duration_seconds_bucket{job=\"warden\"}[5m])) by (le, stage)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(warden_filter_stage_duration_seconds_bucket{job=\"warden\",source=\"filter\"}[5m])) by (le, stage)) * 1000",
           "legendFormat": "{{stage}}",
           "refId": "A"
         }
@@ -2008,7 +2008,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Where the time actually goes. Sums to less than http_request_duration_seconds{handler=\"/filter\"}; the difference is middleware, not pipeline.",
+      "description": "Where the time goes, split by entry point (filter, batch, multimodal, ws, ws_filter, demo). Sums to less than http_request_duration_seconds{handler=\"/filter\"}; the difference is middleware, not pipeline.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2040,12 +2040,12 @@
           "sort": "desc"
         }
       },
-      "title": "Mean time in stage — /filter",
+      "title": "Mean time in stage — by entry point",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(warden_filter_stage_duration_seconds_sum{job=\"warden\"}[5m])) by (stage) / sum(rate(warden_filter_stage_duration_seconds_count{job=\"warden\"}[5m])) by (stage) * 1000",
-          "legendFormat": "{{stage}}",
+          "expr": "sum(rate(warden_filter_stage_duration_seconds_sum{job=\"warden\"}[5m])) by (stage, source) / sum(rate(warden_filter_stage_duration_seconds_count{job=\"warden\"}[5m])) by (stage, source) * 1000",
+          "legendFormat": "{{source}} · {{stage}}",
           "refId": "A"
         }
       ]
