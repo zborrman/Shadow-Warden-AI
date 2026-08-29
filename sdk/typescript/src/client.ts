@@ -94,6 +94,23 @@ function _sleep(ms: number): Promise<void> {
 
 // ── WardenClient ──────────────────────────────────────────────────────────────
 
+/** The API version this SDK speaks. Bump only alongside a gateway serving it. */
+export const API_VERSION = "v1";
+
+/**
+ * Join a gateway URL with the API version segment.
+ *
+ * Idempotent: a URL that already ends in the segment is returned unchanged, so
+ * a caller who versioned their own base URL does not request `/v1/v1/filter`.
+ */
+export function versionedBase(gatewayUrl: string, apiVersion: string | null = API_VERSION): string {
+  const base = (gatewayUrl || "").replace(/\/$/, "");
+  if (!apiVersion) return base;
+  const seg = apiVersion.replace(/^\/|\/$/g, "");
+  if (!seg || base.endsWith("/" + seg)) return base;
+  return base + "/" + seg;
+}
+
 export class WardenClient {
   private readonly base: string;
   private readonly tenant: string;
@@ -107,7 +124,14 @@ export class WardenClient {
   readonly marketplace: Marketplace;
 
   constructor(config: WardenClientConfig = {}) {
-    this.base      = (config.gatewayUrl ?? "http://localhost:8001").replace(/\/$/, "");
+    // Every path literal below is unversioned. Since 2026-08-23 the gateway
+    // serves those with `Deprecation: true` and `Sunset: 2027-08-23`, so the
+    // SDK shipped as the front door was calling the surface the same release
+    // declared deprecated. The version is joined once, here, rather than at
+    // each call site: a new method is easy to add and easy to add unversioned.
+    // Pass `apiVersion: null` to address the legacy surface deliberately.
+    this.base      = versionedBase(config.gatewayUrl ?? "http://localhost:8001",
+                                   config.apiVersion === undefined ? API_VERSION : config.apiVersion);
     this.tenant    = config.tenantId ?? "default";
     this.failOpen  = config.failOpen ?? false;
     this.timeoutMs = config.timeoutMs ?? 10_000;

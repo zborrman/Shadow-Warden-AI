@@ -225,7 +225,24 @@ For a machine-to-machine platform the front door is a package install, not a
 **Exit criteria**
 - [x] `pip install shadow-warden-sdk` and `npm i @shadow-warden/sdk` both resolve. *(2026-08-26, both 1.0.0, checked against the registries.)*
 - [ ] A developer outside the project completes the quickstart unaided, timed.
-- [ ] Every new route ships under `/v1`; the legacy surface has a published sunset date.
+- [x] Every new route ships under `/v1`; the legacy surface has a published sunset date.
+      Structurally true since 2026-08-23: `/v1` is an ASGI alias, so a route is
+      reachable under it by construction rather than by remembering — verified on
+      production 2026-08-29 (`/v1/marketplace/protocol` 200, and the unversioned
+      path answering `deprecation: true` + `sunset: Mon, 23 Aug 2027`).
+      **What was actually broken was the clients, not the routes.** Both SDKs
+      published on 2026-08-26 called `/filter`, `/tax/calculate` and
+      `/marketplace/*` unversioned — the front door targeting the surface the same
+      release had declared deprecated three days earlier, with the clock already
+      running. Fixed in 1.1.0 by joining the version once where the base URL is
+      built, not at the ~15 path literals; `api_version=None` still reaches the
+      legacy surface for a gateway older than the middleware.
+      `test_sdks_target_v1.py` pins the seam (6 of 9 fail against 1.0.0).
+      ⚠️ **Still open, same defect one surface over:** `docs/quickstart.md` and
+      `scripts/quickstart_check.py` teach unversioned `/marketplace/*` and
+      `/purchase`. Left deliberately — the verifier has two request modes and its
+      documented responses would need regenerating and re-verifying.
+      ⚠️ 1.1.0 is **not published**. Tagging `sdk-v1.1.0` releases it.
 
 ---
 

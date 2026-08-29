@@ -4,6 +4,8 @@ ShadowWardenClient — sync and async HTTP client for the Shadow Warden AI API.
 """
 from __future__ import annotations
 
+from shadow_warden._version_path import API_VERSION, versioned_base
+
 from typing import Any
 
 import httpx
@@ -32,8 +34,9 @@ class ShadowWardenClient:
         api_key: str,
         base_url: str = "https://api.shadow-warden-ai.com",
         timeout: float = 15.0,
+        api_version: str | None = API_VERSION,
     ) -> None:
-        self._base_url = base_url.rstrip("/")
+        self._base_url = versioned_base(base_url, api_version)
         self._headers  = {"X-API-Key": api_key, "Content-Type": "application/json"}
         self._timeout  = timeout
 

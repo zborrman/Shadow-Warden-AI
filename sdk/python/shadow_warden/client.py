@@ -29,6 +29,7 @@ from typing import Any
 
 import httpx
 
+from shadow_warden._version_path import API_VERSION, versioned_base
 from shadow_warden.errors import WardenBlockedError, WardenGatewayError, WardenTimeoutError
 from shadow_warden.models import FilterResult, ImpactReport
 
@@ -92,8 +93,9 @@ class WardenClient:
         tenant_id:   str = "default",
         timeout:     float = 10.0,
         fail_open:   bool = False,
+        api_version: str | None = API_VERSION,
     ) -> None:
-        self._base    = gateway_url.rstrip("/")
+        self._base    = versioned_base(gateway_url, api_version)
         self._tenant  = tenant_id
         self._fail_open = fail_open
 
@@ -286,8 +288,9 @@ class AsyncWardenClient:
         tenant_id:   str = "default",
         timeout:     float = 10.0,
         fail_open:   bool = False,
+        api_version: str | None = API_VERSION,
     ) -> None:
-        self._base      = gateway_url.rstrip("/")
+        self._base      = versioned_base(gateway_url, api_version)
         self._tenant    = tenant_id
         self._fail_open = fail_open
 
