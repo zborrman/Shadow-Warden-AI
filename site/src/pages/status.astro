@@ -468,6 +468,8 @@ const COMPONENTS = [
       cooldown_remaining_s?: number;
     };
     uptime_90d?: number;
+    /** Per-day history, newest last. Absent today: the grid renders unknown. */
+    uptime_daily?: Array<{ date?: string; status?: string }>;
     p99_ms?: number;
     block_rate?: number;
     open_incidents?: number;
@@ -615,45 +617,63 @@ const COMPONENTS = [
   }
 
   // ── 90-day grid ───────────────────────────────────────
-  function buildHistory(uptime?: number) {
+  // A day is drawn only when the API said what happened on that day.
+  //
+  // This used to take the single `uptime_90d` figure, convert it to a count of
+  // bad days, and scatter that many incidents across the calendar with a seeded
+  // PRNG — inventing *which* days were down. And the figure defaulted to a
+  // perfect 100 when the field was absent, which is the case on production
+  // today, so the page painted ninety solid green cells, each with a tooltip
+  // asserting a specific date was Operational. Three months of history for a
+  // service that has never measured a day of it, on the one artifact people read
+  // precisely because they want the history rather than the current state.
+  //
+  // `daily` is a list of {date, status} newest-last. Absent it, cells render
+  // `empty`: unknown is a state, and it is the honest one.
+  function buildHistory(uptime?: number, daily?: Array<{ date?: string; status?: string }>) {
     const grid = document.getElementById("sw-hist")!;
     grid.innerHTML = "";
 
-    const pct = uptime ?? 100;
-    const daysDown = Math.round(90 * (1 - pct / 100));
-
-    // Place downtime days pseudo-randomly in the past (not in last 14 days)
-    const downSet = new Set<number>();
-    if (daysDown > 0) {
-      // Seed with a deterministic but varied pattern
-      const candidates = Array.from({ length: 76 }, (_, i) => i + 14);
-      let seed = 42;
-      function rng() { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return Math.abs(seed) / 0x7fffffff; }
-      candidates.sort(() => rng() - 0.5);
-      for (let i = 0; i < Math.min(daysDown, candidates.length); i++) {
-        downSet.add(candidates[i]);
-      }
+    const byAge = new Map<number, string>();
+    if (Array.isArray(daily)) {
+      // Newest last, so the final entry is today.
+      daily.slice(-90).reverse().forEach((d, age) => {
+        if (d && typeof d.status === "string") byAge.set(age, d.status);
+      });
     }
 
     for (let i = 89; i >= 0; i--) {
       const cell = document.createElement("div");
       cell.className = "sw-hcell";
-      const daysAgo = i;
-      if (downSet.has(daysAgo)) {
+      const when = i === 0 ? "Today" : `${i}d ago`;
+      const state = byAge.get(i);
+      if (state === undefined) {
+        cell.classList.add("empty");
+        cell.title = `${when}: no data`;
+      } else if (state === "down" || state === "major") {
         cell.classList.add("down");
-        cell.title = `${daysAgo}d ago: Incident`;
+        cell.title = `${when}: Incident`;
+      } else if (state === "degraded" || state === "partial") {
+        cell.classList.add("warn");
+        cell.title = `${when}: Degraded`;
       } else {
         cell.classList.add("ok");
-        cell.title = `${daysAgo === 0 ? "Today" : daysAgo + "d ago"}: Operational`;
+        cell.title = `${when}: Operational`;
       }
       grid.appendChild(cell);
     }
 
     const pctEl = document.getElementById("sw-hpct")!;
-    pctEl.textContent = `${pct.toFixed(3)}%`;
-    pctEl.style.color = pct >= 99.9
+    if (uptime === undefined) {
+      // No aggregate either — say so rather than showing a confident 100.000%.
+      pctEl.textContent = "no history yet";
+      pctEl.style.color = "var(--sw-fg-4)";
+      return;
+    }
+    pctEl.textContent = `${uptime.toFixed(3)}%`;
+    pctEl.style.color = uptime >= 99.9
       ? "var(--sw-green)"
-      : pct >= 99.0
+      : uptime >= 99.0
         ? "var(--sw-amber)"
         : "var(--sw-red)";
   }
@@ -713,7 +733,7 @@ const COMPONENTS = [
       updateComponents(data);
       updateCB(data);
       updateMetrics(data);
-      buildHistory(data.uptime_90d);
+      buildHistory(data.uptime_90d, data.uptime_daily);
 
     } catch {
       setOverall("down");
