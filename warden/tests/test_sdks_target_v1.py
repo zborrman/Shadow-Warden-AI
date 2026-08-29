@@ -154,8 +154,19 @@ class TestTheSdkSuiteMocksTheSurfaceTheClientActuallyCalls:
         pat = _re.compile(r'respx\.(?:post|get|delete|put|patch)\(\s*f"\{(\w+)\}(/[^"]*)"')
         for f in sorted(tests.glob("*.py")):
             body = f.read_text(encoding="utf-8")
+            # A prefix counts as versioned if its assignment carries the segment
+            # literally *or* interpolates the SDK's version constant. The first
+            # draft of this guard accepted only the literal, and so failed
+            # `API = f"{GATEWAY}/{API_VERSION}"` — which is the better spelling,
+            # since it cannot drift from the constant the client actually uses.
+            # A guard that rejects the more correct form is a guard that will be
+            # deleted rather than satisfied.
             versioned = {
-                m.group(1) for m in _re.finditer(r'^(\w+)\s*=\s*f?"[^"]*/v1"', body, _re.M)
+                m.group(1)
+                for m in _re.finditer(
+                    r'^(\w+)\s*=\s*f?"[^"]*(?:/v1|\{\w*API_VERSION\w*\})[^"]*"',
+                    body, _re.M,
+                )
             }
             for m in pat.finditer(body):
                 prefix, path = m.group(1), m.group(2)
@@ -167,3 +178,28 @@ class TestTheSdkSuiteMocksTheSurfaceTheClientActuallyCalls:
             "SDK tests mock unversioned paths the client no longer requests: "
             + ", ".join(offenders[:8])
         )
+
+    def test_it_still_catches_a_genuinely_unversioned_mock(self, tmp_path):
+        """The regex above accepts two spellings; it must not accept everything.
+
+        A guard broadened to stop a false positive is a guard that can quietly
+        stop asserting anything, so this feeds it the shape it exists to reject.
+        """
+        import re as _re  # noqa: PLC0415
+        bad = tmp_path / "test_fake.py"
+        bad.write_text(
+            'GATEWAY = "http://gw.test"\n'
+            'respx.post(f"{GATEWAY}/filter").mock()\n',
+            encoding="utf-8",
+        )
+        pat = _re.compile(r'respx\.(?:post|get|delete|put|patch)\(\s*f"\{(\w+)\}(/[^"]*)"')
+        body = bad.read_text(encoding="utf-8")
+        versioned = {
+            m.group(1)
+            for m in _re.finditer(
+                r'^(\w+)\s*=\s*f?"[^"]*(?:/v1|\{\w*API_VERSION\w*\})[^"]*"', body, _re.M
+            )
+        }
+        hits = [m for m in pat.finditer(body)
+                if m.group(1) not in versioned and not m.group(2).startswith("/v1")]
+        assert hits, "the guard would no longer notice an unversioned mock"
