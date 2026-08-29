@@ -32,22 +32,62 @@ from typing import Any
 
 _SIM = "quickstart-check"
 
+#: Matches the SDKs. The unversioned twin still works and still says Sunset.
+_API_VERSION = "/v1"
+
+
+class _Versioned:
+    """Prefixes every request path with the API version.
+
+    The quickstart taught `/marketplace/*` and `/purchase` unversioned, and the
+    gateway has served those with `Deprecation: true` and `Sunset: 2027-08-23`
+    since 2026-08-23 — so the page a new integrator follows walked them onto the
+    surface the same release deprecated. The SDKs had the identical defect
+    (fixed in 1.1.0); this is the last copy of it.
+
+    A wrapper rather than a version segment in `base_url`, because this script
+    has two request modes: httpx (which honours `base_url`) and Starlette's
+    `TestClient` (which does not, and takes bare paths). One seam covers both,
+    so a step added later cannot land on the legacy surface by omission.
+    """
+
+    def __init__(self, client, prefix: str = "") -> None:
+        self._c = client
+        self._p = prefix.rstrip("/")
+
+    def _path(self, path: str) -> str:
+        if not self._p or path.startswith(self._p + "/"):
+            return path
+        return self._p + path
+
+    def get(self, path: str, **kw):
+        return self._c.get(self._path(path), **kw)
+
+    def post(self, path: str, **kw):
+        return self._c.post(self._path(path), **kw)
+
+    def delete(self, path: str, **kw):
+        return self._c.delete(self._path(path), **kw)
+
+    def __getattr__(self, name):
+        return getattr(self._c, name)
+
 
 def _client(base_url: str, api_key: str):
     if base_url:
         import httpx
-        return httpx.Client(
+        return _Versioned(httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"X-API-Key": api_key} if api_key else {},
             timeout=30,
-        )
+        ), _API_VERSION)
     os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
     os.environ.setdefault("WARDEN_API_KEY", "")
     os.environ.setdefault("REDIS_URL", "memory://")
     from fastapi.testclient import TestClient
 
     import warden.main as main
-    return TestClient(main.app)
+    return _Versioned(TestClient(main.app), _API_VERSION)
 
 
 def _show(step: str, resp: Any, note: str = "") -> dict:

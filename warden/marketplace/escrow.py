@@ -109,7 +109,7 @@ _ESCROW_DDL = """
 register("marketplace", "warden.marketplace.escrow", _ESCROW_DDL)
 
 
-def _migrate_chain_column(con: sqlite3.Connection) -> None:
+def ensure_escrow_columns(con: sqlite3.Connection) -> None:
     """Add columns that post-date the original escrow table.
 
     ``ALTER TABLE … ADD COLUMN`` is not idempotent, so it cannot live in the
@@ -145,7 +145,7 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     with open_db(
         "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
-        _migrate_chain_column(con)
+        ensure_escrow_columns(con)
         yield con
 
 
@@ -357,6 +357,16 @@ class EscrowService:
         Takes the connection rather than opening one so the insert can share a
         transaction with the purchase row it belongs to.
         """
+        # The connection belongs to the caller — `listing._do_purchase` opens it
+        # to write the purchase and the escrow in one transaction — so it has
+        # never been through `_conn()` and has never run the column migration.
+        # Adding the columns to the registered DDL fixes a table created after
+        # that change and does nothing for one created before it: `CREATE TABLE
+        # IF NOT EXISTS` is a no-op on an existing table. Any environment
+        # carrying an older marketplace database therefore failed the first
+        # purchase with "no column named buyer_address" while the whole test
+        # suite passed, because every test builds its table from the DDL.
+        ensure_escrow_columns(con)
         con.execute(
             """INSERT INTO marketplace_escrow
                (escrow_id, purchase_id, listing_id, buyer_agent, seller_agent,
