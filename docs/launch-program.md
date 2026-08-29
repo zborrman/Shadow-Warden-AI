@@ -25,20 +25,29 @@ category requiring contact with a paying counterparty scores below 30:
 |---|---:|---|
 | Core security engine | 88 | `fail_strategy: open`, `strict: false` in production |
 | Test & quality engineering | 84 | 786 surviving mutants; one CPT gate link dead by construction |
-| Observability & SRE | 80 | Evidence Vault off (`S3_ENABLED=false`) |
+| Observability & SRE | 80 | ~~Evidence Vault off~~ — **closed 2026-08-29.** `S3_ENABLED=true`; an offsite bundle was downloaded, Fernet-decrypted and compared field-by-field against the MinIO original — identical. |
 | M2M protocol architecture | 76 | 16 actions defined, none exercised by an external agent |
 | Compliance & legal | 68 | Entirely self-attested; no auditor engaged |
 | Trust & identity (KYA/KYB) | 62 | Complete and tested, never run against a real counterparty |
-| Data layer & scale | 56 | 30 SQLite files on one VPS; Postgres carries probe data only |
+| Data layer & scale | 56 | **31** SQLite files on one VPS — still the constraint. But *"Postgres carries probe data only"* is wrong: it holds two TimescaleDB hypertables, `filter_events` and `probe_results`, ~185k rows. It carries real pipeline telemetry; what it does not carry is the **money path**, which is the part that matters here. |
 | Frontend & UX | 52 | Four overlapping surfaces, duplicated IA, no i18n |
-| Developer experience & SDKs | 44 | Four SDKs written, none published; no API versioning |
+| Developer experience & SDKs | 44 | ~~none published; no API versioning~~ — **closed.** `shadow-warden-sdk` and `@shadow-warden/sdk` are both 1.1.0 on their registries, verified by installing and running the artefact; `/v1` is live with `Sunset: 2027-08-23` on the legacy surface, and the SDKs address `/v1`. |
 | Money rail & settlement | 28 | Testnets only; no fiat provider; both enforcement flags off. Split into P1a (crypto, no entity needed) and P1b (fiat, needs one) |
-| Customer service operations | 22 | No ticketing; SLA promises credits with no mechanism |
+| Customer service operations | 22 | No ticketing. The SLA still promises credits **with no mechanism** — uptime is measured, nothing turns a breach into a credit — but `docs/sla.md` §8 now says so beside the table instead of reading as an entitlement. The claim is honest; the mechanism is still absent. |
 | Commercial traction | 10 | Zero of everything indicating a market exists |
 
 That is a sequencing problem, not a capability problem. Hence: money rail before
 market seeding, market seeding before service operations, service operations
 before scale.
+
+**The scores are the opening audit's (2026-08-18) and have not been re-run.** The
+*constraints* were re-verified against production on 2026-08-29 and are marked
+above where they have moved; the numbers deliberately have not been touched,
+because re-scoring one's own work without an audit is the kind of unearned claim
+this programme exists to remove. Two of the twelve constraints are closed and one
+was simply wrong. What was confirmed still true: `fail_strategy: open` and
+`strict: false` on the live gateway, and `AUTHORIZE_PAYMENT_ENFORCED` unset, so
+the money rail's binding constraint stands exactly as written.
 
 ---
 
