@@ -2043,17 +2043,21 @@ def _observe_stage_timings(timings: dict[str, float]) -> None:
     exports `http_request_duration_seconds{handler="/filter"}`, and two answers
     to "how long did the request take" disagree the moment one of them changes.
 
-    Never raises. A metrics failure must not affect a filter decision.
+    Cannot raise, by construction rather than by `except Exception`: the label
+    must be a string and the value a real number, and both are checked here.
+    A blanket suppression would have been the easy way to promise the same
+    thing, and `test_no_new_suppressions` is right to refuse it — a swallowed
+    error in the observer is how a metric silently stops recording.
     """
-    try:
-        for stage, ms in timings.items():
-            if stage == "total":
-                continue
-            if not isinstance(ms, (int, float)):
-                continue
-            FILTER_STAGE_DURATION_SECONDS.labels(stage=stage).observe(float(ms) / 1000.0)
-    except Exception as _exc:  # noqa: BLE001
-        log.debug("suppressed exception: %r", _exc)   # instrumentation is never worth a 500
+    for stage, ms in timings.items():
+        if stage == "total" or not isinstance(stage, str):
+            # `total` is already answered by http_request_duration_seconds.
+            continue
+        if isinstance(ms, bool) or not isinstance(ms, (int, float)):
+            continue
+        if ms != ms or ms in (float("inf"), float("-inf")):   # NaN or infinity
+            continue
+        FILTER_STAGE_DURATION_SECONDS.labels(stage=stage).observe(float(ms) / 1000.0)
 
 
 async def _run_filter_pipeline(

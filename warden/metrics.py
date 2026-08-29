@@ -1188,4 +1188,4 @@ except ImportError:
     ARQ_JOBS_TOTAL                  = _Noop()  # type: ignore[assignment]
     ARQ_JOB_DURATION_SECONDS        = _Noop()  # type: ignore[assignment]
     ARQ_JOB_LAST_SUCCESS            = _Noop()  # type: ignore[assignment]
-    FILTER_STAGE_DURATION_SECONDS   = _Noop()  # type: ignore[assignment]
+    FILTER_STAGE_DURATION_SECONDS   = cast("Histogram", _Noop())
