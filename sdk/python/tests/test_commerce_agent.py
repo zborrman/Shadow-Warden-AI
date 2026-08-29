@@ -13,7 +13,9 @@ class TestShadowWardenClient:
 
     def test_client_instantiation(self):
         client = self._client()
-        assert client._base_url == "http://testserver"
+        # Requests are built under the version segment: the unversioned surface
+# carries Deprecation + Sunset 2027-08-23.
+        assert client._base_url == "http://testserver/v1"
 
     def test_headers_contain_api_key(self):
         client = self._client()
@@ -30,7 +32,7 @@ class TestShadowWardenClient:
         import json
 
         import respx
-        with respx.mock(base_url="http://testserver") as mock:
+        with respx.mock(base_url="http://testserver/v1") as mock:
             route = mock.post("/business-community/commerce/mandates").respond(
                 200, json={"id": "mand-1"}
             )

@@ -138,6 +138,11 @@ export interface RetryConfig {
 export interface WardenClientConfig {
   /** Base URL of the Warden gateway. Default: `http://localhost:8001` */
   gatewayUrl?: string;
+  /**
+   * API version segment joined onto `gatewayUrl`. Defaults to `"v1"`.
+   * `null` targets the unversioned surface, which carries Sunset 2027-08-23.
+   */
+  apiVersion?: string | null;
   /** X-API-Key header value. Leave blank if auth is disabled. */
   apiKey?: string;
   /** Default tenant sent with every request. Default: `"default"` */

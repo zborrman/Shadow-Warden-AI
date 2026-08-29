@@ -20,6 +20,8 @@ background thread pool (fail-open on timeout or error).
 """
 from __future__ import annotations
 
+from shadow_warden._version_path import API_VERSION, versioned_base
+
 import concurrent.futures
 import logging
 import os
@@ -50,9 +52,10 @@ class WardenSpanProcessor:
         base_url:  str         = "https://api.shadow-warden-ai.com",
         timeout:   float       = 2.0,
         tenant_id: str         = "otel",
+        api_version: str | None = API_VERSION,
     ) -> None:
         self._api_key   = api_key or os.getenv("WARDEN_API_KEY", "")
-        self._base_url  = base_url.rstrip("/")
+        self._base_url  = versioned_base(base_url, api_version)
         self._timeout   = timeout
         self._tenant_id = tenant_id
 
