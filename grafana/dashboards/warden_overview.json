@@ -1942,6 +1942,113 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "id": 57,
+      "panels": [],
+      "title": "Filter pipeline — per-stage latency",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Per-stage p95 in milliseconds. The published per-stage figures (<2ms topology, <8ms brain) may only be quoted from this panel — see the stage-latency rows in docs/capability-matrix.md.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 74
+      },
+      "id": 58,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "p95 by stage — /filter",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(warden_filter_stage_duration_seconds_bucket{job=\"warden\"}[5m])) by (le, stage)) * 1000",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Where the time actually goes. Sums to less than http_request_duration_seconds{handler=\"/filter\"}; the difference is middleware, not pipeline.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 74
+      },
+      "id": 59,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Mean time in stage — /filter",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(warden_filter_stage_duration_seconds_sum{job=\"warden\"}[5m])) by (stage) / sum(rate(warden_filter_stage_duration_seconds_count{job=\"warden\"}[5m])) by (stage) * 1000",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "schemaVersion": 38,
