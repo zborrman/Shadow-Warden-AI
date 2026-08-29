@@ -459,6 +459,11 @@ class EvolutionEngine:
     #: anything" can be answered from the same metric. Subclasses override it.
     ENGINE_LABEL = "claude"
 
+    #: Consecutive failed LLM calls before auto mode gives up on the backend.
+    #: One transient 503 must not switch engines; a backend that cannot answer
+    #: three attacks in a row is not serving this system.
+    DEMOTE_AFTER_FAILURES = 3
+
 
     def __init__(
         self,
@@ -493,6 +498,25 @@ class EvolutionEngine:
         self._rules_path    = Path(os.getenv("DYNAMIC_RULES_PATH", str(DYNAMIC_RULES_PATH)))
         self._rules_path.parent.mkdir(parents=True, exist_ok=True)
         self._corpus_count  = self._count_existing_rules()
+
+        # ── auto-mode backend health ─────────────────────────────────────
+        # Set by build_evolution_engine() ONLY when EVOLUTION_ENGINE=auto.
+        # An explicit EVOLUTION_ENGINE=nemotron|claude leaves this None, so a
+        # deliberate choice of backend is never silently overridden.
+        self._auto_fallback: EvolutionEngine | None = None
+        self._demoted_to:    str | None             = None
+        self._consecutive_failures: int             = 0
+
+    @property
+    def active_engine(self) -> str:
+        """The backend actually serving calls — not the one selected at boot.
+
+        After an auto-mode demotion these differ, and every counter label has
+        to follow the work rather than the original choice. Attributing a
+        Claude-generated rule to `engine="nemotron"` would be a fresh version
+        of the defect this whole mechanism exists to close.
+        """
+        return self._demoted_to or self.ENGINE_LABEL
 
     # ── Public hot-reload helper ──────────────────────────────────────────────
 
@@ -696,11 +720,11 @@ class EvolutionEngine:
 
         try:
             with _trace_stage("evo.llm_call"):
-                evolution, user_prompt = await self._call_claude(content, flags, risk_level)
+                evolution, user_prompt = await self._invoke_backend(content, flags, risk_level)
         except Exception as exc:
-            log.error("EvolutionEngine: Claude API error — %s", exc)
+            log.error("EvolutionEngine: %s API error — %s", self.active_engine, exc)
             EVOLUTION_FAILED_TOTAL.labels(
-                engine=self.ENGINE_LABEL, reason="llm_error"
+                engine=self.active_engine, reason="llm_error"
             ).inc()
             return None
 
@@ -711,7 +735,7 @@ class EvolutionEngine:
         # every reference to it was `.inc(0)` at startup — label registration,
         # never a write — so it read 0.0 whether the engine was working or had
         # been dead for months. This is its only real increment.
-        NEMOTRON_EVOLUTION_TOTAL.labels(engine=self.ENGINE_LABEL).inc()
+        NEMOTRON_EVOLUTION_TOTAL.labels(engine=self.active_engine).inc()
 
         # ── Dataset collection — append fine-tuning sample ──────────────────
         try:
@@ -738,7 +762,7 @@ class EvolutionEngine:
                     "rule discarded, corpus unchanged.", _reason,
                 )
                 EVOLUTION_FAILED_TOTAL.labels(
-                    engine=self.ENGINE_LABEL, reason="regex_gate"
+                    engine=self.active_engine, reason="regex_gate"
                 ).inc()
                 return None
 
@@ -900,6 +924,67 @@ class EvolutionEngine:
         except Exception as exc:
             log.warning("synthesize_from_intel: Claude API error — %s", exc)
             return []
+
+    # ── Backend selection at call time ────────────────────────────────────────
+
+    async def _invoke_backend(
+        self,
+        content:    str,
+        flags:      list[SemanticFlag],
+        risk_level: RiskLevel,
+    ) -> tuple[EvolutionResponse, str]:
+        """Call the LLM, demoting a dead auto-mode backend to the fallback.
+
+        `build_evolution_engine` used to pick a backend on API-key *presence*
+        and fall back only if the constructor raised. Constructing a NIM client
+        never raises — the model 404s at call time — so production ran for
+        months with an Evolution Engine that had never generated a single rule
+        and logged "online" at every boot.
+
+        The check therefore lives where the failure actually is: the call.
+        Deliberately counted, not string-matched — classifying an exception by
+        its message is the kind of check that silently stops matching. Any
+        `DEMOTE_AFTER_FAILURES` failures in a row means the backend is not
+        answering, whatever it says.
+
+        Demotion is per-process and never persisted: a restart re-tries the
+        configured backend, so this can mask a config error for one process
+        lifetime at most, and it is loud when it happens.
+        """
+        target = self._auto_fallback if self._demoted_to else self
+
+        try:
+            result = await target._call_claude(content, flags, risk_level)
+        except Exception:
+            self._consecutive_failures += 1
+            if (
+                self._auto_fallback is not None
+                and self._demoted_to is None
+                and self._consecutive_failures >= self.DEMOTE_AFTER_FAILURES
+            ):
+                self._demote_to_fallback()
+            raise
+
+        self._consecutive_failures = 0
+        return result
+
+    def _demote_to_fallback(self) -> None:
+        """Switch future calls to the fallback engine. Loud and counted."""
+        fallback = self._auto_fallback
+        if fallback is None:          # pragma: no cover - guarded by caller
+            return
+        self._demoted_to = fallback.ENGINE_LABEL
+        self._consecutive_failures = 0
+        log.error(
+            "EvolutionEngine: %s failed %d calls in a row — auto mode is "
+            "switching to %s for the rest of this process. Fix the backend or "
+            "set EVOLUTION_ENGINE explicitly; a restart re-tries %s.",
+            self.ENGINE_LABEL, self.DEMOTE_AFTER_FAILURES,
+            fallback.ENGINE_LABEL, self.ENGINE_LABEL,
+        )
+        EVOLUTION_FAILED_TOTAL.labels(
+            engine=self.ENGINE_LABEL, reason="backend_demoted"
+        ).inc()
 
     # ── Claude API call ───────────────────────────────────────────────────────
 
@@ -1116,16 +1201,35 @@ def build_evolution_engine(
         return EvolutionEngine(**kwargs)
 
     # auto — prefer Nemotron, fall back to Claude
+    #
+    # This branch used to be the whole story: a key was present, so Nemotron
+    # was chosen, and the `except` below only covered *construction*. Building
+    # a NIM client never raises — the model 404s at call time — so production
+    # ran for months on an engine that had never produced a rule. The fallback
+    # now also covers the call path; see EvolutionEngine._invoke_backend.
     nvidia_key = os.getenv("NVIDIA_API_KEY", "").strip()
     if nvidia_key:
         try:
             from warden.brain.evolve_nemotron import NemotronEvolutionEngine  # noqa: PLC0415
             NEMOTRON_EVOLUTION_TOTAL.labels(engine="nemotron").inc(0)
-            log.info(
-                "EvolutionEngine: NVIDIA_API_KEY detected — "
-                "using NemotronEvolutionEngine (auto mode)"
-            )
-            return NemotronEvolutionEngine(**kwargs)
+            engine = NemotronEvolutionEngine(**kwargs)
+            if os.getenv("ANTHROPIC_API_KEY", "").strip():
+                NEMOTRON_EVOLUTION_TOTAL.labels(engine="claude").inc(0)
+                engine._auto_fallback = EvolutionEngine(**kwargs)
+                log.info(
+                    "EvolutionEngine: NVIDIA_API_KEY detected — using "
+                    "NemotronEvolutionEngine (auto mode), Claude Opus armed as "
+                    "runtime fallback after %d consecutive failures",
+                    EvolutionEngine.DEMOTE_AFTER_FAILURES,
+                )
+            else:
+                log.warning(
+                    "EvolutionEngine: NVIDIA_API_KEY detected — using "
+                    "NemotronEvolutionEngine (auto mode) with NO fallback. "
+                    "ANTHROPIC_API_KEY is unset, so a NIM backend that fails "
+                    "at call time leaves the Evolution Engine producing nothing."
+                )
+            return engine
         except Exception as exc:  # noqa: BLE001
             log.warning(
                 "EvolutionEngine: Nemotron init failed (%s) — falling back to Claude", exc

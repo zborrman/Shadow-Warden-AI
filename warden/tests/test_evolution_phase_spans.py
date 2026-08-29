@@ -48,7 +48,10 @@ def test_phase_is_instrumented(source: str, phase: str) -> None:
 
 def test_the_statements_those_spans_wrap_still_exist(source: str) -> None:
     """Guard the guard: a span around a call that no longer happens proves nothing."""
-    for call in ("self._call_claude(", "self._build_rule(",
+    # `evo.llm_call` wraps _invoke_backend, which is the demotion-aware wrapper
+    # around the real API call — so both halves are pinned. Checking only the
+    # wrapper would let the LLM call be deleted underneath it and still pass.
+    for call in ("self._invoke_backend(", "_call_claude(", "self._build_rule(",
                  "self._validate_regex_safety(", "self._persist(",
                  "self._guard.add_examples("):
         assert call in source, (
