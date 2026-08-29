@@ -150,6 +150,26 @@ def ensure_schema(conn: Any, db_key: str, db_path: str = "") -> int:
         except Exception as exc:  # noqa: BLE001
             log.warning("ddl_registry: DDL failed for %s/%s: %s", db_key, module, exc)
 
+    # Persist the bookkeeping. Without this the INSERT above sits in an
+    # uncommitted transaction and is discarded when the connection closes, so
+    # `_warden_ddl_applied` stays EMPTY -- and every subsequent connection reads
+    # "nothing applied" and re-executes the full DDL script.
+    #
+    # Most databases hid this: their modules write data, and any later commit on
+    # the same connection happens to flush the orphaned tracking INSERT too. A
+    # production survey found 23 of 31 populated for exactly that reason. The
+    # ones that stay broken forever are the read-mostly databases nothing ever
+    # writes -- lemon.db, stripe.db, data_policy.db -- where no later commit ever
+    # comes. On a database other workers hold open, the endless re-run then
+    # blocks on the write lock and burns the entire 5000ms busy_timeout:
+    # measured at 5009.5ms, reproducibly, for LemonBilling's first use in each
+    # uvicorn worker, on the /filter hot path.
+    if applied:
+        try:
+            conn.commit()
+        except Exception as exc:
+            log.debug("ddl_registry: could not commit tracking for %s: %s", db_key, exc)
+
     return applied
 
 
