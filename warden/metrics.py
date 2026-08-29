@@ -1067,6 +1067,35 @@ try:
     except ValueError:
         ARQ_JOB_LAST_SUCCESS = cast(Gauge, REGISTRY._names_to_collectors.get("warden_arq_job_last_success_timestamp"))
 
+    # ── Per-stage filter latency ─────────────────────────────────────────────
+    # Observed by main.py::_observe_stage_timings at every exit of POST /filter.
+    #
+    # The pipeline has always *measured* this — every stage writes into the
+    # `timings` dict returned as `processing_ms` — but nothing aggregated it, so
+    # the numbers existed per request and nowhere else. Meanwhile the site
+    # published a per-stage figure for each one (`<2ms` topology, `<8ms` brain,
+    # …) that no instrument stood behind. This is that instrument.
+    #
+    # End-to-end latency is *not* here: prometheus-fastapi-instrumentator already
+    # exports `http_request_duration_seconds{handler="/filter"}`, and a second
+    # total would be a second answer to the same question.
+    #
+    # Buckets are sub-millisecond at the bottom because the claims being checked
+    # are 1–8 ms; a default bucket set starting at 5 ms cannot tell "<2ms" from
+    # "<5ms", which is the whole question.
+    try:
+        FILTER_STAGE_DURATION_SECONDS = Histogram(
+            "warden_filter_stage_duration_seconds",
+            "Wall-clock duration of one stage of the /filter pipeline",
+            ["stage"],
+            buckets=(0.0005, 0.001, 0.002, 0.003, 0.005, 0.008, 0.010,
+                     0.025, 0.050, 0.100, 0.250, 0.500, 1.0, float("inf")),
+        )
+    except ValueError:
+        FILTER_STAGE_DURATION_SECONDS = cast(Histogram, REGISTRY._names_to_collectors.get(
+            "warden_filter_stage_duration_seconds"
+        ))
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -1159,3 +1188,4 @@ except ImportError:
     ARQ_JOBS_TOTAL                  = _Noop()  # type: ignore[assignment]
     ARQ_JOB_DURATION_SECONDS        = _Noop()  # type: ignore[assignment]
     ARQ_JOB_LAST_SUCCESS            = _Noop()  # type: ignore[assignment]
+    FILTER_STAGE_DURATION_SECONDS   = cast("Histogram", _Noop())

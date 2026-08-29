@@ -98,7 +98,12 @@ from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.data_policy import DataPolicyEngine
 from warden.masking.engine import get_engine as _get_masking_engine
-from warden.metrics import FILTER_BYPASSES_TOTAL, FILTER_HONEYTRAP_TOTAL, FILTER_UNCERTAIN_TOTAL
+from warden.metrics import (
+    FILTER_BYPASSES_TOTAL,
+    FILTER_HONEYTRAP_TOTAL,
+    FILTER_STAGE_DURATION_SECONDS,
+    FILTER_UNCERTAIN_TOTAL,
+)
 from warden.mtls import MTLSMiddleware
 from warden.obfuscation import decode as decode_obfuscation
 from warden.observability import Reason, record_failopen
@@ -2023,6 +2028,38 @@ def _log_verdict(
     )
 
 
+def _observe_stage_timings(timings: dict[str, float]) -> None:
+    """
+    Aggregate one request's per-stage timings into the Prometheus histogram.
+
+    The pipeline has always measured these — each stage writes its own key into
+    `timings`, which is returned to the caller as `processing_ms` — but the
+    numbers lived for the length of one response and nowhere else. The site
+    meanwhile published a figure for every stage (`<2ms` topology, `<8ms`
+    brain), and `docs/capability-matrix.md` ruled them UNMEASURED because
+    nothing stood behind them. This is what makes them measurable.
+
+    `total` is skipped deliberately: prometheus-fastapi-instrumentator already
+    exports `http_request_duration_seconds{handler="/filter"}`, and two answers
+    to "how long did the request take" disagree the moment one of them changes.
+
+    Cannot raise, by construction rather than by `except Exception`: the label
+    must be a string and the value a real number, and both are checked here.
+    A blanket suppression would have been the easy way to promise the same
+    thing, and `test_no_new_suppressions` is right to refuse it — a swallowed
+    error in the observer is how a metric silently stops recording.
+    """
+    for stage, ms in timings.items():
+        if stage == "total" or not isinstance(stage, str):
+            # `total` is already answered by http_request_duration_seconds.
+            continue
+        if isinstance(ms, bool) or not isinstance(ms, (int, float)):
+            continue
+        if ms != ms or ms in (float("inf"), float("-inf")):   # NaN or infinity
+            continue
+        FILTER_STAGE_DURATION_SECONDS.labels(stage=stage).observe(float(ms) / 1000.0)
+
+
 async def _run_filter_pipeline(
     payload:          FilterRequest,
     rid:              str,
@@ -2680,6 +2717,7 @@ async def _run_filter_pipeline(
                         rid                 = rid,
                     )
                 timings["total"] = round((time.perf_counter() - start) * 1000, 2)
+                _observe_stage_timings(timings)
                 _log_verdict(
                     rid, tenant_id, guard_result.risk_level.value, payload, "honeytrap"
                 )
@@ -2770,6 +2808,7 @@ async def _run_filter_pipeline(
 
     elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
     timings["total"] = elapsed_ms
+    _observe_stage_timings(timings)
     log.info(
         json.dumps({
             "event":      "filter_done",
@@ -4189,6 +4228,7 @@ async def ws_filter_stream(websocket: WebSocket):
         reason = top.detail if top else f"Risk level: {guard_result.risk_level}"
 
     timings["total"] = round(sum(timings.values()), 2)
+    _observe_stage_timings(timings)
 
     response = FilterResponse(
         allowed                  = allowed,
