@@ -8,11 +8,14 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import { WardenClient } from "../src/client.js";
+import { API_VERSION, WardenClient } from "../src/client.js";
 import { WardenGatewayError } from "../src/errors.js";
 import type { MktAgent, MktAgentTrust, MktListing, MktPurchase, MktStats } from "../src/types.js";
 
 const BASE = "http://localhost:8001";
+// The client joins the API version itself (versionedBase), so the URL MSW
+// must handle is the versioned one while the client is still given BASE.
+const API = `${BASE}/${API_VERSION}`;
 
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
@@ -79,7 +82,7 @@ describe("marketplace.agents.list()", () => {
   const client = new WardenClient({ gatewayUrl: BASE, apiKey: "sk_test" });
 
   it("returns list of agents", async () => {
-    server.use(http.get(`${BASE}/marketplace/agents`, () => HttpResponse.json([AGENT_FIXTURE])));
+    server.use(http.get(`${API}/marketplace/agents`, () => HttpResponse.json([AGENT_FIXTURE])));
     const agents = await client.marketplace.agents.list();
     expect(agents).toHaveLength(1);
     expect(agents[0]?.agent_id).toBe("did:shadow:abc123");
@@ -88,7 +91,7 @@ describe("marketplace.agents.list()", () => {
   it("forwards query params", async () => {
     let capturedUrl = "";
     server.use(
-      http.get(`${BASE}/marketplace/agents`, ({ request }) => {
+      http.get(`${API}/marketplace/agents`, ({ request }) => {
         capturedUrl = request.url;
         return HttpResponse.json([]);
       })
@@ -99,7 +102,7 @@ describe("marketplace.agents.list()", () => {
   });
 
   it("throws WardenGatewayError on 401", async () => {
-    server.use(http.get(`${BASE}/marketplace/agents`, () => HttpResponse.json({}, { status: 401 })));
+    server.use(http.get(`${API}/marketplace/agents`, () => HttpResponse.json({}, { status: 401 })));
     await expect(client.marketplace.agents.list()).rejects.toThrow(WardenGatewayError);
   });
 });
@@ -110,7 +113,7 @@ describe("marketplace.agents.register()", () => {
   const client = new WardenClient({ gatewayUrl: BASE });
 
   it("returns registered agent", async () => {
-    server.use(http.post(`${BASE}/marketplace/agents/register`, () => HttpResponse.json(AGENT_FIXTURE, { status: 201 })));
+    server.use(http.post(`${API}/marketplace/agents/register`, () => HttpResponse.json(AGENT_FIXTURE, { status: 201 })));
     const agent = await client.marketplace.agents.register({
       tenant_id: "t1",
       community_id: "c1",
@@ -123,7 +126,7 @@ describe("marketplace.agents.register()", () => {
 
   it("throws on 403 (sybil gate)", async () => {
     server.use(
-      http.post(`${BASE}/marketplace/agents/register`, () =>
+      http.post(`${API}/marketplace/agents/register`, () =>
         HttpResponse.json({ detail: "Agent is flagged" }, { status: 403 })
       )
     );
@@ -142,7 +145,7 @@ describe("marketplace.agents.getTrust()", () => {
 
   it("returns trust data", async () => {
     server.use(
-      http.get(`${BASE}/marketplace/agents/did%3Ashadow%3Aabc123/trust`, () =>
+      http.get(`${API}/marketplace/agents/did%3Ashadow%3Aabc123/trust`, () =>
         HttpResponse.json(TRUST_FIXTURE)
       )
     );
@@ -159,7 +162,7 @@ describe("marketplace.listings.list()", () => {
   const client = new WardenClient({ gatewayUrl: BASE });
 
   it("returns list of listings", async () => {
-    server.use(http.get(`${BASE}/marketplace/listings`, () => HttpResponse.json([LISTING_FIXTURE])));
+    server.use(http.get(`${API}/marketplace/listings`, () => HttpResponse.json([LISTING_FIXTURE])));
     const listings = await client.marketplace.listings.list();
     expect(listings[0]?.listing_id).toBe("l-001");
     expect(listings[0]?.price_usd).toBe(29.99);
@@ -172,7 +175,7 @@ describe("marketplace.listings.create()", () => {
   const client = new WardenClient({ gatewayUrl: BASE });
 
   it("creates a listing and returns it", async () => {
-    server.use(http.post(`${BASE}/marketplace/listings`, () => HttpResponse.json(LISTING_FIXTURE, { status: 201 })));
+    server.use(http.post(`${API}/marketplace/listings`, () => HttpResponse.json(LISTING_FIXTURE, { status: 201 })));
     const listing = await client.marketplace.listings.create({
       seller_agent_id: "did:shadow:abc123",
       community_id: "c1",
@@ -191,7 +194,7 @@ describe("marketplace.listings.purchase()", () => {
 
   it("returns purchase record", async () => {
     server.use(
-      http.post(`${BASE}/marketplace/listings/l-001/purchase`, () =>
+      http.post(`${API}/marketplace/listings/l-001/purchase`, () =>
         HttpResponse.json(PURCHASE_FIXTURE, { status: 201 })
       )
     );
@@ -209,7 +212,7 @@ describe("marketplace.stats()", () => {
   const client = new WardenClient({ gatewayUrl: BASE });
 
   it("returns stats object", async () => {
-    server.use(http.get(`${BASE}/marketplace/stats`, () => HttpResponse.json(STATS_FIXTURE)));
+    server.use(http.get(`${API}/marketplace/stats`, () => HttpResponse.json(STATS_FIXTURE)));
     const stats = await client.marketplace.stats();
     expect(stats.total_listings).toBe(42);
     expect(stats.total_volume_usd).toBe(3482.5);
@@ -223,7 +226,7 @@ describe("client.agent()", () => {
 
   it("returns agent response", async () => {
     server.use(
-      http.post(`${BASE}/agent/sova`, () =>
+      http.post(`${API}/agent/sova`, () =>
         HttpResponse.json({
           session_id: "ses-001",
           reply: "Current threat level is LOW.",
@@ -241,7 +244,7 @@ describe("client.agent()", () => {
   it("forwards session_id in payload", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     server.use(
-      http.post(`${BASE}/agent/sova`, async ({ request }) => {
+      http.post(`${API}/agent/sova`, async ({ request }) => {
         capturedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ session_id: "ses-001", reply: "ok", tool_calls: 0, iterations: 1 });
       })
@@ -258,7 +261,7 @@ describe("client.health()", () => {
 
   it("returns health dict", async () => {
     server.use(
-      http.get(`${BASE}/health`, () =>
+      http.get(`${API}/health`, () =>
         HttpResponse.json({ status: "ok", version: "5.6", pipeline: "ready" })
       )
     );
@@ -268,7 +271,7 @@ describe("client.health()", () => {
   });
 
   it("throws on error", async () => {
-    server.use(http.get(`${BASE}/health`, () => HttpResponse.json({}, { status: 503 })));
+    server.use(http.get(`${API}/health`, () => HttpResponse.json({}, { status: 503 })));
     await expect(client.health()).rejects.toThrow(WardenGatewayError);
   });
 });
@@ -279,7 +282,7 @@ describe("retry logic", () => {
   it("retries on 429 and succeeds", async () => {
     let calls = 0;
     server.use(
-      http.post(`${BASE}/filter`, () => {
+      http.post(`${API}/filter`, () => {
         calls++;
         if (calls < 3) {
           return HttpResponse.json({ detail: "rate limited" }, { status: 429 });
@@ -296,7 +299,7 @@ describe("retry logic", () => {
   });
 
   it("throws after exhausting retries on 500", async () => {
-    server.use(http.post(`${BASE}/filter`, () => HttpResponse.json({ detail: "server error" }, { status: 500 })));
+    server.use(http.post(`${API}/filter`, () => HttpResponse.json({ detail: "server error" }, { status: 500 })));
     const client = new WardenClient({ gatewayUrl: BASE, retry: { maxRetries: 2, backoffMs: 1 } });
     await expect(client.filter("test")).rejects.toThrow(WardenGatewayError);
   });
