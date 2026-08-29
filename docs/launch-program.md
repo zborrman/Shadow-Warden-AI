@@ -238,10 +238,19 @@ For a machine-to-machine platform the front door is a package install, not a
       built, not at the ~15 path literals; `api_version=None` still reaches the
       legacy surface for a gateway older than the middleware.
       `test_sdks_target_v1.py` pins the seam (6 of 9 fail against 1.0.0).
-      ⚠️ **Still open, same defect one surface over:** `docs/quickstart.md` and
-      `scripts/quickstart_check.py` teach unversioned `/marketplace/*` and
-      `/purchase`. Left deliberately — the verifier has two request modes and its
-      documented responses would need regenerating and re-verifying.
+      The quickstart carried the same defect and is now closed too: a `_Versioned`
+      wrapper covers both of the verifier's request modes (httpx honours
+      `base_url`, `TestClient` does not), re-run against the build — five steps,
+      all `/v1`, all green. Fixing it surfaced a **regression from #403**: the
+      new escrow columns were added to the DDL and to a migration that only ran
+      on `escrow._conn()`, while `listing._do_purchase` hands `insert_escrow` its
+      own connection — so any database whose table predated #403 failed the first
+      purchase. Production was unaffected only by luck (it has no
+      `marketplace_escrow` table, so it builds one from the new DDL); any dev
+      machine or restored backup would have hit it. `insert_escrow` now migrates
+      the connection it is given, pinned by `test_escrow_columns_on_old_tables.py`
+      — which builds the pre-#403 table on purpose, because a fresh `tmp_path`
+      database can never reproduce a migration bug.
       ⚠️ 1.1.0 is **not published**. Tagging `sdk-v1.1.0` releases it.
 
 ---

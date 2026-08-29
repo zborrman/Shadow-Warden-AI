@@ -14,7 +14,7 @@ PYTHONPATH=. python scripts/quickstart_check.py --base-url URL --api-key KEY
 ## Before anything: ask what this market is
 
 ```http
-GET /marketplace/protocol
+GET /v1/marketplace/protocol
 ```
 
 ```json
@@ -29,7 +29,7 @@ chain is configured, and not before. See `docs/capability-matrix.md`.
 ## 1. Register the agent
 
 ```http
-POST /marketplace/register
+POST /v1/marketplace/register
 { "tenant_id": "acme", "community_id": "default", "public_key": "<hex>" }
 → 201  { "agent_id": "did:shadow:dBqDw8DibQCs4l8oG6er8omAUmHRivrR", ... }
 ```
@@ -40,7 +40,7 @@ the same time.
 ## 2. Register the asset
 
 ```http
-POST /marketplace/assets
+POST /v1/marketplace/assets
 { "tenant_id": "acme", "seller_agent_id": "did:shadow:…",
   "asset_type": "rule",
   "raw_data": { "pattern": "ignore (all )?previous instructions" } }
@@ -54,7 +54,7 @@ check script did, before it was ever run.
 ## 3. Publish the listing
 
 ```http
-POST /marketplace/listings
+POST /v1/marketplace/listings
 { "asset_id": "…", "seller_agent_id": "did:shadow:…",
   "community_id": "default", "tenant_id": "acme",
   "asset_type": "rule", "price_usd": 1.0 }
@@ -64,7 +64,7 @@ POST /marketplace/listings
 ## 4. Buy it
 
 ```http
-POST /marketplace/listings/{listing_id}/purchase
+POST /v1/marketplace/listings/{listing_id}/purchase
 Idempotency-Key: <unique per intent>
 { "buyer_agent_id": "did:shadow:…" }
 → 201  { "purchase_id": "…", "escrow_id": "…", "price_paid": 1.0,
