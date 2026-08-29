@@ -251,7 +251,13 @@ For a machine-to-machine platform the front door is a package install, not a
       the connection it is given, pinned by `test_escrow_columns_on_old_tables.py`
       — which builds the pre-#403 table on purpose, because a fresh `tmp_path`
       database can never reproduce a migration bug.
-      ⚠️ 1.1.0 is **not published**. Tagging `sdk-v1.1.0` releases it.
+      **1.1.0 published 2026-08-29** from tag `sdk-v1.1.0` (`9026e18a`), verified
+      the way the 1.0.0 claim was: not by the workflow's own report but by
+      downloading the artefact and running it. `pip download shadow-warden-sdk==1.1.0`
+      → installs, `__version__ 1.1.0`, and a client built with
+      `gateway_url="http://x:8001"` addresses `http://x:8001/v1`, with
+      `api_version=None` still reaching the legacy surface. npm `@shadow-warden/sdk`
+      `dist-tags.latest` is 1.1.0. The front door is now on the supported surface.
 
 ---
 
