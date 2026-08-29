@@ -133,6 +133,19 @@ During maintenance:
 Credits apply only to the affected calendar month and must be requested within 30 days of
 the incident. Credits are applied against the next invoice; they are not refundable in cash.
 
+> **Status: not yet operable — issuance is manual.**
+>
+> Uptime is measured (`sova_sla_report`, error-budget burn monitors), but nothing
+> in the codebase turns a measured breach into a credit: there is no credit
+> calculation and no issuance path, and no invoice to apply one to — paid plans
+> are not currently purchasable, which `docs/capability-matrix.md` records as
+> `SIMULATED`. A credit requested under this section today would be honoured by
+> hand, by a person, or not at all.
+>
+> This note is here because the table above reads as an automatic entitlement and
+> is not one. It comes down when a breach can produce a credit on a real invoice
+> without a human in the loop — the P4 exit criterion.
+
 ---
 
 ## 9. Exclusions

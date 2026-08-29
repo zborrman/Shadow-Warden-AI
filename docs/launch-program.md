@@ -298,6 +298,16 @@ anyone to support is the same mistake in another category.
 
 **Exit criteria**
 - [ ] A simulated SLA breach produces a real credit on a real invoice.
+      Unblocked halfway 2026-08-29: the **claim** is now honest even though the
+      mechanism is not built. `docs/sla.md` §8 published a service-credit
+      percentage schedule reading as an automatic entitlement, with no
+      calculation, no issuance path and no invoice to apply one to. It now
+      carries a status note that issuance is manual.
+      ⚠️ P0's claims sweep missed this because the guard scoped itself to
+      `site/`, `landing/`, `portal/` and `dashboard/` — **`docs/` is in the
+      MkDocs nav and is just as public.** The guard now covers `docs/` too,
+      excluding the two registers whose job is to discuss the claims.
+      The box stays open: honest wording is not a mechanism.
 - [ ] The status page reflects a genuine degradation within five minutes of onset.
 - [ ] One escrow dispute resolved through the documented process, start to finish.
 
