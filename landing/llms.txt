@@ -1,54 +1,101 @@
 # Shadow Warden AI
 
-> The internet's first GDPR-compliant, self-improving AI security gateway and M2M agent marketplace. Deployed between every AI request and the world — blocking jailbreaks, stripping secrets/PII, and enabling machine-to-machine intelligence trading at nanopayment speed.
+> A zero-trust AI security gateway and M2M agent marketplace. Deployed between
+> every AI request and the world: it blocks jailbreaks, strips secrets and PII,
+> and never logs content.
 
-Shadow Warden AI v7.2 — Proprietary — https://shadow-warden-ai.com
+Shadow Warden AI v7.9 — Proprietary — https://shadow-warden-ai.com
+
+## When to use this
+
+Call Shadow Warden when untrusted text is about to reach a model, or model
+output is about to reach the world. Best-fit jobs:
+
+- **Screen a prompt before spending tokens** — `POST /filter` returns
+  allow/flag/block, a risk score and the deciding stage.
+- **Strip secrets and PII** from scraped pages, tool results or user text before
+  you log, forward or store it.
+- **Decode obfuscated instructions** — base64, hex, ROT13, Caesar, word-split,
+  UUencode and homoglyphs, to depth 3.
+- **Gate an agent's tool calls** — session-level injection-chain detection, so a
+  multi-step agent cannot be walked into a harmful action one step at a time.
+- **Explain a verdict** — every decision carries a request id whose causal chain
+  can be retrieved afterwards for audit evidence.
+- **Find unsanctioned AI usage** on a network you administer (18 providers).
+
+Not a content-moderation classifier, not a WAF, not a model. Full guidance,
+including status codes an agent must handle and the honesty notes below:
+[Agent instructions](https://shadow-warden-ai.com/.well-known/agent-instructions.md).
 
 ## What Shadow Warden Is
 
-Shadow Warden is a 9-layer AI security gateway (TopologicalGatekeeper → ObfuscationDecoder → SecretRedactor → SemanticGuard → HyperbolicBrain → CausalArbiter → ERS → PhishGuard → Decision) deployed as a proxy in front of every AI request. It self-improves via Claude Opus — auto-generating new detection rules from HIGH/BLOCK events without human intervention.
+A nine-stage filter pipeline — TopologicalGatekeeper, ObfuscationDecoder,
+SecretRedactor, SemanticGuard, HyperbolicBrain, CausalArbiter, ERS, PhishGuard,
+Decision — deployed as a proxy in front of every AI request. New detection rules
+are proposed by Claude Opus from HIGH/BLOCK events and hot-reloaded after
+validation. Request content is never logged; only metadata is.
 
-It also hosts the Agentic Marketplace: a secure M2M environment where AI agents autonomously discover, negotiate, and settle detection intelligence using x402 nanopayments and Ed25519/DID-based identity.
+It also hosts the Agentic Marketplace: an M2M environment where agents
+discover, negotiate and settle detection intelligence using x402 nanopayments
+and Ed25519/DID identity.
 
 ## Core Capabilities
 
-- [Security Gateway](https://shadow-warden-ai.com/docs) — 9-stage pipeline, <2ms TDA topology check, obfuscation decoder, Shannon entropy secrets scan
-- [M2M Marketplace](https://shadow-warden-ai.com/agentic) — x402 USDC nanopayments, Flex Credits, KYA (Know Your Agent) compliance, L1/L2/L3 progressive autonomy policies
-- [Agent Discovery Protocol](https://shadow-warden-ai.com/.well-known/agent.json) — ADP manifest at /.well-known/agent.json
-- [SOVA Agent](https://shadow-warden-ai.com/agentic#sova) — 30-tool autonomous SOC operator (Claude Opus 4.6, scheduled threat briefs, visual patrol)
-- [MasterAgent](https://shadow-warden-ai.com/agentic#master) — Multi-agent SOC coordinator with 4 specialist sub-agents and human-in-the-loop approval gate
-- [Community Hub](https://shadow-warden-ai.com/community) — STIX 2.1 tamper-proof audit chains, SEP UECIID provenance, Causal Transfer Guard, post-quantum cryptography (ML-DSA-65)
+- [Security Gateway](https://shadow-warden-ai.com/doc) — nine-stage pipeline, obfuscation decoder, 15-pattern plus entropy secret scan
+- [M2M Marketplace](https://shadow-warden-ai.com/agentic) — x402 USDC nanopayments (testnet), Flex Credits, KYA compliance, L1/L2/L3 autonomy policies
+- [Agent Card](https://shadow-warden-ai.com/.well-known/agent.json) — A2A / ADP capability manifest
+- [SOVA Agent](https://shadow-warden-ai.com/agentic) — 30-tool autonomous SOC operator with scheduled threat briefs
+- [MasterAgent](https://shadow-warden-ai.com/agentic) — multi-agent SOC coordinator, four specialist sub-agents, human-in-the-loop approval gate
+- [Community Hub](https://shadow-warden-ai.com/community) — STIX 2.1 audit chains, provenance, post-quantum signatures (ML-DSA-65)
 
 ## Agent Integration
 
+- **Filtering**: `POST https://api.shadow-warden-ai.com/filter` — run any text through the pipeline
 - **Registration**: `POST https://api.shadow-warden-ai.com/marketplace/register` — DID assignment + KYA screening
 - **Capability manifest**: `GET https://api.shadow-warden-ai.com/.well-known/agent.json`
-- **Filtering**: `POST https://api.shadow-warden-ai.com/filter` — run any text through the 9-layer security pipeline
-- **x402 nanopayments**: `X402_GATE_ENABLED=true` — $0.000001 per search call; Flex Credits available without crypto wallet
-- **Autonomy policies**: L1 (shadow/report-only) → L2 (supervised threshold) → L3 (autonomous with spend cap)
+- **CLI**: `pip install "shadow-warden-sdk>=1.1.0"` then `warden filter --json "text"` (exit 0 allowed, 1 blocked)
+- **SDKs**: `pip install shadow-warden-sdk` · `npm install @shadow-warden/sdk`
+- **Autonomy policies**: L1 (report-only) → L2 (supervised threshold) → L3 (autonomous under a spend cap)
+
+## Markdown for machines
+
+Every primary page answers to `Accept: text/markdown` on the same URL that
+serves HTML, with `Vary: Accept`. Append `.md` to reach the same content
+directly: [/index.md](https://shadow-warden-ai.com/index.md),
+[/pricing.md](https://shadow-warden-ai.com/pricing.md),
+[/doc.md](https://shadow-warden-ai.com/doc.md),
+[/sdk.md](https://shadow-warden-ai.com/sdk.md),
+[/agentic.md](https://shadow-warden-ai.com/agentic.md),
+[/trust.md](https://shadow-warden-ai.com/trust.md).
+Unknown paths return HTTP 404 with a markdown recovery body.
 
 ## Pricing
 
 - **Starter**: Free — 1,000 requests/month
 - **Individual**: $5/month — 5,000 requests
 - **Community Business**: $39.99/month — 15,000 requests, Shadow AI Monitor, 3 communities
-- **Pro**: $99.99/month — 50,000 requests, MasterAgent included (200 agent turns/mo, then $0.15/turn)
+- **Pro**: $99.99/month — 50,000 requests, MasterAgent included (200 agent turns/mo)
 - **Enterprise**: $249/month — unlimited, post-quantum cryptography, sovereign routing
 
-Flex Credits (pay-per-use, no subscription): 100 credits $0.10 · 500 credits $0.45 · 1,000 credits $0.85 · 5,000 credits $4.00
+Flex Credits (prepaid, no wallet): 100 credits $0.10 · 500 credits $0.45 ·
+1,000 credits $0.85 · 5,000 credits $4.00
 
 ## Documentation
 
-- [Security Model (9 layers, OWASP LLM Top 10)](https://shadow-warden-ai.com/docs)
-- [API Reference (OpenAPI 3.1)](https://shadow-warden-ai.com/openapi.json)
-- [GDPR / DPIA](https://shadow-warden-ai.com/privacy)
-- [SOC 2 Evidence Guide](https://shadow-warden-ai.com/docs)
-- [SLA — Pro 99.9% / Enterprise 99.95%](https://shadow-warden-ai.com/docs)
-- [Roadmap (v7.1 shipped, v7.2 current)](https://shadow-warden-ai.com/roadmap)
+- [Documentation hub](https://shadow-warden-ai.com/doc)
+- [Quick start](https://shadow-warden-ai.com/doc/quick-start)
+- [API reference (OpenAPI 3.1)](https://shadow-warden-ai.com/openapi.json)
+- [Compliance and GDPR](https://shadow-warden-ai.com/doc/compliance)
+- [Trust centre](https://shadow-warden-ai.com/trust)
+- [Roadmap and changelog](https://shadow-warden-ai.com/roadmap)
+- [Status](https://shadow-warden-ai.com/status)
 
-## Optional
+## Honesty notes
 
-- [Full API Docs](https://shadow-warden-ai.com/openapi.json)
-- [Changelog](https://shadow-warden-ai.com/roadmap)
-- [Community Marketplace](https://shadow-warden-ai.com/community)
-- [Blog / Security Research](https://shadow-warden-ai.com/blog)
+- Jailbreak detection is measured at **36.2%** on our own 58-prompt adversarial
+  corpus; **0 of 35** benign prompts were flagged. No higher figure is ours.
+- Per-stage latency is **not instrumented in production** — do not quote a
+  millisecond figure.
+- Escrow and settlement are **testnet**. The marketplace has zero registered
+  agents and zero settled trades.
+- We hold **no** certification of any kind. Control mappings are self-attested.

@@ -4,9 +4,41 @@ import roadmap from '../data/roadmap.json';
 import WhatsNew from '../components/WhatsNew.astro';
 
 const shipped = roadmap.filter(r => r.status === 'shipped').length;
+
+// Machine-readable identity for the homepage. Prices are an AggregateOffer
+// range rather than a per-tier list so there is one number to keep true, and
+// warden/tests/test_pricing_coherence.py holds it to warden.billing.pricing.
+const softwareApplication = {
+  '@type': 'SoftwareApplication',
+  '@id': 'https://shadow-warden-ai.com/#software',
+  name: 'Shadow Warden AI',
+  applicationCategory: 'SecurityApplication',
+  applicationSubCategory: 'AI security gateway',
+  operatingSystem: 'Any (HTTP API, Docker, Kubernetes)',
+  url: 'https://shadow-warden-ai.com',
+  description: 'Zero-trust AI security gateway. A nine-stage filter blocks jailbreaks, decodes obfuscated payloads and strips secrets and PII before a prompt reaches a model. Content is never logged.',
+  featureList: [
+    'Prompt-injection and jailbreak detection',
+    'Secret and PII redaction (15 patterns plus entropy scan)',
+    'Obfuscation decoding to depth 3',
+    'Agent tool-call monitoring and injection-chain detection',
+    'Causal explanation of every decision',
+    'Machine-to-machine agent marketplace',
+  ],
+  softwareVersion: '7.9',
+  publisher: { '@id': 'https://shadow-warden-ai.com/#organization' },
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'USD',
+    lowPrice: '0',
+    highPrice: '249.00',
+    offerCount: 5,
+    url: 'https://shadow-warden-ai.com/price',
+  },
+};
 ---
 
-<BaseLayout>
+<BaseLayout markdown="/index.md" jsonLd={softwareApplication}>
 
 <!-- ── 1. HERO ──────────────────────────────────────────────────────────── -->
 <style>

@@ -77,6 +77,12 @@ Thumbs.db
 /workflows/
 *.md
 
+# …except the markdown the site *serves*. `Accept: text/markdown` on a page URL
+# is answered from these files (edge/negotiate.mjs maps route → file), so
+# excluding them from the upload would 404 every markdown request.
+!/site/public/*.md
+!/site/public/.well-known/*.md
+
 # Unlinked static mock that enumerates every secret env var name (ADMIN_KEY,
 # WARDEN_API_KEY, ANTHROPIC_API_KEY …) — recon aid, not a real page.
 /landing/enterprise-settings.html

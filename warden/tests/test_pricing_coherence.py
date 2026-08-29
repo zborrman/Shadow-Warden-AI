@@ -277,6 +277,40 @@ class TestSitePricesMatchTheTable:
             for m in re.finditer(rf"\*\*{re.escape(name)}\*\*:\s*\$([\d.]+)/month", src):
                 assert float(m.group(1)) == TIER_PRICE_USD_MONTH[tier], f"{name} stale in llms.txt"
 
+    def test_served_markdown_quotes_the_current_prices(self):
+        """
+        `Accept: text/markdown` is answered from site/public/*.md. Those files
+        are a fourth surface quoting prices, and an agent reads them instead of
+        the HTML — a stale number here is a stale number quoted to a machine.
+        """
+        public = _SITE / "public"
+        if not public.is_dir():
+            pytest.skip("site/ not present in this checkout")
+        for path in public.rglob("*.md"):
+            src = path.read_text(encoding="utf-8")
+            for name, tier in _SITE_TIER_NAMES.items():
+                for m in re.finditer(rf"\*\*{re.escape(name)}\*\*[^\n|]*\|?\s*\$([\d.]+)", src):
+                    assert float(m.group(1)) == TIER_PRICE_USD_MONTH[tier], (
+                        f"{name} is stale in {path.name}"
+                    )
+
+    def test_homepage_structured_data_quotes_the_canonical_ceiling(self):
+        """
+        The homepage publishes an AggregateOffer to machines. Its highPrice is
+        the most expensive plan — hand-written, because Astro cannot read the
+        Python table, so it is pinned here like every other site price.
+        """
+        src = self._read("src/pages/index.astro")
+        if src is None:
+            pytest.skip("site/ not present in this checkout")
+        high = re.search(r"highPrice:\s*'([\d.]+)'", src)
+        assert high, "the homepage AggregateOffer no longer parses — update this guard"
+        assert float(high.group(1)) == max(TIER_PRICE_USD_MONTH.values()), (
+            "the homepage tells machines a ceiling price no plan costs"
+        )
+        low = re.search(r"lowPrice:\s*'([\d.]+)'", src)
+        assert low and float(low.group(1)) == min(TIER_PRICE_USD_MONTH.values())
+
 
 # ── Metered pricing: one price per unit of work ───────────────────────────────
 

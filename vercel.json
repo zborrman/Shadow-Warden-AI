@@ -18,7 +18,8 @@
     { "source": "/api/stats", "destination": "https://api.shadow-warden-ai.com/stats" },
     { "source": "/api/config", "destination": "https://api.shadow-warden-ai.com/config" },
     { "source": "/api/contact", "destination": "https://api.shadow-warden-ai.com/contact" },
-    { "source": "/api/health", "destination": "https://api.shadow-warden-ai.com/health" }
+    { "source": "/api/health", "destination": "https://api.shadow-warden-ai.com/health" },
+    { "source": "/.well-known/agent.json", "destination": "https://api.shadow-warden-ai.com/.well-known/agent.json" }
   ],
   "headers": [
     {
@@ -46,6 +47,21 @@
       "source": "/(.*).html",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(.*).md",
+      "headers": [
+        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
+        { "key": "Vary", "value": "Accept, Accept-Encoding" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [
+        { "key": "Vary", "value": "Accept, Accept-Encoding" },
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     },
     {

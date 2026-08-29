@@ -302,12 +302,120 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 		}
 	}
 
+	# Agent Card — warden owns it; serving it here too means the URL that
+	# llms.txt and .well-known/did.json advertise actually answers on this host.
+	handle /.well-known/agent.json {
+		reverse_proxy warden:8001 {
+			import client_ip_headers
+		}
+	}
+
 	handle {
 		root * /srv/landing
 
-		# Astro static output: try file → directory index → .html → root index.html
-		try_files {path} {path}/index.html {path}.html /index.html
+		# ── Markdown content negotiation (https://acceptmarkdown.com) ─────────
+		# Same URL as the HTML, decided by Accept. Caddy matchers cannot do the
+		# full q-value arithmetic, so this is the conservative subset: markdown
+		# only when it is named and not down-weighted. The exact rules (q-values,
+		# 406, specificity) run at the Vercel edge for www — see
+		# edge/negotiate.mjs, which is the reference implementation.
+		@md_home {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /
+		}
+		rewrite @md_home /index.md
+		@md_pricing {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /pricing /pricing/ /price /price/
+		}
+		rewrite @md_pricing /pricing.md
+		@md_doc {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /doc /doc/
+		}
+		rewrite @md_doc /doc.md
+		@md_sdk {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /sdk /sdk/
+		}
+		rewrite @md_sdk /sdk.md
+		@md_agentic {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /agentic /agentic/
+		}
+		rewrite @md_agentic /agentic.md
+		@md_trust {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /trust /trust/
+		}
+		rewrite @md_trust /trust.md
+
+		# Both variants must advertise that they vary, or a cache in front of us
+		# hands one client's representation to the other.
+		@page not path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+		header @page Vary "Accept, Accept-Encoding"
+
+		@markdown path *.md
+		header @markdown Content-Type "text/markdown; charset=utf-8"
+		# Negotiated bodies must not be cached by an intermediary that ignores
+		# Vary (Cloudflare only varies on Accept-Encoding).
+		header @markdown Cache-Control "private, max-age=0, must-revalidate"
+
+		# Astro static output: file → directory index → .html.
+		# There is deliberately no /index.html fallback: serving the homepage
+		# with 200 for every unknown path tells an agent that every path exists.
+		try_files {path} {path}/index.html {path}.html
 
 		file_server
+	}
+
+	# A missing path must say so. Without this, `try_files` used to fall back to
+	# /index.html and every unknown URL answered 200 with the homepage — which
+	# tells a crawler that every path it invents exists.
+	handle_errors {
+		root * /srv/landing
+
+		# A markdown client that lands on a missing path gets the markdown
+		# recovery body, not an HTML shell it cannot read. Same negotiation
+		# subset as the pages above.
+		@md_notfound {
+			expression {err.status_code} == 404
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+		}
+		handle @md_notfound {
+			rewrite * /404.md
+			header Content-Type "text/markdown; charset=utf-8"
+			header Vary "Accept, Accept-Encoding"
+			file_server {
+				status 404
+			}
+		}
+
+		handle {
+			rewrite * /{err.status_code}.html
+			file_server {
+				status {err.status_code}
+			}
+		}
 	}
 }
