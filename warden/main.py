@@ -1716,6 +1716,10 @@ async def health():
         "status":           overall,
         "service":          "warden-gateway",
         "evolution":        _evolve is not None,
+        # The backend actually serving calls. Differs from the configured
+        # choice after an auto-mode demotion, which is the only place an
+        # operator can see that the selected engine stopped answering.
+        "evolution_engine": _evolve.active_engine if _evolve is not None else None,
         "tenants":          list(_tenant_guards.keys()),
         "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
         "fail_strategy":    _FAIL_STRATEGY,
