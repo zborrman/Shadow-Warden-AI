@@ -21,11 +21,11 @@ import pytest
 prometheus_client = pytest.importorskip("prometheus_client")
 
 
-def _samples(metric_name: str) -> dict[tuple[str, ...], float]:
+def _samples(metric_name: str) -> dict[tuple[tuple[str, str], ...], float]:
     """Every sample of a metric family, keyed by its label values."""
     from prometheus_client import REGISTRY
 
-    out: dict[tuple[str, ...], float] = {}
+    out: dict[tuple[tuple[str, str], ...], float] = {}
     for family in REGISTRY.collect():
         for sample in family.samples:
             if sample.name == metric_name:
@@ -34,7 +34,7 @@ def _samples(metric_name: str) -> dict[tuple[str, ...], float]:
 
 
 def _count_for(stage: str) -> float:
-    key = (("le", "+Inf"), ("stage", stage))
+    key: tuple[tuple[str, str], ...] = (("le", "+Inf"), ("stage", stage))
     return _samples("warden_filter_stage_duration_seconds_bucket").get(key, 0.0)
 
 
