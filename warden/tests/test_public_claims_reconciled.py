@@ -31,7 +31,18 @@ _MATRIX = _ROOT / "docs" / "capability-matrix.md"
 #: Everything a visitor can read. `landing/` is the committed build artefact
 #: that serves the apex domain, so it is a published surface in its own right
 #: and not merely a copy of `site/`.
-_SURFACES = ("site/src", "landing", "portal/src", "dashboard/src")
+_SURFACES = ("site/src", "landing", "portal/src", "dashboard/src", "docs")
+
+#: `docs/` is published by MkDocs and is therefore a public surface — which the
+#: first version of this guard missed, scoping itself to the marketing and app
+#: front-ends. `docs/sla.md` was promising service credits with no calculation
+#: and no issuance path behind them, in the nav, the whole time.
+#:
+#: These two are excluded because their job is to *discuss* the banned claims:
+#: the matrix records what each one is and what to do about it, and the
+#: programme records that the work happened. A guard that cannot tell a claim
+#: from a citation of one forces the register to be written in euphemism.
+_CLAIM_REGISTERS = {"capability-matrix.md", "launch-program.md"}
 
 _SUFFIXES = {".astro", ".html", ".tsx", ".ts", ".jsx", ".js", ".md", ".mdx", ".svelte", ".vue"}
 
@@ -64,6 +75,8 @@ def _files():
             if p.suffix.lower() not in _SUFFIXES:
                 continue
             if _SKIP_PARTS & set(p.parts):
+                continue
+            if p.name in _CLAIM_REGISTERS:
                 continue
             yield p
 
@@ -124,3 +137,35 @@ class TestTheTwoThatWereActuallyFound:
             pytest.skip("FeaturesGrid not present")
         body = p.read_text(encoding="utf-8").lower()
         assert "sub-3ms" not in body, "a latency claim nothing instruments"
+
+
+class TestThePublishedDocsDoNotPromiseMechanismsThatDoNotExist:
+    """`docs/` is in the MkDocs nav, so it is as public as the marketing site.
+
+    The first version of this guard scoped itself to the front-ends and missed
+    it entirely — which is how `docs/sla.md` went on offering a service-credit
+    schedule, as a percentage table reading like an entitlement, with no credit
+    calculation, no issuance path, and no invoice to apply one to.
+    """
+
+    def test_the_sla_credit_table_says_it_is_not_operable(self):
+        p = _ROOT / "docs" / "sla.md"
+        if not p.exists():
+            pytest.skip("sla.md not present")
+        body = p.read_text(encoding="utf-8")
+        if "Service Credit" not in body:
+            pytest.skip("no credit schedule to qualify")
+        assert "not yet operable" in body, (
+            "sla.md publishes a service-credit schedule with no mechanism behind "
+            "it and no note saying so. Remove the table or qualify it."
+        )
+
+    def test_the_qualifier_sits_with_the_table_not_in_a_footnote(self):
+        """A disclosure a reader meets after the number is not a disclosure."""
+        p = _ROOT / "docs" / "sla.md"
+        if not p.exists() or "Service Credit" not in p.read_text(encoding="utf-8"):
+            pytest.skip("no credit schedule")
+        body = p.read_text(encoding="utf-8")
+        table = body.index("Service Credit")
+        note = body.index("not yet operable")
+        assert 0 < note - table < 1200, "the qualifier is too far from the claim"
