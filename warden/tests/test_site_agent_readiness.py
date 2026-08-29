@@ -263,6 +263,20 @@ class TestStructuredData:
                 f"{layout} og:image is not an absolute URL"
             )
 
+    def test_the_offer_links_a_page_listing_every_tier(self):
+        """
+        The AggregateOffer pointed at /price, which stops at Pro — advertising a
+        $249 ceiling on a page that does not contain it.
+        """
+        src = _read(_PAGES / "index.astro")
+        url = re.search(r"offers:.*?url:\s*'([^']+)'", src, re.S)
+        assert url, "the offer URL is gone — re-check this guard"
+        target = url.group(1).rsplit("/", 1)[-1]
+        page = _read(_PAGES / f"{target}.astro")
+        assert "enterprise" in page.lower(), (
+            f"/{target} does not list the Enterprise tier the offer range includes"
+        )
+
     def test_both_layouts_publish_a_canonical(self):
         for layout in ("BaseLayout.astro", "Layout.astro"):
             src = _read(_LAYOUTS / layout)
@@ -355,6 +369,41 @@ class TestCliIsReal:
         assert tuple(int(p) for p in version.group(1).split(".")) >= tuple(
             int(p) for p in advertised.group(1).split(".")
         ), "the site advertises an SDK version newer than the package"
+
+    def test_the_sdk_page_badge_matches_the_package_version(self):
+        """The page carried a v1.0 badge while documenting the v1.1.0 CLI."""
+        version = re.search(r'^version = "([^"]+)"', _read(self._SDK / "pyproject.toml"), re.M)
+        badge = re.search(r">v([0-9][^<]*)</span>", _read(_PAGES / "sdk.astro"))
+        assert badge, "the /sdk version badge is gone — re-check this guard"
+        assert badge.group(1) == version.group(1), (
+            f"/sdk shows v{badge.group(1)} for a package at {version.group(1)}"
+        )
+
+    def test_the_cli_exit_contract_is_described_the_same_everywhere(self):
+        """
+        `sdk.md` said exit 1 meant "blocked or flagged" while the code returns 1
+        only when the verdict is not allowed. Two contracts is worse than none.
+        """
+        cli = _read(self._SDK / "shadow_warden" / "cli.py")
+        assert "return EXIT_OK if result.allowed else EXIT_BLOCKED" in cli, (
+            "the exit contract moved — re-check the docs it is mirrored in"
+        )
+        for path in (_PUBLIC / "sdk.md", _PUBLIC / "llms.txt"):
+            body = _read(path)
+            if "exit" not in body.lower():
+                continue
+            assert "blocked or flagged" not in body, (
+                f"{path.name} promises exit 1 on a flagged-but-allowed verdict; the code exits 0"
+            )
+
+    def test_the_json_output_never_serialises_a_secret(self):
+        """`--json` goes to CI logs. The matched token must not travel with it."""
+        cli = _read(self._SDK / "shadow_warden" / "cli.py")
+        assert "asdict(result)" not in cli, (
+            "the filter payload is built from the whole dataclass again — that "
+            "re-serialises secrets_found[].token and filtered_content"
+        )
+        assert '"kind": s.kind' in cli
 
     def test_the_sdk_page_documents_the_cli(self):
         page = _read(_PAGES / "sdk.astro")

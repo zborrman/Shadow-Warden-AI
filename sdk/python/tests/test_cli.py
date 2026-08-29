@@ -79,6 +79,38 @@ def test_json_output_is_parseable(capsys):
 
 
 @respx.mock
+def test_json_output_never_carries_content_or_the_secret_itself(capsys):
+    """
+    `--json` lands in CI logs and agent transcripts. A filter that printed the
+    AWS key it just caught would leak worse than the thing it detected, and the
+    redacted body is content the caller did not ask to see.
+    """
+    respx.post(f"{GATEWAY}/filter").mock(
+        return_value=_filter_response(
+            allowed=False,
+            risk="block",
+            secrets=[{"kind": "aws_key", "token": "AKIAIOSFODNN7EXAMPLE", "start": 0, "end": 20}],
+        )
+    )
+    assert main([*BASE, "filter", "--json", "text"]) == EXIT_BLOCKED
+    out = capsys.readouterr().out
+    assert "AKIAIOSFODNN7EXAMPLE" not in out
+    assert "redacted text" not in out
+    payload = json.loads(out)
+    assert "token" not in payload["secrets_found"][0]
+    assert "filtered_content" not in payload
+    # The metadata that makes it actionable is still there.
+    assert payload["secrets_found"][0] == {"kind": "aws_key", "start": 0, "end": 20}
+
+
+@respx.mock
+def test_show_filtered_is_the_only_way_to_get_the_redacted_text(capsys):
+    respx.post(f"{GATEWAY}/filter").mock(return_value=_filter_response(allowed=True))
+    assert main([*BASE, "filter", "--json", "--show-filtered", "text"]) == EXIT_OK
+    assert json.loads(capsys.readouterr().out)["filtered_content"] == "redacted text"
+
+
+@respx.mock
 def test_filter_reads_a_file(tmp_path, capsys):
     respx.post(f"{GATEWAY}/filter").mock(return_value=_filter_response(allowed=True))
     prompt = tmp_path / "prompt.txt"
@@ -135,6 +167,16 @@ def test_health_reports_status(capsys):
     respx.get(f"{GATEWAY}/health").mock(return_value=httpx.Response(200, json={"status": "ok"}))
     assert main([*BASE, "health"]) == EXIT_OK
     assert "ok" in capsys.readouterr().out
+
+
+@respx.mock
+def test_health_with_a_malformed_body_is_exit_three_not_a_traceback(capsys):
+    """A captive portal answering 200 with HTML is reachable but not us."""
+    respx.get(f"{GATEWAY}/health").mock(
+        return_value=httpx.Response(200, text="<html>login</html>", headers={"content-type": "text/html"})
+    )
+    assert main([*BASE, "health"]) == EXIT_GATEWAY
+    assert "malformed health response" in capsys.readouterr().err
 
 
 @respx.mock

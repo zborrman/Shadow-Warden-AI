@@ -42,9 +42,10 @@ Configuration comes from `WARDEN_API_KEY` and `WARDEN_GATEWAY_URL`, or from
 `--api-key` and `--gateway-url`. Every command accepts `--json`, so output is
 parseable without screen-scraping.
 
-Exit codes: `0` allowed, `1` blocked or flagged, `2` usage error, `3` gateway
-or network error. That makes `warden filter` usable directly in a shell
-conditional or a CI gate.
+Exit codes: `0` allowed, `1` blocked, `2` usage error, `3` gateway or network
+error. A flagged-but-allowed verdict exits `0` — read `risk_level` from the
+JSON if you want to gate on it. That makes `warden filter` usable directly in a
+shell conditional or a CI gate.
 
 ## TypeScript
 

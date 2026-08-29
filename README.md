@@ -23,7 +23,7 @@ people. Every entry point below is covered by
 | Agent Card (A2A / ADP) | `/.well-known/agent.json` | Proxied to the API host, which owns it |
 | DID document | `/.well-known/did.json` | `did:web:shadow-warden-ai.com` |
 | OpenAPI 3.1 | `/openapi.json` | Every route |
-| Markdown pages | `Accept: text/markdown`, or append `.md` | `/`, `/pricing`, `/price`, `/doc`, `/sdk`, `/agentic`, `/trust` |
+| Markdown pages | `Accept: text/markdown` on the page URL | `/` → `/index.md`, `/pricing` and `/price` → `/pricing.md`, `/doc` → `/doc.md`, `/sdk` → `/sdk.md`, `/agentic` → `/agentic.md`, `/trust` → `/trust.md` |
 | Structured data | JSON-LD on every page | Organization, WebSite, WebPage; SoftwareApplication on the homepage |
 | CLI | `pip install "shadow-warden-sdk>=1.1.0"` | `warden filter`, `health`, `impact`, `billing` |
 
