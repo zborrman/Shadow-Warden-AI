@@ -128,3 +128,47 @@ def test_invented_sections_are_labelled_as_samples(agentic: str) -> None:
         "invented — a badge alone is easy to scroll past once the table under "
         "it looks authoritative."
     )
+
+
+# ── status page ───────────────────────────────────────────────────────────────
+#
+# The 90-day uptime grid on `status.astro` was drawn from a seeded PRNG. It took
+# the single `uptime_90d` figure, converted it to a count of bad days, and
+# scattered that many incidents across the calendar — inventing *which* days were
+# down. Worse, the figure defaulted: `uptime_90d ?? 100`, and production's
+# `/health` does not return the field, so the live page painted ninety solid
+# green cells, each tooltipped with a date and the word "Operational".
+#
+# Three months of perfect uptime history for a service that has never measured a
+# day of it — on the one page people open specifically because they want history
+# rather than current state.
+
+def _status_page() -> str:
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[2] / "site" / "src" / "pages" / "status.astro"
+    if not p.exists():
+        import pytest as _pytest
+        _pytest.skip("status.astro not present")
+    return p.read_text(encoding="utf-8")
+
+
+def test_the_uptime_history_is_not_synthesised() -> None:
+    """No PRNG anywhere near the availability record."""
+    body = _status_page()
+    for marker in ("1664525", "1013904223", "rng()"):
+        assert marker not in body, (
+            "status.astro is generating uptime history with a PRNG (" + marker + ")"
+        )
+
+
+def test_missing_uptime_does_not_default_to_perfect() -> None:
+    """`uptime ?? 100` is how absence became a claim of 100.000%."""
+    body = _status_page()
+    assert "uptime ?? 100" not in body
+    assert "uptime_90d ?? 100" not in body
+
+
+def test_a_day_with_no_data_renders_as_no_data() -> None:
+    """Unknown is a state, and on a status page it is the honest one."""
+    body = _status_page()
+    assert "no data" in body, "cells with no record must say so rather than render green"
