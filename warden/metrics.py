@@ -78,6 +78,12 @@ try:
         AGENT_SESSIONS_ACTIVE = Gauge(
             "warden_agent_sessions_active",
             "Active agent sessions within the TTL window",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         AGENT_SESSIONS_ACTIVE = cast(Gauge, REGISTRY._names_to_collectors.get(
@@ -185,6 +191,12 @@ try:
         PIPELINE_CANARY_MISSED = Gauge(
             "warden_pipeline_canary_missed",
             "Canary jailbreaks the live pipeline failed to block (should stay 0)",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         PIPELINE_CANARY_MISSED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -195,6 +207,12 @@ try:
         PIPELINE_CANARY_FALSE_POS = Gauge(
             "warden_pipeline_canary_false_pos",
             "Canary benign prompts the live pipeline wrongly blocked (should stay 0)",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         PIPELINE_CANARY_FALSE_POS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -281,6 +299,12 @@ try:
         CORPUS_DRIFT_SCORE = Gauge(
             "warden_corpus_drift_score",
             "Current cosine distance of corpus centroid from baseline (0=healthy)",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         CORPUS_DRIFT_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -291,6 +315,12 @@ try:
         CORPUS_CANARY_MIN_SCORE = Gauge(
             "warden_corpus_canary_min_score",
             "Minimum cosine similarity of canary examples against corpus (should stay ≥0.70)",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         CORPUS_CANARY_MIN_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -301,6 +331,12 @@ try:
         CORPUS_CANARY_FAILING = Gauge(
             "warden_corpus_canary_failing",
             "Number of canary examples scoring below minimum threshold",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         CORPUS_CANARY_FAILING = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -626,6 +662,12 @@ try:
         MARKETPLACE_ESCROW_ACTIVE = Gauge(
             "warden_marketplace_escrow_active",
             "Escrows in a non-terminal state",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         MARKETPLACE_ESCROW_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -636,6 +678,12 @@ try:
         MARKETPLACE_AGENTS_ACTIVE = Gauge(
             "warden_marketplace_agents_active",
             "Registered marketplace agents with status=active",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         MARKETPLACE_AGENTS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -646,6 +694,12 @@ try:
         MARKETPLACE_NEGOTIATIONS_ACTIVE = Gauge(
             "warden_marketplace_negotiations_active",
             "Open marketplace negotiations",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         MARKETPLACE_NEGOTIATIONS_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -658,6 +712,12 @@ try:
             "warden_compliance_overall_score",
             "Overall compliance posture score (0-100)",
             ["tenant_id"],
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMPLIANCE_OVERALL_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -669,6 +729,12 @@ try:
             "warden_compliance_gaps_open",
             "Number of open compliance gaps",
             ["tenant_id"],
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMPLIANCE_GAPS_OPEN = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -680,6 +746,12 @@ try:
             "warden_compliance_controls_passed",
             "Number of compliance controls currently passing",
             ["tenant_id"],
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMPLIANCE_CONTROLS_PASSED = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -691,6 +763,12 @@ try:
             "warden_compliance_framework_score",
             "Per-framework compliance score (0-100)",
             ["tenant_id", "framework"],
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMPLIANCE_FRAMEWORK_SCORE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -702,6 +780,12 @@ try:
         COMMUNITY_MEMBERS_TOTAL = Gauge(
             "warden_community_members_total",
             "Active community members across all communities",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMMUNITY_MEMBERS_TOTAL = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -712,6 +796,12 @@ try:
         COMMUNITY_COMMUNITIES_ACTIVE = Gauge(
             "warden_community_communities_active",
             "Number of active communities",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMMUNITY_COMMUNITIES_ACTIVE = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -722,6 +812,12 @@ try:
         COMMUNITY_PEERING_CONNECTIONS = Gauge(
             "warden_community_peering_connections",
             "Active inter-community peering connections",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         COMMUNITY_PEERING_CONNECTIONS = REGISTRY._names_to_collectors.get(  # type: ignore[attr-defined, assignment]
@@ -865,6 +961,12 @@ try:
         LEDGER_RECON_DRIFT_USD = Gauge(
             "warden_ledger_recon_drift_usd",
             "Absolute USD drift between the ledger and its authoritative counters, last recon run",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         LEDGER_RECON_DRIFT_USD = REGISTRY._names_to_collectors.get("warden_ledger_recon_drift_usd")  # type: ignore[attr-defined, assignment]
@@ -874,6 +976,12 @@ try:
         LEDGER_RECON_HOLD_DRIFT_USD = Gauge(
             "warden_ledger_recon_hold_drift_usd",
             "Absolute USD drift between currently-open holds and their ledger contra accounts, last recon run",
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         LEDGER_RECON_HOLD_DRIFT_USD = REGISTRY._names_to_collectors.get("warden_ledger_recon_hold_drift_usd")  # type: ignore[attr-defined, assignment]
@@ -949,6 +1057,12 @@ try:
             "warden_arq_job_last_success_timestamp",
             "Unix timestamp of the last successful run of an ARQ job",
             ["task"],
+            # Shared state, not per-worker state: every uvicorn worker computes the
+            # same value from the same DB/corpus. Under the multiprocess registry a
+            # default gauge exports one series per pid and a sum would multiply it by
+            # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+            # takes the latest value and drops dead pids.
+            multiprocess_mode="livemostrecent",
         )
     except ValueError:
         ARQ_JOB_LAST_SUCCESS = cast(Gauge, REGISTRY._names_to_collectors.get("warden_arq_job_last_success_timestamp"))
