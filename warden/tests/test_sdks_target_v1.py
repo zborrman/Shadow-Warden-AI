@@ -126,3 +126,44 @@ class TestBothSdksShipTheSameVersion:
         py = re.search(r'^version\s*=\s*"([^"]+)"',
                        (_PY_SDK / "pyproject.toml").read_text(encoding="utf-8"), re.M)
         assert dunder and py and dunder.group(1) == py.group(1)
+
+
+class TestTheSdkSuiteMocksTheSurfaceTheClientActuallyCalls:
+    """The gap that let #410 merge green and turn main red 27 seconds later.
+
+    #409 added `sdk/python/tests/test_cli.py` with respx mocks on unversioned
+    URLs. #410 moved the client onto `/v1` and updated the mock files that
+    existed on its branch. Both PRs were green; they merged 27 seconds apart,
+    and CI never re-ran #410 against a base that contained #409. Neither change
+    was wrong — the combination was, which is the one thing a per-PR gate cannot
+    see.
+
+    So this asserts the property rather than the file list: a mock that names a
+    path the client no longer calls is a test passing against a fiction.
+    """
+
+    def test_no_mock_targets_an_unversioned_api_path(self):
+        import re as _re  # noqa: PLC0415
+        tests = _PY_SDK / "tests"
+        if not tests.exists():
+            pytest.skip("python SDK tests not present")
+
+        offenders: list[str] = []
+        # respx.post(f"{BASE}/filter") — the interpolated prefix is what carries
+        # the version, so flag a literal path glued straight onto it.
+        pat = _re.compile(r'respx\.(?:post|get|delete|put|patch)\(\s*f"\{(\w+)\}(/[^"]*)"')
+        for f in sorted(tests.glob("*.py")):
+            body = f.read_text(encoding="utf-8")
+            versioned = {
+                m.group(1) for m in _re.finditer(r'^(\w+)\s*=\s*f?"[^"]*/v1"', body, _re.M)
+            }
+            for m in pat.finditer(body):
+                prefix, path = m.group(1), m.group(2)
+                if prefix in versioned or path.startswith("/v1"):
+                    continue
+                offenders.append(f"{f.name}: {prefix} + {path}")
+
+        assert not offenders, (
+            "SDK tests mock unversioned paths the client no longer requests: "
+            + ", ".join(offenders[:8])
+        )
