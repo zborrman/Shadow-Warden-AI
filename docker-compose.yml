@@ -120,6 +120,9 @@ services:
       - MODEL_CACHE_DIR=/warden/models
       - HF_HOME=/warden/models
       - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+      # Shared registry dir for the forked uvicorn workers. Without it /metrics
+      # answers from one arbitrary worker and every counter rate is noise.
+      - PROMETHEUS_MULTIPROC_DIR=${PROMETHEUS_MULTIPROC_DIR:-/tmp/prom_multiproc}
       - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.72}
       - STRICT_MODE=${STRICT_MODE:-false}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

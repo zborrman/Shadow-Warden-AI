@@ -29,6 +29,33 @@ mkdir -p /warden/models /warden/data
 chown -R wardenuser:warden /warden/models /warden/data
 chmod -R 755 /warden/models /warden/data
 
+# ── Prometheus multiprocess registry ─────────────────────────────────────────
+# uvicorn runs $WORKERS forked processes and each keeps its OWN prometheus_client
+# registry. Without a shared directory, /metrics is answered by whichever worker
+# the kernel hands the connection to, so a single counter reads a different
+# value on consecutive scrapes — measured on production as
+# http_requests_total returning 51, then 0, then 1. Prometheus reads each drop
+# as a counter reset, which makes rate() over any warden counter meaningless
+# and every rate-based alert noise.
+#
+# prometheus_fastapi_instrumentator's .expose() builds a MultiProcessCollector
+# registry when this variable is set, so setting it is what makes /metrics
+# aggregate across all workers.
+#
+# The directory MUST be emptied before the workers fork: files are keyed by pid
+# and survive a restart, so stale files from dead workers would be summed into
+# every future scrape and inflate counters forever. Cleaning here (once, in the
+# parent) rather than in the FastAPI lifespan (which runs per worker, after the
+# fork, and would delete the siblings' live files) is the only correct place.
+if [ -n "${PROMETHEUS_MULTIPROC_DIR:-}" ]; then
+    echo "[entrypoint] prometheus multiprocess dir: ${PROMETHEUS_MULTIPROC_DIR} (clearing stale pid files)"
+    mkdir -p "${PROMETHEUS_MULTIPROC_DIR}"
+    rm -f "${PROMETHEUS_MULTIPROC_DIR}"/*.db 2>/dev/null || true
+    chown -R wardenuser:warden "${PROMETHEUS_MULTIPROC_DIR}"
+elif [ "${WORKERS}" -gt 1 ]; then
+    echo "[entrypoint] WARNING: ${WORKERS} uvicorn workers but PROMETHEUS_MULTIPROC_DIR is unset —"          "/metrics will report a single arbitrary worker's registry"
+fi
+
 # ── Pass-through: if a command was given (e.g. docker run ... python3 foo.py),
 #    run it as wardenuser after fixing ownership — do NOT start uvicorn.
 if [ $# -gt 0 ]; then

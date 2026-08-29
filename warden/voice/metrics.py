@@ -51,6 +51,12 @@ VOICE_ERRORS = Counter(
 VOICE_ACTIVE_SESSIONS = Gauge(
     "warden_voice_active_sessions",
     "Number of currently active voice sessions",
+    # Shared state, not per-worker state: every uvicorn worker computes the
+    # same value from the same DB/corpus. Under the multiprocess registry a
+    # default gauge exports one series per pid and a sum would multiply it by
+    # the worker count -- 7 failing canaries would read 28. "livemostrecent"
+    # takes the latest value and drops dead pids.
+    multiprocess_mode="livemostrecent",
 )
 
 VOICE_SESSIONS_STARTED = Counter(
