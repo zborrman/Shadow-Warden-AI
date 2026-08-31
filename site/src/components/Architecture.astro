@@ -1,13 +1,20 @@
 ---
+// The per-stage millisecond badges that used to sit here (<2ms, <1ms, <8ms …)
+// were never measured: they predated any instrument, and
+// `warden_filter_stage_duration_seconds` now contradicts most of them — the
+// brain measures a p95 near 100 ms against a published <8ms. Removed rather
+// than restated, because a p95 read off 201 requests is not a figure to
+// publish either. docs/capability-matrix.md holds the measurement; the
+// Grafana panel is the only quotable source.
 const stages = [
-  { id: '01', label: 'Topological\nGatekeeper',   color: '#FF2D55', ms: '<2ms' },
-  { id: '02', label: 'Obfuscation\nDecoder',       color: '#FF9F0A', ms: '<1ms' },
-  { id: '03', label: 'PII & Secret\nVault',        color: '#FFD60A', ms: '<1ms' },
-  { id: '04', label: 'Semantic\nRule Engine',      color: '#30D158', ms: '<3ms' },
-  { id: '05', label: 'Hyperbolic\nBrain',          color: '#0A84FF', ms: '<8ms' },
-  { id: '06', label: 'Causal\nArbiter',            color: '#BF5AF2', ms: '<3ms' },
-  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#FF2D55', ms: '<2ms' },
-  { id: '08', label: 'ERS Shadow\nBan',            color: '#FF9F0A', ms: '<1ms' },
+  { id: '01', label: 'Topological\nGatekeeper',   color: '#FF2D55' },
+  { id: '02', label: 'Obfuscation\nDecoder',       color: '#FF9F0A' },
+  { id: '03', label: 'PII & Secret\nVault',        color: '#FFD60A' },
+  { id: '04', label: 'Semantic\nRule Engine',      color: '#30D158' },
+  { id: '05', label: 'Hyperbolic\nBrain',          color: '#0A84FF' },
+  { id: '06', label: 'Causal\nArbiter',            color: '#BF5AF2' },
+  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#FF2D55' },
+  { id: '08', label: 'ERS Shadow\nBan',            color: '#FF9F0A' },
 ];
 
 const pillars = [
@@ -71,10 +78,6 @@ const pillars = [
               <div class="text-[11px] font-semibold leading-[1.4] whitespace-pre-line text-[#F5F5F7]">
                 {s.label}
               </div>
-              <div
-                class="mt-2 text-[9px] font-mono font-bold"
-                style={`color:${s.color}`}
-              >{s.ms}</div>
             </div>
             {i < stages.length - 1 && (
               <svg width="16" height="10" viewBox="0 0 16 10" fill="none" class="flex-shrink-0 opacity-40">
