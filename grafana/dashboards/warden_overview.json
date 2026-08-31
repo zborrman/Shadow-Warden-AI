@@ -1961,7 +1961,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Per-stage p95 in milliseconds. The published per-stage figures (<2ms topology, <8ms brain) may only be quoted from this panel — see the stage-latency rows in docs/capability-matrix.md.",
+      "description": "Per-stage p95 in milliseconds for REST /filter only — `source` separates the batch, multimodal and WebSocket entry points that share the same pipeline body. The published per-stage figures (<2ms topology, <8ms brain) may only be quoted from this panel; see the stage-latency rows in docs/capability-matrix.md.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1993,11 +1993,11 @@
           "sort": "desc"
         }
       },
-      "title": "p95 by stage — /filter",
+      "title": "p95 by stage — REST /filter",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(warden_filter_stage_duration_seconds_bucket{job=\"warden\"}[5m])) by (le, stage)) * 1000",
+          "expr": "histogram_quantile(0.95, sum(rate(warden_filter_stage_duration_seconds_bucket{job=\"warden\",source=\"filter\"}[5m])) by (le, stage)) * 1000",
           "legendFormat": "{{stage}}",
           "refId": "A"
         }
@@ -2008,7 +2008,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Where the time actually goes. Sums to less than http_request_duration_seconds{handler=\"/filter\"}; the difference is middleware, not pipeline.",
+      "description": "Where the time goes, split by entry point (filter, batch, multimodal, ws, ws_filter, demo). Sums to less than http_request_duration_seconds{handler=\"/filter\"}; the difference is middleware, not pipeline.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2040,13 +2040,70 @@
           "sort": "desc"
         }
       },
-      "title": "Mean time in stage — /filter",
+      "title": "Mean time in stage — by entry point",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(warden_filter_stage_duration_seconds_sum{job=\"warden\"}[5m])) by (stage) / sum(rate(warden_filter_stage_duration_seconds_count{job=\"warden\"}[5m])) by (stage) * 1000",
-          "legendFormat": "{{stage}}",
+          "expr": "sum(rate(warden_filter_stage_duration_seconds_sum{job=\"warden\"}[5m])) by (stage, source) / sum(rate(warden_filter_stage_duration_seconds_count{job=\"warden\"}[5m])) by (stage, source) * 1000",
+          "legendFormat": "{{source}} · {{stage}}",
           "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Pipeline latency end to end, the metric docs/sla.md names as evidence for its P50/P99/P99.9 objectives. Excludes auth, quota middleware and inline background work — compare with http_request_duration_seconds{handler=\"/filter\"} to see what those cost.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 82
+      },
+      "id": 60,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "SLO — /filter pipeline latency (P50 / P99 / P99.9)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(warden_filter_duration_seconds_bucket{job=\"warden\",source=\"filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p50 (SLO < 15ms)",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(warden_filter_duration_seconds_bucket{job=\"warden\",source=\"filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p99 (SLO < 50ms)",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.999, sum(rate(warden_filter_duration_seconds_bucket{job=\"warden\",source=\"filter\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p99.9 (SLO < 200ms)",
+          "refId": "C"
         }
       ]
     }

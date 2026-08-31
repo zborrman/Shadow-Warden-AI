@@ -33,8 +33,10 @@ def _samples(metric_name: str) -> dict[tuple[tuple[str, str], ...], float]:
     return out
 
 
-def _count_for(stage: str) -> float:
-    key: tuple[tuple[str, str], ...] = (("le", "+Inf"), ("stage", stage))
+def _count_for(stage: str, source: str = "filter") -> float:
+    key: tuple[tuple[str, str], ...] = (
+        ("le", "+Inf"), ("source", source), ("stage", stage),
+    )
     return _samples("warden_filter_stage_duration_seconds_bucket").get(key, 0.0)
 
 
@@ -86,17 +88,6 @@ class TestTheObserverMovesTheMetric:
         for stage, was in before.items():
             assert _count_for(stage) == was + 1, f"{stage} was not observed"
 
-    def test_total_is_not_double_counted(self):
-        """
-        `http_request_duration_seconds{handler="/filter"}` already answers "how
-        long did the request take". A second total would be a second answer.
-        """
-        from warden.main import _observe_stage_timings
-
-        before = _count_for("total")
-        _observe_stage_timings({"topology": 1.0, "total": 99.0})
-        assert _count_for("total") == before
-
     def test_milliseconds_are_converted_to_seconds(self):
         """A histogram in the wrong unit is worse than none: it reads plausible."""
         from prometheus_client import REGISTRY
@@ -105,10 +96,57 @@ class TestTheObserverMovesTheMetric:
 
         _observe_stage_timings({"unit_probe": 2.0})
         sums = _samples("warden_filter_stage_duration_seconds_sum")
-        total = sums.get((("stage", "unit_probe"),))
+        total = sums.get((("source", "filter"), ("stage", "unit_probe")))
         assert total is not None, "the probe stage did not record"
         assert abs(total - 0.002) < 1e-9, f"2ms recorded as {total}s — check the /1000"
         assert REGISTRY is not None
+
+    def test_total_feeds_the_metric_the_sla_names(self):
+        """
+        `docs/sla.md` cited `warden_filter_duration_seconds` as the evidence for
+        three objectives before anything registered it. A test that only checked
+        registration would have passed on the day it was still a ghost, so this
+        checks the observer moves it.
+        """
+        from warden.main import _observe_stage_timings
+
+        key: tuple[tuple[str, str], ...] = (("le", "+Inf"), ("source", "filter"))
+        before = _samples("warden_filter_duration_seconds_bucket").get(key, 0.0)
+        _observe_stage_timings({"topology": 1.0, "total": 12.0})
+        after = _samples("warden_filter_duration_seconds_bucket").get(key, 0.0)
+        assert after == before + 1, "the SLA metric did not record the request"
+
+    def test_the_sla_metric_is_in_seconds_too(self):
+        from warden.main import _observe_stage_timings
+
+        key: tuple[tuple[str, str], ...] = (("source", "sla_unit_probe"),)
+        _observe_stage_timings({"total": 12.0}, "sla_unit_probe")
+        got = _samples("warden_filter_duration_seconds_sum").get(key)
+        assert got is not None and abs(got - 0.012) < 1e-9, f"12ms recorded as {got}s"
+
+    def test_total_does_not_also_land_in_the_per_stage_series(self):
+        """A total among the stages would dwarf every real one."""
+        from warden.main import _observe_stage_timings
+
+        before = _count_for("total")
+        _observe_stage_timings({"total": 99.0})
+        assert _count_for("total") == before
+
+    def test_entry_points_do_not_share_a_series(self):
+        """
+        `_run_filter_pipeline` serves REST /filter, batch, multimodal and the
+        /ws/stream socket. Unlabelled, a socket burst would land in a panel
+        titled "/filter" and read as REST latency.
+        """
+        from warden.main import _observe_stage_timings
+
+        before_rest = _count_for("topology", "filter")
+        before_ws = _count_for("topology", "ws")
+        _observe_stage_timings({"topology": 1.0}, "ws")
+        assert _count_for("topology", "ws") == before_ws + 1
+        assert _count_for("topology", "filter") == before_rest, (
+            "WebSocket traffic landed in the REST series"
+        )
 
     @pytest.mark.parametrize(
         "timings",
@@ -152,7 +190,7 @@ class TestThePipelineIsWired:
         assert finalisers, "no filter path finalises a timings dict — re-check this guard"
         for n in finalisers:
             following = "".join(src[n + 1 : n + 3])
-            assert "_observe_stage_timings(timings)" in following, (
+            assert "_observe_stage_timings(timings" in following, (
                 f"main.py:{n + 1} finalises timings without observing them"
             )
 
