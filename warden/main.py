@@ -2576,6 +2576,13 @@ async def _run_filter_pipeline(
             with _trace_stage("data_poison", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
                 t0 = time.perf_counter()
                 _pr: PoisonResult = await _poison_guard.check_async(
+                    # Hand over the brain's query vector. It is used only if it
+                    # was computed from this exact string — see check_async.
+                    # Before this, the guard re-ran MiniLM on text the brain had
+                    # just embedded, and cost as much as the brain did: a p95 of
+                    # 250 ms against the brain's 100 ms, on every request.
+                    embedding=getattr(brain_result, "embedding", None),
+                    embedded_text=getattr(brain_result, "embedded_text", ""),
                     content=redact_result.text,
                     tenant_id=tenant_id,
                     ml_score=brain_result.score,
