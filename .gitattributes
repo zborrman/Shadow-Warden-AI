@@ -7,3 +7,7 @@ Caddyfile*  text eol=lf
 *.yaml  text eol=lf
 *.json  text eol=lf
 *.md    text eol=lf
+
+# gitleaks reads this file line by line; a trailing CR makes every fingerprint
+# miss, silently, and the scan stays red for reasons nobody can see.
+.gitleaksignore text eol=lf

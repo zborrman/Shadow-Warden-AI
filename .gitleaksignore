@@ -1,0 +1,116 @@
+# .gitleaksignore -- baseline for the full-history secret scan.
+#
+# Why this file exists
+# --------------------
+# .github/workflows/secret-history-scan.yml re-reads every reachable commit,
+# because the PR-range gate in ci.yml never looks at the past. Its first run
+# found 22 matches, all triaged as documentation placeholders, frontend
+# identifiers or test fixtures -- and then the job failed, every run, forever.
+#
+# A guard that is permanently red reports nothing. A 23rd finding, this time a
+# live credential, would have looked exactly like the 22: still red, still
+# ignored. Pinning the known 22 here is what makes the job able to say
+# "something changed".
+#
+# Why fingerprints and not regexes
+# --------------------------------
+# .gitleaks.toml already carries line-regex allowlists, each scoped so a real
+# key on the same line still fails. That is the right tool for a pattern that
+# recurs in new code. It is the wrong tool here: these are fixed points in
+# history, and a regex broad enough to cover them could also cover a future
+# secret that happens to look similar.
+#
+# Each entry below is `commit:path:rule:line`. It matches exactly one blob at
+# one line of one commit. A new secret is a new commit, so it produces a new
+# fingerprint, so it is NOT covered by anything here -- the job goes red and
+# stays red until someone looks. That property is what makes a baseline safe;
+# warden/tests/test_secret_scan_baseline.py enforces it.
+#
+# Adding a line to this file is a claim that you opened the commit and read the
+# match. Do not paste in a scan's output wholesale.
+#
+# Baseline set 2026-08-31 from run 33384506909. Reproduced locally against a
+# fresh clone of main: 2446 commits, 171.69 MB, 22 findings without this
+# file, 0 with it, and 1 with it plus a planted synthetic secret in a new
+# commit -- which is the check that it is a baseline and not a blindfold.
+
+
+# --------------------------------------------------------------------------
+# Prose and documentation placeholders
+#
+# Not credentials: an English sentence about key rotation, angle-bracket
+# placeholders, an empty assignment, and deliberately truncated samples that
+# end in `...`. The example key in the deployment guide is an
+# invented example shown to readers, never issued.
+# --------------------------------------------------------------------------
+# prose: '.env.example - add keys, remove old keys:'
+a3db6bb2e15796510f4fb822c5466fc442be9361:STRATEGY.md:generic-api-key:76
+# MISP_API_KEY=<your-authkey>
+36a1ddf175ccff0811ede5c0b24a6ca8d02374c4:Skill.md:generic-api-key:1164
+# the curl line itself, no credential on it
+ae19ba5236b08d99c4e52b4c46f670fc606b0bdd:docs/deployment-guide.md:curl-auth-header:1190
+# an invented example key on the X-API-Key header of a doc snippet
+ae19ba5236b08d99c4e52b4c46f670fc606b0bdd:docs/deployment-guide.md:generic-api-key:1191
+# S3_SECRET_KEY=<aws-secret-access-key>
+1d41d80fdefbc27f2d36c60493c9e8ca53fc12ec:docs/deployment-guide.md:generic-api-key:2001
+# COINBASE_COMMERCE_API_KEY= (empty value)
+5547d8cd70b5226225be5c590203219a125b9f3a:docs/deployment-guide.md:generic-api-key:2432
+# X-API-Key: warden_live_... - truncated, unusable
+9152d7394f88ab72599dfd05bbe03c7555d12baa:site/src/pages/enterprise-guide.astro:curl-auth-header:585
+# Authorization: Bearer eyJhbGci... - truncated JWT header only
+9152d7394f88ab72599dfd05bbe03c7555d12baa:site/src/pages/enterprise-guide.astro:curl-auth-header:596
+# a <textarea> of Tailwind classes holding the demo curl
+70d261d03f6144e02bed0e1615f4c5d19b7c68cb:landing/index.html:curl-auth-header:786
+
+# --------------------------------------------------------------------------
+# Identifiers that merely contain the word 'key'
+#
+# DOM element ids and a localStorage key name. The rule matches the shape
+# `key... = '...'` without looking at what the value is for.
+# --------------------------------------------------------------------------
+# ['key-placeholder','key-py',...] - element ids
+58f6545aae66a9b44396359700341d91d0463844:landing/dashboard.html:generic-api-key:1190
+# same array, two ids longer
+0d630b4275a3c8f5b2022080705bd6ad1ade4beb:landing/dashboard.html:generic-api-key:1273
+# same array again
+4f87c31fc7f9b0227c8eefee2a101b9b5a82280b:landing/dashboard.html:generic-api-key:1318
+# a localStorage key NAME for the dismissed-banner flag
+5ec3868869a09aa32e36cf1b6427e14dc1c702d2:site/src/layouts/BaseLayout.astro:generic-api-key:382
+
+# --------------------------------------------------------------------------
+# Test fixtures
+#
+# Synthetic values that exist to be detected. test_secret_redactor.py in
+# particular is the corpus for our own secret scanner: its PEM body is the
+# literal string 'abc'. Removing these would delete the tests' subject matter.
+# --------------------------------------------------------------------------
+# a 16-char webhook HMAC fixture posted to the register endpoint
+badf4f5564d206223ef8fe079cf7d88146cef0fe:warden/tests/test_webhook_dispatch.py:generic-api-key:199
+# the same fixture, next case
+badf4f5564d206223ef8fe079cf7d88146cef0fe:warden/tests/test_webhook_dispatch.py:generic-api-key:209
+# the same fixture, next case
+badf4f5564d206223ef8fe079cf7d88146cef0fe:warden/tests/test_webhook_dispatch.py:generic-api-key:222
+# the same fixture, next case
+badf4f5564d206223ef8fe079cf7d88146cef0fe:warden/tests/test_webhook_dispatch.py:generic-api-key:238
+# a rotation-status call with a placeholder env name and value
+4575a9ac24d9e1a03d22c825d39fa7817203ec3d:warden/tests/test_coverage_boost2.py:generic-api-key:139
+# the same call on the mocked path
+4575a9ac24d9e1a03d22c825d39fa7817203ec3d:warden/tests/test_coverage_boost2.py:generic-api-key:150
+# BEGIN RSA PRIVATE KEY with body 'abc' - the redactor's own corpus
+6c99c1b3d8bc4777741b7892882b0cedf3031c2b:warden/tests/test_secret_redactor.py:private-key:187
+# b'Key: sk-abcdef... use it.' - file-scanner input
+8606b0280f8b2ff0b34c208c759fdaf94c598cbc:warden/tests/test_smb_community_business.py:generic-api-key:284
+
+# --------------------------------------------------------------------------
+# A real weak default, already removed from the code
+#
+# This one was NOT a false positive when it was written: L402 macaroons were
+# signed with a hardcoded fallback, so an unset env var meant forgeable
+# payment tokens. It is ignored here because the remedy was the code change,
+# not this file: warden/payments/l402.py now calls
+# resolve_key('L402_HMAC_KEY', purpose='l402') and has no literal default.
+# The commit stays in history and will keep matching forever; that is what a
+# commit-pinned fingerprint is for.
+# --------------------------------------------------------------------------
+# the module-level HMAC key read with a literal dev fallback
+b0bc3847be61b3fd0f859ee894476a32afd931a8:warden/payments/l402.py:generic-api-key:42
