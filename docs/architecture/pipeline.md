@@ -1,6 +1,16 @@
 # Filter Pipeline
 
-The 9-layer filter pipeline processes every request in under 10ms (P99 < 50ms SLA).
+The 9-layer filter pipeline. **Latency is measured, and it is not what this
+line used to claim.** It quoted a single-digit millisecond figure for every
+request and a 50ms p99 SLA. Neither came from a measurement, and both are wrong.
+
+From `warden_filter_stage_duration_seconds` and the end-to-end histogram on
+production, over 219 `POST /filter` requests: **34 of them (15.5%) completed
+under 50ms**, the median sat near 200ms, and the p99 fell between 0.5s and
+1.0s — roughly twenty times the figure that used to be published.
+
+Quote per-stage numbers from the histogram rather than from here; a figure
+written into prose is a figure nobody re-measures.
 
 ---
 
