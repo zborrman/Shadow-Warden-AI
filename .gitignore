@@ -137,3 +137,8 @@ mutmut-stats.json
 
 # Deploy-side stamp: hash of grafana/provisioning last loaded by a restart (ci.yml)
 .deploy-grafana-prov.sha
+
+# gitleaks reports. The scan writes gitleaks-history.sarif into the repo root;
+# a stray copy was nearly committed with the baseline that added it.
+gitleaks-history.sarif
+gl-*.json
