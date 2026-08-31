@@ -15,8 +15,13 @@ GPU is not guaranteed.
 This prevents the 4 GB CUDA wheel from being pulled.
 
 **Consequences:** ~10x slower than GPU inference for large batches.
-Acceptable because filter latency is dominated by I/O, not model inference,
-and P99 < 50ms is met on standard hardware.
+Acceptable because filter latency is dominated by I/O, not model inference.
+
+This previously asserted that a 50ms p99 was met on standard hardware. It was
+not met, and nothing had measured whether it was: production's end-to-end histogram
+puts the p99 between 0.5s and 1.0s, with 34 of 219 requests under 50ms. The
+decision still stands — CPU inference is the right trade for this workload — but
+it was never supported by the number attached to it.
 
 ---
 
