@@ -33,12 +33,27 @@ calculations.
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
-| `/filter` P50 latency | < 15 ms | Prometheus `warden_filter_duration_seconds` |
-| `/filter` P99 latency | < 50 ms | Prometheus `warden_filter_duration_seconds` |
-| `/filter` P99.9 latency | < 200 ms | Prometheus `warden_filter_duration_seconds` |
+| `/filter` P50 latency | < 15 ms — **target, not yet verified** | Prometheus `warden_filter_duration_seconds{source="filter"}` |
+| `/filter` P99 latency | < 50 ms — **target, not yet verified** | Prometheus `warden_filter_duration_seconds{source="filter"}` |
+| `/filter` P99.9 latency | < 200 ms — **target, not yet verified** | Prometheus `warden_filter_duration_seconds{source="filter"}` |
 | `/v1/chat/completions` first-token | < 500 ms | Measured end-to-end including upstream LLM |
 | 5xx error rate | < 0.1% / hour | Prometheus `warden_http_requests_total{status=~"5.."}` |
 | Evolution Engine rule propagation | < 60 seconds | Time from block event to hot-reload |
+
+> **The three latency rows are targets, and are marked so deliberately.**
+> `warden_filter_duration_seconds` was named here as their evidence before it
+> existed — nothing registered it and production exported nothing under that
+> name, so the objectives pointed at a gauge nobody wrote. It is registered now
+> and observes every `/filter` request end to end.
+>
+> The one measurement available before it, `http_request_duration_seconds{handler="/filter"}`,
+> read a **p50 of about 25 ms and a p99 of roughly one second** over 60
+> production samples on
+> 2026-08-29 — above all three targets. That histogram times the whole HTTP
+> request, so auth, quota middleware and inline background work are inside it,
+> which is exactly what the new metric separates. These numbers become
+> commitments once it has data; until then they are stated as the goal, not as
+> a measured result. Tracked in `docs/capability-matrix.md`.
 
 ---
 

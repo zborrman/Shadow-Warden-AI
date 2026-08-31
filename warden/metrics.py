@@ -1087,13 +1087,45 @@ try:
         FILTER_STAGE_DURATION_SECONDS = Histogram(
             "warden_filter_stage_duration_seconds",
             "Wall-clock duration of one stage of the /filter pipeline",
-            ["stage"],
+            # `source` separates the entry points that share this body: REST
+            # /filter, batch, multimodal, and the two WebSocket paths. Without
+            # it a socket burst lands in a panel labelled /filter.
+            ["stage", "source"],
             buckets=(0.0005, 0.001, 0.002, 0.003, 0.005, 0.008, 0.010,
                      0.025, 0.050, 0.100, 0.250, 0.500, 1.0, float("inf")),
         )
     except ValueError:
         FILTER_STAGE_DURATION_SECONDS = cast(Histogram, REGISTRY._names_to_collectors.get(
             "warden_filter_stage_duration_seconds"
+        ))
+
+    # ── End-to-end filter latency ────────────────────────────────────────────
+    # Observed by main.py::_observe_stage_timings from the `total` key.
+    #
+    # `docs/sla.md` has cited this metric by name as the evidence for its P50,
+    # P99 and P99.9 objectives since it was written. It did not exist: nothing
+    # registered it, production exported nothing under that name, and
+    # test_grafana_metrics_resolve.py already listed it as a known "never
+    # defined" example. Three service-level objectives pointed at a gauge nobody
+    # wrote. This is that gauge.
+    #
+    # Not a duplicate of `http_request_duration_seconds{handler="/filter"}`:
+    # that times the whole HTTP request, so auth, quota middleware and any
+    # inline background work sit inside it. This times the pipeline itself, from
+    # the same `timings` dict the caller receives as `processing_ms`. The
+    # difference between the two is the middleware cost, and being able to name
+    # that difference is why both are worth having.
+    try:
+        FILTER_DURATION_SECONDS = Histogram(
+            "warden_filter_duration_seconds",
+            "Wall-clock duration of the /filter pipeline, end to end",
+            ["source"],
+            buckets=(0.001, 0.005, 0.010, 0.015, 0.025, 0.050, 0.100,
+                     0.200, 0.500, 1.0, 2.0, 5.0, float("inf")),
+        )
+    except ValueError:
+        FILTER_DURATION_SECONDS = cast(Histogram, REGISTRY._names_to_collectors.get(
+            "warden_filter_duration_seconds"
         ))
 
     METRICS_ENABLED = True
@@ -1189,3 +1221,4 @@ except ImportError:
     ARQ_JOB_DURATION_SECONDS        = _Noop()  # type: ignore[assignment]
     ARQ_JOB_LAST_SUCCESS            = _Noop()  # type: ignore[assignment]
     FILTER_STAGE_DURATION_SECONDS   = cast("Histogram", _Noop())
+    FILTER_DURATION_SECONDS         = cast("Histogram", _Noop())
