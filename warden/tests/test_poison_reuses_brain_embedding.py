@@ -159,7 +159,24 @@ class TestTheEncodeIsSkipped:
         src = (Path(__file__).resolve().parents[1] / "main.py").read_text(
             encoding="utf-8", errors="ignore"
         )
-        assert "embedding=getattr(brain_result" in src, (
+        # Assert the wiring, not its spelling. The first version of this guard
+        # pinned `embedding=getattr(brain_result` and broke the moment the call
+        # was refactored — while the behaviour it was guarding was intact. That
+        # is the same defect this repository keeps finding in its claim guards,
+        # reproduced in a test written to prevent it.
+        import re
+
+        call = re.search(r"_poison_guard\.check_async\((.*?)\n\s*\)", src, re.S)
+        assert call, "the poison guard call site is gone — re-check this guard"
+        args = call.group(1)
+        assert re.search(r"embedding\s*=", args), (
             "the pipeline no longer hands the brain's vector to the poison guard"
         )
-        assert "embedded_text=getattr(brain_result" in src
+        assert re.search(r"embedded_text\s*=", args), (
+            "the vector is passed without the text it belongs to — the reuse "
+            "condition cannot be evaluated"
+        )
+        # …and that what is passed actually comes from the brain's result.
+        assert "brain_result" in src[max(0, call.start() - 1200):call.start()], (
+            "the values passed no longer originate from brain_result"
+        )

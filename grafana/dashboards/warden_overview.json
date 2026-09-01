@@ -2106,6 +2106,52 @@
           "refId": "C"
         }
       ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Whether the poison guard reused the brain's query vector instead of running a second MiniLM encode. `yes` should dominate. `text_differs` is the correct fallback when the adversarial-suffix strip changed the text. `no_vector` should be zero — it means the brain returned no embedding, and the encode is being paid for silently.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 90
+      },
+      "id": 61,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Poison guard — embedding reuse",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(warden_poison_embedding_reuse_total{job=\"warden\"}[5m])) by (reused)",
+          "legendFormat": "{{reused}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "schemaVersion": 38,
