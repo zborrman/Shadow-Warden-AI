@@ -92,23 +92,39 @@ groups:
           - refId: A
             queryType: ""
             relativeTimeRange:
-              from: 300
+              from: 3600
               to: 0
             datasourceUid: prometheus
             model:
-              # The `and sum(rate(..._count)) > 0` guard is load-bearing, not
-              # decoration. With no traffic every bucket rate is 0,
-              # histogram_quantile returns NaN, and the threshold evaluator
-              # treats NaN as breaching — so this rule fired once a minute,
-              # continuously, for saying "nobody called us". Verified on prod
-              # 2026-08-22: /filter rate 0/s, 40 requests total since the
-              # counter began, P99 = NaN, and both latency rules sending to the
-              # notifier every 60s. `noDataState: OK` does not catch it, because
-              # there IS data — the series exist and are all zero.
+              # The traffic guard is load-bearing, not decoration. With no
+              # traffic every bucket rate is 0, histogram_quantile returns NaN,
+              # and the threshold evaluator treats NaN as breaching — so this
+              # rule fired once a minute, continuously, for saying "nobody
+              # called us". Verified on prod 2026-08-22. `noDataState: OK` does
+              # not catch it, because there IS data — the series exist and are
+              # all zero.
               #
-              # A latency SLO over zero requests has no value to report. The
-              # guard makes the rule return an empty vector instead of NaN,
-              # which is the honest answer.
+              # OB-F20 raises that guard from `> 0` to a sample floor, because
+              # `> 0` admits a sample of one and a P99 of one request is that
+              # request. Measured on prod 2026-09-01: 420 calls to /filter in
+              # 24h — 0.0011 rps, so the old 5m window held about 0.3 requests.
+              # The rule accordingly flapped Alerting -> Normal every five
+              # minutes all day: a request arrived (995 ms, over the 500 ms
+              # threshold), then the series went absent and `noDataState: OK`
+              # resolved it. It was the single largest source of the 70 Slack
+              # notifications this Grafana has sent.
+              #
+              # 100 is not a round number picked for comfort. A 99th percentile
+              # needs one sample per percent before the statistic is defined at
+              # all; below that the "P99" is the slowest of a handful of calls.
+              # At today's traffic this rule therefore stays silent, which is
+              # the honest answer — an alert cannot manufacture the requests it
+              # would need to have an opinion. It starts working on its own as
+              # soon as /filter carries ~100 calls an hour.
+              #
+              # The 995 ms itself is real and is NOT this rule's problem to fix:
+              # it is 19x the 50 ms published in docs/sla.md, and it belongs to
+              # the latency work that #408 began, not to alert tuning.
               expr: >
                 histogram_quantile(
                   0.99,
@@ -116,14 +132,14 @@ groups:
                     rate(http_request_duration_seconds_bucket{
                       job="warden",
                       handler="/filter"
-                    }[5m])
+                    }[1h])
                   )
                 )
                 and
-                sum(rate(http_request_duration_seconds_count{
+                sum(increase(http_request_duration_seconds_count{
                   job="warden",
                   handler="/filter"
-                }[5m])) > 0
+                }[1h])) >= 100
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -132,7 +148,7 @@ groups:
           - refId: C
             queryType: ""
             relativeTimeRange:
-              from: 300
+              from: 3600
               to: 0
             datasourceUid: __expr__
             model:
@@ -142,6 +158,7 @@ groups:
         noDataState: OK
         execErrState: Alerting
         for: 5m
+        keepFiringFor: 15m
         labels:
           severity: warning
           team: warden
@@ -168,14 +185,16 @@ groups:
           - refId: A
             queryType: ""
             relativeTimeRange:
-              from: 900
+              from: 3600
               to: 0
             datasourceUid: prometheus
             model:
-              # Traffic guard — see warden-high-p99-latency above. Without it a
-              # zero-rate histogram yields NaN, which the threshold evaluator
-              # reads as a breach, and the SLO rule reports a violation of a
-              # 50 ms commitment during hours when nothing was served.
+              # Traffic guard — see warden-high-p99-latency above, including
+              # why OB-F20 raised it from `> 0` to a 100-sample floor. Without
+              # any guard a zero-rate histogram yields NaN, which the threshold
+              # evaluator reads as a breach, and the SLO rule reports a
+              # violation of a 50 ms commitment during hours when nothing was
+              # served. With only `> 0` it reports one on a single request.
               expr: >
                 histogram_quantile(
                   0.99,
@@ -183,31 +202,36 @@ groups:
                     rate(http_request_duration_seconds_bucket{
                       job="warden",
                       handler="/filter"
-                    }[15m])
+                    }[1h])
                   )
                 )
                 and
-                sum(rate(http_request_duration_seconds_count{
+                sum(increase(http_request_duration_seconds_count{
                   job="warden",
                   handler="/filter"
-                }[15m])) > 0
+                }[1h])) >= 100
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
           - refId: C
             queryType: ""
             relativeTimeRange:
-              from: 900
+              from: 3600
               to: 0
             datasourceUid: __expr__
             model:
               type: math
               expression: "$A > 0.05"
-        # No traffic means the SLO is unmeasured, not breached. A 15m window and
-        # a 10m hold keep this off a quiet gateway and off single slow requests.
+        # No traffic means the SLO is unmeasured, not breached. A 1h window, a
+        # 100-sample floor and a 10m hold keep this off a quiet gateway and off
+        # single slow requests. `keepFiringFor` stops the series going absent
+        # from reading as a recovery — the flap in warden-high-p99-latency was
+        # exactly that: an alert resolving because nobody called, not because
+        # latency improved.
         noDataState: OK
         execErrState: OK
         for: 10m
+        keepFiringFor: 15m
         labels:
           severity: warning
           team: warden
@@ -1056,10 +1080,16 @@ groups:
               # is precisely how the two /filter latency rules came to fire
               # continuously off 40 lifetime requests. The traffic guard is what
               # actually makes an idle subsystem silent.
+              #
+              # OB-F20 raises the guard from `> 0` to a sample floor for the
+              # same reason it was raised on the /filter rules: `> 0` admits a
+              # sample of one, and a P95 of one session is that session. A 95th
+              # percentile needs at least twenty samples before it is defined
+              # at all, so twenty is the floor and the window widens to match.
               expr: >
-                histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[5m]))
+                histogram_quantile(0.95, rate(warden_voice_e2e_latency_ms_bucket[1h]))
                 and
-                sum(rate(warden_voice_e2e_latency_ms_count[5m])) > 0
+                sum(increase(warden_voice_e2e_latency_ms_count[1h])) >= 20
               intervalMs: 60000
               maxDataPoints: 43200
               refId: A
@@ -1494,6 +1524,157 @@ groups:
             node and cadvisor are excluded by design: they only run under the
             `monitoring` compose profile. If you enable that profile, drop the
             job!~ filter so they are covered too.
+
+      # ── OB-F20: the log pipeline was losing 5% of its lines, unwatched ──────
+      #
+      # Measured on prod 2026-09-01: 11 281 entries dropped against 197 412
+      # shipped in 24h — 5.4%, sustained, not a burst. Two causes appear in
+      # Loki's own log: `POST /loki/api/v1/push (500)` returning
+      # DeadlineExceeded at exactly 5.00s, and `entry too far behind` for
+      # records older than the out-of-order window (max_chunk_age/2, one hour
+      # by default).
+      #
+      # The loss is not the interesting part. The interesting part is that
+      # nothing watched it. Every dashboard, every LogQL query and every
+      # incident review reads Loki as if it held the whole story, and for five
+      # percent of lines it does not. A gap in evidence that announces itself
+      # nowhere is the same defect as a gauge nobody writes — the reader cannot
+      # tell absence from silence.
+      #
+      # promtail_* is exported by promtail, not by this codebase, so it is
+      # correctly outside the `warden_*` writer ratchet in
+      # test_alert_metrics_have_writers.py.
+      - uid: warden-log-shipping-degraded
+        title: "Warden — log shipping is dropping lines"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              # Ratio, not a raw count: a count threshold is a traffic
+              # threshold in disguise and would page on a busy hour that lost
+              # nothing proportionally. clamp_min keeps the denominator away
+              # from zero on an idle hour, where the numerator is zero too and
+              # the ratio is correctly 0.
+              expr: >
+                sum(increase(promtail_dropped_entries_total[1h]))
+                /
+                clamp_min(
+                  sum(increase(promtail_sent_entries_total[1h]))
+                  + sum(increase(promtail_dropped_entries_total[1h])),
+                  1
+                )
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0.01"
+        # No promtail series at all means log shipping is not reporting, which
+        # is worse than dropping — but warden-scrape-target-down already covers
+        # a dead promtail job, so this one stays quiet rather than duplicating.
+        noDataState: OK
+        execErrState: OK
+        for: 15m
+        labels:
+          severity: warning
+          team: warden
+          category: meta
+        annotations:
+          summary: "More than 1% of log lines are being dropped before Loki"
+          description: >
+            promtail is discarding entries. Check `promtail_dropped_entries_total`
+            by `reason`: ingester_error points at Loki (push timeouts, or
+            entries older than the out-of-order window), rate_limited and
+            stream_limited point at limits_config, line_too_long at a formatter.
+            Until this clears, treat every LogQL result as a lower bound.
+
+      # ── OB-F20: prove the notification path, do not assume it ───────────────
+      #
+      # Every other rule in this file proves something about the system. None
+      # of them proves that a firing alert reaches a human, and that is the one
+      # property the whole file depends on. The evidence available on
+      # 2026-09-01 was thin in exactly the wrong place: 70 notifications
+      # delivered to Slack, but only 3 to ntfy — and ntfy is the channel that
+      # exists to override silent mode at 03:00. Three deliveries is not a
+      # working alarm clock, it is an untested one.
+      #
+      # This is a dead-man's switch, so it is deliberately always firing. The
+      # signal is not the alert; the signal is the daily push. If it stops
+      # arriving, something between the scheduler, Alertmanager, the routing
+      # tree, the contact point and the phone is broken — and every one of
+      # those links is otherwise invisible until the night it matters.
+      #
+      # `warden-deadman-gateway` is not a substitute: it proves metrics are
+      # still arriving, which is a statement about Prometheus, not about
+      # whether anyone would be told.
+      #
+      # Routed by `severity: heartbeat` to ntfy alone, with repeat_interval 24h
+      # — see contact_points.yml. It deliberately does NOT carry
+      # `severity: critical`: that label routes to Slack as well and is counted
+      # by the compliance rules, and a permanent synthetic critical would
+      # corrupt both.
+      - uid: warden-heartbeat-delivery
+        title: "Warden — HEARTBEAT: notification delivery is alive"
+        condition: C
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              # vector(1) is evaluated by the Prometheus datasource, so a
+              # heartbeat that stops also tells you the datasource stopped
+              # answering — one more link covered for free.
+              expr: >
+                vector(1)
+              intervalMs: 15000
+              maxDataPoints: 43200
+              instant: true
+          - refId: C
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: "$A > 0"
+        # Both set to Alerting on purpose: this rule must never be able to
+        # resolve quietly. If the datasource cannot answer `vector(1)`, that is
+        # itself worth the push.
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 0s
+        labels:
+          # A severity of its own, not `critical`. Every route in
+          # contact_points.yml matches on `severity`, so keeping one routing
+          # concept matters more than reusing an existing value — and a
+          # permanent synthetic `critical` would both land in Slack forever and
+          # be counted by the compliance rules that tally criticals.
+          severity: heartbeat
+          team: warden
+          category: heartbeat
+        annotations:
+          summary: "Heartbeat — if this stops arriving, alerting is broken"
+          description: >
+            This alert is always firing by design. Its presence proves the
+            whole delivery path works: rule evaluation, Alertmanager grouping,
+            the routing tree, the ntfy contact point and the phone. Silence for
+            more than about 25 hours means the path is broken, and no other
+            alert in this file would tell you.
 
   # ── The Evolution Engine must not be able to fail silently ──────────────────
   #

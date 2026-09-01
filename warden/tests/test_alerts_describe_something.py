@@ -36,6 +36,7 @@ import yaml
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ALERTS = _ROOT / "grafana" / "provisioning" / "alerting" / "warden_alerts.yml"
+_CONTACT_POINTS = _ROOT / "grafana" / "provisioning" / "alerting" / "contact_points.yml"
 _COMPOSE = _ROOT / "docker-compose.yml"
 _CI = _ROOT / ".github" / "workflows" / "ci.yml"
 
@@ -69,25 +70,67 @@ def _exprs(rule: dict) -> str:
     return " ".join(q.get("model", {}).get("expr", "") or "" for q in rule.get("data", []))
 
 
-def _has_traffic_guard(expr: str) -> bool:
-    """A quantile is only meaningful when the underlying counter is moving."""
-    return bool(re.search(r"_count\b[^)]*\}?\s*\[[^\]]+\]\s*\)\s*\)?\s*>\s*0", expr)) or (
-        "_count" in expr and "> 0" in expr
-    )
+#: Smallest sample in which a quantile is defined at all: one observation per
+#: percent of tail. A P99 needs 100, a P95 needs 20. Below that the "quantile"
+#: is simply the slowest of a handful of calls, and an alert on it reports that
+#: one call.
+_MIN_SAMPLES = {0.99: 100, 0.95: 20, 0.9: 10, 0.5: 2}
+
+_QUANTILE = re.compile(r"histogram_quantile\(\s*(0?\.\d+)")
+
+#: A guard of the shape `sum(increase(<metric>_count{...}[<window>])) >= <n>`.
+_SAMPLE_FLOOR = re.compile(r"_count\b[^)]*\)*\s*\)\s*>=\s*(\d+)")
 
 
-def test_quantile_alerts_are_guarded_on_traffic(rules: list[dict]) -> None:
-    unguarded = [
-        rule["uid"]
-        for rule in rules
-        if "histogram_quantile" in _exprs(rule) and not _has_traffic_guard(_exprs(rule))
-    ]
-    assert not unguarded, (
-        "These rules take a quantile without requiring the underlying counter to "
-        "be moving: " + ", ".join(unguarded) + ". With no traffic every bucket "
-        "rate is 0, histogram_quantile returns NaN, and the threshold evaluator "
-        "treats NaN as a breach — the rule fires continuously to say the service "
-        "was idle. Add `and sum(rate(<metric>_count{...}[<window>])) > 0`."
+def _traffic_guard_floor(expr: str) -> int | None:
+    """The sample floor a quantile rule requires, or None if it requires none.
+
+    OB-F20 replaced the original `> 0` check here, and the reason is worth
+    keeping. `> 0` was written to stop a NaN from an idle histogram reading as
+    a breach, and it does that. It does nothing whatever about a window holding
+    one request. Measured on prod 2026-09-01: /filter carried 0.0011 rps, so
+    the 5m window behind `warden-high-p99-latency` held about 0.3 requests, its
+    "P99" was whichever single call happened to land, and the rule flapped
+    Alerting -> Normal every five minutes for a whole day. `> 0` was true
+    throughout, and this guard passed throughout.
+
+    So the passing condition is no longer "a guard exists" but "the guard names
+    a floor large enough for the quantile it protects".
+    """
+    m = _SAMPLE_FLOOR.search(expr)
+    return int(m.group(1)) if m else None
+
+
+def test_quantile_alerts_require_enough_samples_to_have_an_opinion(
+    rules: list[dict],
+) -> None:
+    """A quantile over a handful of requests is not a quantile."""
+    bad: list[str] = []
+    for rule in rules:
+        expr = _exprs(rule)
+        if "histogram_quantile" not in expr:
+            continue
+        quantiles = [float(q) for q in _QUANTILE.findall(expr)]
+        needed = max(_MIN_SAMPLES.get(q, 100) for q in quantiles) if quantiles else 100
+        floor = _traffic_guard_floor(expr)
+        if floor is None:
+            bad.append(f"{rule['uid']}: no sample floor (a bare `> 0` is not one)")
+        elif floor < needed:
+            bad.append(
+                f"{rule['uid']}: floor {floor}, needs {needed} for "
+                f"P{int(max(quantiles) * 100)}"
+            )
+
+    assert not bad, (
+        "These quantile rules can fire on a sample too small to hold the "
+        "quantile they claim to measure:\n  " + "\n  ".join(bad) + "\n\n"
+        "Guard the rule with `and sum(increase(<metric>_count{...}[<window>])) "
+        ">= <n>`, where <n> is at least one observation per percent of tail "
+        "(100 for a P99, 20 for a P95), and widen the window until real traffic "
+        "can reach that floor. A rule that stays silent because the sample is "
+        "too small is correct; one that pages on a single slow request is not. "
+        "That was warden-high-p99-latency flapping every five minutes on "
+        "0.0011 rps."
     )
 
 
@@ -230,4 +273,83 @@ def test_profile_gated_exporters_are_started_in_production() -> None:
         "them regardless and they simply sit `down` — which is how "
         "node_filesystem_avail_bytes had zero series for the life of the "
         "cluster while a disk alert quietly reported OK."
+    )
+
+
+def test_keep_firing_for_uses_the_key_grafana_actually_reads() -> None:
+    """`keep_firing_for` in this file is accepted, ignored, and silent.
+
+    Found on 2026-09-01 by booting grafana/grafana:13.1.3 against this very
+    directory and reading the rules back through
+    `/api/v1/provisioning/alert-rules`. Written as `keep_firing_for: 15m` the
+    field came back as `0s`; written as `keepFiringFor: 15m` it came back as
+    `15m`. Nothing in the container log mentioned either outcome.
+
+    That is the whole defect class this repo keeps finding, in a single YAML
+    key: a setting that looks applied, reviews as applied, and does nothing.
+    An ignored `keepFiringFor` is not cosmetic — it is what stops a series
+    going absent from reading as a recovery, which is precisely how
+    warden-high-p99-latency came to resolve itself every five minutes.
+    """
+    raw = _ALERTS.read_text(encoding="utf-8")
+    # Key position only: prose in a comment may name the wrong spelling in
+    # order to explain why it is wrong.
+    snake = re.findall(r"^\s*keep_firing_for\s*:", raw, re.M)
+    assert not snake, (
+        "`keep_firing_for` is not the provisioning key. Grafana's file "
+        "provisioner reads `keepFiringFor`, accepts the snake_case spelling "
+        "without complaint and applies 0s. Rename it, then verify by reading "
+        "the rule back from /api/v1/provisioning/alert-rules — not by reading "
+        "the file."
+    )
+
+
+def test_the_delivery_heartbeat_exists_and_reaches_the_push_channel(
+    rules: list[dict],
+) -> None:
+    """The one rule whose job is to prove the other 35 can reach a human.
+
+    Every other rule here proves something about the system; none of them
+    proves that a firing alert arrives anywhere. On 2026-09-01 the evidence
+    for that was 70 deliveries to Slack against 3 to ntfy — and ntfy is the
+    channel that overrides silent mode at 03:00. Three deliveries is an
+    untested alarm clock.
+
+    So the heartbeat is always firing on purpose, and the daily push is the
+    proof. Delete it and the alerting layer goes back to being trusted rather
+    than demonstrated.
+    """
+    beat = [r for r in rules if r.get("uid") == "warden-heartbeat-delivery"]
+    assert beat, (
+        "warden-heartbeat-delivery is gone. Nothing now proves the "
+        "notification path works, and its failure mode is silence — the one "
+        "symptom no alert can report about itself."
+    )
+    severity = (beat[0].get("labels") or {}).get("severity")
+    assert severity == "heartbeat", (
+        f"The heartbeat carries severity={severity!r}. It must keep its own "
+        "value: `critical` would route it to Slack forever and be counted by "
+        "the compliance rules that tally criticals."
+    )
+
+    policies = yaml.safe_load(_CONTACT_POINTS.read_text(encoding="utf-8"))
+    routes = policies["policies"][0].get("routes", [])
+    matched = [
+        r
+        for r in routes
+        if any(m[:3] == ["severity", "=", "heartbeat"] for m in r.get("object_matchers", []))
+    ]
+    assert matched, (
+        "No route matches severity=heartbeat, so the heartbeat falls through "
+        "to the default Slack receiver and proves nothing about the push "
+        "channel it exists to test."
+    )
+    assert matched[0]["receiver"] == "warden-ntfy", (
+        f"The heartbeat routes to {matched[0]['receiver']!r}. It has to reach "
+        "the channel that overrides silent mode, or it proves the wrong path."
+    )
+    assert routes.index(matched[0]) == 0, (
+        "The heartbeat route is no longer first. A later route can be claimed "
+        "by an earlier `continue: true` branch, which would put a permanent "
+        "synthetic alert into Slack as well."
     )

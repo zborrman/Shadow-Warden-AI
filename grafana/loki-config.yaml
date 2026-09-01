@@ -46,3 +46,19 @@ compactor:
   delete_request_store: filesystem
   compaction_interval: 10m
   retention_delete_delay: 2h
+
+# ── OB-F20: entries were being refused for being an hour late ──────────────
+#
+# Loki rejected records with `entry too far behind, oldest acceptable
+# timestamp is ...`. That boundary is not configured directly: it is
+# `max_chunk_age / 2`, which at the 2h default is a one-hour window. Anything
+# replayed after a restart, or shipped by a container that batches its
+# output, lands outside it and is discarded — the log is simply missing, and
+# nothing in a LogQL result says so.
+#
+# 6h gives a 3h window: wide enough to survive a restart and a catch-up,
+# narrow enough that a chunk still flushes several times a day. Paired with
+# warden-log-shipping-degraded, which now pages if loss passes 1% regardless
+# of the reason.
+ingester:
+  max_chunk_age: 6h
