@@ -700,7 +700,7 @@ jobs:
       # Gitleaks: secrets committed to git history (a live key in an old commit is still
       # a live key). GATING — its first run scanned clean ("no leaks found").
       - name: Run gitleaks (secrets in history)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
