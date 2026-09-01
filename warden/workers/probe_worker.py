@@ -24,12 +24,18 @@ import ssl
 import time
 from datetime import UTC, datetime
 
+from warden import cache
 from warden.net_guard import SSRFError, assert_public_url, send_pinned_async
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.probe_worker")
 
 _SCHEDULER_TICK_S = 5   # how often to check for due monitors
 _PROBE_TIMEOUT_S  = 10  # per-probe HTTP/TCP timeout
+_CLAIM_PREFIX     = "probe:claim:"
+#: A claim expires slightly before the monitor is next due, so the following
+#: interval is always claimable — a full-interval TTL would race the due check.
+_CLAIM_TTL_FRACTION = 0.9
 
 
 # ── Probe implementations ─────────────────────────────────────────────────────
@@ -197,8 +203,7 @@ async def _save_result(monitor: dict, result: dict) -> None:
 
     # Publish to Redis for WebSocket push (fail-open, sync client via executor)
     try:
-        from warden.cache import _get_client as _get_redis  # noqa: PLC0415
-        redis = _get_redis()
+        redis = cache._get_client()
         if redis is not None:
             payload = json.dumps({
                 "monitor_id":  str(monitor["id"]),
@@ -254,29 +259,85 @@ async def _load_monitors() -> list[dict]:
         return []
 
 
+async def _claim(monitor: dict) -> bool:
+    """Return True if *this process* may probe ``monitor`` for this interval.
+
+    ``probe_scheduler()`` is spawned from ``main.py``'s lifespan, so it runs
+    once per uvicorn worker — and ``_last_run`` is module-level, i.e. per
+    process. Production runs ``--workers 4``, so all four independently found
+    the same monitor due at the same second and probed it: four perfectly
+    correlated samples per interval instead of one, four times the outbound
+    traffic against our own public endpoints, and four times the hypertable
+    rows. (Availability itself was unharmed — it is ``up_count / checks``, and
+    duplicates cancel — but ``checks``/``up_count`` were inflated 4x as
+    absolute numbers.) This is the same shape as the split metrics registry:
+    per-process state in a multi-worker deployment.
+
+    A Redis ``SET NX PX`` makes the interval the claimable unit, so exactly one
+    worker probes and the others skip. Losers still advance ``_last_run``, which
+    keeps the processes in step and stops them re-claiming every tick. Nothing
+    is pinned to a particular worker: if the winner dies, the next interval is
+    claimed by whoever is still alive.
+
+    Fails **open** — an unreachable Redis returns True and every worker probes,
+    which is the pre-existing behaviour. On a monitoring path duplicated data
+    beats absent data, and the fail-open is counted rather than only logged, so
+    a Redis outage does not silently look like a working claim.
+    """
+    try:
+        redis = cache._get_client()
+        if redis is None:
+            record_failopen("probe_claim", Reason.REDIS_UNAVAILABLE, None)
+            return True
+
+        ttl_ms = max(1000, int(float(monitor["interval_s"]) * 1000 * _CLAIM_TTL_FRACTION))
+        key = f"{_CLAIM_PREFIX}{monitor['id']}"
+        loop = asyncio.get_running_loop()
+        won = await loop.run_in_executor(
+            None, lambda: redis.set(key, "1", nx=True, px=ttl_ms)
+        )
+        return bool(won)
+    except Exception as exc:
+        record_failopen("probe_claim", Reason.BACKEND_ERROR, exc)
+        log.debug("probe_worker: claim failed, probing anyway — %s", exc)
+        return True
+
+
+async def _scheduler_tick() -> None:
+    """One pass: load monitors, claim the due ones, probe what we won."""
+    monitors = await _load_monitors()
+    now = time.monotonic()
+    due = [
+        m for m in monitors
+        if now - _last_run.get(str(m["id"]), 0) >= m["interval_s"]
+    ]
+    if not due:
+        return
+
+    claimed = [m for m in due if await _claim(m)]
+    # Advance every due monitor, won or lost: a loser that kept its old
+    # timestamp would re-claim on every 5s tick for the rest of the interval.
+    for m in due:
+        _last_run[str(m["id"])] = now
+
+    if claimed:
+        tasks = [asyncio.create_task(_run_probe(m)) for m in claimed]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
 async def probe_scheduler() -> None:
     """
     Main scheduler loop.
 
     Every SCHEDULER_TICK_S seconds, loads active monitors and launches
-    probes that are due (last_run + interval_s <= now).
-    Each probe runs in its own Task — concurrency is bounded by the number
-    of active monitors.
+    probes that are due (last_run + interval_s <= now) *and* claimed by this
+    process. Each probe runs in its own Task — concurrency is bounded by the
+    number of active monitors.
     """
     log.info("probe_scheduler: starting (tick=%ds)", _SCHEDULER_TICK_S)
     while True:
         try:
-            monitors = await _load_monitors()
-            now = time.monotonic()
-            due = [
-                m for m in monitors
-                if now - _last_run.get(str(m["id"]), 0) >= m["interval_s"]
-            ]
-            if due:
-                tasks = [asyncio.create_task(_run_probe(m)) for m in due]
-                for m in due:
-                    _last_run[str(m["id"])] = now
-                await asyncio.gather(*tasks, return_exceptions=True)
+            await _scheduler_tick()
         except Exception as exc:
             log.warning("probe_scheduler: tick error — %s", exc)
 
