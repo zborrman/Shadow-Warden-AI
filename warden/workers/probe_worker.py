@@ -33,9 +33,9 @@ log = logging.getLogger("warden.probe_worker")
 _SCHEDULER_TICK_S = 5   # how often to check for due monitors
 _PROBE_TIMEOUT_S  = 10  # per-probe HTTP/TCP timeout
 _CLAIM_PREFIX     = "probe:claim:"
-#: A claim expires slightly before the monitor is next due, so the following
-#: interval is always claimable — a full-interval TTL would race the due check.
-_CLAIM_TTL_FRACTION = 0.9
+#: A claim outlives its bucket slightly, so a tick arriving late cannot re-probe
+#: a bucket another worker already served.
+_CLAIM_MARGIN_S   = 2.0
 
 
 # ── Probe implementations ─────────────────────────────────────────────────────
@@ -238,7 +238,10 @@ async def _run_probe(monitor: dict) -> None:
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
-_last_run: dict[str, float] = {}   # monitor_id → last run epoch
+#: monitor_id → the last interval bucket this process has already handled.
+#: Purely a local optimisation to keep the 5s tick from re-querying Redis for a
+#: bucket it has already resolved; the bucket itself is shared (see _bucket).
+_last_bucket: dict[str, int] = {}
 
 
 async def _load_monitors() -> list[dict]:
@@ -259,25 +262,38 @@ async def _load_monitors() -> list[dict]:
         return []
 
 
-async def _claim(monitor: dict) -> bool:
-    """Return True if *this process* may probe ``monitor`` for this interval.
+def _bucket(interval_s: float, now: float) -> int:
+    """Which interval of wall-clock time ``now`` falls in.
+
+    Wall clock, not ``time.monotonic()``: the bucket has to mean the same thing
+    in every process, and monotonic clocks have a per-process epoch. All the
+    workers share a container, so they share a clock.
+    """
+    return int(now // max(1.0, float(interval_s)))
+
+
+async def _claim(monitor: dict, bucket: int, now: float) -> bool:
+    """Return True if *this process* may probe ``monitor`` for ``bucket``.
 
     ``probe_scheduler()`` is spawned from ``main.py``'s lifespan, so it runs
-    once per uvicorn worker — and ``_last_run`` is module-level, i.e. per
-    process. Production runs ``--workers 4``, so all four independently found
-    the same monitor due at the same second and probed it: four perfectly
-    correlated samples per interval instead of one, four times the outbound
-    traffic against our own public endpoints, and four times the hypertable
-    rows. (Availability itself was unharmed — it is ``up_count / checks``, and
-    duplicates cancel — but ``checks``/``up_count`` were inflated 4x as
-    absolute numbers.) This is the same shape as the split metrics registry:
-    per-process state in a multi-worker deployment.
+    once per uvicorn worker. Production runs ``--workers 4``, and the schedule
+    used to live in a module-level ``_last_run`` — per process — so all four
+    independently found the same monitor due at the same second and probed it:
+    four perfectly correlated samples per interval instead of one, four times
+    the outbound traffic against our own public endpoints, and four times the
+    hypertable rows. (Availability itself was unharmed — it is
+    ``up_count / checks``, and duplicates cancel — but ``checks``/``up_count``
+    were inflated 4x as absolute numbers.) Same shape as the split metrics
+    registry: per-process state in a multi-worker deployment.
 
-    A Redis ``SET NX PX`` makes the interval the claimable unit, so exactly one
-    worker probes and the others skip. Losers still advance ``_last_run``, which
-    keeps the processes in step and stops them re-claiming every tick. Nothing
-    is pinned to a particular worker: if the winner dies, the next interval is
-    claimed by whoever is still alive.
+    The claim key therefore names the **bucket**, not just the monitor, and the
+    TTL runs to the end of that bucket. Keying on the monitor alone and expiring
+    on a fraction of the interval would leave the same bug one layer down: a
+    worker restarting late in an interval has no local history, finds the
+    monitor due at once, and — the earlier claim having already expired — probes
+    a bucket that was served. A bucket is derived from the clock, so a restarted
+    worker computes the same one its peers did and loses the claim, which is the
+    point: no probe schedule survives only in a process's memory.
 
     Fails **open** — an unreachable Redis returns True and every worker probes,
     which is the pre-existing behaviour. On a monitoring path duplicated data
@@ -290,8 +306,10 @@ async def _claim(monitor: dict) -> bool:
             record_failopen("probe_claim", Reason.REDIS_UNAVAILABLE, None)
             return True
 
-        ttl_ms = max(1000, int(float(monitor["interval_s"]) * 1000 * _CLAIM_TTL_FRACTION))
-        key = f"{_CLAIM_PREFIX}{monitor['id']}"
+        interval = max(1.0, float(monitor["interval_s"]))
+        remaining = (bucket + 1) * interval - now + _CLAIM_MARGIN_S
+        ttl_ms = max(1000, int(remaining * 1000))
+        key = f"{_CLAIM_PREFIX}{monitor['id']}:{bucket}"
         loop = asyncio.get_running_loop()
         won = await loop.run_in_executor(
             None, lambda: redis.set(key, "1", nx=True, px=ttl_ms)
@@ -304,21 +322,24 @@ async def _claim(monitor: dict) -> bool:
 
 
 async def _scheduler_tick() -> None:
-    """One pass: load monitors, claim the due ones, probe what we won."""
+    """One pass: find monitors whose current bucket is unserved, claim, probe."""
     monitors = await _load_monitors()
-    now = time.monotonic()
-    due = [
-        m for m in monitors
-        if now - _last_run.get(str(m["id"]), 0) >= m["interval_s"]
-    ]
+    now = time.time()
+
+    due: list[tuple[dict, int]] = []
+    for m in monitors:
+        bucket = _bucket(m["interval_s"], now)
+        if _last_bucket.get(str(m["id"])) == bucket:
+            continue
+        due.append((m, bucket))
     if not due:
         return
 
-    claimed = [m for m in due if await _claim(m)]
-    # Advance every due monitor, won or lost: a loser that kept its old
-    # timestamp would re-claim on every 5s tick for the rest of the interval.
-    for m in due:
-        _last_run[str(m["id"])] = now
+    claimed = [m for m, bucket in due if await _claim(m, bucket, now)]
+    # Record the bucket whether we won it or lost it: a loser that did not would
+    # re-query Redis on every 5s tick for the rest of the interval.
+    for m, bucket in due:
+        _last_bucket[str(m["id"])] = bucket
 
     if claimed:
         tasks = [asyncio.create_task(_run_probe(m)) for m in claimed]
@@ -329,10 +350,10 @@ async def probe_scheduler() -> None:
     """
     Main scheduler loop.
 
-    Every SCHEDULER_TICK_S seconds, loads active monitors and launches
-    probes that are due (last_run + interval_s <= now) *and* claimed by this
-    process. Each probe runs in its own Task — concurrency is bounded by the
-    number of active monitors.
+    Every SCHEDULER_TICK_S seconds, loads active monitors and launches probes
+    for each monitor whose current interval bucket this process has claimed.
+    Each probe runs in its own Task — concurrency is bounded by the number of
+    active monitors.
     """
     log.info("probe_scheduler: starting (tick=%ds)", _SCHEDULER_TICK_S)
     while True:
