@@ -7,6 +7,25 @@ positions:
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
+    # ── OB-F20: a transient 500 was throwing the batch away ──────────────────
+    #
+    # Measured on prod 2026-09-01: 11 281 entries dropped against 197 412
+    # shipped in 24h — 5.4%, sustained. Loki was answering some pushes with
+    # `(500) DeadlineExceeded` at exactly 5.00s, and promtail's default retry
+    # budget (max 10 attempts, capped at 5m) gives up inside the window where
+    # Loki is still recovering; a given batch is then gone, silently, and the
+    # only trace is a counter nobody read.
+    #
+    # A longer budget costs memory, not correctness: promtail holds the batch
+    # and keeps trying. `timeout` is raised above Loki's own 5s write deadline
+    # so the client stops abandoning a push the server is still working on.
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 30s
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 20
 
 scrape_configs:
 

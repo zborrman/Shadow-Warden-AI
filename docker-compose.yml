@@ -918,6 +918,46 @@ services:
       # so an unconfigured install would publish live alert contents to
       # strangers. Failing loudly must not mean failing outward.
       - GF_NTFY_URL=${NTFY_URL:-http://localhost:1/ntfy-not-configured}
+      # ── OB-F20: stop Grafana writing its own alert history into SQLite ──
+      #
+      # Measured on prod 2026-09-01: 798 `database is locked (5) (SQLITE_BUSY)`
+      # errors in 24h, one of them stalling `Failed to save alert rule state`
+      # for 29m33s, plus `Failed to update alert rules` from the scheduler. An
+      # alert whose state cannot be persisted does not transition on time, so
+      # this degrades the alerting layer silently — the exact failure mode the
+      # whole of Track O exists to remove.
+      #
+      # The cause is NOT slow disk. That hypothesis was tested and falsified on
+      # the same host: disk io_time 3%, iowait 1.1%, mean write latency 2.1ms,
+      # load 0.5, 43% free. SQLite simply has one writer, and the state
+      # historian holds it: `annotation` was the largest table in grafana.db by
+      # a wide margin (14 452 rows against 1 691 for the runner-up).
+      #
+      # So move the history to the system built for it, which this stack
+      # already runs. Backends available in 13.1.3, per the image's own
+      # conf/defaults.ini: annotations (default) | loki | prometheus | multiple.
+      # Read it back with `{from="state-history"} | json`.
+      #
+      # If Loki is unreachable the write fails and Grafana logs it; rule
+      # evaluation and notification are unaffected. Losing history degrades
+      # forensics, not alarming — the right way round.
+      - GF_UNIFIED_ALERTING_STATE_HISTORY_BACKEND=loki
+      - GF_UNIFIED_ALERTING_STATE_HISTORY_LOKI_REMOTE_URL=http://loki:3100
+      # Belt and braces for the writes that remain (dashboard versions, rule
+      # versions, sessions). Default is `wal = false` in this image; WAL lets
+      # readers run against a writer instead of blocking on it.
+      #
+      # Deliberately NOT moving to Postgres in the same change. That is the
+      # textbook answer and it stays on the table, but it needs a new required
+      # secret in the host .env BEFORE merge — the failure mode that took the
+      # whole stack down once already with GRAFANA_PASSWORD — and it discards
+      # the database, since Grafana has no SQLite→Postgres migration. Remove the
+      # measured write pressure first, re-measure, and escalate only if the lock
+      # errors survive. If they do, the move is: GF_DATABASE_TYPE=postgres with
+      # its own database and role (there is no `schema` key in [database], so a
+      # schema inside `warden` is not an option), plus a second pg_dump in
+      # warden/backup/service.py, which dumps exactly one database today.
+      - GF_DATABASE_WAL=true
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

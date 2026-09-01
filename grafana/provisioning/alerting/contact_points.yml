@@ -118,6 +118,31 @@ policies:
     repeat_interval: 4h
     routes:
 
+      # ── OB-F20: the heartbeat, first and non-continuing ────────────────────
+      #
+      # warden-heartbeat-delivery is always firing, by design. It exists so the
+      # daily ntfy push is itself the proof that the delivery path works; the
+      # absence of that push is the alarm. See the rule for why the path needed
+      # proving: 70 notifications had reached Slack against 3 reaching ntfy, and
+      # ntfy is the channel that overrides silent mode.
+      #
+      # Order matters twice over. This route is FIRST so it wins before
+      # anything else can claim the alert, and it has no `continue: true` so
+      # matching stops here — otherwise a permanent synthetic alert would also
+      # sit in Slack forever. And `severity: heartbeat` is a value of its own,
+      # so the alert can never enter the critical path that the compliance
+      # rules tally, while still being routed the way every other rule here is
+      # — one routing concept, not two.
+      #
+      # repeat_interval sets the cadence of the proof: one push a day. Raising
+      # it past ~24h makes a broken path take longer to notice than a night.
+      - receiver: warden-ntfy
+        object_matchers:
+          - [severity, "=", heartbeat]
+        group_wait: 0s
+        group_interval: 1h
+        repeat_interval: 24h
+
       # critical → phone push, and still land in Slack for the written record.
       # `continue: true` is what makes the notification reach both receivers;
       # without it matching stops at the first route and ntfy would be the only
