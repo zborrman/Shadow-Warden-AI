@@ -1002,6 +1002,16 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+      # OB-F21: NEXT_PUBLIC_* is inlined by Next at build time. Passing these
+      # only under `environment:` below did nothing for the browser bundle —
+      # which is why the runtime NEXT_PUBLIC_GRAFANA_URL never took effect. The
+      # runtime copies stay because the server-side routes read some of them.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+        NEXT_PUBLIC_GRAFANA_URL: ${GRAFANA_PUBLIC_URL:-}
+        NEXT_PUBLIC_JAEGER_URL: ${JAEGER_PUBLIC_URL:-}
+        NEXT_PUBLIC_PROMETHEUS_URL: ${PROMETHEUS_PUBLIC_URL:-}
+        NEXT_PUBLIC_MINIO_URL: ${MINIO_PUBLIC_URL:-}
     container_name: warden-dashboard
     restart: unless-stopped
     logging:

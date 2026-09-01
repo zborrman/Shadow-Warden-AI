@@ -176,3 +176,52 @@ def test_no_unreachable_host_is_hardcoded_in_the_bundle() -> None:
         "variable is an honest 'not published'; a wrong host is a dead link "
         "that costs a click and a browser error to discover."
     )
+
+
+def test_a_published_url_is_validated_not_merely_non_empty() -> None:
+    """`GRAFANA_PUBLIC_URL=http://grafana:3000` must not undo this fix.
+
+    The first draft of `internalLink` treated any non-empty string as a link.
+    One entry in a `.env` would then have reinstated the exact defect the file
+    removes, and no guard here could have seen it — this test reads source, not
+    the value someone puts in an environment. So the check has to live in the
+    code, and this pins that it does.
+    """
+    src = _LINKS.read_text(encoding="utf-8")
+    assert "function isPublished" in src, (
+        "internal-links.ts no longer validates the configured URL. A non-empty "
+        "value is not a reachable one; without the check, pointing a "
+        "*_PUBLIC_URL at a Docker-internal name silently restores the dead link."
+    )
+    for host in ("grafana", "jaeger", "prometheus", "minio", "localhost", "127.0.0.1"):
+        assert f'"{host}"' in src, (
+            f"{host!r} dropped out of the unreachable-host list in "
+            "internal-links.ts, so a URL naming it would render as a live link."
+        )
+
+
+def test_every_public_build_variable_is_a_docker_build_arg() -> None:
+    """Next inlines NEXT_PUBLIC_* at build time; runtime env never reaches it.
+
+    docker-compose.yml passed NEXT_PUBLIC_GRAFANA_URL under `environment:` for
+    the life of this dashboard and it had no effect on the bundle at all — the
+    value that shipped came from next.config.mjs's fallback. The trap that
+    matters is the future one: when the Grafana vhost exists, someone sets
+    GRAFANA_PUBLIC_URL in the host .env, redeploys, and nothing changes.
+    """
+    config = (_ROOT / "dashboard" / "next.config.mjs").read_text(encoding="utf-8")
+    dockerfile = (_ROOT / "dashboard" / "Dockerfile").read_text(encoding="utf-8")
+
+    declared = set(re.findall(r"(NEXT_PUBLIC_[A-Z0-9_]+):\s*process\.env", config))
+    assert declared, "no NEXT_PUBLIC_* entries found in next.config.mjs env block"
+
+    missing = sorted(v for v in declared if f"ARG {v}" not in dockerfile)
+    assert not missing, (
+        "next.config.mjs inlines these at build time, but the Dockerfile "
+        "declares no build ARG for them, so they are always empty in the "
+        "image:\n  " + "\n  ".join(missing) + "\n\n"
+        "Add `ARG <name>` plus an `ENV` line before `npm run build`, and pass "
+        "it through `build.args` in docker-compose.yml. A runtime "
+        "`environment:` entry cannot reach a bundle that was compiled hours "
+        "earlier."
+    )

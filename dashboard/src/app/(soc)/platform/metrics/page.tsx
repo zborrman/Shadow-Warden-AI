@@ -52,6 +52,10 @@ export default function MetricsPage() {
             <pre className="text-[11px] text-gray-300 bg-black/30 rounded-lg px-3 py-2 overflow-x-auto">
               {link.command}
             </pre>
+            <p className="text-[11px] text-gray-600">
+              A template — substitute <code>&lt;host&gt;</code> with the server
+              before running it.
+            </p>
           </div>
         ) : (
           <>

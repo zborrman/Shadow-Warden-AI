@@ -39,11 +39,39 @@ const LOOPBACK_PORT: Record<string, number> = {
   MinIO: 9001,
 };
 
+/**
+ * The tunnel line is a TEMPLATE, not a runnable command — `<host>` is left for
+ * the reader to substitute. The alternative was another environment variable
+ * nobody would set, whose unset state would produce a command that looks
+ * runnable and is not. Callers render it as a template, never as copy-paste.
+ */
 const SSH_HOST = "root@<host>";
 
+/** Hosts a visitor's browser can never reach, whatever the variable says. */
+const UNREACHABLE = new Set([
+  "grafana", "jaeger", "prometheus", "loki", "minio", "warden", "analytics",
+  "localhost", "127.0.0.1", "0.0.0.0", "::1",
+]);
+
+function isPublished(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  if (parsed.hostname === "") return false;
+  return !UNREACHABLE.has(parsed.hostname.toLowerCase());
+}
+
 export function internalLink(service: string, url: string | undefined): InternalLink {
+  // A non-empty value is not the same as a reachable one. Without this check
+  // the fix would be one `GRAFANA_PUBLIC_URL=http://grafana:3000` away from
+  // reinstating the exact defect it removes — and the CI guard cannot see it,
+  // because it reads source files, not the value someone puts in a .env.
   const trimmed = (url ?? "").trim();
-  if (trimmed !== "") {
+  if (trimmed !== "" && isPublished(trimmed)) {
     return { kind: "link", href: trimmed };
   }
   const port = LOOPBACK_PORT[service] ?? 0;

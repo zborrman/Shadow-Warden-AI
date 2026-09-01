@@ -33,16 +33,35 @@ export default function TracesPage() {
           )}
         </div>
 
-        <div className="rounded-xl bg-surface-2 border border-border overflow-hidden">
-          <iframe
-            src={`${JAEGER}/search?service=shadow-warden&limit=100`}
-            width="100%"
-            height="700"
-            frameBorder="0"
-            className="block"
-            title="Jaeger Trace Search"
-          />
-        </div>
+        {/* Only embed when Jaeger is actually published. With JAEGER empty the
+            src collapsed to `/search?service=…`, a RELATIVE path — so the frame
+            requested the dashboard's own origin and rendered whatever that
+            returned. An empty base does not make an iframe inert; it re-points
+            it at yourself. */}
+        {jaeger.kind === "link" ? (
+          <div className="rounded-xl bg-surface-2 border border-border overflow-hidden">
+            <iframe
+              src={`${JAEGER}/search?service=shadow-warden&limit=100`}
+              width="100%"
+              height="700"
+              frameBorder="0"
+              className="block"
+              title="Jaeger Trace Search"
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl bg-surface-2 border border-border p-5 space-y-2">
+            <p className="text-[13px] font-semibold text-white">Jaeger is not published</p>
+            <p className="text-xs text-gray-400 leading-relaxed max-w-2xl">
+              It is bound to loopback on the host. Open a tunnel with the
+              command above — replacing{" "}
+              <code className="text-gray-300">&lt;host&gt;</code> with the
+              server — or set{" "}
+              <code className="text-gray-300">NEXT_PUBLIC_JAEGER_URL</code> at
+              build time once a vhost exists.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
