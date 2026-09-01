@@ -279,6 +279,16 @@ class SemanticResult(NamedTuple):
     score:           float          # max cosine similarity found (0–1)
     closest_example: str            # the corpus entry it matched most closely
     threshold:       float          # threshold used for this call
+    # The query vector this call computed, and the text it was computed from.
+    # Exposed so a later stage can reuse the embedding instead of paying for a
+    # second MiniLM encode of the same content (DataPoisoningGuard did exactly
+    # that, and cost as much as this stage). `embedded_text` is not decoration:
+    # `check()` strips a high-entropy adversarial suffix before embedding, so
+    # the vector may not correspond to the caller's text, and a consumer must
+    # compare before reusing it. Both default to None/"" so every existing
+    # caller and every positional construction is unaffected.
+    embedding:       Any  = None
+    embedded_text:   str  = ""
 
 
 # ── SemanticGuard ─────────────────────────────────────────────────────────────
@@ -349,6 +359,7 @@ class SemanticGuard:
         # ── ONNX path ─────────────────────────────────────────────────────
         if self._onnx is not None:
             query_vec  = self._onnx.encode(text)         # (384,) float32
+            query_vector = query_vec
             corpus_np  = self._corpus_embeddings         # (N, 384) float32
             # Dot product == cosine sim (both are L2-normalised)
             sims       = corpus_np @ query_vec           # (N,)
@@ -373,6 +384,7 @@ class SemanticGuard:
                 show_progress_bar=False,
                 normalize_embeddings=True,
             )
+            query_vector = query_embedding
 
             # FAISS path: O(log n) ANN search when corpus is large
             if self._faiss_index is not None:
@@ -409,6 +421,7 @@ class SemanticGuard:
 
         flagged = max_score >= self.threshold
 
+
         if flagged:
             log.warning(
                 "Jailbreak detected — score=%.3f threshold=%.3f match=%r",
@@ -420,6 +433,10 @@ class SemanticGuard:
             score=round(max_score, 4),
             closest_example=_JAILBREAK_CORPUS[max_idx],
             threshold=self.threshold,
+            # `text` here is post-strip: the vector belongs to this string, not
+            # necessarily to what the caller passed in.
+            embedding=query_vector,
+            embedded_text=text,
         )
         return result
 

@@ -51,7 +51,7 @@ import tempfile
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -278,12 +278,26 @@ class DataPoisoningGuard:
         tenant_id:   str,
         ml_score:    float,    # max cosine similarity from SemanticBrain
         threshold:   float,
+        embedding:      Any = None,   # the brain's query vector, if it fits
+        embedded_text:  str = "",     # the text that vector was computed from
     ) -> PoisonResult:
+        """
+        ``embedding`` lets this stage skip its own MiniLM encode.
+
+        It is used **only** when ``embedded_text == content``. `SemanticGuard
+        .check()` strips a high-entropy adversarial suffix before embedding, so
+        its vector can belong to a shorter string than the caller passed — and
+        that is exactly the input this guard exists to inspect. Reusing the
+        stripped vector there would quietly change the verdict on the attack
+        class the stage was built for, so the comparison is not an optimisation
+        detail, it is the correctness condition.
+        """
         if not _ENABLED or not self._ready:
             return PoisonResult()
+        reusable = embedding if embedded_text == content else None
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
-            None, self._check_sync, content, tenant_id, ml_score, threshold
+            None, self._check_sync, content, tenant_id, ml_score, threshold, reusable
         )
 
     def _check_sync(
@@ -292,6 +306,7 @@ class DataPoisoningGuard:
         tenant_id: str,
         ml_score:  float,
         threshold: float,
+        embedding: Any = None,
     ) -> PoisonResult:
         # ① Boundary Probe Detection
         hit_count = self._tracker.record(tenant_id, ml_score, threshold)
@@ -312,11 +327,21 @@ class DataPoisoningGuard:
 
         # ② Adversarial Perturbation Detection
         try:
-            from warden.brain.semantic import _load_model  # noqa: PLC0415
-            model = _load_model()
-            emb   = torch.tensor(
-                model.encode([content], convert_to_numpy=True, show_progress_bar=False)
-            )
+            if embedding is not None:
+                # The brain already embedded this exact string one stage ago.
+                # Same model, same text, same vector — cosine_similarity
+                # normalises both operands, so a normalised or unnormalised
+                # vector gives an identical result here.
+                emb = torch.as_tensor(embedding)
+                if emb.dim() == 1:
+                    emb = emb.unsqueeze(0)
+                emb = emb.float().cpu()
+            else:
+                from warden.brain.semantic import _load_model  # noqa: PLC0415
+                model = _load_model()
+                emb   = torch.tensor(
+                    model.encode([content], convert_to_numpy=True, show_progress_bar=False)
+                )
             corpus_emb = torch.as_tensor(self._guard._corpus_embeddings)
             if corpus_emb is not None and len(corpus_emb) >= 20:
                 sims = torch.nn.functional.cosine_similarity(
