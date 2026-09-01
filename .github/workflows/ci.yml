@@ -311,8 +311,10 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://api.shadow-warden-ai.com
           NEXT_PUBLIC_ANALYTICS_URL: https://api.shadow-warden-ai.com
-          NEXT_PUBLIC_GRAFANA_URL: http://91.98.234.160:3000
-          NEXT_PUBLIC_JAEGER_URL: http://91.98.234.160:16686
+          # OB-F21: deliberately empty. Both services are bound to 127.0.0.1
+          # on the host, so any value here is a link that 404s in a browser.
+          NEXT_PUBLIC_GRAFANA_URL: ""
+          NEXT_PUBLIC_JAEGER_URL: ""
 
       - name: Type check dashboard
         run: npx tsc --noEmit
