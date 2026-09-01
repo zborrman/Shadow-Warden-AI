@@ -246,6 +246,22 @@ asyncio_mode = "auto"
 # not reflect these numbers; treat it as aspirational, not a gate. Reducing
 # survivor counts is tracked as SR-7.3 follow-on work, module by module.
 #
+# Re-measured 2026-08-31 on d6c72653, with source_paths/test-selection narrowed to
+# causal_arbiter.py + test_causal_arbiter/test_causal_c1_guardrail/test_causal_online
+# (a stock python:3.11-slim container — these tests need only pytest, mutmut,
+# prometheus_client, pydantic and pydantic-settings; no torch, no ML model):
+# 652 mutants, 452 killed, 200 survived. causal_arbiter is therefore 405 -> 200
+# after #285/#286/#321 — not the 223 #285's title projected, since the two later
+# PRs killed more than they claimed. Survivors by function: calibrate_from_logs 96,
+# arbitrate 64, online_update 21, reliability_curve 14, _sigmoid 5. They are not
+# equivalent mutants: classifying each survivor by whether its added line only
+# touches a log.* call or a docstring gives 26 log-string-only vs 174
+# behaviour-changing (heuristic — 26 is a floor on the equivalents). The 174 are
+# mostly unasserted output shape (p_* rounding, the fail-open result's zeros)
+# rather than the anti-poisoning gate #321 closed. The other four modules have NOT been
+# re-measured since their own remediation PRs: treat 19 / 0 / 51 / 193 as their
+# last verified figures, not as current.
+#
 # ⚠️ Schema note (2026-08-02): warden/constraints.txt pins mutmut==3.6.0, which
 # dropped the 2.x `paths_to_mutate` (comma-string) / `runner` (shell command) /
 # `tests_dir` (string) keys — `mutmut run` crashed with a TypeError on any
