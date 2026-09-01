@@ -1128,6 +1128,33 @@ try:
             "warden_filter_duration_seconds"
         ))
 
+    # ── Poison-guard embedding reuse ─────────────────────────────────────────
+    # Incremented by main.py on every /filter request, labelled with whether the
+    # DataPoisoningGuard was able to reuse the brain's query vector.
+    #
+    # The reuse removes a second MiniLM encode of text the brain just embedded —
+    # 98% of that stage, measured. But it is *conditional*: the guard falls back
+    # to encoding for itself whenever the vector does not belong to the exact
+    # content (SemanticGuard strips an adversarial suffix before embedding). The
+    # fallback is correct and silent, which is the problem: "the optimisation is
+    # live" and "the optimisation is working" looked identical from outside, and
+    # answering it took an SSH session into the container. This counter makes it
+    # a question the dashboard answers.
+    #
+    #   reused="yes"          vector handed over and used
+    #   reused="text_differs" suffix strip changed the text — correct fallback
+    #   reused="no_vector"    the brain returned none, which should not happen
+    try:
+        POISON_EMBEDDING_REUSE_TOTAL = Counter(
+            "warden_poison_embedding_reuse_total",
+            "Whether the poison guard reused the brain's query vector",
+            ["reused"],
+        )
+    except ValueError:
+        POISON_EMBEDDING_REUSE_TOTAL = cast(Counter, REGISTRY._names_to_collectors.get(
+            "warden_poison_embedding_reuse_total"
+        ))
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -1222,3 +1249,4 @@ except ImportError:
     ARQ_JOB_LAST_SUCCESS            = _Noop()  # type: ignore[assignment]
     FILTER_STAGE_DURATION_SECONDS   = cast("Histogram", _Noop())
     FILTER_DURATION_SECONDS         = cast("Histogram", _Noop())
+    POISON_EMBEDDING_REUSE_TOTAL    = cast("Counter", _Noop())
