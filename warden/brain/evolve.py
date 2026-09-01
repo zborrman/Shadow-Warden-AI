@@ -381,6 +381,40 @@ def _is_rate_limited() -> bool:
 
 # ── Pydantic schema — what Claude must return ─────────────────────────────────
 
+def _strict_json_schema(schema: dict) -> dict:
+    """Set ``additionalProperties: false`` on every object in a JSON schema.
+
+    The Anthropic API rejects a structured-output schema without it::
+
+        400 invalid_request_error — output_config.format.schema:
+        For 'object' type, 'additionalProperties' must be explicitly set to false
+
+    Pydantic does not emit the key unless a model declares ``extra="forbid"``,
+    so `EvolutionResponse.model_json_schema()` produced a schema the API would
+    not accept — at the top level and inside ``$defs``. Every Evolution call
+    therefore failed with a 400 and the engine has never produced a rule.
+
+    Done recursively rather than on the two known objects, because the failure
+    is silent from the caller's side: a nested model added later would
+    reintroduce it, and the only symptom is a counter going up.
+    """
+    if not isinstance(schema, dict):
+        return schema
+    out = dict(schema)
+    if out.get("type") == "object":
+        out["additionalProperties"] = False
+    for key in ("properties", "$defs", "definitions", "patternProperties"):
+        if isinstance(out.get(key), dict):
+            out[key] = {k: _strict_json_schema(v) for k, v in out[key].items()}
+    for key in ("items", "additionalItems", "not"):
+        if isinstance(out.get(key), dict):
+            out[key] = _strict_json_schema(out[key])
+    for key in ("anyOf", "oneOf", "allOf", "prefixItems"):
+        if isinstance(out.get(key), list):
+            out[key] = [_strict_json_schema(v) for v in out[key]]
+    return out
+
+
 class NewRule(BaseModel):
     rule_type:   Literal["semantic_example", "regex_pattern"] = Field(
         ..., description=(
@@ -1060,7 +1094,7 @@ class EvolutionEngine:
             output_config={
                 "format": {
                     "type":   "json_schema",
-                    "schema": EvolutionResponse.model_json_schema(),
+                    "schema": _strict_json_schema(EvolutionResponse.model_json_schema()),
                 }
             },
         ) as stream:
