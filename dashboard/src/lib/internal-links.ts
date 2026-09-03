@@ -59,43 +59,35 @@ const UNREACHABLE = new Set([
   "localhost", "127.0.0.1", "0.0.0.0", "::1",
 ]);
 
-/** Loopback, private, link-local and metadata literals, v4 and v6. */
-function isNonPublicAddress(host: string): boolean {
-  // `new URL("http://[::1]:3000").hostname` is "[::1]" — WITH the brackets. A
-  // set membership test against "::1" therefore never matched, which is how
-  // IPv6 loopback slipped through the first version of this check.
-  const bare = host.startsWith("[") && host.endsWith("]")
-    ? host.slice(1, -1).toLowerCase()
-    : host.toLowerCase();
-
-  if (bare.includes(":")) {
-    // IPv6: ::1 loopback, fe80::/10 link-local, fc00::/7 unique-local, ::
-    return (
-      bare === "::1" ||
-      bare === "::" ||
-      bare.startsWith("fe8") || bare.startsWith("fe9") ||
-      bare.startsWith("fea") || bare.startsWith("feb") ||
-      bare.startsWith("fc") || bare.startsWith("fd")
-    );
-  }
-
-  const octets = bare.split(".");
-  if (octets.length !== 4 || !octets.every(o => /^\d{1,3}$/.test(o))) return false;
-  const [a, b] = octets.map(Number);
-  if (octets.map(Number).some(n => n > 255)) return true;   // malformed -> closed
-  if (a === 127 || a === 0) return true;                    // loopback, unspecified
-  if (a === 10) return true;                                // private
-  if (a === 172 && b >= 16 && b <= 31) return true;         // private
-  if (a === 192 && b === 168) return true;                  // private
-  if (a === 169 && b === 254) return true;                  // link-local + metadata
-  return false;
-}
+/** Any IPv4 literal, in the dotted form `URL` canonicalises everything into. */
+const IPV4_LITERAL = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 /**
- * Fail closed: anything not positively recognised as a public host is treated
- * as unpublished, and the tunnel line is shown instead. Being wrong in that
- * direction costs a reader one extra step; being wrong the other way puts back
- * the dead link this whole change removes.
+ * Fail closed: only a dotted DNS name counts as published. Anything else shows
+ * the tunnel line instead. Being wrong in that direction costs a reader one
+ * extra step; being wrong the other way puts back the dead link this whole
+ * change removes.
+ *
+ * The first version enumerated the non-public ranges — loopback, RFC1918,
+ * link-local — and two forms walked straight past it, both found in review:
+ *
+ *   http://[::ffff:127.0.0.1]  `URL` canonicalises the hostname to
+ *                              `[::ffff:7f00:1]`, which matches none of the v6
+ *                              prefixes the list checked. Loopback, accepted.
+ *   http://localhost.          the trailing dot is the fully-qualified form of
+ *                              the same name. It is not in the deny-list, and
+ *                              it contains a dot, so it passed the DNS-name
+ *                              test as well.
+ *
+ * Enumerating what to reject is the wrong shape for this: every new
+ * representation of the same address is another gap. So the rule inverts —
+ * name what is allowed. A service published behind Cloudflare Access has a DNS
+ * name; an address literal here means somebody is pointing at infrastructure
+ * directly, which is the case this file exists to catch.
+ *
+ * Consequence, deliberately accepted: a service genuinely published on a bare
+ * public IP renders as the tunnel line. That is a real if unlikely
+ * configuration, and it costs one DNS record to fix.
  */
 function isPublished(url: string): boolean {
   let parsed: URL;
@@ -106,16 +98,17 @@ function isPublished(url: string): boolean {
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
 
-  const host = parsed.hostname;
+  let host = parsed.hostname.toLowerCase();
+  // `example.com.` and `example.com` are the same name. Normalise before every
+  // comparison below, or the trailing-dot form skips all of them.
+  if (host.endsWith(".")) host = host.slice(0, -1);
   if (host === "") return false;
-  if (UNREACHABLE.has(host.toLowerCase())) return false;
-  if (isNonPublicAddress(host)) return false;
 
-  // A single-label host — `grafana`, `jaeger`, `my-box` — resolves only inside
-  // the Docker network or someone's search domain, never from a browser on the
-  // internet. A published service has a dotted name.
-  if (!host.includes(".") && !host.startsWith("[")) return false;
-
+  if (UNREACHABLE.has(host)) return false;
+  if (host.startsWith("[")) return false;        // any IPv6 literal
+  if (IPV4_LITERAL.test(host)) return false;     // any IPv4 literal
+  if (!host.includes(".")) return false;         // single-label: Docker, or a
+                                                 // search domain — never public
   return true;
 }
 
