@@ -199,6 +199,26 @@ def test_a_published_url_is_validated_not_merely_non_empty() -> None:
             "internal-links.ts, so a URL naming it would render as a live link."
         )
 
+    # A name list is inherently incomplete, so the classifier matters more than
+    # the list. Verified against real node on 2026-09-03, 16 cases: bracketed
+    # IPv6 loopback, the RFC1918 ranges, 169.254 link-local/metadata, non-http
+    # schemes and unparseable strings all fall back to the tunnel, while
+    # https://grafana.shadow-warden-ai.com and a public IP stay links.
+    #
+    # `[::1]` is the one worth naming: `new URL("http://[::1]:3000").hostname`
+    # keeps the brackets, so the first version's `Set.has("::1")` never matched.
+    assert "function isNonPublicAddress" in src, (
+        "the address classifier is gone from internal-links.ts. Without it the "
+        "check is a deny-list of names, and every private, link-local or "
+        "IPv6-loopback literal renders as a working link."
+    )
+    for marker in ('startsWith("[")', "169", "192", "172", "127"):
+        assert marker in src, (
+            f"internal-links.ts no longer mentions {marker!r} — the classifier "
+            "has been narrowed. It must fail closed: anything not positively "
+            "recognised as a public host shows the tunnel line instead."
+        )
+
 
 def test_every_public_build_variable_is_a_docker_build_arg() -> None:
     """Next inlines NEXT_PUBLIC_* at build time; runtime env never reaches it.

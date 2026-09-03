@@ -47,12 +47,56 @@ const LOOPBACK_PORT: Record<string, number> = {
  */
 const SSH_HOST = "root@<host>";
 
-/** Hosts a visitor's browser can never reach, whatever the variable says. */
+/**
+ * Named hosts a visitor's browser can never reach, whatever the variable says.
+ *
+ * Kept for legibility — the single-label rule below already covers every one of
+ * them, since a Docker service name has no dot. Both exist because this list
+ * says *why* out loud, and the rule catches the ones nobody thought to list.
+ */
 const UNREACHABLE = new Set([
   "grafana", "jaeger", "prometheus", "loki", "minio", "warden", "analytics",
   "localhost", "127.0.0.1", "0.0.0.0", "::1",
 ]);
 
+/** Loopback, private, link-local and metadata literals, v4 and v6. */
+function isNonPublicAddress(host: string): boolean {
+  // `new URL("http://[::1]:3000").hostname` is "[::1]" — WITH the brackets. A
+  // set membership test against "::1" therefore never matched, which is how
+  // IPv6 loopback slipped through the first version of this check.
+  const bare = host.startsWith("[") && host.endsWith("]")
+    ? host.slice(1, -1).toLowerCase()
+    : host.toLowerCase();
+
+  if (bare.includes(":")) {
+    // IPv6: ::1 loopback, fe80::/10 link-local, fc00::/7 unique-local, ::
+    return (
+      bare === "::1" ||
+      bare === "::" ||
+      bare.startsWith("fe8") || bare.startsWith("fe9") ||
+      bare.startsWith("fea") || bare.startsWith("feb") ||
+      bare.startsWith("fc") || bare.startsWith("fd")
+    );
+  }
+
+  const octets = bare.split(".");
+  if (octets.length !== 4 || !octets.every(o => /^\d{1,3}$/.test(o))) return false;
+  const [a, b] = octets.map(Number);
+  if (octets.map(Number).some(n => n > 255)) return true;   // malformed -> closed
+  if (a === 127 || a === 0) return true;                    // loopback, unspecified
+  if (a === 10) return true;                                // private
+  if (a === 172 && b >= 16 && b <= 31) return true;         // private
+  if (a === 192 && b === 168) return true;                  // private
+  if (a === 169 && b === 254) return true;                  // link-local + metadata
+  return false;
+}
+
+/**
+ * Fail closed: anything not positively recognised as a public host is treated
+ * as unpublished, and the tunnel line is shown instead. Being wrong in that
+ * direction costs a reader one extra step; being wrong the other way puts back
+ * the dead link this whole change removes.
+ */
 function isPublished(url: string): boolean {
   let parsed: URL;
   try {
@@ -61,8 +105,18 @@ function isPublished(url: string): boolean {
     return false;
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-  if (parsed.hostname === "") return false;
-  return !UNREACHABLE.has(parsed.hostname.toLowerCase());
+
+  const host = parsed.hostname;
+  if (host === "") return false;
+  if (UNREACHABLE.has(host.toLowerCase())) return false;
+  if (isNonPublicAddress(host)) return false;
+
+  // A single-label host — `grafana`, `jaeger`, `my-box` — resolves only inside
+  // the Docker network or someone's search domain, never from a browser on the
+  // internet. A published service has a dotted name.
+  if (!host.includes(".") && !host.startsWith("[")) return false;
+
+  return true;
 }
 
 export function internalLink(service: string, url: string | undefined): InternalLink {
