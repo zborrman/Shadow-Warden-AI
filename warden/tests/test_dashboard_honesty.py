@@ -176,6 +176,28 @@ def test_a_file_the_scanner_cannot_parse_is_reported_not_passed() -> None:
     )
 
 
+def test_an_unterminated_template_is_reported_too() -> None:
+    """CodeRabbit round 2 on #443: the fail-closed rule covered only quotes.
+
+    `_scan_quote` recorded an opener that never closed; `_scan_template` did
+    not. So an unterminated backtick blanked the rest of the file and the file
+    was still reported clean — the same hole as the quote one, one character
+    different. Fixing half of a symmetric pair is its own failure mode.
+
+    A fallback inside `${...}` before the break must still be found, so the
+    diagnostic is not masking real detection.
+    """
+    src = "const a = `${x ?? MOCK_STATS}`;\nconst b = `unterminated\nconst c = y ?? 42;\n"
+    problems = check_file(_FAKE, src)
+
+    assert any("could not parse" in p for p in problems), (
+        f"an unterminated template literal was not reported: {problems}"
+    )
+    assert any("MOCK_STATS" in p for p in problems), (
+        f"the interpolated fallback before the break went unfound: {problems}"
+    )
+
+
 def test_a_comment_about_this_rule_does_not_trip_it() -> None:
     """The guard's own explanatory comments must not be findings."""
     assert not check_file(_FAKE, "// never write: const s = stats ?? MOCK_STATS;\n")

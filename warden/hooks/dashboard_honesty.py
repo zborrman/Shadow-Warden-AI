@@ -113,7 +113,13 @@ def _scan_template(src: str, out: list[str], i: int, unclosed: list[int]) -> int
     guard's red run came back clean on the one page I already knew was broken.
     A checker whose blind spot is where the code actually lives is the failure
     this whole change is about.
+
+    Like `_scan_quote`, it records an opener that never closes. That symmetry
+    was missing for one round: the fail-closed diagnostic was added to quotes
+    and not to templates, so an unterminated backtick still blanked the rest of
+    a file and reported it clean — the same hole, one character different.
     """
+    opened = i
     i += 1
     n = len(src)
     while i < n:
@@ -131,6 +137,7 @@ def _scan_template(src: str, out: list[str], i: int, unclosed: list[int]) -> int
         if src[i] != "\n":
             out[i] = " "
         i += 1
+    unclosed.append(opened)
     return i
 
 

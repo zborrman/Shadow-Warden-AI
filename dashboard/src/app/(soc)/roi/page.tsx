@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Shield, Key, Ban, TrendingUp, ChevronDown } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { api, type RoiResponse } from "@/lib/api";
+import { formatMonthly, monthlyPriceUsd } from "@/lib/pricing";
 import { fmtUsd, cn } from "@/lib/utils";
 
 const INDUSTRIES = [
@@ -91,9 +92,10 @@ export default function RoiPage() {
   // for a short window overstates the multiple. Pro-rate the cost to the same
   // window rather than extrapolating the savings, which would be one more
   // model on top.
-  // warden/billing/pricing.py:41 is canonical. This page divided by 69, which
-  // is not the Pro price and inflated every ROI multiple by ~45%.
-  const PRO_MONTHLY_USD = 99.99;
+  // From the shared mirror of warden/billing/pricing.py. This page divided by
+  // a typed 69, which is not the Pro price, and inflated every ROI multiple by
+  // about 45% against what the customer is actually charged.
+  const PRO_MONTHLY_USD = monthlyPriceUsd("pro");
   const headline = gateway ? gateway.total_estimated_roi_usd : calc.total_roi;
   // Pro-rate the price to the gateway's own window (30 = days per billing
   // month). Extrapolating the savings to a month instead would be one more
@@ -247,7 +249,7 @@ export default function RoiPage() {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={14} className="text-accent-cyan" />
             <p className="text-sm font-semibold text-white">ROI Multiplier</p>
-            <span className="ml-auto text-[10px] text-gray-600">Pro plan · $99.99/mo</span>
+            <span className="ml-auto text-[10px] text-gray-600">Pro plan · {formatMonthly("pro")}</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
