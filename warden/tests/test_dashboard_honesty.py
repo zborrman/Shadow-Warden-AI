@@ -198,6 +198,55 @@ def test_an_unterminated_template_is_reported_too() -> None:
     )
 
 
+def test_page_copy_is_not_mistaken_for_a_comment() -> None:
+    """CodeRabbit round 4 on #443: the fifth fail-open in this guard.
+
+    `//` and `/*` were treated as comment openers wherever they appeared, so
+    ordinary page copy blanked the code around it:
+
+        <p>/* {stats ?? MOCK_STATS} */</p>
+        <p>see https://example.com {stats ?? MOCK_STATS}</p>
+
+    JSX text cannot be told from code by inspection — `useQuery<BIUsage>(` and
+    `a < b` share a shape — so the openers are narrowed to the positions this
+    codebase writes comments in rather than parsed. The remaining error is
+    pushed to the loud side: an unrecognised comment produces a spurious
+    finding; an unrecognised piece of text would produce silence.
+    """
+    for copy in (
+        "<p>/* {stats ?? MOCK_STATS} */</p>",
+        "<p>see https://example.com {stats ?? MOCK_STATS}</p>",
+        "<p>a//b {stats ?? MOCK_STATS}</p>",
+    ):
+        assert any("MOCK_STATS" in x for x in check_file(_FAKE, copy)), (
+            f"check_file() blanked {copy!r} as a comment. That is page copy, "
+            "and the fallback between the markers went unchecked."
+        )
+
+    for real in (
+        "// never write: const s = stats ?? MOCK_STATS;",
+        "/* MOCK_STATS was removed here */",
+        "{/* MOCK_STATS was removed here */}",
+        "const x = /* MOCK_STATS */ 5;",
+    ):
+        assert not check_file(_FAKE, real), (
+            f"check_file() flagged {real!r}, which is a comment. A guard that "
+            "fires on its own documentation gets switched off."
+        )
+
+
+def test_an_unterminated_block_comment_is_reported_too() -> None:
+    """Third member of the fail-closed set, after quotes and templates.
+
+    Each was added one at a time, and each gap was found by review rather than
+    by me noticing the set was incomplete.
+    """
+    problems = check_file(_FAKE, "/* opened and never closed\nconst s = x ?? MOCK_STATS;\n")
+    assert any("could not parse" in x for x in problems), (
+        f"an unterminated block comment was not reported: {problems}"
+    )
+
+
 def test_a_comment_about_this_rule_does_not_trip_it() -> None:
     """The guard's own explanatory comments must not be findings."""
     assert not check_file(_FAKE, "// never write: const s = stats ?? MOCK_STATS;\n")

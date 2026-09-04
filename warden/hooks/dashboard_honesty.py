@@ -176,6 +176,42 @@ def _opens_a_string(src: str, i: int) -> bool:
     return i == 0 or src[i - 1] not in _VALUE_END
 
 
+#: A `//` here is not a comment opener. `https://x` and `a//b` are JSX text,
+#: and blanking from there to end of line hid whatever followed.
+_NOT_BEFORE_LINE_COMMENT = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$:/"
+)
+
+#: A `/*` opens a block comment only in these positions. In this codebase a
+#: block comment is either `{/* ... */}` (the only JSX comment syntax there is),
+#: at the start of a line, or inline after an operator. `<p>/* text */</p>` is
+#: none of those — and blanking it hid `{stats ?? MOCK_STATS}` between the
+#: markers, which is a fail-open written in ordinary page copy.
+_BEFORE_BLOCK_COMMENT = set("{(,;=")
+
+
+def _opens_a_comment(src: str, i: int) -> bool:
+    """Whether `src[i:i+2]` is a comment opener rather than page text.
+
+    Neither JSX text nor TypeScript generics can be told apart from code by
+    inspection alone — `useQuery<BIUsage>(` and `a < b` share a shape — so this
+    does not try to parse JSX. It narrows the openers to the positions this
+    codebase actually writes comments in, and treats every other `//` or `/*`
+    as text. The direction of the remaining error matters: an unrecognised
+    comment produces a spurious finding, which is loud; an unrecognised piece of
+    text produces a blanked region, which is silent.
+    """
+    if src.startswith("//", i):
+        return i == 0 or src[i - 1] not in _NOT_BEFORE_LINE_COMMENT
+    line_start = src.rfind("\n", 0, i) + 1
+    if not src[line_start:i].strip():
+        return True
+    j = i - 1
+    while j >= 0 and src[j] in " \t":
+        j -= 1
+    return j >= 0 and src[j] in _BEFORE_BLOCK_COMMENT
+
+
 def _scan_code(
     src: str, out: list[str], i: int, unclosed: list[int],
     stop_on_close_brace: bool = False,
@@ -191,17 +227,24 @@ def _scan_code(
             i = _scan_quote(src, out, i, ch, unclosed, blank_strings)
         elif ch in "\"'":
             i += 1
-        elif src.startswith("//", i):
+        elif src.startswith("//", i) and _opens_a_comment(src, i):
             while i < n and src[i] != "\n":
                 out[i] = " "
                 i += 1
-        elif src.startswith("/*", i):
+        elif src.startswith("/*", i) and _opens_a_comment(src, i):
+            opened = i
             while i < n and not src.startswith("*/", i):
                 if src[i] != "\n":
                     out[i] = " "
                 i += 1
+            if i >= n:
+                # Fail closed, as for an unterminated quote: the rest of the
+                # file was blanked and every rule silently passed on it.
+                unclosed.append(opened)
             for j in range(i, min(i + 2, n)):
                 out[j] = " "
+            i += 2
+        elif src.startswith(("//", "/*"), i):
             i += 2
         elif ch == "{":
             depth += 1

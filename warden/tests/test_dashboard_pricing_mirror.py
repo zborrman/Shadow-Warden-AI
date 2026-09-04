@@ -174,6 +174,17 @@ def test_the_price_scanner_reads_what_the_browser_renders() -> None:
             "price the page did not read from the mirror."
         )
 
+    # Page copy is not a comment: `//` in a URL and `/*` in JSX text used to
+    # blank the rest of the region, hiding a rendered price between the markers.
+    for in_copy in (
+        '<p>/* $99.99/mo */</p>',
+        '<p>see https://x — $99.99/mo</p>',
+    ):
+        assert flags(in_copy), (
+            f"the scanner treated {in_copy!r} as a comment. It is page copy, "
+            "and the price in it is rendered to the operator."
+        )
+
     for benign in (
         "// Pro is $99.99/mo — see warden/billing/pricing.py",
         "/* $99.99 */",
