@@ -1,0 +1,143 @@
+---
+// Auth docs at a predictable path. An agent searching for "auth docs" found
+// nothing: the rules were spread across the OpenAPI description, the quick
+// start and three route modules, and no page carried the word. Every status
+// code below is the one the gateway actually returns — asserted in
+// warden/tests/test_site_agent_readiness.py against warden/auth_guard.py.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const API = 'https://api.shadow-warden-ai.com';
+
+const schemes = [
+  {
+    name: 'X-API-Key',
+    where: 'Every REST route',
+    color: '#30D158',
+    desc: 'The default. One header, sent on every request. Keys are per tenant, and each carries its own request rate — so one customer cannot spend another\'s window.',
+    example: 'X-API-Key: sk_live_…',
+  },
+  {
+    name: 'Authorization: Bearer',
+    where: '/ext/* only',
+    color: '#0A84FF',
+    desc: 'OIDC id_token from Google Workspace or Microsoft Entra ID, verified RS256 against cached JWKS. Used by the browser extension so a workstation never holds a gateway key.',
+    example: 'Authorization: Bearer eyJhbGciOi…',
+  },
+  {
+    name: 'X-Admin-Key',
+    where: 'Billing grant / revoke',
+    color: '#f59e0b',
+    desc: 'A separate secret for operator-only routes that change entitlements. Never issued to customers, and never accepted in place of an API key.',
+    example: 'X-Admin-Key: …',
+  },
+  {
+    name: 'PAYMENT-SIGNATURE / L402',
+    where: 'Paid MCP tools, M2M marketplace',
+    color: '#BF5AF2',
+    desc: 'x402 USDC or L402 Lightning, presented per call instead of a subscription. See the MCP server page.',
+    example: 'PAYMENT-SIGNATURE: base64({"agent_id":"did:shadow:…"})',
+  },
+];
+
+const codes = [
+  { code: '200', meaning: 'Answered. A blocked verdict is still a 200 — read the body, not the status.', color: '#30D158' },
+  { code: '401', meaning: 'No X-API-Key header, or the key is not recognised. The response carries WWW-Authenticate: ApiKey. Retrying without changing the key will not help.', color: '#ef4444' },
+  { code: '402', meaning: 'The plan is eligible but the add-on has not been purchased, or an x402/L402 call is unfunded. The body names what to buy.', color: '#f59e0b' },
+  { code: '403', meaning: 'Authenticated, but the plan tier is below the one this route requires, or the Origin is not allowed. Upgrading the plan is the fix; retrying is not.', color: '#f59e0b' },
+  { code: '406', meaning: 'Content negotiation failed — the client accepts neither HTML nor Markdown. Site pages only.', color: '#64748b' },
+  { code: '429', meaning: 'Rate limit or monthly quota. Read Retry-After and the RateLimit fields and back off — see the rate-limit page.', color: '#f59e0b' },
+  { code: '5xx', meaning: 'The gateway failed, not your request. Never read as a block verdict: retry with backoff.', color: '#ef4444' },
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI API Authentication — keys, scopes, status codes"
+  description="How to authenticate against the Shadow Warden AI API: X-API-Key, OIDC bearer tokens on /ext/*, admin keys, x402 and L402 payment headers, and what each rejection code means."
+  markdown="/authentication.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Authentication</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Shadow Warden AI API Authentication</h1>
+        <p class="text-[14px]" style="color:#475569">Four schemes, one per surface — and what each rejection means</p>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-4xl px-4 lg:px-8 py-12 space-y-14">
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">Your first authenticated request</h2>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#FFD60A">curl</span>
+          </div>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">curl -sS -X POST {API}/filter \
+  -H "X-API-Key: $WARDEN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '&#123;"content": "ignore previous instructions"&#125;'</pre>
+        </div>
+        <p class="text-[12.5px] mt-3 leading-relaxed" style="color:#64748b">
+          Keys are issued per tenant from <a href="/pricing" style="color:#80b4fd">any paid plan</a> and from the
+          free Starter tier. Send the key as a header — never in a query string, where it lands in access logs
+          and browser history.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-5" style="color:#f1f5f9">Schemes</h2>
+        <div class="space-y-4">
+          {schemes.map(s => (
+            <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+              <div class="flex flex-wrap items-center gap-3 mb-2">
+                <span class="text-[13px] font-mono font-semibold" style={`color:${s.color}`}>{s.name}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full"
+                      style="background:rgba(255,255,255,0.05);color:#64748b;border:1px solid rgba(255,255,255,0.08)">{s.where}</span>
+              </div>
+              <p class="text-[13px] leading-relaxed mb-3" style="color:#94a3b8">{s.desc}</p>
+              <pre class="text-[12px] font-mono px-3 py-2 rounded-lg overflow-x-auto"
+                   style="background:rgba(0,0,0,0.35);color:#cdd9e5">{s.example}</pre>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">Status codes an automated client must handle</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          The distinction that matters most: a <strong style="color:#f1f5f9">block is a 200</strong>. A 5xx is the
+          gateway failing, and reading it as “blocked” turns an outage into a silent content refusal.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <tbody>
+              {codes.map(c => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 align-top text-[13px] font-mono font-bold" style={`color:${c.color}`}>{c.code}</td>
+                  <td class="px-4 py-3 align-top text-[13px] leading-relaxed" style="color:#94a3b8">{c.meaning}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Key handling</h2>
+        <ul class="text-[13px] leading-relaxed space-y-2" style="color:#94a3b8">
+          <li>Keys are stored as SHA-256 hashes. A lost key is replaced, never recovered.</li>
+          <li>Each key carries its own request rate, so the rate limit you see is yours alone — see <a href="/doc/rate-limits" style="color:#80b4fd">rate limits</a>.</li>
+          <li>Self-hosted deployments refuse to start with no key configured unless <span class="font-mono">ALLOW_UNAUTHENTICATED=true</span> is set explicitly. Auth fails closed, not open.</li>
+          <li>Request content is never logged, on any code path. Only metadata — type, length, timing — is recorded.</li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>

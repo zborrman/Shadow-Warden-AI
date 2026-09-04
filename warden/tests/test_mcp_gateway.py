@@ -17,6 +17,8 @@ os.environ.setdefault("X402_GATE_ENABLED", "false")   # gate off → all calls p
 
 from fastapi.testclient import TestClient
 
+from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS
+
 
 @pytest.fixture()
 def client():
@@ -36,7 +38,11 @@ class TestMcpDiscovery:
         r = client.get("/mcp/")
         assert r.status_code == 200
         data = r.json()
-        assert data["protocol"] == "2024-11-05"
+        # The endpoint advertises the newest revision it implements and lists
+        # the older ones it still answers, rather than pinning one string.
+        assert data["protocol"] == SUPPORTED_PROTOCOL_VERSIONS[0]
+        assert "2024-11-05" in data["protocol_versions"]
+        assert data["transport"] == "streamable-http"
         assert data["tools_count"] > 0
         assert "billing" in data
 
@@ -48,9 +54,35 @@ class TestMcpDiscovery:
         }))
         assert r.status_code == 200
         body = r.json()
+        # A supported version the client asked for is echoed back, not upgraded.
         assert body["result"]["protocolVersion"] == "2024-11-05"
+        assert r.headers["MCP-Protocol-Version"] == "2024-11-05"
         assert "tools" in body["result"]["capabilities"]
-        assert body["result"]["serverInfo"]["name"] == "shadow-warden-staff-tools"
+        assert body["result"]["serverInfo"]["name"] == "shadow-warden"
+
+    def test_an_unsupported_version_falls_back_to_the_newest(self, client: TestClient) -> None:
+        """An initialization-based server answers with what it does support."""
+        r = client.post("/mcp/", json=rpc("initialize", {"protocolVersion": "1999-01-01"}))
+        assert r.json()["result"]["protocolVersion"] == SUPPORTED_PROTOCOL_VERSIONS[0]
+
+    def test_get_is_405_for_a_client_asking_for_a_stream(self, client: TestClient) -> None:
+        """
+        Streamable HTTP reserves GET for the SSE stream. This endpoint has none,
+        so a conforming client must get 405 — not a JSON blob it cannot parse as
+        a JSON-RPC message.
+        """
+        r = client.get("/mcp/", headers={"Accept": "text/event-stream"})
+        assert r.status_code == 405
+        assert r.headers["Allow"] == "POST"
+
+    def test_a_foreign_browser_origin_is_refused(self, client: TestClient) -> None:
+        """DNS-rebinding protection: an invalid Origin is 403, per the transport."""
+        r = client.post("/mcp/", headers={"Origin": "https://evil.example"}, json=rpc("ping"))
+        assert r.status_code == 403
+
+    def test_no_origin_is_a_server_to_server_call(self, client: TestClient) -> None:
+        """Every MCP client and every curl sends none. They must not be blocked."""
+        assert client.post("/mcp/", json=rpc("ping")).status_code == 200
 
     def test_ping(self, client: TestClient) -> None:
         r = client.post("/mcp/", json=rpc("ping"))

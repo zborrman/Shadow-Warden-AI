@@ -1,0 +1,197 @@
+---
+// The developer portal. It exists because an agent looking for "developer
+// portal", "auth docs" or "MCP server" by name found six marketing pages and no
+// recognisable developer-resource type: the material was real but scattered
+// across /doc, /sdk, /agentic and a set of well-known URLs nothing linked
+// together. This page is the single predictable entry point, and every row on
+// it is a URL that answers — the resources table is asserted, link by link, in
+// warden/tests/test_site_agent_readiness.py.
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const API = 'https://api.shadow-warden-ai.com';
+
+const guides = [
+  { title: 'Quick start',    href: '/doc/quick-start',     icon: '🚀', color: '#10b981', desc: 'Docker Compose to first filtered request. Copy-paste curl included.' },
+  { title: 'Authentication', href: '/doc/authentication',  icon: '🔑', color: '#f59e0b', desc: 'X-API-Key, OIDC bearer on /ext/*, admin keys, and what each rejection code means.' },
+  { title: 'Rate limits',    href: '/doc/rate-limits',     icon: '⏱️', color: '#38bdf8', desc: 'The RateLimit header contract every response carries, and how to pace against it.' },
+  { title: 'API reference',  href: '/doc/api-reference',   icon: '📡', color: '#80b4fd', desc: 'Endpoint reference, rendered from the same OpenAPI document the gateway serves.' },
+  { title: 'SDKs & CLI',     href: '/sdk',                 icon: '📦', color: '#30D158', desc: 'Python and TypeScript clients, plus the warden console script and its exit codes.' },
+  { title: 'MCP server',     href: '/mcp',                 icon: '🔌', color: '#BF5AF2', desc: 'Call the gateway as tools from Claude, ChatGPT or any MCP client over Streamable HTTP.' },
+];
+
+// Machine-readable surfaces. `where` says which host answers, because the site
+// and the gateway are different origins and guessing wrong costs a round trip.
+const machine = [
+  { name: 'OpenAPI 3.1 document', url: '/openapi.json',                        where: 'site + gateway', desc: 'Every REST path, schema and security scheme. Carries a servers block, so a client does not have to infer the base URL.' },
+  { name: 'llms.txt',             url: '/llms.txt',                            where: 'site',           desc: 'What this product is, when to reach for it, and the honesty notes.' },
+  { name: 'Agent instructions',   url: '/.well-known/agent-instructions.md',   where: 'site',           desc: 'Best-fit jobs, what this is not, and the status codes an agent must handle.' },
+  { name: 'Agent card (A2A/ADP)', url: '/.well-known/agent.json',              where: 'site → gateway', desc: 'Capability manifest for agent-to-agent discovery.' },
+  { name: 'MCP manifest',         url: '/.well-known/mcp.json',                where: 'site → gateway', desc: 'MCP server descriptor: endpoint, transport, auth schemes, tool list.' },
+  { name: 'Marketplace manifest', url: '/.well-known/ai-market.json',          where: 'site → gateway', desc: 'M2M marketplace descriptor: registration, KYA, payment rails.' },
+  { name: 'DID document',         url: '/.well-known/did.json',                where: 'site',           desc: 'did:web identity for the publisher of the above.' },
+  { name: 'Sitemap',              url: '/sitemap-index.xml',                   where: 'site',           desc: 'Every page, for crawlers that would rather not guess.' },
+];
+
+const endpoints = [
+  { method: 'POST', path: '/filter',                 auth: 'X-API-Key', desc: 'Run text through the nine-stage pipeline. Returns a verdict, a score and the deciding stage.' },
+  { method: 'POST', path: '/filter/batch',           auth: 'X-API-Key', desc: 'The same, for up to 100 items in one call.' },
+  { method: 'GET',  path: '/health',                 auth: 'none',      desc: 'Liveness, version and pipeline readiness.' },
+  { method: 'GET',  path: '/xai/explain/{id}',       auth: 'X-API-Key', desc: 'The causal chain behind one decision, by request id.' },
+  { method: 'POST', path: '/v1/chat/completions',    auth: 'X-API-Key', desc: 'OpenAI-compatible proxy. Every message is filtered before it reaches the model.' },
+  { method: 'POST', path: '/mcp/',                   auth: 'see /mcp',  desc: 'MCP Streamable HTTP transport, JSON-RPC 2.0.' },
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI Developer Portal — APIs, SDKs, MCP"
+  description="Developer portal for Shadow Warden AI: OpenAPI 3.1 reference, authentication, rate limits, Python and TypeScript SDKs, the warden CLI, and the MCP server."
+  markdown="/developers.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Developers</span>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+               style="background:rgba(128,180,253,.15);color:#80b4fd;font-size:18px">◧</div>
+          <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Shadow Warden AI Developer Portal</h1>
+        </div>
+        <p class="text-[15px] max-w-2xl" style="color:#94a3b8">
+          One entry point for everything programmatic: the REST API and its OpenAPI document,
+          authentication, the rate-limit contract, the SDKs and CLI, and the MCP server.
+          Every URL on this page answers — nothing here is aspirational.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="/openapi.json" class="text-[12px] px-3 py-1.5 rounded-lg font-semibold no-underline"
+             style="background:#80b4fd;color:#03050F">OpenAPI 3.1</a>
+          <a href="/llms.txt" class="text-[12px] px-3 py-1.5 rounded-lg font-semibold no-underline"
+             style="background:rgba(255,255,255,0.06);color:#cbd5e1;border:1px solid rgba(255,255,255,0.1)">llms.txt</a>
+          <a href="/mcp" class="text-[12px] px-3 py-1.5 rounded-lg font-semibold no-underline"
+             style="background:rgba(255,255,255,0.06);color:#cbd5e1;border:1px solid rgba(255,255,255,0.1)">MCP server</a>
+          <a href="/developers.md" class="text-[12px] px-3 py-1.5 rounded-lg font-semibold no-underline"
+             style="background:rgba(255,255,255,0.06);color:#cbd5e1;border:1px solid rgba(255,255,255,0.1)">This page as Markdown</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12 space-y-14">
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-5" style="color:#f1f5f9">Guides</h2>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {guides.map(d => (
+            <a href={d.href}
+               class="group block rounded-xl p-6 transition-all duration-200 no-underline"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+               onmouseover={`this.style.borderColor='${d.color}40';this.style.transform='translateY(-1px)'`}
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] mb-4"
+                   style={`background:color-mix(in srgb,${d.color} 12%,transparent)`}>{d.icon}</div>
+              <h3 class="text-[14px] font-semibold mb-2" style="color:#f1f5f9">{d.title}</h3>
+              <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{d.desc}</p>
+              <span class="text-[12px] font-semibold" style={`color:${d.color}`}>Read →</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">Machine-readable surfaces</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          Published at predictable paths on <span class="font-mono" style="color:#94a3b8">shadow-warden-ai.com</span>.
+          Rows marked “→ gateway” are proxied to <span class="font-mono" style="color:#94a3b8">api.shadow-warden-ai.com</span>,
+          so one host answers for all of them.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <thead>
+              <tr style="background:rgba(255,255,255,0.03)">
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px]" style="color:#64748b">Resource</th>
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px]" style="color:#64748b">URL</th>
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px] hidden md:table-cell" style="color:#64748b">Served by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {machine.map(m => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 align-top">
+                    <div class="text-[13px] font-semibold" style="color:#f1f5f9">{m.name}</div>
+                    <div class="text-[12px] mt-1 leading-relaxed" style="color:#64748b">{m.desc}</div>
+                  </td>
+                  <td class="px-4 py-3 align-top">
+                    <a href={m.url} class="text-[12px] font-mono" style="color:#80b4fd">{m.url}</a>
+                  </td>
+                  <td class="px-4 py-3 align-top text-[12px] hidden md:table-cell" style="color:#64748b">{m.where}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">The endpoints you will reach for first</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          Base URL <span class="font-mono" style="color:#94a3b8">{API}</span>. The full list — 500+ paths —
+          is in <a href="/openapi.json" style="color:#80b4fd">the OpenAPI document</a>.
+          Prefix any path with <span class="font-mono" style="color:#94a3b8">/v1</span> to pin the version.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <thead>
+              <tr style="background:rgba(255,255,255,0.03)">
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px]" style="color:#64748b">Method</th>
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px]" style="color:#64748b">Path</th>
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px] hidden md:table-cell" style="color:#64748b">Auth</th>
+              </tr>
+            </thead>
+            <tbody>
+              {endpoints.map(e => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 align-top text-[12px] font-mono font-bold" style="color:#30D158">{e.method}</td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="text-[13px] font-mono" style="color:#f1f5f9">{e.path}</div>
+                    <div class="text-[12px] mt-1 leading-relaxed" style="color:#64748b">{e.desc}</div>
+                  </td>
+                  <td class="px-4 py-3 align-top text-[12px] font-mono hidden md:table-cell" style="color:#64748b">{e.auth}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-5" style="color:#f1f5f9">First request</h2>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#FFD60A">curl</span>
+            <span class="text-[10px]" style="color:#64748b">exit 0 allowed · 1 blocked</span>
+          </div>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">curl -sS -D- -X POST {API}/filter \
+  -H "X-API-Key: $WARDEN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '&#123;"content": "ignore previous instructions"&#125;'
+
+# RateLimit-Policy: "requests-per-minute";q=60;w=60
+# RateLimit: "requests-per-minute";r=59;t=41</pre>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Before you build on it</h2>
+        <ul class="text-[13px] leading-relaxed space-y-2" style="color:#94a3b8">
+          <li>Jailbreak detection measures <strong style="color:#f1f5f9">36.2%</strong> on our own 58-prompt adversarial corpus, with 0 of 35 benign prompts flagged. No higher figure is ours.</li>
+          <li>Per-stage latency is not instrumented in production, so no millisecond figure is published.</li>
+          <li>Marketplace escrow and settlement run on <strong style="color:#f1f5f9">testnet</strong>.</li>
+          <li>We hold no certification of any kind. Control mappings are self-attested — see <a href="/trust" style="color:#80b4fd">the trust centre</a>.</li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>

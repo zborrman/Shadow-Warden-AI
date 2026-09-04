@@ -48,6 +48,20 @@ and Ed25519/DID identity.
 - [MasterAgent](https://shadow-warden-ai.com/agentic) — multi-agent SOC coordinator, four specialist sub-agents, human-in-the-loop approval gate
 - [Community Hub](https://shadow-warden-ai.com/community) — STIX 2.1 audit chains, provenance, post-quantum signatures (ML-DSA-65)
 
+## Developer resources
+
+Everything programmatic hangs off one page, and every URL here answers.
+
+- [Developer portal](https://shadow-warden-ai.com/developers) — the entry point for all of the below
+- [API reference](https://shadow-warden-ai.com/doc/api-reference) and [OpenAPI 3.1](https://shadow-warden-ai.com/openapi.json) — 500+ paths, with a `servers` block so a client need not infer the base URL
+- [Authentication](https://shadow-warden-ai.com/doc/authentication) — `X-API-Key`, OIDC bearer on `/ext/*`, admin keys, and what every rejection code means
+- [Rate limits](https://shadow-warden-ai.com/doc/rate-limits) — the `RateLimit` header contract every response carries
+- [SDKs and CLI](https://shadow-warden-ai.com/sdk) — Python, TypeScript, and the `warden` console script
+- [MCP server](https://shadow-warden-ai.com/mcp) — Streamable HTTP at `POST https://api.shadow-warden-ai.com/mcp/`, manifest at [/.well-known/mcp.json](https://shadow-warden-ai.com/.well-known/mcp.json). `filter_text`, `gateway_health` and `list_pricing` are free.
+- [Quick start](https://shadow-warden-ai.com/doc/quick-start) — Docker Compose to first filtered request
+- [Marketplace manifest](https://shadow-warden-ai.com/.well-known/ai-market.json) — M2M registration, KYA, payment rails
+- [Agent card](https://shadow-warden-ai.com/.well-known/agent.json) — A2A / ADP capability manifest
+
 ## Agent Integration
 
 - **Filtering**: `POST https://api.shadow-warden-ai.com/filter` — run any text through the pipeline
@@ -55,6 +69,8 @@ and Ed25519/DID identity.
 - **Capability manifest**: `GET https://api.shadow-warden-ai.com/.well-known/agent.json`
 - **CLI**: `pip install "shadow-warden-sdk>=1.1.0"` then `warden filter --json "text"` (exit 0 allowed, 1 blocked)
 - **SDKs**: `pip install shadow-warden-sdk` · `npm install @shadow-warden/sdk`
+- **MCP**: `POST https://api.shadow-warden-ai.com/mcp/` — Streamable HTTP, JSON-RPC 2.0, protocol `2025-06-18` / `2025-03-26` / `2024-11-05`
+- **Pacing**: every response carries `RateLimit-Policy` and, where a window was consumed, `RateLimit` — read them instead of waiting for a 429
 - **Autonomy policies**: L1 (report-only) → L2 (supervised threshold) → L3 (autonomous under a spend cap)
 
 ## Markdown for machines
@@ -66,7 +82,11 @@ directly: [/index.md](https://shadow-warden-ai.com/index.md),
 [/doc.md](https://shadow-warden-ai.com/doc.md),
 [/sdk.md](https://shadow-warden-ai.com/sdk.md),
 [/agentic.md](https://shadow-warden-ai.com/agentic.md),
-[/trust.md](https://shadow-warden-ai.com/trust.md).
+[/trust.md](https://shadow-warden-ai.com/trust.md),
+[/developers.md](https://shadow-warden-ai.com/developers.md),
+[/mcp.md](https://shadow-warden-ai.com/mcp.md),
+[/authentication.md](https://shadow-warden-ai.com/authentication.md),
+[/rate-limits.md](https://shadow-warden-ai.com/rate-limits.md).
 Unknown paths return HTTP 404 with a markdown recovery body.
 
 ## Pricing
@@ -85,6 +105,8 @@ Flex Credits (prepaid, no wallet): 100 credits $0.10 · 500 credits $0.45 ·
 - [Documentation hub](https://shadow-warden-ai.com/doc)
 - [Quick start](https://shadow-warden-ai.com/doc/quick-start)
 - [API reference (OpenAPI 3.1)](https://shadow-warden-ai.com/openapi.json)
+- [Authentication](https://shadow-warden-ai.com/doc/authentication)
+- [Rate limits](https://shadow-warden-ai.com/doc/rate-limits)
 - [Compliance and GDPR](https://shadow-warden-ai.com/doc/compliance)
 - [Trust centre](https://shadow-warden-ai.com/trust)
 - [Roadmap and changelog](https://shadow-warden-ai.com/roadmap)

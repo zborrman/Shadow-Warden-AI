@@ -18,14 +18,33 @@ people. Every entry point below is covered by
 
 | Surface | URL | Notes |
 |---|---|---|
-| Site index for machines | `/llms.txt` | Includes a **when to use this** section |
+| Developer portal | `/developers` | One entry point for every row below |
+| Site index for machines | `/llms.txt` | Includes **when to use this** and a **developer resources** section |
 | Agent instructions | `/.well-known/agent-instructions.md` | Best-fit jobs, when *not* to use it, status codes to handle, honesty notes |
 | Agent Card (A2A / ADP) | `/.well-known/agent.json` | Proxied to the API host, which owns it |
+| MCP manifest | `/.well-known/mcp.json` | Endpoint, transport, supported revisions, tool list — generated from the live server |
+| Marketplace manifest | `/.well-known/ai-market.json` | M2M registration, KYA, payment rails |
 | DID document | `/.well-known/did.json` | `did:web:shadow-warden-ai.com` |
-| OpenAPI 3.1 | `/openapi.json` | Every route |
-| Markdown pages | `Accept: text/markdown` on the page URL | `/` → `/index.md`, `/pricing` and `/price` → `/pricing.md`, `/doc` → `/doc.md`, `/sdk` → `/sdk.md`, `/agentic` → `/agentic.md`, `/trust` → `/trust.md` |
-| Structured data | JSON-LD on every page | Organization, WebSite, WebPage; SoftwareApplication on the homepage |
+| OpenAPI 3.1 | `/openapi.json` | Every route, with a `servers` block. Generated — `python scripts/export_openapi.py` |
+| Authentication | `/doc/authentication` | Four schemes, and what each rejection code means |
+| Rate limits | `/doc/rate-limits` | The `RateLimit` header contract carried on every API response |
+| MCP server | `/mcp` → `POST https://api.shadow-warden-ai.com/mcp/` | Streamable HTTP, JSON-RPC 2.0. `filter_text`, `gateway_health`, `list_pricing` are free |
+| Markdown pages | `Accept: text/markdown` on the page URL | `/` → `/index.md`, `/pricing` and `/price` → `/pricing.md`, `/doc` → `/doc.md`, `/sdk` → `/sdk.md`, `/agentic` → `/agentic.md`, `/trust` → `/trust.md`, `/developers` → `/developers.md`, `/mcp` → `/mcp.md`, `/doc/authentication` → `/authentication.md`, `/doc/rate-limits` → `/rate-limits.md` |
+| Structured data | JSON-LD on every page | Organization (with `address` and contact emails), WebSite, WebPage; SoftwareApplication on the homepage |
 | CLI | `pip install "shadow-warden-sdk>=1.1.0"` | `warden filter`, `health`, `impact`, `billing` |
+
+Every API response advertises its own throttling contract, so a client paces
+itself instead of discovering a limit by being refused:
+
+```
+RateLimit-Policy: "requests-per-minute";q=60;w=60, "requests-per-month";q=5000;w=2592000
+RateLimit: "requests-per-minute";r=59;t=41
+```
+
+Structured fields from `draft-ietf-httpapi-ratelimit-headers-09`, alongside the
+earlier draft spelling (`RateLimit-Limit`/`-Remaining`/`-Reset`) and the legacy
+`X-RateLimit-*`. `Retry-After` is sent on 429 only and names the same instant as
+the reset. A route that consumes no quota publishes the policy and no counter.
 
 Content negotiation follows [acceptmarkdown.com](https://acceptmarkdown.com):
 markdown is served from the *same* URL as the HTML, both variants carry

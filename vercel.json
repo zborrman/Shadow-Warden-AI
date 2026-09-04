@@ -19,7 +19,9 @@
     { "source": "/api/config", "destination": "https://api.shadow-warden-ai.com/config" },
     { "source": "/api/contact", "destination": "https://api.shadow-warden-ai.com/contact" },
     { "source": "/api/health", "destination": "https://api.shadow-warden-ai.com/health" },
-    { "source": "/.well-known/agent.json", "destination": "https://api.shadow-warden-ai.com/.well-known/agent.json" }
+    { "source": "/.well-known/agent.json", "destination": "https://api.shadow-warden-ai.com/.well-known/agent.json" },
+    { "source": "/.well-known/mcp.json", "destination": "https://api.shadow-warden-ai.com/.well-known/mcp.json" },
+    { "source": "/.well-known/ai-market.json", "destination": "https://api.shadow-warden-ai.com/.well-known/ai-market.json" }
   ],
   "headers": [
     {
@@ -55,6 +57,13 @@
         { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
         { "key": "Vary", "value": "Accept, Accept-Encoding" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/.well-known/(.*).json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=300" }
       ]
     },
     {

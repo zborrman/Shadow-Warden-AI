@@ -1,0 +1,129 @@
+---
+// The rate-limit contract, published because an audit probed every public
+// endpoint and found no rate-limit headers at all — the gateway enforced two
+// limits and advertised neither, so the only way to discover one was to be
+// refused. The headers are emitted by warden/middleware/rate_limit_headers.py
+// and this page is held against it by warden/tests/test_site_agent_readiness.py.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const fields = [
+  { name: 'RateLimit-Policy', example: '"requests-per-minute";q=60;w=60, "requests-per-month";q=5000;w=2592000',
+    desc: 'The static contract. One member per policy: q is the quota, w the window in seconds. Present on every response.' },
+  { name: 'RateLimit', example: '"requests-per-minute";r=59;t=41',
+    desc: 'The live reading. r is what is left, t is seconds until that policy resets. Present only when the request actually consumed the window.' },
+  { name: 'RateLimit-Limit', example: '60',
+    desc: 'The earlier draft spelling of the same quota, for clients that parse it.' },
+  { name: 'RateLimit-Remaining', example: '59', desc: 'The earlier draft spelling of r.' },
+  { name: 'RateLimit-Reset', example: '41', desc: 'The earlier draft spelling of t — delta-seconds, not a timestamp.' },
+  { name: 'X-RateLimit-*', example: 'X-RateLimit-Reset: 1788426730',
+    desc: 'The pre-draft spelling, kept for compatibility. Note that X-RateLimit-Reset is a Unix epoch, not a delta.' },
+  { name: 'Retry-After', example: '41',
+    desc: 'Delta-seconds. Sent on 429 only. When both are present it names the same instant as the reset, and it takes precedence.' },
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI Rate Limits — the RateLimit header contract"
+  description="Shadow Warden AI publishes RFC-draft RateLimit headers on every API response: RateLimit-Policy, RateLimit, RateLimit-Limit/Remaining/Reset, X-RateLimit-*, and Retry-After on 429."
+  markdown="/rate-limits.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Rate limits</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Shadow Warden AI Rate Limits</h1>
+        <p class="text-[14px]" style="color:#475569">Two limits, published on every response, so you never have to discover one by being refused</p>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-4xl px-4 lg:px-8 py-12 space-y-14">
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">The two limits</h2>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="text-[12px] font-mono font-semibold mb-2" style="color:#38bdf8">requests-per-minute</div>
+            <p class="text-[13px] leading-relaxed" style="color:#94a3b8">
+              A sliding window, keyed on your API key — never on IP, so a shared egress address does not
+              collapse tenants into one bucket. 60/min by default; enterprise keys carry their own rate.
+            </p>
+          </div>
+          <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="text-[12px] font-mono font-semibold mb-2" style="color:#f59e0b">requests-per-month</div>
+            <p class="text-[13px] leading-relaxed" style="color:#94a3b8">
+              The plan allowance, counted on <span class="font-mono">POST /filter</span> and
+              <span class="font-mono">/filter/batch</span>, reset at the start of each UTC calendar month.
+              Enterprise is unlimited and publishes no monthly policy.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">What every response carries</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          Structured fields from
+          <span class="font-mono" style="color:#94a3b8">draft-ietf-httpapi-ratelimit-headers-09</span>,
+          alongside the earlier draft spelling and the pre-draft
+          <span class="font-mono" style="color:#94a3b8">X-</span> spelling. Three generations of client parse
+          three different things, and the cost of emitting all of them is a handful of bytes.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <tbody>
+              {fields.map(f => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 align-top" style="min-width:170px">
+                    <div class="text-[12.5px] font-mono font-semibold" style="color:#f1f5f9">{f.name}</div>
+                    <div class="text-[11.5px] font-mono mt-1 break-all" style="color:#38bdf8">{f.example}</div>
+                  </td>
+                  <td class="px-4 py-3 align-top text-[13px] leading-relaxed" style="color:#94a3b8">{f.desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">See it</h2>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#FFD60A">curl -D-</span>
+          </div>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">$ curl -sS -D- -o/dev/null https://api.shadow-warden-ai.com/health
+
+RateLimit-Policy: "requests-per-minute";q=60;w=60
+RateLimit-Limit: 60
+X-RateLimit-Limit: 60</pre>
+        </div>
+        <p class="text-[12.5px] mt-3 leading-relaxed" style="color:#64748b">
+          A route that consumes no quota — such as <span class="font-mono">/health</span> — publishes the policy
+          and no counter. There is no bucket reading that belongs to that request, and inventing one would be a
+          number with nothing behind it.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">How to pace against it</h2>
+        <ul class="text-[13px] leading-relaxed space-y-2" style="color:#94a3b8">
+          <li>Read <span class="font-mono">RateLimit</span> on each response and slow down as <span class="font-mono">r</span> approaches zero, rather than waiting for a 429.</li>
+          <li>On 429, honour <span class="font-mono">Retry-After</span> — it takes precedence over the reset parameter. Do not retry sooner.</li>
+          <li>A monthly 429 carries a long <span class="font-mono">Retry-After</span> and an upgrade URL in the body. Retrying will not clear it.</li>
+          <li>Both limits are per API key. Running two workers on one key halves each worker's share.</li>
+        </ul>
+        <p class="text-[12.5px] mt-4 leading-relaxed" style="color:#64748b">
+          The same conventions are described in the
+          <a href="/openapi.json" style="color:#80b4fd">OpenAPI document</a> so a generated client sees them too.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>

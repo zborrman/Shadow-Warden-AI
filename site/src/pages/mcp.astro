@@ -1,0 +1,170 @@
+---
+// The MCP server, documented at a predictable path. An audit looking for "MCP
+// server" by name found the phrase in marketing copy and no manifest, no
+// endpoint and no transport — the server existed the whole time, on a different
+// host, described by a document nothing linked to. Everything on this page is
+// generated from, or asserted against, warden/mcp/gateway.py.
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const ENDPOINT = 'https://api.shadow-warden-ai.com/mcp/';
+
+const free = [
+  { name: 'filter_text',    desc: 'Screen text through the nine-stage pipeline — prompt injection, obfuscation decoding, secret and PII redaction. Runs against your own gateway quota, so it needs your API key.', auth: 'X-API-Key' },
+  { name: 'gateway_health', desc: 'Liveness, version and pipeline readiness. Use it before you route traffic through the gateway.', auth: 'none' },
+  { name: 'list_pricing',   desc: 'Plans, request allowances and prices, read from the same table the checkout charges from.', auth: 'none' },
+];
+
+const paid = [
+  'screen_sanctions_list', 'score_kyc_profile', 'generate_sar',
+  'fetch_market_signals', 'generate_seo_content', 'adjust_ad_budget',
+  'crm_search', 'crm_upsert_lead', 'send_email_draft',
+  'schedule_meeting_slot', 'get_ticket', 'resolve_ticket_kb',
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI MCP Server — Streamable HTTP"
+  description="The Shadow Warden AI MCP server: Streamable HTTP transport at api.shadow-warden-ai.com/mcp/, a manifest at /.well-known/mcp.json, free security tools and paid business tools."
+  markdown="/mcp.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/developers" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Developers</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">MCP</span>
+        </div>
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold"
+               style="background:rgba(191,90,242,.15);color:#BF5AF2;font-size:18px">◧</div>
+          <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Shadow Warden AI MCP Server</h1>
+        </div>
+        <p class="text-[15px] max-w-2xl" style="color:#94a3b8">
+          Call the security gateway as tools from Claude, ChatGPT or any Model Context Protocol
+          client. One endpoint, Streamable HTTP, JSON-RPC 2.0.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-2">
+          {['streamable-http', 'JSON-RPC 2.0', '2025-06-18', '2025-03-26', '2024-11-05'].map(t => (
+            <span class="text-[11px] px-2.5 py-1 rounded-full font-mono"
+                  style="background:rgba(191,90,242,.12);color:#BF5AF2;border:1px solid rgba(191,90,242,.25)">{t}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12 space-y-14">
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">Connect</h2>
+        <div class="rounded-xl overflow-hidden mb-4" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#BF5AF2">Endpoint</span>
+            <span class="text-[10px]" style="color:#64748b">POST only — this server has no GET stream</span>
+          </div>
+          <pre class="px-5 py-4 text-[13px] font-mono overflow-x-auto" style="color:#30D158">{ENDPOINT}</pre>
+        </div>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#FFD60A">Claude Code / Claude Desktop</span>
+            <span class="text-[10px]" style="color:#64748b">mcp config</span>
+          </div>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">&#123;
+  "mcpServers": &#123;
+    "shadow-warden": &#123;
+      "type": "http",
+      "url": "{ENDPOINT}",
+      "headers": &#123; "X-API-Key": "$WARDEN_API_KEY" &#125;
+    &#125;
+  &#125;
+&#125;</pre>
+        </div>
+        <p class="text-[12px] mt-3" style="color:#64748b">
+          The manifest lives at
+          <a href="/.well-known/mcp.json" class="font-mono" style="color:#BF5AF2">/.well-known/mcp.json</a>
+          — endpoint, transport, supported protocol revisions, auth schemes and the full tool list,
+          generated from the server rather than written by hand.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">Free tools — the security gateway</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          No nanopayment, no registration. <span class="font-mono" style="color:#94a3b8">filter_text</span> goes
+          through <span class="font-mono" style="color:#94a3b8">POST /filter</span> exactly like a REST call, so it
+          consumes your own request quota and is rate-limited the same way — billing it again per MCP call
+          would charge twice for one request.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <thead>
+              <tr style="background:rgba(255,255,255,0.03)">
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px]" style="color:#64748b">Tool</th>
+                <th class="px-4 py-3 text-[11px] font-semibold uppercase tracking-[1px] hidden md:table-cell" style="color:#64748b">Auth</th>
+              </tr>
+            </thead>
+            <tbody>
+              {free.map(t => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 align-top">
+                    <div class="text-[13px] font-mono font-semibold" style="color:#30D158">{t.name}</div>
+                    <div class="text-[12px] mt-1 leading-relaxed" style="color:#64748b">{t.desc}</div>
+                  </td>
+                  <td class="px-4 py-3 align-top text-[12px] font-mono hidden md:table-cell" style="color:#64748b">{t.auth}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-2" style="color:#f1f5f9">Paid tools — business operations</h2>
+        <p class="text-[13px] mb-5" style="color:#64748b">
+          Twelve staff tools, $0.001–$0.10 per call, settled with Flex Credits, x402 USDC or L402 Lightning.
+          Prices are published at <a href="https://api.shadow-warden-ai.com/mcp/pricing" class="font-mono" style="color:#BF5AF2">/mcp/pricing</a>.
+          An unfunded call returns JSON-RPC error <span class="font-mono" style="color:#94a3b8">-32099</span> with HTTP 402 and the
+          instructions to fund.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          {paid.map(n => (
+            <span class="text-[11px] px-2.5 py-1 rounded-lg font-mono"
+                  style="background:rgba(255,255,255,0.04);color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">{n}</span>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">Try it without a client</h2>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
+          <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span class="text-[11px] font-bold" style="color:#FFD60A">curl</span>
+          </div>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">curl -sS {ENDPOINT} \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2025-06-18" \
+  -d '&#123;"jsonrpc":"2.0","id":1,"method":"tools/list"&#125;'</pre>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">What this server does not implement</h2>
+        <ul class="text-[13px] leading-relaxed space-y-2" style="color:#94a3b8">
+          <li>
+            <strong style="color:#f1f5f9">Protocol revision 2026-07-28.</strong> It replaced the
+            <span class="font-mono">initialize</span> handshake with per-request <span class="font-mono">_meta</span>
+            negotiation and a mandatory <span class="font-mono">server/discover</span> RPC. Neither is implemented here,
+            so 2026-07-28 is deliberately absent from the advertised list rather than claimed and then failed.
+          </li>
+          <li><strong style="color:#f1f5f9">No GET stream.</strong> A GET that asks for <span class="font-mono">text/event-stream</span> answers 405 with <span class="font-mono">Allow: POST</span>.</li>
+          <li><strong style="color:#f1f5f9">No sessions and no resumability.</strong> <span class="font-mono">Mcp-Session-Id</span> and <span class="font-mono">Last-Event-ID</span> are ignored.</li>
+          <li><strong style="color:#f1f5f9">No resources or prompts.</strong> Tools only — <span class="font-mono">capabilities</span> says so.</li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+</BaseLayout>

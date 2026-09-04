@@ -310,6 +310,21 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 		}
 	}
 
+	# Same reasoning for the MCP and marketplace manifests: /mcp and llms.txt
+	# advertise these URLs on this host, so this host has to answer them. warden
+	# generates both from the live tool tables (warden/discovery/well_known.py).
+	handle /.well-known/mcp.json {
+		reverse_proxy warden:8001 {
+			import client_ip_headers
+		}
+	}
+
+	handle /.well-known/ai-market.json {
+		reverse_proxy warden:8001 {
+			import client_ip_headers
+		}
+	}
+
 	handle {
 		root * /srv/landing
 
@@ -367,6 +382,38 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 			path /trust /trust/
 		}
 		rewrite @md_trust /trust.md
+		@md_developers {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /developers /developers/
+		}
+		rewrite @md_developers /developers.md
+		@md_mcp {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /mcp /mcp/
+		}
+		rewrite @md_mcp /mcp.md
+		@md_authentication {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /doc/authentication /doc/authentication/
+		}
+		rewrite @md_authentication /authentication.md
+		@md_ratelimits {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /doc/rate-limits /doc/rate-limits/
+		}
+		rewrite @md_ratelimits /rate-limits.md
 
 		# Both variants must advertise that they vary, or a cache in front of us
 		# hands one client's representation to the other.

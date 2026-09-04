@@ -1,7 +1,7 @@
 # Agent instructions — Shadow Warden AI
 
 Machine-readable guidance for autonomous agents and LLM tools. Companion to
-<https://shadow-warden-ai.com/llms.txt>. Last reviewed 2026-08-28.
+<https://shadow-warden-ai.com/llms.txt>. Last reviewed 2026-09-04.
 
 ## When to use this
 
@@ -82,10 +82,46 @@ warden filter --json "text to inspect"
 
 | Status | Meaning | Correct agent behaviour |
 |---|---|---|
+| `200` | Answered — **including a blocked verdict** | Read the body, not the status |
+| `401` | Missing or unrecognised `X-API-Key` | Stop; fix the credential. Retrying will not help |
 | `402` | Add-on not purchased on an eligible plan | Stop; surface a checkout link |
 | `403` | Plan below the endpoint's minimum tier | Stop; surface an upgrade link |
 | `406` | No representation matches your `Accept` header | Retry with `Accept: text/html` or `text/markdown` |
-| `429` | Rate limit or monthly quota exhausted | Back off; do not retry in a tight loop |
+| `429` | Rate limit or monthly quota exhausted | Read `Retry-After`; back off. Do not retry in a tight loop |
+| `5xx` | The gateway failed — **not** a block | Retry with backoff; never treat as a refusal |
+
+Full reference: <https://shadow-warden-ai.com/doc/authentication>.
+
+### Pace yourself from the response headers
+
+Every response advertises the throttling contract, so you never have to discover
+a limit by being refused:
+
+```
+RateLimit-Policy: "requests-per-minute";q=60;w=60, "requests-per-month";q=5000;w=2592000
+RateLimit: "requests-per-minute";r=59;t=41
+```
+
+`q` is the quota and `w` the window in seconds; `r` is what is left and `t` the
+seconds until it resets (draft-ietf-httpapi-ratelimit-headers-09). The earlier
+draft spelling — `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` —
+and the `X-RateLimit-*` spelling carry the same numbers. On a `429`,
+`Retry-After` names the same instant and takes precedence. Slow down as `r`
+approaches zero. Full conventions:
+<https://shadow-warden-ai.com/doc/rate-limits>.
+
+## Calling it as MCP tools
+
+The gateway is also an MCP server over Streamable HTTP:
+
+- Endpoint: `POST https://api.shadow-warden-ai.com/mcp/`
+- Manifest: <https://shadow-warden-ai.com/.well-known/mcp.json>
+- Protocol revisions: `2025-06-18`, `2025-03-26`, `2024-11-05`
+
+`filter_text`, `gateway_health` and `list_pricing` are free. `filter_text`
+consumes your own gateway quota, so send your `X-API-Key` on the MCP request.
+The twelve staff business tools are billed per call. Documentation:
+<https://shadow-warden-ai.com/mcp>.
 
 ## Reading this site as a machine
 
@@ -101,12 +137,19 @@ directly by appending `.md`:
 | `/sdk` | `/sdk.md` |
 | `/agentic` | `/agentic.md` |
 | `/trust` | `/trust.md` |
+| `/developers` | `/developers.md` |
+| `/mcp` | `/mcp.md` |
+| `/doc/authentication` | `/authentication.md` |
+| `/doc/rate-limits` | `/rate-limits.md` |
 
 Other machine-readable entry points:
 
+- <https://shadow-warden-ai.com/developers> — developer portal, the entry point for everything below
 - <https://shadow-warden-ai.com/llms.txt> — index
 - <https://shadow-warden-ai.com/openapi.json> — OpenAPI 3.1
 - <https://shadow-warden-ai.com/.well-known/agent.json> — Agent Card
+- <https://shadow-warden-ai.com/.well-known/mcp.json> — MCP server manifest
+- <https://shadow-warden-ai.com/.well-known/ai-market.json> — M2M marketplace manifest
 - <https://shadow-warden-ai.com/.well-known/did.json> — `did:web` document
 - <https://shadow-warden-ai.com/sitemap-index.xml> — every published URL
 
