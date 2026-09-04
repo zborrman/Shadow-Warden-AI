@@ -65,15 +65,24 @@ export default function RoiPage() {
   const calc     = useMemo(() => calcRoi(reqs, industry.breach), [reqs, industry.breach]);
 
   const live = liveRoi as RoiResponse | undefined;
-  const totalDisplay = live?.total_estimated_roi_usd
-    ? Math.max(live.total_estimated_roi_usd, calc.total_roi)
-    : calc.total_roi;
+
+  // The headline used to be `Math.max(live.total_estimated_roi_usd,
+  // calc.total_roi)`. Even with real data present it could not read below the
+  // calculator's own guess, so a gateway that had saved nothing still showed
+  // six figures. A number that by construction cannot fall is not a
+  // measurement. Show the measurement when there is one, and say so; show the
+  // model when there is not, and say that instead.
+  const measured = live?.total_estimated_roi_usd;
+  const isMeasured = measured !== undefined;
+  const headline = isMeasured ? measured : calc.total_roi;
 
   const cards = [
     {
       label:  "Breach Prevention",
       value:  live ? live.threat_mitigation.estimated_breach_cost_avoided : calc.breachSaved,
-      sub:    `${live?.threat_mitigation.high_block_events ?? calc.highBlocks} high-risk blocks`,
+      sub:    live
+        ? `${live.threat_mitigation.high_block_events} high-risk blocks`
+        : `${calc.highBlocks} high-risk blocks (modelled)`,
       icon:   Shield,
       color:  "text-red-400",
       bg:     "bg-red-500/10 border-red-500/20",
@@ -81,7 +90,9 @@ export default function RoiPage() {
     {
       label:  "Credential Protection",
       value:  live ? live.secret_protection.estimated_credential_savings : calc.secretSaved,
-      sub:    `${live?.secret_protection.secrets_redacted ?? calc.secrets} secrets redacted`,
+      sub:    live
+        ? `${live.secret_protection.secrets_redacted} secrets redacted`
+        : `${calc.secrets} secrets redacted (modelled)`,
       icon:   Key,
       color:  "text-amber-400",
       bg:     "bg-amber-500/10 border-amber-500/20",
@@ -89,7 +100,9 @@ export default function RoiPage() {
     {
       label:  "Shadow Ban Savings",
       value:  live ? live.shadow_ban.cost_saved_usd : calc.shadowSaved,
-      sub:    `${live?.shadow_ban.count ?? calc.shadowBans} attackers banned`,
+      sub:    live
+        ? `${live.shadow_ban.count} attackers banned`
+        : `${calc.shadowBans} attackers banned (modelled)`,
       icon:   Ban,
       color:  "text-purple-400",
       bg:     "bg-purple-500/10 border-purple-500/20",
@@ -168,13 +181,15 @@ export default function RoiPage() {
           <div className="absolute inset-0 pointer-events-none"
                style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 65%)" }} />
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500 mb-2">
-            Estimated Monthly Savings
+            {isMeasured ? "Measured Monthly Savings" : "Modelled Monthly Savings"}
           </p>
           <p className="text-[56px] font-black text-white leading-none mb-2 tabular-nums">
-            <CountUp value={totalDisplay} />
+            <CountUp value={headline} />
           </p>
           <p className="text-sm text-gray-500">
-            {industry.icon} {industry.label} · {REQ_PRESETS[reqPreset].label} · IBM 2024 breach data
+            {isMeasured
+              ? "Reported by the gateway for this account"
+              : `Model output for ${industry.label} at ${REQ_PRESETS[reqPreset].label} — nothing measured`}
           </p>
           {live && (
             <div className="inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full text-[11px] font-semibold"
@@ -210,9 +225,10 @@ export default function RoiPage() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Monthly Savings",  value: fmtUsd(totalDisplay),            color: "text-emerald-400" },
-              { label: "Monthly Cost",     value: "$69",                            color: "text-gray-300"   },
-              { label: "ROI Multiple",     value: `${Math.round(totalDisplay / 69)}×`, color: "text-amber-400"  },
+              { label: isMeasured ? "Monthly Savings" : "Monthly Savings (modelled)",
+                value: fmtUsd(headline),                 color: "text-emerald-400" },
+              { label: "Monthly Cost",     value: "$69",                          color: "text-gray-300"   },
+              { label: "ROI Multiple",     value: `${Math.round(headline / 69)}×`, color: "text-amber-400"  },
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-surface-3 rounded-lg px-4 py-3 text-center">
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{label}</p>
@@ -221,8 +237,9 @@ export default function RoiPage() {
             ))}
           </div>
           <p className="text-[10px] text-gray-600 mt-3">
-            Source: IBM Cost of a Data Breach Report 2024. Estimates are conservative and based on industry averages.
-            Actual savings depend on threat volume and incident response capability.
+            {isMeasured
+              ? "Savings figures above are reported by the gateway for this account. The industry and volume controls affect the model only."
+              : "Model output, not a measurement: IBM Cost of a Data Breach Report 2024 applied to the volume selected above. The gateway reported nothing for this account."}
           </p>
         </div>
 

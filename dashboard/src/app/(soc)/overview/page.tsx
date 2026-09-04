@@ -5,10 +5,15 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, 
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/ui/stat-card";
 import { CommunityDefenseWidget } from "@/components/ui/community-defense-widget";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { api, type StatsResponse, type ThreatsResponse, type RoiResponse, type PostureResponse, type DocScanStats, WARDEN_PROXY } from "@/lib/api";
 import { fmtNum, fmtMs, fmtUsd, cn } from "@/lib/utils";
 
-const MOCK_STATS: StatsResponse = {
+// Every field here is zero: this is the empty state, not sample data. It was
+// called MOCK_STATS, and that name is what let it be passed as `initialData` —
+// which seeds React Query's cache as though it had been fetched, so the query
+// reported success and the page could never show an error.
+const EMPTY_STATS: StatsResponse = {
   days: 7, total: 0, allowed: 0, blocked: 0,
   block_rate_pct: 0, avg_latency_ms: 0, by_day: {},
 };
@@ -30,13 +35,14 @@ function buildTimeline(by_day: Record<string, { total: number; blocked: number }
 }
 
 export default function OverviewPage() {
-  const { data: stats }    = useQuery({ queryKey: ["stats"],    queryFn: api.stats,    initialData: MOCK_STATS });
+  const { data: stats, isError: statsError } =
+    useQuery({ queryKey: ["stats"], queryFn: api.stats });
   const { data: threats }  = useQuery({ queryKey: ["threats"],  queryFn: api.threats });
   const { data: roi }      = useQuery({ queryKey: ["roi"],      queryFn: api.roi });
   const { data: posture }  = useQuery({ queryKey: ["posture"],  queryFn: () => api.posture(7), retry: false });
   const { data: docScans } = useQuery({ queryKey: ["docScans"], queryFn: api.docScans, retry: false });
 
-  const s = stats ?? MOCK_STATS;
+  const s = stats ?? EMPTY_STATS;
   const timeline = Object.keys(s.by_day).length > 0 ? buildTimeline(s.by_day) : [];
 
   const topThreats = (threats as ThreatsResponse | undefined)?.threats.slice(0, 5).map((t, i, arr) => ({
@@ -46,26 +52,38 @@ export default function OverviewPage() {
   })) ?? [];
 
   const roiData = roi as RoiResponse | undefined;
-  const savedUsd = roiData?.total_estimated_roi_usd ?? 1_420_000;
+  // No fallback figure. This used to read `?? 1_420_000`, so a dead /roi
+  // endpoint rendered $1.42M of "Estimated Savings" as though it were measured.
+  const savedUsd = roiData?.total_estimated_roi_usd;
 
-  const pieData = [
-    { name: "Allow",  value: s.total > 0 ? +(s.allowed / s.total * 100).toFixed(1) : 95.4, color: "#10b981" },
+  // With no requests there is no distribution. The alternatives here used to be
+  // 95.4 / 1.8 / 1.26 — invented percentages that drew a complete, healthy
+  // looking pie chart out of zero data.
+  const pieData = s.total > 0 ? [
+    { name: "Allow",  value: +(s.allowed / s.total * 100).toFixed(1), color: "#10b981" },
     { name: "Block",  value: s.block_rate_pct, color: "#ef4444" },
-    { name: "High",   value: s.total > 0 ? +((s.blocked - Math.round(s.blocked * 0.4)) / s.total * 100).toFixed(1) : 1.8, color: "#f97316" },
-    { name: "Medium", value: s.total > 0 ? +(Math.round(s.blocked * 0.4) / s.total * 100).toFixed(1) : 1.26, color: "#f59e0b" },
-  ];
+    { name: "High",   value: +((s.blocked - Math.round(s.blocked * 0.4)) / s.total * 100).toFixed(1), color: "#f97316" },
+    { name: "Medium", value: +(Math.round(s.blocked * 0.4) / s.total * 100).toFixed(1), color: "#f59e0b" },
+  ] : [];
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header title="SOC Overview" subtitle="Real-time security posture" />
 
       <div className="p-6 space-y-6 animate-fade-in">
+        {statsError && <DataUnavailable what="Gateway statistics" />}
+
         {/* KPI row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Requests"  value={fmtNum(s.total)}           icon={Activity} accent="blue"   sub={`Last ${s.days} days`} />
           <StatCard label="Threats Blocked" value={fmtNum(s.blocked)}         icon={Shield}   accent="red"    sub={`${s.block_rate_pct}% block rate`} />
           <StatCard label="Avg Latency"     value={fmtMs(s.avg_latency_ms)}   icon={Clock}    accent="purple" sub="P99 est ×1.3" />
-          <StatCard label="Estimated Savings" value={fmtUsd(savedUsd)}        icon={DollarSign} accent="cyan" sub="IBM breach model" />
+          <StatCard
+            label="Estimated Savings"
+            value={savedUsd === undefined ? "—" : fmtUsd(savedUsd)}
+            icon={DollarSign} accent="cyan"
+            sub={savedUsd === undefined ? "no data from /roi" : "IBM breach model"}
+          />
         </div>
 
         {/* Charts row */}
@@ -73,7 +91,7 @@ export default function OverviewPage() {
           {/* Timeline */}
           <div className="lg:col-span-2 rounded-xl bg-surface-2 border border-border p-5">
             <p className="text-sm font-semibold text-white mb-4">
-              Request Volume ({timeline.length > 0 ? "7d daily" : "24h mock"})
+              Request Volume {timeline.length > 0 ? "(7d daily)" : "— no data"}
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={timeline.length > 0 ? timeline : []}>
@@ -99,6 +117,11 @@ export default function OverviewPage() {
           {/* Verdict pie */}
           <div className="rounded-xl bg-surface-2 border border-border p-5">
             <p className="text-sm font-semibold text-white mb-4">Verdict Distribution</p>
+            {pieData.length === 0 ? (
+              <p className="text-xs text-gray-600">
+                No requests in this window — nothing to distribute.
+              </p>
+            ) : (
             <ResponsiveContainer width="100%" height={140}>
               <PieChart>
                 <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={65} strokeWidth={0}>
@@ -108,6 +131,7 @@ export default function OverviewPage() {
                   formatter={(v: number) => [`${v}%`]} />
               </PieChart>
             </ResponsiveContainer>
+            )}
             <div className="mt-3 space-y-1">
               {pieData.map((e, i) => (
                 <div key={e.name} className="flex items-center justify-between text-xs">
@@ -189,7 +213,7 @@ export default function OverviewPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Savings Estimated", value: fmtUsd(savedUsd),                                   color: "text-accent-green" },
+                  { label: "Savings Estimated", value: savedUsd === undefined ? "—" : fmtUsd(savedUsd),  color: "text-accent-green" },
                   { label: "Breach Events",      value: String(roiData?.threat_mitigation.high_block_events ?? 0), color: "text-accent-cyan"  },
                   { label: "Secrets Redacted",   value: String(roiData?.secret_protection.secrets_redacted ?? 0), color: "text-gray-300"     },
                   { label: "Shadow Bans",        value: String(roiData?.shadow_ban.count ?? 0),              color: "text-gray-300"     },

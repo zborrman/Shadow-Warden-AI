@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { Shield, Download, ExternalLink, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { api, type PostureResponse, type PostureStandard, type ComplianceHistoryResponse, WARDEN_PROXY } from "@/lib/api";
 import { cn, fmtNum } from "@/lib/utils";
 
@@ -146,7 +147,7 @@ export default function CompliancePage() {
   const [days, setDays] = useState(7);
   const API_URL = WARDEN_PROXY;
 
-  const { data: posture, isFetching, dataUpdatedAt } = useQuery({
+  const { data: posture, isFetching, isError: postureErr, dataUpdatedAt } = useQuery({
     queryKey:        ["posture", days],
     queryFn:         () => api.posture(days),
     refetchInterval: 30_000,
@@ -253,7 +254,9 @@ export default function CompliancePage() {
                 <div className="text-[10px] text-gray-500 uppercase tracking-wide">Fail</div>
               </div>
             </div>
-            <div className="text-[11px] text-gray-600">{fmtNum(totalControls)} controls across {p?.standards.length ?? 5} standards</div>
+            <div className="text-[11px] text-gray-600">
+              {fmtNum(totalControls)} controls across {p?.standards.length ?? 0} standards
+            </div>
           </div>
 
           {/* Standard comparison bar */}
@@ -315,11 +318,15 @@ export default function CompliancePage() {
         {/* Row 2: Standard cards grid */}
         <div>
           <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-3">Standards Breakdown</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-            {(p?.standards ?? PLACEHOLDER_STANDARDS).map(std => (
-              <StandardCard key={std.short} std={std} />
-            ))}
-          </div>
+          {postureErr || !p ? (
+            <DataUnavailable what="Compliance posture" />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              {p.standards.map(std => (
+                <StandardCard key={std.short} std={std} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Row 3: Evidence actions */}
@@ -394,12 +401,3 @@ export default function CompliancePage() {
   );
 }
 
-// ── Placeholder data (shown while first fetch loads) ─────────────────────────
-
-const PLACEHOLDER_STANDARDS: PostureStandard[] = [
-  { standard: "SOC 2 Type II",          short: "soc2",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "GDPR (Art.5+30+35)",      short: "gdpr",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "ISO/IEC 27001:2022",      short: "iso27001",passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "HIPAA Security Rule",     short: "hipaa",   passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "EU NIS2 Directive",       short: "nis2",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-];

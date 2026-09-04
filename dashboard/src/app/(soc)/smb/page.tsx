@@ -6,6 +6,7 @@ import {
   FileText, Users, TrendingUp, Clock, DollarSign,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { api, type IncidentEntry, type VendorStats } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -64,13 +65,13 @@ function fmtAge(iso: string) {
 export default function SMBPage() {
   const [tenantId, setTenantId] = useState("default");
 
-  const { data: vendorStats } = useQuery<VendorStats>({
+  const { data: vendorStats, isError: vendorErr } = useQuery<VendorStats>({
     queryKey: ["vendor-stats", tenantId],
     queryFn:  () => api.vendorStats(tenantId),
     placeholderData: MOCK_VENDOR_STATS,
   });
 
-  const { data: incidentData } = useQuery<{ incidents: IncidentEntry[] }>({
+  const { data: incidentData, isError: incidentErr } = useQuery<{ incidents: IncidentEntry[] }>({
     queryKey: ["incidents", tenantId],
     queryFn:  () => api.incidents(tenantId, 5),
     placeholderData: { incidents: MOCK_INCIDENTS },
@@ -88,25 +89,44 @@ export default function SMBPage() {
     placeholderData: { tenant_id: "default", period_month: "", total_caps: 4, departments: [] },
   });
 
-  const vs = vendorStats ?? MOCK_VENDOR_STATS;
-  const incidents = incidentData?.incidents ?? MOCK_INCIDENTS;
+  // Both mocks stay as `placeholderData` above — what to show for the moment
+  // before the first answer lands. Re-applying them here meant a failed request
+  // rendered a full vendor-governance report instead of an error.
+  const unavailable = vendorErr || incidentErr || !vendorStats || !incidentData;
+  const vs = vendorStats;
+  const incidents = incidentData?.incidents ?? [];
   const openCount = incidents.filter(i => i.status === "open" || i.status === "investigating").length;
+
+  const tenantSelector = (
+    <div className="flex items-center gap-3">
+      <label className="text-xs text-gray-500">Tenant</label>
+      <input
+        value={tenantId}
+        onChange={e => setTenantId(e.target.value)}
+        className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 focus:outline-none focus:border-accent-blue w-40"
+        placeholder="Tenant ID"
+      />
+    </div>
+  );
+
+  if (unavailable || !vs) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header title="SMB Governance" subtitle="AI vendor governance, incidents, and compliance overview" />
+        <div className="p-6 space-y-6 animate-fade-in">
+          {tenantSelector}
+          <DataUnavailable what="Vendor governance data" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header title="SMB Governance" subtitle="AI vendor governance, incidents, and compliance overview" />
       <div className="p-6 space-y-6 animate-fade-in">
 
-        {/* Tenant selector */}
-        <div className="flex items-center gap-3">
-          <label className="text-xs text-gray-500">Tenant</label>
-          <input
-            value={tenantId}
-            onChange={e => setTenantId(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 focus:outline-none focus:border-accent-blue w-40"
-            placeholder="Tenant ID"
-          />
-        </div>
+        {tenantSelector}
 
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

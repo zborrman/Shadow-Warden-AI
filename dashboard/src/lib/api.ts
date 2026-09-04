@@ -364,6 +364,23 @@ export type MktAgentTrust  = {
   recent_trades?: { trade_id: string; status: string; amount_usd: number }[];
 };
 
+export type ApiKeyOut = {
+  id: string;
+  label: string;
+  prefix: string;
+  active: boolean;
+  created_at: string;
+  last_used_at: string | null;
+  request_count: number;
+};
+
+export type ApiKeyCreated = ApiKeyOut & { key: string };
+
+async function del(base: string, path: string): Promise<void> {
+  const res = await fetch(`${base}${path}`, { method: "DELETE", next: { revalidate: 0 } });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+}
+
 async function post<T>(base: string, path: string, body: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method:  "POST",
@@ -483,4 +500,12 @@ export const api = {
   hubEvolutionStats: (id: string) => get<HubEvolutionStats>(API, `/communities/${id}/evolution/stats`),
   hubBundles:      (id: string, status?: string) =>
     get<HubBundle[]>(API, `/communities/${id}/evolution/bundles`, status ? { status } : undefined),
+
+  // ── API keys (SW-9) ───────────────────────────────────────────────────────
+  // The settings panel used to mint `sw-name-random` strings into localStorage
+  // and never contact the server at all. These three reach the real router in
+  // warden/api/settings.py, which hashes the key and stores only the digest.
+  apiKeys:       ()             => get<ApiKeyOut[]>(API, "/settings/api-keys"),
+  createApiKey:  (label: string) => post<ApiKeyCreated>(API, "/settings/api-keys", { label }),
+  revokeApiKey:  (id: string)   => del(API, `/settings/api-keys/${id}`),
 };

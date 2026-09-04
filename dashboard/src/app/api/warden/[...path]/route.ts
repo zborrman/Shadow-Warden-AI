@@ -63,6 +63,7 @@ const GET_ALLOW: RegExp[] = [
 
   // Settings and semantic layer (read-only views)
   /^\/settings$/,
+  /^\/settings\/api-keys$/,
   /^\/semantic-layer\/models$/,
 
   // Governance and finance
@@ -125,6 +126,21 @@ const POST_ALLOW: RegExp[] = [
   new RegExp(`^/marketplace/listings/${SEG}/purchase$`),
   new RegExp(`^/marketplace/escrow/${SEG}/dispute/vote$`),
   new RegExp(`^/marketplace/disputes/${SEG}/resolve$`),
+
+  // SW-9. Issuing a key is a privileged action, so it is listed deliberately.
+  // The panel behind it used to mint `sw-<name>-<random>` into localStorage and
+  // contact nothing, while telling the operator the string authenticated
+  // requests to /filter. The upstream router hashes the key and keeps only the
+  // digest.
+  /^\/settings\/api-keys$/,
+];
+
+/**
+ * Revocable routes. Kept separate from POST because a DELETE that fell through
+ * a shared allowlist would be a deletion the list never approved.
+ */
+const DELETE_ALLOW: RegExp[] = [
+  new RegExp(`^/settings/api-keys/${SEG}$`),
 ];
 
 /** Constant-time compare that tolerates unequal lengths. */
@@ -168,6 +184,7 @@ async function forward(
   req: NextRequest,
   segments: string[] | undefined,
   allow: RegExp[],
+  method: "GET" | "POST" | "DELETE" = "GET",
   body?: string,
 ): Promise<NextResponse> {
   if (!sessionOk(req)) {
@@ -202,11 +219,13 @@ async function forward(
 
   try {
     const res = await fetch(url.toString(), {
-      method: body === undefined ? "GET" : "POST",
+      method,
       headers,
       ...(body === undefined ? {} : { body }),
       cache: "no-store",
     });
+    // 204 carries no body, and constructing a NextResponse with one throws.
+    if (res.status === 204) return new NextResponse(null, { status: 204 });
     const text = await res.text();
     return new NextResponse(text, {
       status: res.status,
@@ -230,5 +249,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { path: string[] } },
 ): Promise<NextResponse> {
-  return forward(req, params.path, POST_ALLOW, await req.text());
+  return forward(req, params.path, POST_ALLOW, "POST", await req.text());
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { path: string[] } },
+): Promise<NextResponse> {
+  return forward(req, params.path, DELETE_ALLOW, "DELETE");
 }
