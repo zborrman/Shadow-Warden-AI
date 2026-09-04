@@ -100,9 +100,17 @@ def _strip_adversarial_suffix(text: str) -> str:
     _ADV_SUFFIX_ENTROPY_THRESH, discard that segment.  This neutralises
     gradient-crafted adversarial suffixes without modifying the leading
     attack payload that drives the similarity score.
+
+    Counted via warden_adv_suffix_strip_total: whether this fires is the whole
+    explanation for why the poison guard's embedding reuse falls back
+    (SemanticGuard.check() embeds the *stripped* text, so a fired strip makes
+    check()'s vector belong to a different string than the caller's `content`).
+    That reuse metric showed a 93% fallback rate with no plausible cause found
+    by inspection, so the decision is now counted directly rather than inferred.
     """
     words = text.split()
     if len(words) < _ADV_SUFFIX_MIN_WORDS:
+        _record_strip_decision("too_short")
         return text
     tail_len = max(1, int(len(words) * _ADV_SUFFIX_TAIL_FRAC))
     tail = " ".join(words[-tail_len:])
@@ -112,8 +120,23 @@ def _strip_adversarial_suffix(text: str) -> str:
             tail_len,
             _shannon_entropy(tail),
         )
+        _record_strip_decision("yes")
         return " ".join(words[:-tail_len])
+    _record_strip_decision("no")
     return text
+
+
+def _record_strip_decision(fired: str) -> None:
+    """
+    `warden.metrics` always defines ADV_SUFFIX_STRIP_TOTAL — a real Counter, or
+    the `_Noop` stand-in when prometheus_client is absent — so this cannot raise
+    for a reason worth swallowing. No try/except: a silent except here is the
+    OB-F12 shape (a metric quietly stops recording), and this file already
+    exists because a *different* silent gap made 93% of a fallback rate
+    unexplainable by inspection.
+    """
+    from warden.metrics import ADV_SUFFIX_STRIP_TOTAL  # noqa: PLC0415
+    ADV_SUFFIX_STRIP_TOTAL.labels(fired=fired).inc()
 
 
 # ── Jailbreak corpus ──────────────────────────────────────────────────────────

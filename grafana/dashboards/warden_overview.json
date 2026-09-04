@@ -2152,6 +2152,52 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Whether _strip_adversarial_suffix modified the text before embedding. `warden_poison_embedding_reuse_total` showed a 93% reuse-fallback rate that inspection of the entropy threshold, the jailbreak corpus and mean request size could not explain — this counts the strip's own decision directly instead of inferring it. `yes` should be rare; `too_short` and `no` should dominate on typical /filter traffic.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 98
+      },
+      "id": 62,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "title": "Adversarial-suffix strip — decision",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(warden_adv_suffix_strip_total{job=\"warden\"}[5m])) by (fired)",
+          "legendFormat": "{{fired}}",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "schemaVersion": 38,
