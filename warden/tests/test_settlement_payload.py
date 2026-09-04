@@ -140,7 +140,9 @@ class TestEveryCallMatchesTheDeployedABI:
         *which* trade — and none of them supplied it.
         """
         for name, inputs in _INPUTS.items():
-            if name in ("arbiter", "trades"):
+            # Public getters, not trade operations. `operator` joined them when
+            # the hot relay key was split out of the arbiter (2026-09-03).
+            if name in ("arbiter", "operator", "trades"):
                 continue
             assert "tradeId" in inputs, name
 

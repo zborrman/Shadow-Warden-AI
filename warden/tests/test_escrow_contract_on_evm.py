@@ -57,9 +57,14 @@ def chain():
 
     w3 = Web3(EthereumTesterProvider(EthereumTester(PyEVMBackend())))
     arbiter, buyer, seller = w3.eth.accounts[0], w3.eth.accounts[1], w3.eth.accounts[2]
+    # A distinct account, not `arbiter` again: the two roles were one address
+    # until 2026-09-03, and a fixture that reuses the arbiter as operator cannot
+    # tell a working split from no split at all.
+    operator = w3.eth.accounts[3]
 
     token = _deploy(w3, *_artifacts("mock_erc20", "test"), arbiter)
-    escrow = _deploy(w3, *_artifacts("escrow"), arbiter, arbiter)
+    # _deploy(w3, abi, code, sender, *ctor_args) — `sender` eats the first one.
+    escrow = _deploy(w3, *_artifacts("escrow"), arbiter, arbiter, operator)
 
     token.functions.mint(buyer, _AMOUNT * 10).transact({"from": arbiter})
     token.functions.approve(escrow.address, _AMOUNT * 10).transact({"from": buyer})
@@ -263,5 +268,102 @@ class TestAccessControlAddedAfterSlither:
         abi, code = _artifacts("escrow")
         with pytest.raises(TransactionFailed):
             w3.eth.contract(abi=abi, bytecode=code).constructor(
-                "0x" + "00" * 20
+                "0x" + "00" * 20, arbiter
             ).transact({"from": arbiter})
+
+    def test_a_zero_operator_deployment_is_refused(self, chain):
+        """Merely useless rather than unrecoverable — the parties could still
+        call for themselves — but it silently disables every gateway-relayed
+        trade, so it is refused at the same gate."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        abi, code = _artifacts("escrow")
+        with pytest.raises(TransactionFailed):
+            w3.eth.contract(abi=abi, bytecode=code).constructor(
+                arbiter, "0x" + "00" * 20
+            ).transact({"from": arbiter})
+
+
+class TestTheOperatorRelaysButCannotDecide:
+    """The point of splitting `arbiter` in two.
+
+    They were one address, and that made the multisig impossible rather than
+    merely absent: `deposit`, `deliverAsset` and `confirmReceipt` accept the
+    arbiter so the gateway can act for a counterparty, and those run on every
+    trade, unattended. A 2-of-3 multisig in `arbiter` would have needed two
+    humans to sign each deposit, so the honest options were a hot multisig —
+    which is not a multisig — or no split.
+
+    Now the key that must be hot cannot decide a dispute, and the key that
+    decides disputes never has to be hot. These tests pin both halves; a test
+    that only checked the operator *can* relay would pass just as well if the
+    split had never happened.
+    """
+
+    @staticmethod
+    def _operator(w3, escrow):
+        addr = escrow.functions.operator().call()
+        assert addr == w3.eth.accounts[3], "fixture and contract disagree"
+        return addr
+
+    def test_the_operator_can_carry_a_trade_end_to_end(self, chain):
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+
+        tid = _deposit(escrow, token, buyer, seller, op)
+        escrow.functions.deliverAsset(tid, b"\xab" * 32).transact({"from": op})
+        escrow.functions.confirmReceipt(tid).transact({"from": op})
+
+        assert token.functions.balanceOf(seller).call() == _AMOUNT
+
+    def test_the_operator_may_raise_a_dispute_for_a_party(self, chain):
+        """Freezing a trade is a party action the gateway relays. It decides
+        nothing — the arbiter still has to resolve it."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+        tid = _deposit(escrow, token, buyer, seller, op)
+        escrow.functions.raiseDispute(tid, "not delivered").transact({"from": op})
+        assert escrow.functions.stateOf(tid).call() == 5   # Disputed
+
+    def test_the_operator_cannot_resolve_a_dispute(self, chain):
+        """The whole reason for the split. A compromised VPS must not be able
+        to award itself the escrowed funds."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+        tid = _deposit(escrow, token, buyer, seller, op)
+        escrow.functions.raiseDispute(tid, "stalled").transact({"from": op})
+
+        with pytest.raises(TransactionFailed):
+            escrow.functions.resolveDispute(tid, True).transact({"from": op})
+
+        # And the arbiter still can, so the refusal is about who asked.
+        escrow.functions.resolveDispute(tid, True).transact({"from": arbiter})
+        assert token.functions.balanceOf(buyer).call() >= _AMOUNT
+
+    def test_the_operator_cannot_cancel_before_the_deadline(self, chain):
+        """An early cancel refunds the buyer — a decision about who gets the
+        money, not a step along the agreed path."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+        tid = _deposit(escrow, token, buyer, seller, op)
+
+        with pytest.raises(TransactionFailed):
+            escrow.functions.cancelDeposit(tid).transact({"from": op})
+
+        escrow.functions.cancelDeposit(tid).transact({"from": arbiter})
+        assert escrow.functions.stateOf(tid).call() == 4   # Refunded
+
+    def test_the_arbiter_keeps_every_power_it_had(self, chain):
+        """The split adds a role; it must not quietly remove one, or an existing
+        deployment loses the ability to act for a party."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = _deposit(escrow, token, buyer, seller, arbiter)
+        escrow.functions.deliverAsset(tid, b"\xcd" * 32).transact({"from": arbiter})
+        escrow.functions.confirmReceipt(tid).transact({"from": arbiter})
+        assert token.functions.balanceOf(seller).call() == _AMOUNT
+
+    def test_a_stranger_is_still_refused_everywhere(self, chain):
+        """Adding an allowed sender must not widen the door for anyone else."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        stranger = w3.eth.accounts[4]
+        with pytest.raises(TransactionFailed):
+            _deposit(escrow, token, buyer, seller, stranger, trade_id=b"\x09" * 32)
