@@ -243,3 +243,45 @@ def test_every_public_build_variable_is_a_docker_build_arg() -> None:
         "`environment:` entry cannot reach a bundle that was compiled hours "
         "earlier."
     )
+
+
+def test_the_link_validation_is_exercised_not_just_grepped() -> None:
+    """This file reads source text. Something has to call the function.
+
+    Raised in review, and it is the sharpest finding of the set: every
+    assertion above matches strings in `internal-links.ts`, so they all pass
+    unchanged if `isPublished()` starts returning true for everything. A guard
+    that reads source and reports health is the same defect the whole OB-F2x
+    series is about — this one was mine.
+
+    The behavioural table lives in `dashboard/scripts/check-internal-links.mjs`
+    because that is where node exists. It calls `internalLink()` on 28 inputs,
+    including every bypass found during review. Verified on 2026-09-04 that it
+    genuinely fails: deleting the trailing-dot normalisation turned two cases
+    red and `npm run test:links` exited 1.
+
+    This test pins that the wiring survives, since a behavioural check nobody
+    runs is worth exactly as much as no check.
+    """
+    package = json.loads(
+        (_ROOT / "dashboard" / "package.json").read_text(encoding="utf-8")
+    )
+    script = package.get("scripts", {}).get("test:links")
+    assert script, (
+        "dashboard/package.json no longer defines `test:links`. Without it the "
+        "link validation is only ever grepped, never run."
+    )
+    assert "check-internal-links.mjs" in script, (
+        "`test:links` no longer invokes the behavioural table."
+    )
+    assert (_ROOT / "dashboard" / "scripts" / "check-internal-links.mjs").exists(), (
+        "dashboard/scripts/check-internal-links.mjs is gone — the only thing "
+        "that actually calls internalLink()."
+    )
+
+    ci = (_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "npm run test:links" in ci, (
+        "CI no longer runs `npm run test:links`, so the behavioural table is "
+        "dead weight in the repo. It belongs in the dashboard job, which "
+        "already installs node."
+    )

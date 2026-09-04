@@ -320,6 +320,14 @@ jobs:
         run: npx tsc --noEmit
         working-directory: dashboard
 
+      # OB-F21: the Python guard for these links matches source text, so it
+      # passes even if the validation starts returning true for everything.
+      # This one calls the function. It lives here because this is the job that
+      # already has node.
+      - name: Internal-link validation (behavioural)
+        run: npm run test:links
+        working-directory: dashboard
+
   # ── Unit + Integration Tests ────────────────────────────────────────────────
   test:
     name: Tests (Python ${{ matrix.python-version }})
