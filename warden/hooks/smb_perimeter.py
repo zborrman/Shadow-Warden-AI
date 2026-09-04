@@ -27,9 +27,9 @@ what actually gates a merge — CI does not run pre-commit.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import yaml
-from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 _COMPOSE = _ROOT / "docker-compose.smb.yml"
