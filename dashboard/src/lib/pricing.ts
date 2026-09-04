@@ -31,8 +31,18 @@ export function monthlyPriceUsd(tier: TierId): number {
   return TIER_MONTHLY_USD[tier];
 }
 
-export function annualPriceUsd(tier: TierId): number {
-  return Math.round(TIER_MONTHLY_USD[tier] * 12 * (1 - ANNUAL_DISCOUNT) * 100) / 100;
+/**
+ * Annual list price, or `null` where there is no annual plan to sell.
+ *
+ * `null`, not 0. `warden/billing/pricing.py::annual_price_usd` returns None for
+ * a zero-priced tier, and a mirror that returns 0 lets a caller render — or
+ * submit — a "$0/year" plan that does not exist. Mirroring the numbers and not
+ * the contract is only half a mirror.
+ */
+export function annualPriceUsd(tier: TierId): number | null {
+  const monthly = TIER_MONTHLY_USD[tier];
+  if (!monthly) return null;
+  return Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT) * 100) / 100;
 }
 
 /** `$99.99/mo`, or `Free` for a zero-priced tier. */

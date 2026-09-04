@@ -15,7 +15,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from warden.billing.pricing import ANNUAL_DISCOUNT, TIER_PRICE_USD_MONTH
+from warden.billing.pricing import (
+    ANNUAL_DISCOUNT,
+    TIER_PRICE_USD_MONTH,
+    annual_price_usd,
+)
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TS = _ROOT / "dashboard" / "src" / "lib" / "pricing.ts"
@@ -63,32 +67,86 @@ def test_the_annual_discount_is_not_typed_twice_differently() -> None:
     )
 
 
+def _canonical_amounts() -> set[float]:
+    """Every list price a page could type: monthly, and derived annual.
+
+    Annual is derived here for the same reason it is derived in
+    `warden/billing/pricing.py` — a typed annual figure is how
+    pricing-calculator.tsx came to show Enterprise at 2541 when 15% off its own
+    monthly price is 2539.80.
+    """
+    amounts: set[float] = set()
+    for monthly in TIER_PRICE_USD_MONTH.values():
+        amounts.add(round(monthly, 2))
+        if monthly:
+            amounts.add(round(monthly * 12 * (1 - ANNUAL_DISCOUNT), 2))
+    return amounts
+
+
 def test_no_dashboard_page_types_a_price_of_its_own() -> None:
     """The mirror only helps if pages read it.
 
-    A hardcoded `$69/mo` in a page is exactly what this replaced, and it does
-    not fail the comparison above — it simply sits beside it, disagreeing.
+    A hardcoded price does not fail the comparison above — it sits beside it,
+    disagreeing. This caught a leftover `$99.99/mo` in roi/page.tsx that the
+    numeric comparison was blind to.
+
+    The first version had three bypasses, all of them the same mistake the rest
+    of this PR is about — a check that matches one spelling:
+
+      * it skipped any line containing the substring "pricing", so
+        `<p data-testid="pricing">$99.99/mo</p>` passed. That is the same loose
+        substring match that let a commented-out variable satisfy the SMB
+        perimeter guard.
+      * it required a `/mo` suffix, so an annual literal was invisible.
+      * it dropped zero-priced tiers, so a typed `$0/mo` on a paid plan passed.
+
+    It now reads every non-comment line in every page and matches the amount
+    itself, in any format, against monthly and derived-annual list prices.
     """
     src_dir = _ROOT / "dashboard" / "src"
+    canonical = _canonical_amounts()
     offenders: list[str] = []
-    known_prices = {f"{v:g}" for v in TIER_PRICE_USD_MONTH.values() if v}
 
-    for path in sorted(src_dir.rglob("*.tsx")):
-        if path.name == "pricing.ts":
+    for path in sorted(src_dir.rglob("*")):
+        if path.suffix not in (".ts", ".tsx") or path == _TS:
             continue
         for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if "pricing" in line.lower() or line.lstrip().startswith(("//", "*", "/*")):
+            if line.lstrip().startswith(("//", "*", "/*")):
                 continue
-            for m in re.finditer(r"\$(\d+(?:\.\d+)?)\s*/\s*mo\b", line):
-                if m.group(1) not in known_prices:
+            for m in re.finditer(r"\$\s*(\d[\d,]*(?:\.\d+)?)", line):
+                try:
+                    amount = round(float(m.group(1).replace(",", "")), 2)
+                except ValueError:
                     continue
-                offenders.append(
-                    f"{path.relative_to(_ROOT).as_posix()}:{n}: types "
-                    f"${m.group(1)}/mo directly"
-                )
+                if amount in canonical:
+                    offenders.append(
+                        f"{path.relative_to(_ROOT).as_posix()}:{n}: types "
+                        f"${m.group(1)}, a canonical list price"
+                    )
 
     assert not offenders, (
         "these lines quote a plan price without going through "
         "dashboard/src/lib/pricing.ts, so they drift silently:\n  "
         + "\n  ".join(offenders)
+    )
+
+
+def test_the_mirror_copies_the_contract_not_only_the_numbers() -> None:
+    """`annualPriceUsd` must return null for a tier with no annual plan.
+
+    `warden/billing/pricing.py::annual_price_usd` returns None for a zero-priced
+    tier. The mirror returned 0, which a caller renders as a "$0/year" plan that
+    cannot be bought. Matching the numbers and not the behaviour is half a
+    mirror, and the half that is missing is the one nobody notices.
+    """
+    src = _TS.read_text(encoding="utf-8")
+    assert "number | null" in src, (
+        "annualPriceUsd no longer admits null, so a free tier reports a $0 "
+        "annual plan instead of no annual plan."
+    )
+    assert re.search(r"if \(!monthly\)\s*return null", src), (
+        "the zero-price guard is gone from annualPriceUsd"
+    )
+    assert annual_price_usd("starter") is None, (
+        "the Python side changed; re-check what the mirror should now return"
     )

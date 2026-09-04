@@ -54,7 +54,7 @@ const TIERS: TierConfig[] = [
     id: "starter",
     label: "Starter",
     monthlyPrice: TIER_MONTHLY_USD.starter,
-    annualPrice: null,
+    annualPrice: annualPriceUsd("starter"),
     requests: "1,000 req/mo",
     description: "Try the full filter pipeline",
     icon: Zap,
