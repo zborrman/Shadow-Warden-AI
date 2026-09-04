@@ -37,11 +37,27 @@ contract Escrow {
         State   state;
     }
 
-    /// @notice Resolves disputes and may release after the deadline. The
-    ///         gateway's signing key. A single arbiter is a deliberate
-    ///         simplification for the first mainnet trades and should be
-    ///         replaced by a multisig before this holds meaningful value.
+    /// @notice Resolves disputes. Decides who receives disputed funds, and
+    ///         nothing else. Intended to be a multisig held off the gateway
+    ///         host: it is consulted rarely and by a human, so it does not need
+    ///         to be reachable by software.
     address public immutable arbiter;
+
+    /// @notice Relays routine calls on behalf of a party. The gateway's hot
+    ///         signing key.
+    ///
+    ///         These were one address until 2026-09-03, and that made the
+    ///         multisig impossible rather than merely absent: `deposit`,
+    ///         `deliverAsset` and `confirmReceipt` accept the arbiter so the
+    ///         gateway can act for a counterparty, and those run on every trade,
+    ///         unattended. Putting a 2-of-3 multisig in `arbiter` would have
+    ///         required two humans to sign each deposit.
+    ///
+    ///         Split so the key that must be hot is the one that cannot decide
+    ///         a dispute, and the key that decides disputes never has to be hot.
+    ///         The operator can move a trade along its agreed path; it cannot
+    ///         choose who wins.
+    address public immutable operator;
 
     mapping(bytes32 => Trade) public trades;
 
@@ -61,18 +77,24 @@ contract Escrow {
     error TradeExists();
     error TransferFailed();
     error DeadlineNotReached();
+    error ZeroOperator();
 
     modifier onlyArbiter() {
         if (msg.sender != arbiter) revert NotArbiter();
         _;
     }
 
-    constructor(address _arbiter) {
+    constructor(address _arbiter, address _operator) {
         // A zero arbiter is unrecoverable: no dispute could ever be resolved and
         // no trade cancelled early, so every deposit would sit until its
         // deadline. Cheaper to refuse the deployment than to redeploy after it.
         if (_arbiter == address(0)) revert ZeroArbiter();
-        arbiter = _arbiter;
+        // A zero operator is merely useless rather than unrecoverable — the
+        // parties could still call for themselves — but it silently disables
+        // every gateway-relayed trade, so it is refused at the same gate.
+        if (_operator == address(0)) revert ZeroOperator();
+        arbiter  = _arbiter;
+        operator = _operator;
     }
 
     /// @notice Pull `amount` of `token` from the buyer into escrow.
@@ -96,7 +118,8 @@ contract Escrow {
         // approval is the common integration, which is what made it serious.
         // The arbiter is permitted because it is the gateway's own signer and
         // is already trusted to move funds in `resolveDispute`.
-        if (msg.sender != buyer && msg.sender != arbiter) revert NotBuyer();
+        if (msg.sender != buyer && msg.sender != operator && msg.sender != arbiter)
+            revert NotBuyer();
         if (trades[tradeId].state != State.None) revert TradeExists();
 
         trades[tradeId] = Trade({
@@ -124,7 +147,8 @@ contract Escrow {
     ///         confirmation or the deadline does that.
     function deliverAsset(bytes32 tradeId, bytes32 assetHash) external {
         Trade storage t = trades[tradeId];
-        if (msg.sender != t.seller && msg.sender != arbiter) revert NotSeller();
+        if (msg.sender != t.seller && msg.sender != operator && msg.sender != arbiter)
+            revert NotSeller();
         if (t.state != State.Funded) revert WrongState(t.state);
         t.state = State.Delivered;
         emit Delivered(tradeId, assetHash);
@@ -133,7 +157,8 @@ contract Escrow {
     /// @notice Buyer accepts delivery; funds go to the seller.
     function confirmReceipt(bytes32 tradeId) external {
         Trade storage t = trades[tradeId];
-        if (msg.sender != t.buyer && msg.sender != arbiter) revert NotBuyer();
+        if (msg.sender != t.buyer && msg.sender != operator && msg.sender != arbiter)
+            revert NotBuyer();
         if (t.state != State.Delivered) revert WrongState(t.state);
         t.state = State.Released;
         emit Released(tradeId, t.seller, t.amount);
@@ -145,7 +170,10 @@ contract Escrow {
         Trade storage t = trades[tradeId];
         // The comment said "either party"; the code accepted anyone, so a
         // stranger could freeze a funded trade until the arbiter intervened.
-        if (msg.sender != t.buyer && msg.sender != t.seller && msg.sender != arbiter) {
+        if (
+            msg.sender != t.buyer && msg.sender != t.seller
+            && msg.sender != operator && msg.sender != arbiter
+        ) {
             revert NotParty();
         }
         if (t.state != State.Funded && t.state != State.Delivered) revert WrongState(t.state);
@@ -171,6 +199,9 @@ contract Escrow {
     function cancelDeposit(bytes32 tradeId) external {
         Trade storage t = trades[tradeId];
         if (t.state != State.Funded) revert WrongState(t.state);
+        // Arbiter, not operator: an early cancel refunds the buyer, which is a
+        // decision about who gets the money rather than a step along the agreed
+        // path. The hot key must not be able to take it.
         if (block.timestamp < t.deliveryDeadline && msg.sender != arbiter) {
             revert DeadlineNotReached();
         }

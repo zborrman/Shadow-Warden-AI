@@ -12,7 +12,7 @@ the mistakes are free.
 It does three things, each of which can be run alone:
 
     --check    connect and report what could happen. Sends nothing.
-    --deploy   deploy contracts/escrow.bin, arbiter = the signer.
+    --deploy   deploy contracts/escrow.bin, arbiter = operator = the signer.
     --trade    run deposit -> deliverAsset -> confirmReceipt with three distinct
                addresses, and assert on token balances afterwards.
 
@@ -193,7 +193,14 @@ def cmd_check(w3, meta, args) -> None:
     print(f"  signer     : {acct.address}")
     print("  balance    : {} ETH".format(w3.from_wei(bal, "ether")))
 
-    ctor = w3.eth.contract(abi=abi, bytecode=code).constructor(acct.address)
+    # arbiter and operator are the same key here on purpose: this script is
+    # for testnet rehearsals, where there is one throwaway signer and no
+    # multisig to hold the arbiter role. A mainnet deployment must pass a
+    # Safe address as the arbiter and keep only the operator hot — that is
+    # what the split exists for, and MAINNET_CHAINS is refused here anyway.
+    ctor = w3.eth.contract(abi=abi, bytecode=code).constructor(
+        acct.address, acct.address
+    )
     gas = ctor.estimate_gas({"from": acct.address})
     price = w3.eth.gas_price
     need = (gas + 1_400_000) * price + 2 * args.fund
@@ -208,7 +215,14 @@ def cmd_check(w3, meta, args) -> None:
 def cmd_deploy(w3, meta, args, acct) -> str:
     abi, code = _artifacts("escrow")
     print("\n  Deploying Escrow.sol (arbiter = signer)")
-    ctor = w3.eth.contract(abi=abi, bytecode=code).constructor(acct.address)
+    # arbiter and operator are the same key here on purpose: this script is
+    # for testnet rehearsals, where there is one throwaway signer and no
+    # multisig to hold the arbiter role. A mainnet deployment must pass a
+    # Safe address as the arbiter and keep only the operator hot — that is
+    # what the split exists for, and MAINNET_CHAINS is refused here anyway.
+    ctor = w3.eth.contract(abi=abi, bytecode=code).constructor(
+        acct.address, acct.address
+    )
     rcpt = _send(w3, acct, ctor.build_transaction({"from": acct.address}),
                  "escrow deploy", meta["block_explorer"])
     addr = rcpt["contractAddress"]
