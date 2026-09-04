@@ -21,7 +21,10 @@ import re
 from datetime import UTC, datetime
 
 import pytest
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 
 from warden.billing.quota_middleware import (
@@ -265,11 +268,6 @@ class TestThroughTheGateway:
         limit rather than by hammering the shared fixture, so it is fast and
         does not leave the session's bucket drained for other tests.
         """
-        from fastapi import FastAPI
-        from starlette.requests import Request
-        from slowapi import _rate_limit_exceeded_handler
-        from slowapi.errors import RateLimitExceeded
-
         from warden.limiter import limiter
         from warden.middleware.rate_limit_headers import RateLimitHeadersMiddleware
 
@@ -278,21 +276,24 @@ class TestThroughTheGateway:
         app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
         app.add_middleware(RateLimitHeadersMiddleware)
 
-        async def narrow(request):  # noqa: ARG001
+        # `Request` has to resolve from this module's globals. Under
+        # `from __future__ import annotations` every annotation is a string, and
+        # FastAPI resolves it against `func.__globals__` — so a route defined in
+        # a local scope whose `Request` import is also local resolves to nothing,
+        # `request` becomes a query parameter, and every call is a 422 that never
+        # reaches the limiter. Importing at module level is what makes this a
+        # test of the rate limit rather than of FastAPI's resolver.
+        @app.get("/narrow")
+        @limiter.limit("2/minute")
+        async def narrow(request: Request):
             return {"ok": True}
-
-        # slowapi finds the Request argument by comparing the parameter's
-        # *annotation object* to starlette.Request. This module has
-        # `from __future__ import annotations`, which makes every annotation a
-        # string — so a decorated route declared the usual way silently loses
-        # its limit and never returns 429. Bind the real class, then apply the
-        # decorators in the order the sugar would have.
-        narrow.__annotations__ = {"request": Request}
-        app.get("/narrow")(limiter.limit("2/minute")(narrow))
 
         with TestClient(app, raise_server_exceptions=False) as http:
             statuses = [http.get("/narrow") for _ in range(4)]
 
+        assert {r.status_code for r in statuses} == {200, 429}, (
+            f"expected 200s then 429s, got {[r.status_code for r in statuses]}"
+        )
         refused = next(r for r in statuses if r.status_code == 429)
         assert refused.headers["RateLimit"] == f'"{MINUTE_POLICY}";r=0;t={refused.headers["RateLimit-Reset"]}'
         assert refused.headers["Retry-After"] == refused.headers["RateLimit-Reset"]

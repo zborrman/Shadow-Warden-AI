@@ -97,9 +97,9 @@ def build_mcp_descriptor(
     implements — ``warden/tests/test_mcp_manifest.py`` holds the two in
     agreement.
     """
-    from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS  # noqa: PLC0415
-    from warden.mcp.pricing import MCP_EXPOSED_TOOLS, price_for  # noqa: PLC0415
-    from warden.mcp.product_tools import FREE_TOOLS  # noqa: PLC0415
+    from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS
+    from warden.mcp.pricing import MCP_EXPOSED_TOOLS, price_for
+    from warden.mcp.product_tools import FREE_TOOLS
 
     endpoint = f"{_GATEWAY_URL}/mcp/"
     tools = [

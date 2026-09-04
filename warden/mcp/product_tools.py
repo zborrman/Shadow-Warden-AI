@@ -107,7 +107,7 @@ PRODUCT_TOOL_SCHEMAS: list[dict[str, Any]] = [
 
 
 async def _call_filter(api_key: str | None, arguments: dict) -> dict:
-    import httpx  # noqa: PLC0415
+    import httpx
 
     content = arguments.get("content")
     if not isinstance(content, str) or not content:
@@ -145,7 +145,7 @@ async def _call_filter(api_key: str | None, arguments: dict) -> dict:
 
 
 async def _call_health(_api_key: str | None, _arguments: dict) -> dict:
-    import httpx  # noqa: PLC0415
+    import httpx
 
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         response = await client.get(f"{_base_url()}/health")
@@ -162,8 +162,8 @@ async def _call_pricing(_api_key: str | None, _arguments: dict) -> dict:
     allowance. Reading anything else here would re-create the drift that table
     exists to prevent.
     """
-    from warden.billing.feature_gate import TIER_LIMITS  # noqa: PLC0415
-    from warden.billing.pricing import (  # noqa: PLC0415
+    from warden.billing.feature_gate import TIER_LIMITS
+    from warden.billing.pricing import (
         ANNUAL_DISCOUNT,
         TIER_PRICE_USD_MONTH,
     )

@@ -434,7 +434,7 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
                     "content": [{"type": "text", "text": json.dumps(result)}],
                     "isError": bool(result.get("error")),
                 }, version)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.error("mcp: product tool error tool=%s err=%s", tool_name, exc)
                 return _ok(req_id, {
                     "content": [{"type": "text", "text": f"Tool error: {exc}"}],

@@ -221,3 +221,105 @@ class TestProductTools:
         unlimited = [p for p in result["plans"] if p["unlimited_requests"]]
         assert unlimited, "no unlimited plan published"
         assert all(p["requests_per_month"] is None for p in unlimited)
+
+
+# -- The loopback hop filter_text makes --------------------------------------
+
+
+class TestFilterTextTransport:
+    """
+    `filter_text` deliberately goes back out over HTTP to `POST /filter` rather
+    than calling the pipeline in-process, because auth, the tenant window, the
+    monthly quota, the ERS shadow-ban check and the audit trail are all route
+    dependencies and ASGI middleware — none of which run on a direct call. These
+    tests cover that hop: the key that is forwarded, and what happens to a
+    refusal.
+    """
+
+    @staticmethod
+    def _stub(monkeypatch, status: int, payload, captured: dict):
+        import httpx
+
+        class _Response:
+            status_code = status
+
+            @property
+            def text(self):
+                return str(payload)
+
+            def json(self):
+                return payload
+
+        class _Client:
+            def __init__(self, *_a, **_kw):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_exc):
+                return False
+
+            async def post(self, url, json=None, headers=None):
+                captured.update(url=url, json=json, headers=headers)
+                return _Response()
+
+            async def get(self, url):
+                captured.update(url=url)
+                return _Response()
+
+        monkeypatch.setattr(httpx, "AsyncClient", _Client)
+
+    def test_it_forwards_the_callers_key_and_never_the_gateways(self, monkeypatch):
+        import asyncio
+
+        captured: dict = {}
+        self._stub(monkeypatch, 200, {"allowed": True, "risk_level": "LOW"}, captured)
+        result = asyncio.run(
+            PRODUCT_TOOL_HANDLERS["filter_text"]("sk_caller", {"content": "hello"})
+        )
+        assert result == {"allowed": True, "risk_level": "LOW"}
+        assert captured["headers"]["X-API-Key"] == "sk_caller"
+        assert captured["url"].endswith("/filter")
+        assert captured["json"] == {"content": "hello"}
+
+    def test_the_strict_flag_is_passed_through_only_when_given(self, monkeypatch):
+        import asyncio
+
+        captured: dict = {}
+        self._stub(monkeypatch, 200, {"allowed": True}, captured)
+        asyncio.run(PRODUCT_TOOL_HANDLERS["filter_text"]("k", {"content": "x", "strict": True}))
+        assert captured["json"]["strict"] is True
+
+    def test_a_refusal_is_surfaced_rather_than_swallowed(self, monkeypatch):
+        """
+        A 429 here is the caller's own rate limit. Hiding it behind a generic
+        tool error would leave an agent retrying into the wall it just hit.
+        """
+        import asyncio
+
+        captured: dict = {}
+        self._stub(monkeypatch, 429, {"detail": "slow down"}, captured)
+        result = asyncio.run(PRODUCT_TOOL_HANDLERS["filter_text"]("k", {"content": "x"}))
+        assert result["error"] == "gateway_error"
+        assert result["status"] == 429
+
+    def test_gateway_health_needs_no_key(self, monkeypatch):
+        import asyncio
+
+        captured: dict = {}
+        self._stub(monkeypatch, 200, {"status": "ok"}, captured)
+        assert asyncio.run(PRODUCT_TOOL_HANDLERS["gateway_health"](None, {})) == {"status": "ok"}
+        assert captured["url"].endswith("/health")
+
+    def test_the_internal_url_is_overridable(self, monkeypatch):
+        import asyncio
+
+        from warden.mcp import product_tools
+
+        monkeypatch.setenv("WARDEN_INTERNAL_URL", "http://warden.internal:9000/")
+        assert product_tools._base_url() == "http://warden.internal:9000"
+        captured: dict = {}
+        self._stub(monkeypatch, 200, {"status": "ok"}, captured)
+        asyncio.run(PRODUCT_TOOL_HANDLERS["gateway_health"](None, {}))
+        assert captured["url"] == "http://warden.internal:9000/health"

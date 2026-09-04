@@ -117,7 +117,7 @@ def _minute_limit(scope: dict) -> int | None:
                 api_key = raw_value.decode("utf-8", errors="ignore")
                 break
         return int(get_rate_limit(api_key))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.debug("rate-limit headers: minute limit unavailable (%r)", exc)
         return None
 
@@ -147,7 +147,7 @@ async def _window_stats(scope: dict) -> tuple[int, int, int] | None:
         )
         reset_in = max(0, int(reset_at - time.time()) + 1)
         return int(item.amount), max(0, int(remaining)), reset_in
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.debug("rate-limit headers: window stats unavailable (%r)", exc)
         return None
 
@@ -228,7 +228,7 @@ class RateLimitHeadersMiddleware:
                         await _window_stats(scope),
                         _state(scope).get("quota_policy"),
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     # A missing header is degraded; a raise here is an outage.
                     log.debug("rate-limit headers: not attached (%r)", exc)
             await send(message)
