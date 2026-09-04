@@ -1155,6 +1155,32 @@ try:
             "warden_poison_embedding_reuse_total"
         ))
 
+    # ── Adversarial-suffix strip ─────────────────────────────────────────────
+    # Incremented by brain/semantic.py::_strip_adversarial_suffix, once per call.
+    #
+    # `warden_poison_embedding_reuse_total` reported that 93% of production
+    # requests could not reuse the brain's vector because the text differed —
+    # which should only happen when this strip fires. Every check said it could
+    # not be firing that often: ordinary long text scores 3.7-4.0 against a 4.8
+    # threshold, the whole jailbreak corpus is under the 20-word minimum, and the
+    # mean /filter body is ~16 words. Those cannot all be true at once, so one of
+    # them is wrong and guessing which would be guessing.
+    #
+    # This counts the strip itself. No content, only the decision:
+    #   fired="yes"        a suffix was removed
+    #   fired="too_short"  under _ADV_SUFFIX_MIN_WORDS, returned unchanged
+    #   fired="no"         long enough, entropy below threshold, unchanged
+    try:
+        ADV_SUFFIX_STRIP_TOTAL = Counter(
+            "warden_adv_suffix_strip_total",
+            "Whether the adversarial-suffix strip modified the text before embedding",
+            ["fired"],
+        )
+    except ValueError:
+        ADV_SUFFIX_STRIP_TOTAL = cast(Counter, REGISTRY._names_to_collectors.get(
+            "warden_adv_suffix_strip_total"
+        ))
+
     METRICS_ENABLED = True
 
 except ImportError:
@@ -1250,3 +1276,4 @@ except ImportError:
     FILTER_STAGE_DURATION_SECONDS   = cast("Histogram", _Noop())
     FILTER_DURATION_SECONDS         = cast("Histogram", _Noop())
     POISON_EMBEDDING_REUSE_TOTAL    = cast("Counter", _Noop())
+    ADV_SUFFIX_STRIP_TOTAL          = cast("Counter", _Noop())
