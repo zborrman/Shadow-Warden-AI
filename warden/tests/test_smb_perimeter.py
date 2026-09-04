@@ -111,14 +111,33 @@ def test_a_target_only_mapping_is_still_a_publication() -> None:
         {"target": 8501, "host_ip": "127.0.0.1"}]}}})
 
 
-def test_host_networking_is_rejected_outright() -> None:
-    """A host-networked service has no `ports:` for the guard to inspect."""
-    assert check_network_mode({"services": {"d": {"network_mode": "host"}}}), (
-        "A service on host networking binds every port on the host's "
-        "interfaces directly. Checking `ports:` alone reports it clean, which "
-        "is the failure mode this guard exists to prevent."
-    )
-    assert not check_network_mode({"services": {"d": {"network_mode": "bridge"}}})
+def test_any_network_mode_the_ports_check_cannot_read_is_rejected() -> None:
+    """Allow-list what is inspectable; do not deny one spelling of trouble.
+
+    Three modes take a service outside the ports check's reach, and each was
+    green at some point in this PR's history:
+
+      * `host` — no `ports:` at all, binds straight onto the host.
+      * `container:<other>` — inherits another container's published ports, and
+        Compose forbids `ports:` here, so nothing is left to inspect.
+      * `${NETWORK_MODE}` — the file does not say what it is; it may be `host`.
+
+    Rejecting only `host` was the earlier version, and it read the last two as
+    clean. The guard does not get the safe reading of a value it cannot see.
+    """
+    for mode in ("host", "HOST", "container:warden", "${NETWORK_MODE}",
+                 "service:warden"):
+        assert check_network_mode({"services": {"d": {"network_mode": mode}}}), (
+            f"check_network_mode() accepted {mode!r}. Either it publishes "
+            "ports this file never lists, or the file does not say what it "
+            "publishes — both are perimeters the ports check cannot read."
+        )
+
+    for mode in ("bridge", "none", "default"):
+        assert not check_network_mode({"services": {"d": {"network_mode": mode}}}), (
+            f"{mode!r} keeps the service's perimeter in its own `ports:` list, "
+            "which check_ports() already covers."
+        )
     assert not check_network_mode({"services": {"d": {}}})
 
 

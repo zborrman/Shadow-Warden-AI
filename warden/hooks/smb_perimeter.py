@@ -99,27 +99,70 @@ def _port_mappings(doc: dict) -> list[tuple[str, str]]:
     return out
 
 
-def check_network_mode(doc: dict) -> list[str]:
-    """`network_mode: host` publishes everything, with no `ports:` to inspect.
+#: Network modes the perimeter check can reason about. Anything else is either
+#: `host` (publishes everything), `container:<name>` (adopts another
+#: container's namespace, ports included, and Compose then forbids `ports:` on
+#: this service so there is nothing left to inspect), or an unresolved `${VAR}`
+#: whose value is not knowable from the file. The guard fails closed on all
+#: three: it does not get to assume the safe reading of a value it cannot see.
+INSPECTABLE_NETWORK_MODES: frozenset[str] = frozenset({"bridge", "none", "default"})
 
-    The ports check is exhaustive only over services that declare ports. A
-    service on host networking declares none and listens on the host directly —
-    every port it binds, on every interface. Checking `ports:` alone would have
-    reported that configuration clean, which is the failure mode this whole
-    guard exists to prevent.
+
+def check_network_mode(doc: dict) -> list[str]:
+    """A network mode the ports check cannot reason about is a failure.
+
+    The ports check is exhaustive only over services that declare ports. Three
+    modes take a service out of its reach:
+
+      * `host` — declares no ports and binds directly on the host's interfaces.
+      * `container:<other>` — joins another container's namespace and inherits
+        whatever that one publishes. Compose rejects `ports:` alongside it, so
+        the perimeter is defined somewhere this file does not describe.
+      * `${NETWORK_MODE}` — not resolvable from the file at all; it may be
+        `host` at deploy time.
+
+    Allow-listing the modes that *are* inspectable, rather than rejecting the
+    one spelling of trouble I happened to think of, is the difference between a
+    check that is exhaustive and one that is merely correct about `host`. Every
+    earlier round of this guard failed the same way: green on a spelling it had
+    never considered.
     """
     problems: list[str] = []
     for name, body in _services(doc).items():
         if not isinstance(body, dict):
             continue
-        mode = str(body.get("network_mode") or body.get("network-mode") or "")
-        if mode.strip().lower() == "host":
-            problems.append(
-                f"service {name!r} uses `network_mode: host`, so every port it "
-                f"binds is on the host's interfaces directly and no `ports:` "
-                f"entry constrains it. The perimeter check cannot see inside "
-                f"that; use an explicit loopback-bound `ports:` mapping instead."
+        raw = body.get("network_mode", body.get("network-mode"))
+        if raw is None:
+            continue
+        mode = str(raw).strip()
+        if mode.lower() in INSPECTABLE_NETWORK_MODES:
+            continue
+        if "$" in mode:
+            reason = (
+                "resolves from the environment, so this file does not say what "
+                "the perimeter is — it could be `host` on an operator's machine"
             )
+        elif mode.lower().startswith("container:"):
+            reason = (
+                "adopts another container's network namespace, inheriting "
+                "whatever that container publishes; Compose forbids a `ports:` "
+                "entry here, so there is nothing left for this check to read"
+            )
+        elif mode.lower() == "host":
+            reason = (
+                "binds every port on the host's interfaces directly, with no "
+                "`ports:` entry to constrain it"
+            )
+        else:
+            reason = (
+                "is not a mode this check can reason about, and an unknown "
+                "perimeter is not a safe one"
+            )
+        problems.append(
+            f"service {name!r} sets `network_mode: {mode}`, which {reason}. "
+            f"Use an explicit loopback-bound `ports:` mapping on a bridge "
+            f"network instead."
+        )
     return problems
 
 
