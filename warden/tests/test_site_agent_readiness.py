@@ -558,31 +558,56 @@ class TestMcpManifestIsReachable:
 
     @pytest.mark.parametrize("path", PROXIED)
     def test_www_proxies_it_to_the_gateway(self, path):
+        """
+        A prefix match would pass even if the rewrite silently truncated or
+        redirected the path — assert the exact destination the manifest itself
+        would have to answer at.
+        """
         rewrites = {r["source"]: r["destination"] for r in json.loads(_read(_VERCEL))["rewrites"]}
         assert path in rewrites, f"www does not answer {path}"
-        assert rewrites[path].startswith("https://api.shadow-warden-ai.com")
+        assert rewrites[path] == f"https://api.shadow-warden-ai.com{path}"
 
     @pytest.mark.parametrize("path", PROXIED)
     def test_the_apex_proxies_it_to_the_gateway(self, path):
-        """Two hostnames must not disagree about whether a manifest exists."""
-        assert ("handle " + path + " {") in _read(_CADDYFILE), f"the apex does not answer {path}"
+        """
+        Two hostnames must not disagree about whether a manifest exists. A bare
+        substring match on `handle {path} {{` would also pass a stray block that
+        answers 404 or points somewhere else — extract the block body and check
+        what it actually does with the request.
+        """
+        caddy = _read(_CADDYFILE)
+        marker = f"handle {path} {{"
+        start = caddy.find(marker)
+        assert start != -1, f"the apex does not answer {path}"
+        end = caddy.find("\n\t}\n", start)
+        block = caddy[start:end]
+        assert "reverse_proxy warden:8001" in block, (
+            f"the apex {path} block does not forward to warden: {block!r}"
+        )
 
     def test_the_mcp_page_names_the_manifest(self):
         page = _read(_PAGES / "mcp.astro")
         assert "/.well-known/mcp.json" in page
         assert "streamable-http" in page
 
-    def test_the_mcp_page_does_not_claim_the_revision_we_do_not_implement(self):
+    def test_the_mcp_page_advertises_exactly_the_supported_revisions(self):
         """
-        2026-07-28 replaced the initialize handshake with per-request `_meta`
-        negotiation. The server implements neither, so the page must say so
-        rather than advertise it.
+        Checking that each supported revision *appears somewhere* on the page
+        would still pass if the page's own badge list also included an
+        unsupported one — the "does not implement" paragraph is prose the
+        badges don't have to agree with. Parse the literal badge array instead
+        and compare it, as a set, against what the server actually negotiates.
         """
         from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS
 
         page = _read(_PAGES / "mcp.astro")
-        for version in SUPPORTED_PROTOCOL_VERSIONS:
-            assert version in page, f"/mcp does not list supported revision {version}"
+        badges = re.search(r"\{\[(.*?)\]\.map\(t =>", page, re.S)
+        assert badges, "the protocol-revision badge list is gone — re-check this guard"
+        declared = set(re.findall(r"'(\d{4}-\d{2}-\d{2})'", badges.group(1)))
+        assert declared == set(SUPPORTED_PROTOCOL_VERSIONS), (
+            f"/mcp badges {declared} disagree with SUPPORTED_PROTOCOL_VERSIONS "
+            f"{set(SUPPORTED_PROTOCOL_VERSIONS)}"
+        )
         assert "does not implement" in page
 
 

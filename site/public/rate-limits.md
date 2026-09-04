@@ -7,7 +7,7 @@ by being refused.
 
 ## The two limits
 
-- **`requests-per-minute`** — a sliding window keyed on your API key, never on IP, so a shared egress address does not collapse tenants into one bucket. 60/min by default; enterprise keys carry their own rate.
+- **`requests-per-minute`** — a sliding window keyed on your API key for authenticated routes, so a shared egress address does not collapse tenants into one bucket. 60/min by default; enterprise keys carry their own rate. The one unauthenticated route, `/demo/filter`, is keyed on client IP instead, at a fixed 10/min.
 - **`requests-per-month`** — the plan allowance, counted on `POST /filter` and `/filter/batch`, reset at the start of each UTC calendar month. Enterprise is unlimited and publishes no monthly policy.
 
 ## What every response carries
@@ -44,7 +44,7 @@ inventing one would be a number with nothing behind it.
 - Read `RateLimit` on each response and slow down as `r` approaches zero, rather than waiting for a 429.
 - On 429, honour `Retry-After`; it takes precedence over the reset parameter. Do not retry sooner.
 - A monthly 429 carries a long `Retry-After` and an upgrade URL in the body. Retrying will not clear it.
-- Both limits are per API key. Two workers on one key halve each worker's share.
+- Both limits are per API key on authenticated routes. Two workers on one key halve each worker's share.
 
 The same conventions are described in the OpenAPI document
 (<https://shadow-warden-ai.com/openapi.json>), so a generated client sees them too.

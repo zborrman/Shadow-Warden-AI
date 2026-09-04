@@ -97,7 +97,7 @@ Full reference: <https://shadow-warden-ai.com/doc/authentication>.
 Every response advertises the throttling contract, so you never have to discover
 a limit by being refused:
 
-```
+```text
 RateLimit-Policy: "requests-per-minute";q=60;w=60, "requests-per-month";q=5000;w=2592000
 RateLimit: "requests-per-minute";r=59;t=41
 ```

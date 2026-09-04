@@ -34,8 +34,9 @@ have to infer the base URL from the host it downloaded the spec from.
 
 ## The endpoints you will reach for first
 
-Base URL `https://api.shadow-warden-ai.com`. Prefix any path with `/v1` to pin
-the version.
+Base URL `https://api.shadow-warden-ai.com`. Prefix an unversioned path with
+`/v1` to pin the version — the paths below already show it where the route
+requires it, so do not add a second one.
 
 | Method | Path | Auth | What it does |
 |---|---|---|---|

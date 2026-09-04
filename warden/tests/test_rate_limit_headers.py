@@ -18,6 +18,7 @@ These tests hold three things:
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -283,13 +284,22 @@ class TestThroughTheGateway:
         # `request` becomes a query parameter, and every call is a 422 that never
         # reaches the limiter. Importing at module level is what makes this a
         # test of the rate limit rather than of FastAPI's resolver.
-        @app.get("/narrow")
+        # A fixed path could reuse a bucket left over from a previous run of
+        # this same test within the 60s window — this instance's `limiter`
+        # is `warden.limiter.limiter`, so in an environment where REDIS_URL
+        # points at a real Redis rather than conftest's memory:// (docker-
+        # compose sets it as a real env var, which setdefault() cannot
+        # override), the window persists across processes. A per-run path
+        # keeps the bucket, and therefore the test, isolated.
+        path = f"/narrow-{uuid.uuid4().hex}"
+
+        @app.get(path)
         @limiter.limit("2/minute")
         async def narrow(request: Request):
             return {"ok": True}
 
         with TestClient(app, raise_server_exceptions=False) as http:
-            statuses = [http.get("/narrow") for _ in range(4)]
+            statuses = [http.get(path) for _ in range(4)]
 
         assert {r.status_code for r in statuses} == {200, 429}, (
             f"expected 200s then 429s, got {[r.status_code for r in statuses]}"

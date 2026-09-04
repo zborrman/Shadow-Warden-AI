@@ -50,8 +50,10 @@ const fields = [
           <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
             <div class="text-[12px] font-mono font-semibold mb-2" style="color:#38bdf8">requests-per-minute</div>
             <p class="text-[13px] leading-relaxed" style="color:#94a3b8">
-              A sliding window, keyed on your API key — never on IP, so a shared egress address does not
-              collapse tenants into one bucket. 60/min by default; enterprise keys carry their own rate.
+              A sliding window, keyed on your API key for authenticated routes — so a shared egress
+              address does not collapse tenants into one bucket. 60/min by default; enterprise keys carry
+              their own rate. The one unauthenticated route, <span class="font-mono">/demo/filter</span>,
+              is keyed on client IP instead, at a fixed 10/min.
             </p>
           </div>
           <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
@@ -116,7 +118,7 @@ X-RateLimit-Limit: 60</pre>
           <li>Read <span class="font-mono">RateLimit</span> on each response and slow down as <span class="font-mono">r</span> approaches zero, rather than waiting for a 429.</li>
           <li>On 429, honour <span class="font-mono">Retry-After</span> — it takes precedence over the reset parameter. Do not retry sooner.</li>
           <li>A monthly 429 carries a long <span class="font-mono">Retry-After</span> and an upgrade URL in the body. Retrying will not clear it.</li>
-          <li>Both limits are per API key. Running two workers on one key halves each worker's share.</li>
+          <li>Both limits are per API key on authenticated routes. Running two workers on one key halves each worker's share.</li>
         </ul>
         <p class="text-[12.5px] mt-4 leading-relaxed" style="color:#64748b">
           The same conventions are described in the

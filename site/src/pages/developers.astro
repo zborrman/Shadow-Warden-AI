@@ -138,7 +138,9 @@ const endpoints = [
         <p class="text-[13px] mb-5" style="color:#64748b">
           Base URL <span class="font-mono" style="color:#94a3b8">{API}</span>. The full list — 500+ paths —
           is in <a href="/openapi.json" style="color:#80b4fd">the OpenAPI document</a>.
-          Prefix any path with <span class="font-mono" style="color:#94a3b8">/v1</span> to pin the version.
+          Prefix an unversioned path with <span class="font-mono" style="color:#94a3b8">/v1</span> to pin the
+          version — the paths below already show it where the route requires it,
+          so do not add a second one.
         </p>
         <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
           <table class="w-full text-left" style="border-collapse:collapse">
@@ -170,7 +172,7 @@ const endpoints = [
         <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.08)">
           <div class="flex items-center justify-between px-4 py-2" style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.06)">
             <span class="text-[11px] font-bold" style="color:#FFD60A">curl</span>
-            <span class="text-[10px]" style="color:#64748b">exit 0 allowed · 1 blocked</span>
+            <span class="text-[10px]" style="color:#64748b">verdict is in the body, not the exit code</span>
           </div>
           <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5">curl -sS -D- -X POST {API}/filter \
   -H "X-API-Key: $WARDEN_API_KEY" \

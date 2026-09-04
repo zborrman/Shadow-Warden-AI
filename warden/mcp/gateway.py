@@ -98,17 +98,21 @@ def _ok(req_id: Any, result: Any, version: str | None = None) -> JSONResponse:
     )
 
 
-def _err(req_id: Any, code: int, message: str, data: Any = None) -> JSONResponse:
+def _err(
+    req_id: Any, code: int, message: str, data: Any = None, version: str | None = None
+) -> JSONResponse:
     e: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         e["data"] = data
     status = 402 if code == _PAYMENT_REQUIRED else 200
     return _stamp(
-        JSONResponse({"jsonrpc": "2.0", "id": req_id, "error": e}, status_code=status)
+        JSONResponse({"jsonrpc": "2.0", "id": req_id, "error": e}, status_code=status), version
     )
 
 
-def _dpi_scan(req_id: Any, tool_name: str, arguments: dict) -> JSONResponse | None:
+def _dpi_scan(
+    req_id: Any, tool_name: str, arguments: dict, version: str | None = None
+) -> JSONResponse | None:
     """
     MCP Deep Packet Inspection — scan argument strings for injection / obfuscation.
 
@@ -138,6 +142,7 @@ def _dpi_scan(req_id: Any, tool_name: str, arguments: dict) -> JSONResponse | No
                     _INVALID_PARAMS,
                     f"Argument '{key}' blocked by Deep Packet Inspection",
                     {"rule": result.top_flag, "risk_level": result.risk_level},
+                    version=version,
                 )
             if result.risk_level in ("HIGH", "MEDIUM"):
                 log.warning(
@@ -160,7 +165,9 @@ def _tool_schema(tool: dict) -> dict:
     }
 
 
-async def _check_payment(request: Request, tool_name: str) -> tuple[str | None, JSONResponse | None]:
+async def _check_payment(
+    request: Request, tool_name: str, version: str | None = None
+) -> tuple[str | None, JSONResponse | None]:
     """Gate the call. Returns (agent_id, None) on success, (None, error_response) on deny.
 
     Priority:
@@ -211,6 +218,7 @@ async def _check_payment(request: Request, tool_name: str) -> tuple[str | None, 
                         "Alternatively use Flex Credits: POST /marketplace/credits/purchase."
                     ),
                 },
+                version=version,
             )
             resp.headers["PAYMENT-REQUIRED"] = pay_hdr
             return None, resp
@@ -266,6 +274,7 @@ async def _check_payment(request: Request, tool_name: str) -> tuple[str | None, 
                         "Or use Flex Credits: POST /marketplace/credits/purchase."
                     ),
                 },
+                version=version,
             )
             resp.headers["PAYMENT-REQUIRED"] = pay_hdr
             if www_auth:
@@ -368,9 +377,21 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
     except Exception:
         return _err(None, _PARSE_ERROR, "Parse error: body must be JSON")
 
+    # JSON-RPC requires the request to be a single object. A caller sending
+    # `[1, 2, 3]` or `"hello"` produces valid JSON that parses to something
+    # with no `.get()` — the crash was an AttributeError surfacing as an HTTP
+    # 500, not a JSON-RPC error a client's error handling could ever see.
+    if not isinstance(body, dict):
+        return _err(None, _INVALID_REQUEST, "Invalid Request: body must be a JSON object")
+
     req_id = body.get("id")
     method = body.get("method", "")
-    params = body.get("params") or {}
+    raw_params = body.get("params")
+    # Same shape of bug one level down: `"params": []` is valid JSON but has
+    # no `.get("protocolVersion")`. Every method here expects named params.
+    if raw_params is not None and not isinstance(raw_params, dict):
+        return _err(req_id, _INVALID_PARAMS, "Invalid params: params must be an object")
+    params = raw_params or {}
     version = negotiate_version(
         params.get("protocolVersion") or request.headers.get(_PROTOCOL_VERSION_HEADER)
     )
@@ -418,7 +439,7 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
         arguments = params.get("arguments") or {}
 
         if tool_name not in MCP_EXPOSED_TOOLS and tool_name not in FREE_TOOLS:
-            return _err(req_id, _NOT_FOUND, f"Tool not found or not exposed: {tool_name}")
+            return _err(req_id, _NOT_FOUND, f"Tool not found or not exposed: {tool_name}", version=version)
 
         # ── Product tools ─────────────────────────────────────────────────────
         # No payment gate: filter_text is metered by POST /filter against the
@@ -442,11 +463,11 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
                 }, version)
 
         # DPI: scan argument strings for injection / obfuscation before payment
-        dpi_err = _dpi_scan(req_id, tool_name, arguments)
+        dpi_err = _dpi_scan(req_id, tool_name, arguments, version)
         if dpi_err is not None:
             return dpi_err
 
-        _agent_id, pay_err = await _check_payment(request, tool_name)
+        _agent_id, pay_err = await _check_payment(request, tool_name, version)
         if pay_err is not None:
             return pay_err
 
@@ -459,7 +480,7 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
                 "isError": False,
             }, version)
         except TypeError as exc:
-            return _err(req_id, _INVALID_PARAMS, f"Invalid arguments: {exc}")
+            return _err(req_id, _INVALID_PARAMS, f"Invalid arguments: {exc}", version=version)
         except Exception as exc:  # noqa: BLE001
             log.error("mcp: tool error tool=%s err=%s", tool_name, exc)
             return _ok(req_id, {
@@ -467,4 +488,4 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
                 "isError": True,
             }, version)
 
-    return _err(req_id, _NOT_FOUND, f"Method not found: {method}")
+    return _err(req_id, _NOT_FOUND, f"Method not found: {method}", version=version)
