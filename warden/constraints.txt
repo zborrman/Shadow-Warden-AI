@@ -120,7 +120,13 @@ gitdb==4.0.12
 # dependency. Found the moment the image started installing the lock — while the
 # image resolved floating versions it silently got the patched release, so the
 # *lockfile* was the vulnerable artifact and nothing was checking it.
-GitPython==3.1.58
+# 2026-09-04: it happened again — PYSEC-2026-3785..3788 landed against 3.1.58
+# and turned every open PR red at once, which is the gate working rather than
+# a fault in any of them. Taking 3.1.61 rather than the 3.1.59 pip-audit asks
+# for: nothing here imports the package, so the behavioural risk of two more
+# patch releases is near zero, and stopping at the minimum fix is how the
+# same afternoon repeats next week.
+GitPython==3.1.61
 googleapis-common-protos==1.75.0
 greenlet==3.5.3
 grpcio==1.81.1
