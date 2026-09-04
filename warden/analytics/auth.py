@@ -60,7 +60,24 @@ _SESSION_MINUTES  = settings.dashboard_session_minutes
 _MAX_ATTEMPTS     = settings.dashboard_max_attempts
 _LOCKOUT_MINUTES  = settings.dashboard_lockout_minutes
 
-_DEV_MODE = not bool(_PASSWORD_HASH)
+# OB-F22 — fail closed, matching the contract warden/admin_guard.py already
+# enforces for the gateway: no credential configured is a refusal, not a pass.
+#
+# This flag used to be the whole story: an unset DASHBOARD_PASSWORD_HASH meant
+# "dev mode", and dev mode auto-authenticated whoever arrived. That was fine on
+# a laptop and not fine in docker-compose.smb.yml, which shipped to MSPs with
+# the dashboard published on every interface, the variable named nowhere, and
+# the live /filter event stream on screen. The operator was never told a
+# variable was missing, so nothing about the deployment looked wrong.
+#
+# ALLOW_UNAUTHENTICATED=true is the single explicit escape, spelled the same way
+# as in admin_guard.py so there is one thing to grep for and one thing to audit.
+_ALLOW_UNAUTHENTICATED = settings.allow_unauthenticated
+_DEV_MODE = not bool(_PASSWORD_HASH) and _ALLOW_UNAUTHENTICATED
+
+#: No hash and no explicit escape: there is no way to log in, and pretending
+#: otherwise would put an open dashboard in front of real telemetry.
+_MISCONFIGURED = not bool(_PASSWORD_HASH) and not _ALLOW_UNAUTHENTICATED
 
 # ── SAML / SSO configuration ──────────────────────────────────────────────────
 
@@ -339,12 +356,31 @@ def _render_login() -> None:
         st.markdown('<p class="warden-product">Shadow Warden AI</p>', unsafe_allow_html=True)
         st.markdown('<p class="warden-subtitle">Security Analytics Dashboard</p>', unsafe_allow_html=True)
 
+        # ── Misconfiguration: refuse, do not fall open ────────────────────────
+        if _MISCONFIGURED:
+            st.markdown(
+                '<div class="warden-alert warden-alert-lock">'
+                '⛔ <strong>Dashboard is not configured</strong><br>'
+                'No <code>DASHBOARD_PASSWORD_HASH</code> is set, so there is no '
+                'credential to check. This dashboard shows live security '
+                'telemetry and will not open without one.<br><br>'
+                'Generate a hash and set it in your env file, or set '
+                '<code>ALLOW_UNAUTHENTICATED=true</code> for local development '
+                'only — never in a deployment anyone else can reach.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.stop()
+
         # ── Dev-mode notice ───────────────────────────────────────────────────
         if _DEV_MODE:
             st.markdown(
                 '<div class="warden-alert warden-alert-dev">'
-                '🟢 <strong>Dev mode</strong> — authentication bypassed.<br>'
-                'Set <code>DASHBOARD_PASSWORD_HASH</code> to enable login.'
+                '🟢 <strong>Dev mode</strong> — authentication bypassed by '
+                '<code>ALLOW_UNAUTHENTICATED=true</code>.<br>'
+                'Set <code>DASHBOARD_PASSWORD_HASH</code> and remove that flag '
+                'before anyone else can reach this host.'
                 '</div>',
                 unsafe_allow_html=True,
             )

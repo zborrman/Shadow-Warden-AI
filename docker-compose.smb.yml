@@ -82,7 +82,20 @@ services:
       warden:
         condition: service_healthy
     ports:
-      - "8501:8501"
+      # OB-F22: loopback only. This dashboard reads the live /filter event
+      # stream, so it shows the customer's real security telemetry — and it was
+      # published on every interface, on an MSP's host, with auth that defaults
+      # to open (see DASHBOARD_PASSWORD_HASH below).
+      #
+      # Same rule OB-7 applied to Grafana in docker-compose.yml: a request sent
+      # straight to the origin IP bypasses Cloudflare's WAF and rate limits
+      # entirely, so a published operator surface sits outside the whole edge
+      # posture. 8001 stays public because it is the product — a customer's
+      # application has to reach the gateway. This is not that.
+      #
+      # Reach it with:  ssh -L 8501:127.0.0.1:8501 <operator>@<host>
+      # Enforced by warden/tests/test_smb_perimeter.py.
+      - "127.0.0.1:8501:8501"
     command: >
       streamlit run warden/analytics/dashboard.py
       --server.port=8501

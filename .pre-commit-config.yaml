@@ -81,6 +81,17 @@ repos:
         types: [python]
         exclude: ^warden/tests/
 
+      # OB-F22. CONTRIBUTING.md and Hook.md described a `check-smb-compose`
+      # guard over this profile for months; it existed nowhere. This is it.
+      # The merge gate is warden/tests/test_smb_perimeter.py — CI runs pytest,
+      # not pre-commit — so this entry is for fast local feedback, not the wall.
+      - id: check-smb-compose
+        name: SMB profile perimeter (ports, required env, tier services)
+        entry: python warden/hooks/smb_perimeter.py
+        language: system
+        pass_filenames: false
+        files: ^(docker-compose\.smb\.yml|\.env\.smb\.example)$
+
       - id: tenant-isolation
         name: Multi-tenant query isolation (advisory)
         entry: python warden/hooks/tenant_isolation.py

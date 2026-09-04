@@ -20,7 +20,9 @@
 #
 # What this script does:
 #   1. Install Docker + Docker Compose v2 if missing
-#   2. Configure UFW firewall (22, 80, 443, 8001 + 8501 restricted by default)
+#   2. Configure UFW firewall (SSH only; 80/443 and every internal port are
+#      gated by the DOCKER-USER iptables chain in step 7b, because Docker
+#      publishes past ufw — see deploy/origin-lockdown/)
 #   3. Generate .env if it doesn't already exist
 #   4. Issue Let's Encrypt TLS certificate via Certbot (unless --no-tls)
 #   5. docker compose up --build -d
@@ -479,14 +481,20 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 if [[ -n "$DOMAIN" && "$NO_TLS" == 0 ]]; then
     echo -e "  Warden API   : ${CYAN}https://${DOMAIN}/filter${NC}"
-    echo -e "  Dashboard    : ${CYAN}https://${DOMAIN}:8501${NC}  (or via tunnel)"
-    echo -e "  Grafana      : ${CYAN}https://${DOMAIN}:3000${NC}  (or via tunnel)"
-    echo -e "  Jaeger UI    : ${CYAN}https://${DOMAIN}:16686${NC} (internal only)"
+    echo ""
+    echo -e "  ${YELLOW}Operator surfaces are not published on the domain either —"
+    echo -e "  same DOCKER-USER lockdown. Tunnel in:${NC}"
+    echo -e "    ssh -L 8501:127.0.0.1:8501 root@${SERVER_IP}   ${YELLOW}# Dashboard${NC}"
+    echo -e "    ssh -L 3001:127.0.0.1:3001 root@${SERVER_IP}   ${YELLOW}# Grafana${NC}"
+    echo -e "    ssh -L 16686:127.0.0.1:16686 root@${SERVER_IP} ${YELLOW}# Jaeger${NC}"
 else
     echo -e "  Warden API   : ${CYAN}http://${SERVER_IP}:8001/filter${NC}"
-    echo -e "  Dashboard    : ${CYAN}http://${SERVER_IP}:8501${NC}"
-    echo -e "  Grafana      : ${CYAN}http://${SERVER_IP}:3000${NC}"
-    echo -e "  Jaeger UI    : ${CYAN}http://${SERVER_IP}:16686${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Operator surfaces are not published — the DOCKER-USER chain"
+    echo -e "  installed in step 7b blocks direct access on purpose. Tunnel in:${NC}"
+    echo -e "    ssh -L 8501:127.0.0.1:8501 root@${SERVER_IP}   ${YELLOW}# Dashboard${NC}"
+    echo -e "    ssh -L 3001:127.0.0.1:3001 root@${SERVER_IP}   ${YELLOW}# Grafana${NC}"
+    echo -e "    ssh -L 16686:127.0.0.1:16686 root@${SERVER_IP} ${YELLOW}# Jaeger${NC}"
 fi
 echo ""
 echo -e "  .env file    : ${CYAN}${ENV_FILE}${NC}"
