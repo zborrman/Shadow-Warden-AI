@@ -127,6 +127,55 @@ def test_zero_and_one_stay_available_as_empty_states() -> None:
         )
 
 
+def test_prose_with_an_apostrophe_does_not_blind_the_scanner() -> None:
+    """CodeRabbit, round 1 on #443: the third fail-open found in this guard.
+
+    Every apostrophe was treated as a string opener, so JSX text like
+    `doesn't` began a "string" that ran to the next apostrophe or to end of
+    file. Everything in that span was blanked and no rule could match inside
+    it — including a real violation placed after `doesn't` in
+    `login/page.tsx`. A guard that goes quiet on ordinary English prose fails
+    open in the quietest way there is.
+    """
+    src = "\n".join([
+        "export default function P() {",
+        "  return <p>the operator doesn't see this</p>;",
+        "}",
+        "const s = stats ?? MOCK_STATS;",
+    ])
+    problems = check_file(_FAKE, src)
+    # Assert the *specific* finding, not merely that something was reported.
+    # Asserting non-emptiness passed even with `_opens_a_string` stubbed to
+    # True, because the unterminated-quote rule below then fired instead: two
+    # fixes covering for each other, and neither actually exercised.
+    assert any("MOCK_STATS" in p for p in problems), (
+        f"check_file() missed the violation that followed an apostrophe in JSX "
+        f"text; the scanner blanked the rest of the file. Got: {problems}"
+    )
+
+    # A string really does open after whitespace, and must still be blanked.
+    assert not check_file(
+        _FAKE, "function f() { return '?? MOCK_STATS'; }"
+    ), "a quoted string is not code and must not be scanned as such"
+
+
+def test_a_file_the_scanner_cannot_parse_is_reported_not_passed() -> None:
+    """Fail closed: an unterminated quote means the rest went unchecked.
+
+    If a mis-parse ever gets past `_opens_a_string`, the span after it is
+    blanked and every rule passes on it silently. Saying "I could not read
+    this" is the only honest outcome; reporting the file clean is the failure
+    mode this whole change exists to remove.
+    """
+    problems = check_file(
+        _FAKE, "const s = 'unterminated;\nconst t = x ?? MOCK_STATS;\n"
+    )
+    assert problems, "an unterminated quote was reported as a clean file"
+    assert any("could not parse" in p for p in problems), (
+        f"the finding does not say the file was unreadable: {problems}"
+    )
+
+
 def test_a_comment_about_this_rule_does_not_trip_it() -> None:
     """The guard's own explanatory comments must not be findings."""
     assert not check_file(_FAKE, "// never write: const s = stats ?? MOCK_STATS;\n")

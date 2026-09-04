@@ -230,16 +230,20 @@ export default function CompliancePage() {
           </div>
         </div>
 
+        {/* Rows 1-2 are posture-dependent. Gating only the standards grid left
+            ScoreRing showing 0 / PARTIAL and the summary showing zero controls,
+            which read as measured posture rather than as no posture at all. */}
+        {postureErr || !p ? (
+          <DataUnavailable what="Compliance posture" />
+        ) : (
+        <>
         {/* Row 1: Score ring + summary + timeline */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Overall score */}
           <div className="rounded-xl border border-border bg-surface-2 p-6 flex flex-col items-center justify-center gap-4">
             <div className="text-xs font-semibold tracking-widest uppercase text-gray-500">Overall Posture</div>
-            <ScoreRing
-              score={p?.overall_score ?? 0}
-              status={p?.overall_status ?? "PARTIAL"}
-            />
+            <ScoreRing score={p.overall_score} status={p.overall_status} />
             <div className="grid grid-cols-3 gap-2 w-full text-center">
               <div>
                 <div className="text-lg font-bold text-emerald-400 tabular-nums">{fmtNum(totalPass)}</div>
@@ -255,7 +259,7 @@ export default function CompliancePage() {
               </div>
             </div>
             <div className="text-[11px] text-gray-600">
-              {fmtNum(totalControls)} controls across {p?.standards.length ?? 0} standards
+              {fmtNum(totalControls)} controls across {p.standards.length} standards
             </div>
           </div>
 
@@ -309,7 +313,7 @@ export default function CompliancePage() {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
                 <div className="text-xs text-gray-500">Snapshots accumulate as the dashboard polls.</div>
-                <div className="text-[11px] text-gray-600">Current score: <span className="text-white font-semibold">{(p?.overall_score ?? 0).toFixed(1)}%</span></div>
+                <div className="text-[11px] text-gray-600">Current score: <span className="text-white font-semibold">{p.overall_score.toFixed(1)}%</span></div>
               </div>
             )}
           </div>
@@ -318,16 +322,14 @@ export default function CompliancePage() {
         {/* Row 2: Standard cards grid */}
         <div>
           <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-3">Standards Breakdown</h2>
-          {postureErr || !p ? (
-            <DataUnavailable what="Compliance posture" />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-              {p.standards.map(std => (
-                <StandardCard key={std.short} std={std} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+            {p.standards.map(std => (
+              <StandardCard key={std.short} std={std} />
+            ))}
+          </div>
         </div>
+        </>
+        )}
 
         {/* Row 3: Evidence actions */}
         <div className="rounded-xl border border-border bg-surface-2 p-5">

@@ -74,7 +74,15 @@ _ESTIMATE_RHS = re.compile(
 )
 
 
-def _scan_quote(src: str, out: list[str], i: int, quote: str) -> int:
+def _scan_quote(src: str, out: list[str], i: int, quote: str, unclosed: list[int]) -> int:
+    """Blank a string literal. Record the offset if it never closes.
+
+    Running to end of file means the scan mis-read something as a quote, and
+    everything after it was blanked unchecked. `check_file` turns that into a
+    finding rather than a silent pass — a guard that cannot parse a file must
+    say so, not report it clean.
+    """
+    opened = i
     i += 1
     n = len(src)
     while i < n:
@@ -89,10 +97,11 @@ def _scan_quote(src: str, out: list[str], i: int, quote: str) -> int:
         if src[i] != "\n":
             out[i] = " "
         i += 1
+    unclosed.append(opened)
     return i
 
 
-def _scan_template(src: str, out: list[str], i: int) -> int:
+def _scan_template(src: str, out: list[str], i: int, unclosed: list[int]) -> int:
     """Blank a template literal's text but KEEP the code inside `${...}`.
 
     This is not a detail. All three of `roi/page.tsx`'s fallbacks from a
@@ -117,7 +126,7 @@ def _scan_template(src: str, out: list[str], i: int) -> int:
         if src[i] == "`":
             return i + 1
         if src[i] == "$" and i + 1 < n and src[i + 1] == "{":
-            i = _scan_code(src, out, i + 2, stop_on_close_brace=True)
+            i = _scan_code(src, out, i + 2, unclosed, stop_on_close_brace=True)
             continue
         if src[i] != "\n":
             out[i] = " "
@@ -125,15 +134,44 @@ def _scan_template(src: str, out: list[str], i: int) -> int:
     return i
 
 
-def _scan_code(src: str, out: list[str], i: int, stop_on_close_brace: bool = False) -> int:
+#: A quote directly after one of these is not opening a string. In JavaScript a
+#: value cannot be followed by a string literal, so `x'` is a syntax error —
+#: which means an apostrophe glued to a word is prose, not code. In a `.tsx`
+#: file that prose is JSX text: `doesn't`, `operator's`, `we'll`.
+_VALUE_END = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$)]")
+
+
+def _opens_a_string(src: str, i: int) -> bool:
+    """Whether `src[i]` (a quote) begins a string literal rather than prose.
+
+    `_scan_code` used to treat every apostrophe as an opener, so JSX text like
+    `doesn't see this` started a "string" that ran to the next apostrophe — or
+    to end of file. Everything in that span was blanked, and rules 1-4 could
+    not match inside it. 26% of dashboard/src was being blanked, and a real
+    violation placed after `doesn't` in login/page.tsx read clean.
+
+    That is a guard that fails OPEN in the quietest possible way, which is the
+    exact defect this file exists to catch. Whitespace before the quote is what
+    separates `return 'x'` (an opener) from `doesn't` (not one), so no keyword
+    list is needed.
+    """
+    return i == 0 or src[i - 1] not in _VALUE_END
+
+
+def _scan_code(
+    src: str, out: list[str], i: int, unclosed: list[int],
+    stop_on_close_brace: bool = False,
+) -> int:
     n = len(src)
     depth = 0
     while i < n:
         ch = src[i]
         if ch == "`":
-            i = _scan_template(src, out, i)
+            i = _scan_template(src, out, i, unclosed)
+        elif ch in "\"'" and _opens_a_string(src, i):
+            i = _scan_quote(src, out, i, ch, unclosed)
         elif ch in "\"'":
-            i = _scan_quote(src, out, i, ch)
+            i += 1
         elif src.startswith("//", i):
             while i < n and src[i] != "\n":
                 out[i] = " "
@@ -159,7 +197,7 @@ def _scan_code(src: str, out: list[str], i: int, stop_on_close_brace: bool = Fal
     return i
 
 
-def _strip_strings_and_comments(src: str) -> str:
+def _strip_strings_and_comments(src: str) -> tuple[str, list[int]]:
     """Blank out string literals and comments, preserving offsets.
 
     Both directions matter. A comment explaining this very rule would otherwise
@@ -170,9 +208,10 @@ def _strip_strings_and_comments(src: str) -> str:
     Known limit: a regex literal containing `//` would be mis-read as a comment
     and blank the rest of its line. There is none in the tree today.
     """
-    out = list(src)
-    _scan_code(src, out, 0)
-    return "".join(out)
+    out: list[str] = list(src)
+    unclosed: list[int] = []
+    _scan_code(src, out, 0, unclosed)
+    return "".join(out), unclosed
 
 
 def _value_span(text: str, start: int) -> tuple[int, int]:
@@ -249,8 +288,20 @@ def _rhs_after(text: str, pos: int) -> str:
 
 def check_file(path: Path, src: str) -> list[str]:
     rel = path.relative_to(_ROOT).as_posix() if path.is_absolute() else path.as_posix()
-    text = _strip_strings_and_comments(src)
+    text, unclosed = _strip_strings_and_comments(src)
     problems: list[str] = []
+
+    # Fail closed. An unterminated quote means the scanner mis-parsed and
+    # blanked the rest of the file, so every rule below silently passed on
+    # whatever followed. Report that instead of reporting the file clean.
+    for offset in unclosed:
+        problems.append(
+            f"{rel}:{_line_of(text, offset)}: this guard could not parse the "
+            f"file past this quote, so nothing after it was checked. Rather "
+            f"than report the file clean, it reports that it cannot see. If "
+            f"the quote is prose rather than code, `_opens_a_string` needs to "
+            f"know about the shape it appears in."
+        )
 
     allowed = _allowed_spans(text)
     for m in _MOCK_NAME.finditer(text):

@@ -99,8 +99,9 @@ export default function SMBPage() {
 
   const tenantSelector = (
     <div className="flex items-center gap-3">
-      <label className="text-xs text-gray-500">Tenant</label>
+      <label htmlFor="smb-tenant-id" className="text-xs text-gray-500">Tenant</label>
       <input
+        id="smb-tenant-id"
         value={tenantId}
         onChange={e => setTenantId(e.target.value)}
         className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 focus:outline-none focus:border-accent-blue w-40"

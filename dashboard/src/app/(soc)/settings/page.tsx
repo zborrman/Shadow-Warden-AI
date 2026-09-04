@@ -462,6 +462,7 @@ function ApiKeysPanel() {
   const [newName, setNewName] = useState("");
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [copied, setCopied]   = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState<string | null>(null);
   const [issued, setIssued]   = useState<{ label: string; key: string } | null>(null);
 
   const { data: keys, isError } = useQuery({
@@ -485,14 +486,27 @@ function ApiKeysPanel() {
   });
 
   const createKey = () => {
+    // Single-issuance. Enter repeats while the request is in flight, and every
+    // extra success both mints a live key nobody asked for and overwrites
+    // `issued` — discarding a value the gateway will never show again.
+    if (create.isPending) return;
     const label = newName.trim();
     if (label) create.mutate(label);
   };
 
   const revoke = (id: string) => revokeKey.mutate(id);
 
-  const copy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+  const copy = async (text: string, id: string) => {
+    // Report the copy only once it has happened. This used to swallow the
+    // rejection and say "Copied" regardless, so a failed copy of a key shown
+    // exactly once looked like a successful one.
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setCopyFailed(id);
+      setTimeout(() => setCopyFailed(null), 4000);
+      return;
+    }
     setCopied(id);
     setTimeout(() => setCopied(null), 1500);
   };
@@ -542,6 +556,12 @@ function ApiKeysPanel() {
           <div style={{ fontSize: 11.5, color: sw.fg3, marginBottom: 10 }}>
             The gateway keeps only a hash. Closing this panel loses the value.
           </div>
+          {copyFailed === "issued" && (
+            <div style={{ fontSize: 11.5, color: sw.redLt, marginBottom: 10 }}>
+              The browser refused clipboard access — select the value and copy it
+              by hand before closing.
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <code style={{
               flex: 1, fontFamily: "var(--font-mono, monospace)", fontSize: 12,
@@ -553,7 +573,7 @@ function ApiKeysPanel() {
               padding: "7px 12px", borderRadius: 8, border: `1px solid ${sw.border}`,
               background: "transparent", color: copied === "issued" ? sw.green : sw.fg3,
               fontSize: 12.5, cursor: "pointer",
-            }}>{copied === "issued" ? "Copied" : "Copy"}</button>
+            }}>{copied === "issued" ? "Copied" : copyFailed === "issued" ? "Copy failed" : "Copy"}</button>
             <button onClick={() => setIssued(null)} style={{
               padding: "7px 12px", borderRadius: 8, border: `1px solid ${sw.border}`,
               background: "transparent", color: sw.fg3, fontSize: 12.5, cursor: "pointer",
