@@ -74,7 +74,10 @@ _ESTIMATE_RHS = re.compile(
 )
 
 
-def _scan_quote(src: str, out: list[str], i: int, quote: str, unclosed: list[int]) -> int:
+def _scan_quote(
+    src: str, out: list[str], i: int, quote: str, unclosed: list[int],
+    blank_strings: bool = True,
+) -> int:
     """Blank a string literal. Record the offset if it never closes.
 
     Running to end of file means the scan mis-read something as a quote, and
@@ -87,21 +90,25 @@ def _scan_quote(src: str, out: list[str], i: int, quote: str, unclosed: list[int
     n = len(src)
     while i < n:
         if src[i] == "\\":
-            out[i] = " "
-            if i + 1 < n:
-                out[i + 1] = " "
+            if blank_strings:
+                out[i] = " "
+                if i + 1 < n:
+                    out[i + 1] = " "
             i += 2
             continue
         if src[i] == quote:
             return i + 1
-        if src[i] != "\n":
+        if blank_strings and src[i] != "\n":
             out[i] = " "
         i += 1
     unclosed.append(opened)
     return i
 
 
-def _scan_template(src: str, out: list[str], i: int, unclosed: list[int]) -> int:
+def _scan_template(
+    src: str, out: list[str], i: int, unclosed: list[int],
+    blank_strings: bool = True,
+) -> int:
     """Blank a template literal's text but KEEP the code inside `${...}`.
 
     This is not a detail. All three of `roi/page.tsx`'s fallbacks from a
@@ -124,17 +131,21 @@ def _scan_template(src: str, out: list[str], i: int, unclosed: list[int]) -> int
     n = len(src)
     while i < n:
         if src[i] == "\\":
-            out[i] = " "
-            if i + 1 < n:
-                out[i + 1] = " "
+            if blank_strings:
+                out[i] = " "
+                if i + 1 < n:
+                    out[i + 1] = " "
             i += 2
             continue
         if src[i] == "`":
             return i + 1
         if src[i] == "$" and i + 1 < n and src[i + 1] == "{":
-            i = _scan_code(src, out, i + 2, unclosed, stop_on_close_brace=True)
+            i = _scan_code(
+                src, out, i + 2, unclosed,
+                stop_on_close_brace=True, blank_strings=blank_strings,
+            )
             continue
-        if src[i] != "\n":
+        if blank_strings and src[i] != "\n":
             out[i] = " "
         i += 1
     unclosed.append(opened)
@@ -168,15 +179,16 @@ def _opens_a_string(src: str, i: int) -> bool:
 def _scan_code(
     src: str, out: list[str], i: int, unclosed: list[int],
     stop_on_close_brace: bool = False,
+    blank_strings: bool = True,
 ) -> int:
     n = len(src)
     depth = 0
     while i < n:
         ch = src[i]
         if ch == "`":
-            i = _scan_template(src, out, i, unclosed)
+            i = _scan_template(src, out, i, unclosed, blank_strings)
         elif ch in "\"'" and _opens_a_string(src, i):
-            i = _scan_quote(src, out, i, ch, unclosed)
+            i = _scan_quote(src, out, i, ch, unclosed, blank_strings)
         elif ch in "\"'":
             i += 1
         elif src.startswith("//", i):
@@ -219,6 +231,25 @@ def _strip_strings_and_comments(src: str) -> tuple[str, list[int]]:
     unclosed: list[int] = []
     _scan_code(src, out, 0, unclosed)
     return "".join(out), unclosed
+
+
+def strip_comments(src: str) -> str:
+    """Blank comments only, leaving string and JSX text intact.
+
+    Shared with `warden/tests/test_dashboard_pricing_mirror.py`, whose scanner
+    needs the opposite trade: a hardcoded price usually *is* string or JSX text,
+    so blanking those would hide the thing it looks for — but a price inside a
+    comment must not be flagged.
+
+    That scanner first skipped lines starting with `//`, `*` or `/*`, which
+    misses a block-comment continuation line that starts with anything else and
+    misses a trailing comment entirely. Rather than grow a second, half-right
+    parser beside this one, it reuses this traversal — which already knows that
+    a `//` inside a string is not a comment.
+    """
+    out: list[str] = list(src)
+    _scan_code(src, out, 0, [], blank_strings=False)
+    return "".join(out)
 
 
 def _value_span(text: str, start: int) -> tuple[int, int]:

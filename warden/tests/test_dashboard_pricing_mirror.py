@@ -20,6 +20,7 @@ from warden.billing.pricing import (
     TIER_PRICE_USD_MONTH,
     annual_price_usd,
 )
+from warden.hooks.dashboard_honesty import strip_comments
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TS = _ROOT / "dashboard" / "src" / "lib" / "pricing.ts"
@@ -27,6 +28,13 @@ _TS = _ROOT / "dashboard" / "src" / "lib" / "pricing.ts"
 #: `trial` has no card in any dashboard surface; it is an internal state, not a
 #: plan someone is shown a price for. Every other tier must appear on both sides.
 NOT_SHOWN_IN_DASHBOARD = frozenset({"trial"})
+
+#: A rendered price, in the spellings TSX actually produces. `${99.99}` is not a
+#: template literal here — in JSX it is the text `$` followed by the expression
+#: `{99.99}`, and the browser paints `$99.99`. Matching only `$99.99` let that
+#: one through, which is the same failure as every other single-spelling check
+#: in this PR.
+_PRICE_LITERAL = re.compile(r"\$\s*\{?\s*(\d[\d,]*(?:\.\d+)?)\s*\}?")
 
 
 def _parse_ts_prices(src: str) -> dict[str, float]:
@@ -100,8 +108,15 @@ def test_no_dashboard_page_types_a_price_of_its_own() -> None:
       * it required a `/mo` suffix, so an annual literal was invisible.
       * it dropped zero-priced tiers, so a typed `$0/mo` on a paid plan passed.
 
-    It now reads every non-comment line in every page and matches the amount
-    itself, in any format, against monthly and derived-annual list prices.
+    And two more after that, in both directions at once:
+
+      * `${99.99}` in JSX renders `$99.99` and did not match, so the bypass
+        survived a round of closing bypasses;
+      * comments were skipped by line prefix, which misses a block-comment
+        continuation line and a trailing comment — so a price written in prose
+        could fail the test. Comment handling now goes through the honesty
+        guard's own traversal, which already knows a `//` inside a string is
+        not a comment.
     """
     src_dir = _ROOT / "dashboard" / "src"
     canonical = _canonical_amounts()
@@ -110,10 +125,9 @@ def test_no_dashboard_page_types_a_price_of_its_own() -> None:
     for path in sorted(src_dir.rglob("*")):
         if path.suffix not in (".ts", ".tsx") or path == _TS:
             continue
-        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if line.lstrip().startswith(("//", "*", "/*")):
-                continue
-            for m in re.finditer(r"\$\s*(\d[\d,]*(?:\.\d+)?)", line):
+        code = strip_comments(path.read_text(encoding="utf-8"))
+        for n, line in enumerate(code.splitlines(), 1):
+            for m in _PRICE_LITERAL.finditer(line):
                 try:
                     amount = round(float(m.group(1).replace(",", "")), 2)
                 except ValueError:
@@ -129,6 +143,49 @@ def test_no_dashboard_page_types_a_price_of_its_own() -> None:
         "dashboard/src/lib/pricing.ts, so they drift silently:\n  "
         + "\n  ".join(offenders)
     )
+
+
+def test_the_price_scanner_reads_what_the_browser_renders() -> None:
+    """Regression cases for every bypass this scanner has had.
+
+    Kept as explicit inputs rather than trusting the tree to contain them: the
+    tree is clean by construction after each fix, so a bypass that reopens
+    would go unnoticed until someone used it.
+    """
+    canonical = _canonical_amounts()
+
+    def flags(line: str) -> bool:
+        code = strip_comments(line)
+        return any(
+            round(float(m.group(1).replace(",", "")), 2) in canonical
+            for m in _PRICE_LITERAL.finditer(code)
+        )
+
+    for rendered in (
+        '<p>$99.99/mo</p>',
+        '<p data-testid="pricing">$99.99/mo</p>',
+        '<p>${99.99}/mo</p>',
+        '<span>$1,019.90/year</span>',
+        '<span>$0/mo</span>',
+        'const label = "$39.99 per month";',
+    ):
+        assert flags(rendered), (
+            f"the scanner missed {rendered!r}, which renders a canonical list "
+            "price the page did not read from the mirror."
+        )
+
+    for benign in (
+        "// Pro is $99.99/mo — see warden/billing/pricing.py",
+        "/* $99.99 */",
+        "const x = 1;  // was $99.99/mo before the mirror",
+        "const price = formatMonthly(\"pro\");",
+        "const budget = 100;",
+    ):
+        assert not flags(benign), (
+            f"the scanner flagged {benign!r}. A price named in a comment is "
+            "documentation, not a duplicate — and a test that fails on prose "
+            "gets deleted."
+        )
 
 
 def test_the_mirror_copies_the_contract_not_only_the_numbers() -> None:
