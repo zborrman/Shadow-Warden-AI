@@ -231,16 +231,10 @@ export default function SemanticLayerPage() {
                     Deterministic SQL → PostgreSQL`}
           </pre>
           <p>
-            See{" "}
-            <a
-              href="http://localhost:8501"
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              Streamlit Analytics (:8501)
-            </a>{" "}
-            → <em>15 Semantic Layer</em> for a full interactive query builder.
+            A full interactive query builder lives in the Streamlit analytics
+            app (<em>15 Semantic Layer</em>), which is run separately — no
+            service in this stack serves it, so there is nothing to link to
+            from here.
           </p>
         </div>
       </div>

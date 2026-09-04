@@ -1042,6 +1042,16 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+      # OB-F21: NEXT_PUBLIC_* is inlined by Next at build time. Passing these
+      # only under `environment:` below did nothing for the browser bundle —
+      # which is why the runtime NEXT_PUBLIC_GRAFANA_URL never took effect. The
+      # runtime copies stay because the server-side routes read some of them.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+        NEXT_PUBLIC_GRAFANA_URL: ${GRAFANA_PUBLIC_URL:-}
+        NEXT_PUBLIC_JAEGER_URL: ${JAEGER_PUBLIC_URL:-}
+        NEXT_PUBLIC_PROMETHEUS_URL: ${PROMETHEUS_PUBLIC_URL:-}
+        NEXT_PUBLIC_MINIO_URL: ${MINIO_PUBLIC_URL:-}
     container_name: warden-dashboard
     restart: unless-stopped
     logging:
@@ -1062,8 +1072,16 @@ services:
       - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
       - NEXT_PUBLIC_ANALYTICS_URL=http://analytics:8002
-      - NEXT_PUBLIC_GRAFANA_URL=http://grafana:3000
-      - NEXT_PUBLIC_JAEGER_URL=http://jaeger:16686
+      # OB-F21: these are baked into the browser bundle at build time, so a
+      # Docker-internal hostname here is a link no visitor can resolve — which
+      # is what `http://grafana:3000` and `http://jaeger:16686` were. Both
+      # services are loopback-only by OB-7, so the honest default is empty: the
+      # UI then shows the SSH tunnel command instead of a dead link. Set these
+      # to real vhosts once the Cloudflare Access ones exist.
+      - NEXT_PUBLIC_GRAFANA_URL=${GRAFANA_PUBLIC_URL:-}
+      - NEXT_PUBLIC_JAEGER_URL=${JAEGER_PUBLIC_URL:-}
+      - NEXT_PUBLIC_PROMETHEUS_URL=${PROMETHEUS_PUBLIC_URL:-}
+      - NEXT_PUBLIC_MINIO_URL=${MINIO_PUBLIC_URL:-}
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-}
       # Server-side only — read by src/app/api/warden/[...path]/route.ts, never
       # inlined into the browser bundle. The dashboard is client-rendered, so a

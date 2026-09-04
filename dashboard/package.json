@@ -6,7 +6,8 @@
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start -p 3002",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:links": "tsc src/lib/internal-links.ts --outDir .tmp-links --module esnext --target es2022 --moduleResolution bundler && node scripts/check-internal-links.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.1",

@@ -1,11 +1,12 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { api, ServiceHealth } from "@/lib/api";
-import { RefreshCw, ExternalLink, CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
+import { RefreshCw, ExternalLink, Terminal, CheckCircle2, XCircle, AlertTriangle, HelpCircle } from "lucide-react";
+import {
+  GRAFANA_URL, JAEGER_URL, PROMETHEUS_URL, MINIO_URL, internalLink,
+} from "@/lib/internal-links";
 
-const GRAFANA_URL  = process.env.NEXT_PUBLIC_GRAFANA_URL  ?? "http://localhost:3000";
-const JAEGER_URL   = process.env.NEXT_PUBLIC_JAEGER_URL   ?? "http://localhost:16686";
-const API_URL      = process.env.NEXT_PUBLIC_API_URL      ?? "https://api.shadow-warden-ai.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.shadow-warden-ai.com";
 
 const STATUS_CONFIG = {
   ok:       { color: "#30D158", bg: "rgba(48,209,88,0.12)",   label: "Healthy",  Icon: CheckCircle2 },
@@ -22,13 +23,21 @@ const OVERALL_LABELS = {
   partial:  { text: "Some Services Unknown",    color: "#BF5AF2" },
 } as const;
 
-const QUICK_LINKS = [
-  { label: "Grafana",     href: GRAFANA_URL,                         desc: "Metrics & dashboards" },
-  { label: "Jaeger",      href: JAEGER_URL,                          desc: "Distributed traces"    },
-  { label: "API Docs",    href: `${API_URL}/docs`,                   desc: "Swagger / OpenAPI"     },
-  { label: "Redoc",       href: "https://docs.shadow-warden-ai.com", desc: "Public API reference"  },
-  { label: "MinIO",       href: "http://91.98.234.160:9001",         desc: "Object store console"  },
-  { label: "Prometheus",  href: "http://91.98.234.160:9090",         desc: "Raw metrics"           },
+// Public surfaces: always reachable, always a link.
+const PUBLIC_LINKS = [
+  { label: "API Docs", href: `${API_URL}/docs`,                   desc: "Swagger / OpenAPI"    },
+  { label: "Redoc",    href: "https://docs.shadow-warden-ai.com", desc: "Public API reference" },
+];
+
+// Internal consoles. Every one of these was a dead link: bound to 127.0.0.1 on
+// the host by OB-7, yet rendered here with a hardcoded public host and port
+// that answers nothing. `internalLink` returns the tunnel command instead
+// whenever the service has no published URL — see lib/internal-links.ts.
+const INTERNAL_LINKS = [
+  { label: "Grafana",    url: GRAFANA_URL,    desc: "Metrics & dashboards" },
+  { label: "Jaeger",     url: JAEGER_URL,     desc: "Distributed traces"   },
+  { label: "Prometheus", url: PROMETHEUS_URL, desc: "Raw metrics"          },
+  { label: "MinIO",      url: MINIO_URL,      desc: "Object store console" },
 ];
 
 function ServiceCard({ svc }: { svc: ServiceHealth }) {
@@ -148,7 +157,7 @@ export default function StatusPage() {
           External Consoles
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {QUICK_LINKS.map(link => (
+          {PUBLIC_LINKS.map(link => (
             <a
               key={link.href}
               href={link.href}
@@ -163,6 +172,42 @@ export default function StatusPage() {
               <ExternalLink size={12} className="text-gray-600 shrink-0 ml-2" />
             </a>
           ))}
+
+          {INTERNAL_LINKS.map(svc => {
+            const target = internalLink(svc.label, svc.url);
+            if (target.kind === "link") {
+              return (
+                <a
+                  key={svc.label}
+                  href={target.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-xl px-4 py-3 text-sm transition-all hover:-translate-y-0.5 border border-border hover:border-blue-500/30 hover:bg-blue-500/5"
+                >
+                  <div>
+                    <p className="text-[13px] font-semibold text-white">{svc.label}</p>
+                    <p className="text-[11px] text-gray-500">{svc.desc}</p>
+                  </div>
+                  <ExternalLink size={12} className="text-gray-600 shrink-0 ml-2" />
+                </a>
+              );
+            }
+            return (
+              <div
+                key={svc.label}
+                className="flex items-center justify-between rounded-xl px-4 py-3 text-sm border border-border/60 bg-black/10"
+                title={target.command}
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-gray-400">{svc.label}</p>
+                  <p className="text-[11px] text-gray-600 font-mono truncate">
+                    {target.command}
+                  </p>
+                </div>
+                <Terminal size={12} className="text-gray-700 shrink-0 ml-2" />
+              </div>
+            );
+          })}
         </div>
       </div>
 

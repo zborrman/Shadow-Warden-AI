@@ -33,7 +33,11 @@ import { NextRequest, NextResponse } from "next/server";
  */
 
 const WARDEN = process.env.WARDEN_API_URL ?? "https://api.shadow-warden-ai.com";
-const ANALYTICS = process.env.WARDEN_ANALYTICS_URL ?? "http://localhost:8002";
+// OB-F21: this runs server-side inside the dashboard container, where
+// `localhost` is the dashboard itself, not analytics. compose already sets
+// WARDEN_ANALYTICS_URL, so this only ever applied when it was missing — and
+// then it was wrong. The in-network service name is the correct default.
+const ANALYTICS = process.env.WARDEN_ANALYTICS_URL ?? "http://analytics:8002";
 
 /** One path segment: matches an id, never a `/`. */
 const SEG = "[^/]+";
