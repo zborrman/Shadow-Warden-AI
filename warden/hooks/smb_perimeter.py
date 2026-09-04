@@ -26,8 +26,9 @@ what actually gates a merge — CI does not run pre-commit.
 """
 from __future__ import annotations
 
-import re
 import sys
+
+import yaml
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -51,69 +52,102 @@ REQUIRED_ENV_KEYS: tuple[str, ...] = ("DASHBOARD_PASSWORD_HASH",)
 #: already credited the missing hook with performing.
 ENTERPRISE_ONLY: tuple[str, ...] = ("minio", "prometheus", "grafana")
 
-_PORT_LINE = re.compile(r'^\s*-\s*"(?P<mapping>[^"]+)"\s*$')
-_SERVICE = re.compile(r"^  (?P<name>[a-z0-9][a-z0-9_-]*):\s*$")
+def _services(doc: dict) -> dict:
+    svc = doc.get("services")
+    return svc if isinstance(svc, dict) else {}
 
 
-def _published_ports(text: str) -> list[tuple[int, str]]:
-    """(line number, mapping) for every `- "…"` entry under a `ports:` key."""
-    out: list[tuple[int, str]] = []
-    in_ports = False
-    for lineno, line in enumerate(text.splitlines(), 1):
-        stripped = line.strip()
-        if stripped.startswith("ports:"):
-            in_ports = True
+def _port_mappings(doc: dict) -> list[tuple[str, str]]:
+    """(service name, mapping) for every published port, in any Compose form.
+
+    Reading the YAML rather than matching lines is not pedantry here. The first
+    version of this guard matched `- "8501:8501"` with a regex that required
+    double quotes, so `- 8501:8501` and `- '8501:8501'` walked straight past it
+    — and the long form, `{target: 8501, published: 8501}`, was invisible
+    entirely. A perimeter check with three spellings it cannot see is the kind
+    of guard this repo keeps finding: green, and blind.
+
+    It also scoped `services` by indentation, which counted `volumes:` entries
+    as services. Compose already knows what a service is; ask it.
+    """
+    out: list[tuple[str, str]] = []
+    for name, body in _services(doc).items():
+        if not isinstance(body, dict):
             continue
-        if in_ports:
-            m = _PORT_LINE.match(line)
-            if m:
-                out.append((lineno, m.group("mapping")))
-                continue
-            # Any other non-blank line ends the block.
-            if stripped and not stripped.startswith("#"):
-                in_ports = False
+        for entry in body.get("ports") or []:
+            if isinstance(entry, str):
+                out.append((name, entry))
+            elif isinstance(entry, int):
+                # `- 8501` publishes a container port on an ephemeral host port,
+                # still on every interface.
+                out.append((name, str(entry)))
+            elif isinstance(entry, dict):
+                published = entry.get("published")
+                host_ip = entry.get("host_ip") or entry.get("host-ip")
+                target = entry.get("target")
+                if published is None:
+                    continue
+                mapping = f"{published}:{target}" if target is not None else str(published)
+                out.append((name, f"{host_ip}:{mapping}" if host_ip else mapping))
     return out
 
 
 def _host_port(mapping: str) -> str:
-    """`127.0.0.1:8501:8501` -> `8501`; `8501:8501` -> `8501`."""
+    """`127.0.0.1:8501:8501` -> `8501`; `8501:8501` -> `8501`; `8501` -> `8501`."""
     parts = mapping.split(":")
     return parts[-2] if len(parts) >= 2 else parts[0]
 
 
 def _is_loopback_bound(mapping: str) -> bool:
-    return mapping.startswith(("127.0.0.1:", "localhost:", "::1:"))
+    return mapping.startswith(("127.0.0.1:", "localhost:", "::1:", "[::1]:"))
 
 
-def check_ports(text: str) -> list[str]:
+def check_ports(doc: dict) -> list[str]:
     """Every published port is either allow-listed or bound to loopback."""
     problems: list[str] = []
-    for lineno, mapping in _published_ports(text):
+    for service, mapping in _port_mappings(doc):
         if _is_loopback_bound(mapping):
             continue
         if _host_port(mapping) in PUBLIC_PORTS:
             continue
         problems.append(
-            f"docker-compose.smb.yml:{lineno}: {mapping!r} is published on every "
-            f"interface. Bind it to loopback (127.0.0.1:{mapping}) or add the "
-            f"port to PUBLIC_PORTS with a reason."
+            f"service {service!r} publishes {mapping!r} on every interface. "
+            f"Bind it to loopback (127.0.0.1:...) or add the host port to "
+            f"PUBLIC_PORTS with a reason."
         )
     return problems
 
 
 def check_required_env(env_text: str) -> list[str]:
-    return [
-        f".env.smb.example does not mention {key} — an operator copying it will "
-        f"never learn the variable exists, and the control it guards stays off."
-        for key in REQUIRED_ENV_KEYS
-        if key not in env_text
-    ]
+    """`KEY=` must be an active assignment, not a mention.
+
+    Matching the bare name meant a variable named only in a comment satisfied
+    the check — including the explanatory comment this guard's own fix added to
+    .env.smb.example. The guard would then have passed on a file that still
+    told the operator nothing actionable.
+    """
+    problems: list[str] = []
+    for key in REQUIRED_ENV_KEYS:
+        assigned = any(
+            line.lstrip().startswith(f"{key}=")
+            for line in env_text.splitlines()
+            if not line.lstrip().startswith("#")
+        )
+        if not assigned:
+            problems.append(
+                f".env.smb.example has no active `{key}=` line — an operator "
+                f"copying it will never learn the variable exists, and the "
+                f"control it guards stays off. A mention in a comment does not "
+                f"count; the line has to be there to be filled in."
+            )
+    return problems
 
 
-def check_no_enterprise_services(text: str) -> list[str]:
-    names = {m.group("name") for m in (_SERVICE.match(ln) for ln in text.splitlines()) if m}
+def check_no_enterprise_services(doc: dict) -> list[str]:
+    """Scoped to the services mapping — `volumes:` is not a service."""
+    names = set(_services(doc))
     return [
-        f"docker-compose.smb.yml declares {svc!r}, which is enterprise-tier only."
+        f"docker-compose.smb.yml declares service {svc!r}, which is enterprise-tier only."
         for svc in ENTERPRISE_ONLY
         if svc in names
     ]
@@ -122,11 +156,15 @@ def check_no_enterprise_services(text: str) -> list[str]:
 def run() -> list[str]:
     if not _COMPOSE.exists():
         return ["docker-compose.smb.yml is missing — this guard has nothing to check."]
-    text = _COMPOSE.read_text(encoding="utf-8")
-    env_text = _ENV_EXAMPLE.read_text(encoding="utf-8") if _ENV_EXAMPLE.exists() else ""
     if not _ENV_EXAMPLE.exists():
         return [".env.smb.example is missing — operators have no reference config."]
-    return check_ports(text) + check_required_env(env_text) + check_no_enterprise_services(text)
+    doc = yaml.safe_load(_COMPOSE.read_text(encoding="utf-8")) or {}
+    env_text = _ENV_EXAMPLE.read_text(encoding="utf-8")
+    return (
+        check_ports(doc)
+        + check_required_env(env_text)
+        + check_no_enterprise_services(doc)
+    )
 
 
 def main() -> int:

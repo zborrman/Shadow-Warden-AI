@@ -64,32 +64,58 @@ def test_only_the_gateway_api_is_meant_to_be_public() -> None:
     )
 
 
-def test_the_guard_catches_a_wide_open_port() -> None:
-    """Guard the guard: a check that cannot fail is the thing being fixed."""
-    assert check_ports('    ports:\n      - "8501:8501"\n'), (
-        "check_ports() accepted a port published on every interface. The whole "
-        "guard is then decorative."
-    )
-    assert not check_ports('    ports:\n      - "127.0.0.1:8501:8501"\n')
-    assert not check_ports('    ports:\n      - "8001:8001"\n'), (
+def test_the_guard_catches_a_wide_open_port_in_every_compose_spelling() -> None:
+    """Guard the guard — and the first version could only see one spelling.
+
+    It matched `- "8501:8501"` with a regex requiring double quotes. Unquoted,
+    single-quoted and long-form entries were invisible, so three ways of
+    writing the same exposure passed a green check. Compose knows what a port
+    is; the guard now asks it.
+    """
+    def doc(ports):
+        return {"services": {"dashboard": {"ports": ports}}}
+
+    for spelling in (
+        ["8501:8501"],                                        # quoted or not — same YAML
+        [8501],                                               # bare container port
+        [{"target": 8501, "published": 8501}],                # long form
+        [{"target": 8501, "published": "8501", "protocol": "tcp"}],
+    ):
+        assert check_ports(doc(spelling)), (
+            f"check_ports() accepted {spelling!r} — a port published on every "
+            "interface. Every spelling Compose accepts has to be visible here, "
+            "or the guard is green and blind."
+        )
+
+    assert not check_ports(doc(["127.0.0.1:8501:8501"]))
+    assert not check_ports(doc([{"target": 8501, "published": 8501,
+                                 "host_ip": "127.0.0.1"}]))
+    assert not check_ports(doc(["8001:8001"])), (
         "8001 is allow-listed as the gateway API and must not be flagged."
     )
 
 
-def test_the_guard_catches_a_missing_control_variable() -> None:
+def test_the_guard_does_not_mistake_a_volume_for_a_service() -> None:
+    """`volumes:` was being scanned by indentation as though it were services."""
+    assert not check_no_enterprise_services({"volumes": {"grafana": None},
+                                             "services": {"warden": {}}}), (
+        "A volume named `grafana` is not the Grafana service. Scoping by "
+        "indentation is what produced that confusion."
+    )
+    assert check_no_enterprise_services({"services": {"grafana": {}}})
+
+
+def test_a_variable_named_only_in_a_comment_does_not_count() -> None:
+    """Substring matching passed on a mention, including this fix's own comment."""
     assert check_required_env("REDIS_URL=redis://redis:6379\n"), (
         "check_required_env() passed an env example with no "
         f"{REQUIRED_ENV_KEYS[0]}, which is how the open dashboard shipped."
     )
-    assert not check_required_env("DASHBOARD_PASSWORD_HASH=\n")
-
-
-def test_the_guard_catches_an_enterprise_service_in_the_smb_tier() -> None:
-    assert check_no_enterprise_services("  grafana:\n"), (
-        "check_no_enterprise_services() missed grafana — this is the one check "
-        "the documentation already credited the missing hook with performing."
+    assert check_required_env("# remember to set DASHBOARD_PASSWORD_HASH\n"), (
+        "A commented mention satisfied the check. The operator still has no "
+        "line to fill in, which is the entire point of the example file."
     )
-    assert not check_no_enterprise_services("  redis:\n  warden:\n")
+    assert not check_required_env("DASHBOARD_PASSWORD_HASH=\n")
 
 
 def test_the_documented_hook_now_exists() -> None:
