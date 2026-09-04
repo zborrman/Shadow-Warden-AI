@@ -44,6 +44,34 @@ jobs:
               fail=1
             fi
           done
+          # ── OB-F22: operator surfaces, probed by raw IP ──────────────────
+          #
+          # The loop above only ever tested 443 and 80. That is the web path,
+          # and it is not where the exposure was: landing/business-community
+          # published a link to http://<origin-ip>:8501, the Streamlit
+          # analytics dashboard, which reads the live /filter event stream.
+          # docker-compose.smb.yml published that port on every interface.
+          #
+          # Measured 2026-09-04: both ports already time out from outside, so
+          # the iptables lockdown is doing its job — but nothing verified that,
+          # which means a regression would have been silent. These two lines
+          # are what make the loopback bind in docker-compose.smb.yml checkable
+          # rather than merely written down.
+          #
+          # No hostname here: these are not vhosts. Ask the origin IP directly,
+          # which is exactly the question — is this port answering to anyone
+          # who skips Cloudflare.
+          for port in 8501 8502; do
+            if ! code=$(curl -sS --max-time 15 -o /dev/null                      -w '%{http_code}' "http://$IP:$port/" 2>/dev/null); then
+              code=000
+            fi
+            echo "direct-to-origin :$port -> HTTP $code"
+            if [ "$code" != "000" ]; then
+              echo "::error::Operator dashboard reachable DIRECTLY on :$port (HTTP $code). Streamlit shows live security telemetry and its auth defaults to open without DASHBOARD_PASSWORD_HASH — see warden/tests/test_smb_perimeter.py."
+              fail=1
+            fi
+          done
+
           # Context only (not a failure condition here): the Cloudflare path should stay up.
           if ! cf=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "https://$HOSTN/health" 2>/dev/null); then
             cf=000

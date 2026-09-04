@@ -6,11 +6,30 @@ const features = roadmap.filter(r => r.category === 'Dashboard');
 const subcats = [...new Set(features.map(r => r.subcategory))];
 function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 
+// OB-F22 — no origin-IP links on a public page.
+//
+// This list published four of them: Grafana :3000, Jaeger :16686 and Streamlit
+// :8501, all by raw IP over plain HTTP. Every one is an operator surface that
+// OB-7 deliberately bound to loopback, so all four were dead links — verified
+// 2026-09-04, every port times out from outside. A visitor clicked, waited and
+// got a browser error.
+//
+// Dead is the better of the two outcomes. The worse one is that a public page
+// was telling the internet which ports to try against our origin IP, and any
+// of them being opened for an afternoon's debugging would have turned a broken
+// link into an advertised one. Grafana holds every datasource credential;
+// Streamlit renders the live /filter event stream.
+//
+// So internal surfaces are named, not linked. `tunnel` carries the command
+// that actually reaches them.
 const dashboards = [
-  { name: 'Grafana',       url: 'http://91.98.234.160:3000', icon: '📊', desc: 'SLO dashboards, Prometheus metrics, loki logs.' },
-  { name: 'Jaeger',        url: 'http://91.98.234.160:16686',icon: '🔬', desc: 'Distributed tracing for all 9 pipeline stages.' },
+  { name: 'Grafana',       icon: '📊', desc: 'SLO dashboards, Prometheus metrics, Loki logs.',
+    tunnel: 'ssh -L 3001:127.0.0.1:3001 <operator>@<host>' },
+  { name: 'Jaeger',        icon: '🔬', desc: 'Distributed tracing for all 9 pipeline stages.',
+    tunnel: 'ssh -L 16686:127.0.0.1:16686 <operator>@<host>' },
   { name: 'SOC Dashboard', url: 'https://dash.shadow-warden-ai.com', icon: '🛡️', desc: 'Next.js 14 real-time security operations center.', subdomain: 'dash.shadow-warden-ai.com' },
-  { name: 'Streamlit',     url: 'http://91.98.234.160:8501', icon: '📈', desc: 'Threat Radar, Causal Arbiter visualizer, Secrets UI.' },
+  { name: 'Streamlit',     icon: '📈', desc: 'Threat Radar, Causal Arbiter visualizer, Secrets UI.',
+    tunnel: 'ssh -L 8501:127.0.0.1:8501 <operator>@<host>' },
 ];
 ---
 
@@ -41,6 +60,8 @@ const dashboards = [
       <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">Live Dashboards</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         {dashboards.map((d: any) => (
+          <Fragment>
+          {d.url ? (
           <a href={d.url} target="_blank" rel="noopener"
              class="group block rounded-xl p-5 transition-all duration-200 no-underline"
              style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
@@ -65,6 +86,24 @@ const dashboards = [
               Open <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="group-hover:translate-x-0.5 transition-transform"><path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
             </div>
           </a>
+          ) : (
+          <div class="block rounded-xl p-5 no-underline"
+               style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="flex items-start justify-between mb-3">
+              <div class="text-[22px]">{d.icon}</div>
+              <div class="px-1.5 py-0.5 rounded-md text-[9px] font-bold"
+                   style="color:#64748b;background:rgba(100,116,139,0.12);border:1px solid rgba(100,116,139,0.2)">
+                INTERNAL
+              </div>
+            </div>
+            <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{d.name}</div>
+            <div class="text-[12px] leading-relaxed mb-3" style="color:#64748b">{d.desc}</div>
+            <div class="text-[10px] font-mono leading-relaxed" style="color:#475569">
+              Not published. Reach it over a tunnel:<br />{d.tunnel}
+            </div>
+          </div>
+          )}
+          </Fragment>
         ))}
       </div>
 
