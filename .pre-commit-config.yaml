@@ -92,6 +92,17 @@ repos:
         pass_filenames: false
         files: ^(docker-compose\.smb\.yml|\.env\.smb\.example)$
 
+      # SW-10. Five of the twenty-six SOC dashboard pages rendered fabricated
+      # numbers whenever the API was unreachable, on the permanent render path.
+      # The merge gate is warden/tests/test_dashboard_honesty.py; this entry is
+      # for fast local feedback, not the wall.
+      - id: dashboard-honesty
+        name: SOC dashboard renders measurements, not fabrications
+        entry: python warden/hooks/dashboard_honesty.py
+        language: system
+        pass_filenames: false
+        files: ^dashboard/src/.*\.tsx?$
+
       - id: tenant-isolation
         name: Multi-tenant query isolation (advisory)
         entry: python warden/hooks/tenant_isolation.py
