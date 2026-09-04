@@ -32,6 +32,7 @@ import pytest
 from warden.hooks.smb_perimeter import (
     PUBLIC_PORTS,
     REQUIRED_ENV_KEYS,
+    check_network_mode,
     check_no_enterprise_services,
     check_ports,
     check_required_env,
@@ -93,6 +94,32 @@ def test_the_guard_catches_a_wide_open_port_in_every_compose_spelling() -> None:
     assert not check_ports(doc(["8001:8001"])), (
         "8001 is allow-listed as the gateway API and must not be flagged."
     )
+
+
+def test_a_target_only_mapping_is_still_a_publication() -> None:
+    """`{target: 8501}` gets an ephemeral host port — on every interface.
+
+    The first version skipped it as "not published", which made the quietest
+    spelling of an exposure the one the guard could not see.
+    """
+    assert check_ports({"services": {"d": {"ports": [{"target": 8501}]}}}), (
+        "check_ports() skipped a target-only mapping. Compose publishes it on "
+        "an ephemeral host port, so it is an exposure with no port number to "
+        "recognise — exactly the case a reviewer would miss too."
+    )
+    assert not check_ports({"services": {"d": {"ports": [
+        {"target": 8501, "host_ip": "127.0.0.1"}]}}})
+
+
+def test_host_networking_is_rejected_outright() -> None:
+    """A host-networked service has no `ports:` for the guard to inspect."""
+    assert check_network_mode({"services": {"d": {"network_mode": "host"}}}), (
+        "A service on host networking binds every port on the host's "
+        "interfaces directly. Checking `ports:` alone reports it clean, which "
+        "is the failure mode this guard exists to prevent."
+    )
+    assert not check_network_mode({"services": {"d": {"network_mode": "bridge"}}})
+    assert not check_network_mode({"services": {"d": {}}})
 
 
 def test_the_guard_does_not_mistake_a_volume_for_a_service() -> None:

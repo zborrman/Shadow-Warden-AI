@@ -86,10 +86,41 @@ def _port_mappings(doc: dict) -> list[tuple[str, str]]:
                 host_ip = entry.get("host_ip") or entry.get("host-ip")
                 target = entry.get("target")
                 if published is None:
-                    continue
+                    # `{target: 8501}` with no `published` is not "unpublished".
+                    # Compose gives it an ephemeral host port — on every
+                    # interface, same as any other publication. Skipping it, as
+                    # the first version did, made the quietest possible spelling
+                    # of an exposure the one the guard could not see.
+                    if target is None:
+                        continue
+                    published = f"<ephemeral>:{target}"
                 mapping = f"{published}:{target}" if target is not None else str(published)
                 out.append((name, f"{host_ip}:{mapping}" if host_ip else mapping))
     return out
+
+
+def check_network_mode(doc: dict) -> list[str]:
+    """`network_mode: host` publishes everything, with no `ports:` to inspect.
+
+    The ports check is exhaustive only over services that declare ports. A
+    service on host networking declares none and listens on the host directly —
+    every port it binds, on every interface. Checking `ports:` alone would have
+    reported that configuration clean, which is the failure mode this whole
+    guard exists to prevent.
+    """
+    problems: list[str] = []
+    for name, body in _services(doc).items():
+        if not isinstance(body, dict):
+            continue
+        mode = str(body.get("network_mode") or body.get("network-mode") or "")
+        if mode.strip().lower() == "host":
+            problems.append(
+                f"service {name!r} uses `network_mode: host`, so every port it "
+                f"binds is on the host's interfaces directly and no `ports:` "
+                f"entry constrains it. The perimeter check cannot see inside "
+                f"that; use an explicit loopback-bound `ports:` mapping instead."
+            )
+    return problems
 
 
 def _host_port(mapping: str) -> str:
@@ -162,6 +193,7 @@ def run() -> list[str]:
     env_text = _ENV_EXAMPLE.read_text(encoding="utf-8")
     return (
         check_ports(doc)
+        + check_network_mode(doc)
         + check_required_env(env_text)
         + check_no_enterprise_services(doc)
     )
