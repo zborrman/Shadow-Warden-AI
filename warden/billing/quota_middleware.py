@@ -107,6 +107,42 @@ def _quota_key(tenant_id: str) -> str:
     return f"warden:quota:req:{tenant_id}:{month}"
 
 
+def _seconds_until_month_rolls_over(now: datetime | None = None) -> int:
+    """Seconds until ``_quota_key`` starts naming a new month.
+
+    The counter key is stamped with %Y-%m, so the quota resets the instant the
+    calendar month changes in UTC. Published as the RateLimit reset parameter.
+    """
+    now = now or datetime.now(UTC)
+    if now.month == 12:
+        nxt = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        nxt = now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    return max(1, int((nxt - now).total_seconds()))
+
+
+def _publish_quota_policy(scope: dict, *, limit: int | None, used: int | None) -> None:
+    """Hand the monthly quota to RateLimitHeadersMiddleware.
+
+    That middleware sits outside this one and cannot resolve a tenant's plan
+    without repeating the SQLite + Redis work already done here, so the reading
+    is passed forward on the shared request state rather than recomputed.
+    Unlimited plans publish nothing: there is no quota to describe.
+    """
+    if limit is None:
+        return
+    try:
+        state = scope.setdefault("state", {})
+        if isinstance(state, dict):
+            state["quota_policy"] = {
+                "limit": int(limit),
+                "remaining": None if used is None else max(0, int(limit) - int(used)),
+                "reset": _seconds_until_month_rolls_over(),
+            }
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("suppressed exception: %r", _exc)
+
+
 def _get_tenant_id_from_scope(scope: dict) -> str:
     """
     Resolve the caller's tenant_id.
@@ -266,8 +302,10 @@ class QuotaMiddleware:
         # Increment Redis counter
         r = _redis()
         if r is None:
-            # Redis unavailable — fail-open
+            # Redis unavailable — fail-open. The policy is still known even
+            # though the counter is not, so publish the limit without a reading.
             log.warning("quota_middleware: Redis unavailable, skipping quota check for tenant=%s", tenant_id)
+            _publish_quota_policy(scope, limit=limit, used=None)
             await self.app(scope, receive, send)
             return
 
@@ -290,8 +328,11 @@ class QuotaMiddleware:
             new_total = await asyncio.to_thread(_bump)
         except Exception as exc:
             log.warning("quota_middleware: Redis INCR error tenant=%s: %s", tenant_id, exc)
+            _publish_quota_policy(scope, limit=limit, used=None)
             await self.app(scope, receive, send)
             return
+
+        _publish_quota_policy(scope, limit=limit, used=new_total)
 
         if new_total > limit:
             overage_enabled = limits.get("overage_enabled", False)

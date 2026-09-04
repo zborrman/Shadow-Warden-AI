@@ -46,12 +46,43 @@ const structuredData = {
       logo: `${SITE_URL}/logo.png`,
       description: 'Zero-trust AI security gateway and machine-to-machine agent marketplace.',
       sameAs: ['https://github.com/zborrman/Shadow-Warden-AI'],
-      contactPoint: [{
-        '@type': 'ContactPoint',
-        contactType: 'technical support',
-        url: `${SITE_URL}/contact`,
-        availableLanguage: ['en'],
-      }],
+      // An agent asked to verify who this is, or to reach a human, should not
+      // have to scrape the contact page. contactType + email is what
+      // schema.org's ContactPoint is for; `address` is what tells a verifier
+      // which jurisdiction the counterparty sits in.
+      //
+      // Only the country is asserted. A street address, locality and postal
+      // code are not published anywhere this repo can verify them, and an
+      // invented address in machine-readable identity data is worse than an
+      // incomplete one — it is the kind of claim a buyer's compliance review
+      // checks. Fill the rest in from the registered entity when there is one.
+      contactPoint: [
+        {
+          '@type': 'ContactPoint',
+          contactType: 'technical support',
+          email: 'vz@shadow-warden-ai.com',
+          url: `${SITE_URL}/contact`,
+          availableLanguage: ['en'],
+        },
+        {
+          '@type': 'ContactPoint',
+          contactType: 'sales',
+          email: 'vz@shadow-warden-ai.com',
+          url: `${SITE_URL}/contact`,
+          availableLanguage: ['en'],
+        },
+        {
+          '@type': 'ContactPoint',
+          contactType: 'security',
+          email: 'security@shadow-warden-ai.com',
+          url: `${SITE_URL}/trust`,
+          availableLanguage: ['en'],
+        },
+      ],
+      address: {
+        '@type': 'PostalAddress',
+        addressCountry: 'IL',
+      },
     },
     {
       '@type': 'WebSite',

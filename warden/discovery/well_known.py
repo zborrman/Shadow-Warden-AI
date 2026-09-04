@@ -14,8 +14,8 @@ import os
 from typing import Any
 
 _GATEWAY_URL = os.getenv("WARDEN_GATEWAY_URL", "https://api.shadow-warden-ai.com")
+_SITE_URL = os.getenv("WARDEN_SITE_URL", "https://shadow-warden-ai.com")
 _MARKET_VERSION = "1.0"
-_MCP_VERSION = "2025-11-05"
 
 
 def build_ai_market(
@@ -80,24 +80,51 @@ def build_mcp_descriptor(
     tenant_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    Build `/.well-known/mcp.json` capability advertisement.
+    Build the `/.well-known/mcp.json` server descriptor.
 
-    Follows the emerging MCP Discovery specification so that
-    MCP clients can auto-discover this server.
+    Three things were wrong with the previous document, and each of them is the
+    kind of error that makes an automated client give up silently rather than
+    complain:
+
+      * it advertised protocol "2025-11-05", which is not a revision that has
+        ever existed, so a client matching it against its own list found nothing;
+      * it never named the transport, which is the first thing a client needs in
+        order to know how to speak to the endpoint at all;
+      * it listed only the paid staff tools, so a client that connected to use
+        the security gateway found no tool that filters anything.
+
+    Every field here is derived from what ``warden/mcp/gateway.py`` actually
+    implements — ``warden/tests/test_mcp_manifest.py`` holds the two in
+    agreement.
     """
-    from warden.mcp.pricing import MCP_EXPOSED_TOOLS  # noqa: PLC0415
+    from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS
+    from warden.mcp.pricing import MCP_EXPOSED_TOOLS, price_for
+    from warden.mcp.product_tools import FREE_TOOLS
 
+    endpoint = f"{_GATEWAY_URL}/mcp/"
     tools = [
-        {"name": t, "endpoint": f"{_GATEWAY_URL}/mcp/", "method": "POST"}
+        {"name": t, "endpoint": endpoint, "method": "POST", "price_usd": "0"}
+        for t in sorted(FREE_TOOLS)
+    ] + [
+        {"name": t, "endpoint": endpoint, "method": "POST", "price_usd": str(price_for(t))}
         for t in sorted(MCP_EXPOSED_TOOLS)
     ]
 
     return {
-        "schema_version": _MCP_VERSION,
-        "name": "Shadow Warden MCP Gateway",
-        "description": "Paid MCP gateway — x402 USDC + L402 Lightning + Flex Credits",
-        "url": f"{_GATEWAY_URL}/mcp/",
-        "protocol": "MCP/2025-11-05",
+        "schema_version": SUPPORTED_PROTOCOL_VERSIONS[0],
+        "name": "Shadow Warden AI MCP Server",
+        "description": (
+            "Zero-trust AI security gateway as MCP tools. filter_text screens text "
+            "through the nine-stage pipeline (prompt injection, obfuscation decoding, "
+            "secret and PII redaction) and is free against the caller's own gateway "
+            "quota; the staff business tools are billed per call via Flex Credits, "
+            "x402 USDC or L402 Lightning."
+        ),
+        "url": endpoint,
+        "transport": "streamable-http",
+        "protocol": f"MCP/{SUPPORTED_PROTOCOL_VERSIONS[0]}",
+        "protocol_versions": list(SUPPORTED_PROTOCOL_VERSIONS),
+        "documentation": f"{_SITE_URL}/mcp",
         "auth": {
             "schemes": [
                 {"type": "bearer",   "header": "Authorization"},
@@ -107,7 +134,9 @@ def build_mcp_descriptor(
             ]
         },
         "payment": {
+            # Free tools are never gated, so "required" describes the paid ones.
             "required": os.getenv("MCP_DEV_MODE", "false").lower() != "true",
+            "free_tools": sorted(FREE_TOOLS),
             "methods": ["x402", "l402", "flex-credits"],
             "pricing_endpoint": f"{_GATEWAY_URL}/mcp/pricing",
         },

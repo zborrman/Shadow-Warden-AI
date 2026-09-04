@@ -5,7 +5,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from warden.mcp.gateway import router
+from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS, router
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,8 @@ class TestMcpFreeEndpoints:
         resp = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["result"]["protocolVersion"] == "2024-11-05"
+        # No version asked for: the server answers with the newest it implements.
+        assert data["result"]["protocolVersion"] == SUPPORTED_PROTOCOL_VERSIONS[0]
 
     def test_ping(self, client):
         resp = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 2, "method": "ping"})

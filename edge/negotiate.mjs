@@ -26,6 +26,10 @@ export const MARKDOWN_ROUTES = Object.freeze({
   "/sdk": "/sdk.md",
   "/agentic": "/agentic.md",
   "/trust": "/trust.md",
+  "/developers": "/developers.md",
+  "/mcp": "/mcp.md",
+  "/doc/authentication": "/authentication.md",
+  "/doc/rate-limits": "/rate-limits.md",
 });
 
 /** Served when the requested path does not exist at all. */

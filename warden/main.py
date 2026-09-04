@@ -1175,10 +1175,35 @@ app = FastAPI(
         "analyses the attack and auto-generates a new detection rule (hot-reload, no restart).\n\n"
         "**Auth:** `X-API-Key` header required (except dev mode). "
         "Enterprise supports OIDC Bearer tokens on `/ext/*` routes.\n\n"
-        "**Rate limiting:** Per-tenant sliding window (default 60 req/min). "
-        "Shadow-ban at ERS score ≥ 0.75."
+        "**Rate limiting:** Per-tenant sliding window (default 60 req/min) plus a "
+        "monthly request quota set by the plan. Shadow-ban at ERS score ≥ 0.75.\n\n"
+        "Every response advertises the throttling contract, so a client can pace itself "
+        "instead of discovering a limit by being refused:\n\n"
+        "- `RateLimit-Policy` / `RateLimit` — structured fields from "
+        "draft-ietf-httpapi-ratelimit-headers-09, e.g. "
+        "`RateLimit-Policy: \"requests-per-minute\";q=60;w=60` and "
+        "`RateLimit: \"requests-per-minute\";r=59;t=41` — `q` quota, `w` window "
+        "seconds, `r` remaining, `t` seconds to reset.\n"
+        "- `RateLimit-Limit` / `RateLimit-Remaining` / `RateLimit-Reset` — the earlier "
+        "draft spelling, mirrored as `X-RateLimit-*`.\n"
+        "- `Retry-After` — delta-seconds, on 429 only, naming the same instant as the "
+        "reset parameter.\n\n"
+        "Live counters accompany the policy on routes that consume the window; a route "
+        "that consumes nothing publishes the policy alone. Full conventions: "
+        "https://shadow-warden-ai.com/doc/rate-limits"
     ),
     version=_warden_version,
+    # Without this a generated client resolves every path against whatever host
+    # it downloaded the spec from. The site publishes a copy of this document at
+    # https://shadow-warden-ai.com/openapi.json, where no API lives, so an agent
+    # reading it there had no way to learn the base URL — the readiness audit
+    # recorded exactly that as "no machine-verifiable API surface confirmed".
+    # WARDEN_GATEWAY_URL overrides for self-hosted and sovereign deployments.
+    servers=[
+        {"url": os.getenv("WARDEN_GATEWAY_URL", "https://api.shadow-warden-ai.com"),
+         "description": "Production"},
+        {"url": "http://localhost:8001", "description": "Local development"},
+    ],
     contact={"name": "Shadow Warden AI", "url": "https://shadow-warden-ai.com", "email": "security@shadow-warden-ai.com"},
     license_info={"name": "Proprietary", "url": "https://shadow-warden-ai.com/terms"},
     openapi_tags=[
@@ -1655,6 +1680,22 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+# ── Rate-limit headers ────────────────────────────────────────────────────────
+#
+# The gateway enforces a per-tenant window and a monthly quota and used to
+# advertise neither, so a caller could only discover a limit by being refused.
+# Registered inside APIVersionMiddleware (which must stay outermost to strip
+# `/v1` before any path-based decision) and outside QuotaMiddleware, so it can
+# read the quota reading that middleware records and can decorate the 429 the
+# quota check itself emits.
+try:
+    from warden.middleware.rate_limit_headers import RateLimitHeadersMiddleware
+    app.add_middleware(RateLimitHeadersMiddleware)
+    log.info("RateLimitHeadersMiddleware registered — RateLimit headers active.")
+except ImportError:  # pragma: no cover - the module ships with the package
+    log.warning("RateLimitHeadersMiddleware not available — rate-limit headers skipped.")
 
 
 # ── API versioning (P2) ───────────────────────────────────────────────────────
