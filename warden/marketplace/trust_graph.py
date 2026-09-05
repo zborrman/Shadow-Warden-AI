@@ -20,6 +20,7 @@ from typing import Any
 
 from warden.config import data_path
 from warden.db.connect import open_db_readonly
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.trust_graph")
 
@@ -106,7 +107,11 @@ class TrustGraph:
                     agg[key][0] += _trade_weight(status)
                     agg[key][1] += 1
         except Exception as exc:
-            log.debug("TrustGraph load error: %s", exc)
+            # SR-6: an empty aggregate is indistinguishable from "no trades
+            # yet", so the trust routes answer 200 with an empty graph and
+            # nobody learns the database was unreachable. Debug-level logging
+            # is not an observation.
+            record_failopen("marketplace_trust_graph", Reason.BACKEND_ERROR, exc)
         return agg
 
     # ── PageRank ──────────────────────────────────────────────────────────────

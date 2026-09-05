@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 from warden.config import data_path, settings
 from warden.db.connect import open_db_readonly
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.analytics")
 
@@ -229,6 +230,63 @@ def get_volume_series(
         return []
 
 
+def agent_trade_totals(
+    agent_ids: list[str],
+    tenant_id: str | None = None,
+    db_path: str | None = None,
+) -> dict[str, dict]:
+    """Completed-trade counts and USD volume for exactly these agents.
+
+    `get_agent_leaderboard` answers a different question — the top N by trade
+    count — so joining a TrustRank ranking to it left every ranked agent outside
+    that top N showing zero trades and $0.00 volume, which reads as "traded
+    nothing" rather than "not in the other list".
+
+    Tenant scoping goes through the listing, because `marketplace_purchases` has
+    no `tenant_id` column; filtering it directly is what made every
+    tenant-scoped call to `get_agent_leaderboard` return the empty fallback.
+    """
+    if not agent_ids:
+        return {}
+
+    placeholders = ",".join("?" for _ in agent_ids)
+    where = [f"(seller_agent IN ({placeholders}) OR buyer_agent IN ({placeholders}))",
+             "status = ?"]
+    params: list = [*agent_ids, *agent_ids, "completed"]
+    if tenant_id:
+        where.append(
+            "listing_id IN (SELECT listing_id FROM marketplace_listings "
+            "WHERE tenant_id = ?)"
+        )
+        params.append(tenant_id)
+
+    totals: dict[str, dict] = {a: {"trades": 0, "volume_usd": 0.0} for a in agent_ids}
+    wanted = set(agent_ids)
+    try:
+        with _conn(db_path) as con:
+            rows = con.execute(
+                "SELECT seller_agent, buyer_agent, COALESCE(price_paid, 0) AS price "
+                f"FROM marketplace_purchases WHERE {' AND '.join(where)}",
+                params,
+            ).fetchall()
+        for row in rows:
+            # A purchase is one trade for each side that is in the set, and the
+            # same dollars for each — the table is a leaderboard of
+            # participation, not a ledger.
+            for side in ("seller_agent", "buyer_agent"):
+                agent = row[side]
+                if agent in wanted:
+                    totals[agent]["trades"] += 1
+                    totals[agent]["volume_usd"] += float(row["price"])
+    except Exception as exc:
+        record_failopen("marketplace_agent_totals", Reason.BACKEND_ERROR, exc)
+        return {}
+
+    for v in totals.values():
+        v["volume_usd"] = round(v["volume_usd"], 2)
+    return totals
+
+
 def get_agent_leaderboard(
     tenant_id: str | None = None,
     community_id: str | None = None,
@@ -240,7 +298,16 @@ def get_agent_leaderboard(
             where: list[str] = ["status = ?"]
             params: list = ["completed"]
             if tenant_id:
-                where.append("tenant_id = ?")
+                # `marketplace_purchases` has no `tenant_id` column, so this
+                # used to raise `no such column` and drop the whole function
+                # into its empty fallback — every tenant-scoped call returned
+                # `{"top_sellers": [], "top_buyers": []}` rather than that
+                # tenant's numbers. Scope through the listing, as the other
+                # aggregates in this module already do.
+                where.append(
+                    "listing_id IN (SELECT listing_id FROM marketplace_listings "
+                    "WHERE tenant_id = ?)"
+                )
                 params.append(tenant_id)
             wclause = "WHERE " + " AND ".join(where)
 

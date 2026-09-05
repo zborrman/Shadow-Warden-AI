@@ -17,6 +17,7 @@ This file owns: /stats, /analytics/*, /protocol, /protocol/schema, /action, /cle
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 import os
@@ -32,7 +33,7 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
-from warden.marketplace.analytics import get_agent_leaderboard
+from warden.marketplace.analytics import agent_trade_totals, get_agent_leaderboard
 from warden.marketplace.service import VALID_ASSET_TYPES
 from warden.marketplace.sybil_guard import SybilGuard
 from warden.marketplace.trust_graph import TrustGraph
@@ -1091,7 +1092,6 @@ async def marketplace_agent_leaderboard(
     community_id: str | None = Query(default=None),
     limit:        int        = Query(default=10, le=50),
 ) -> dict:
-    from warden.marketplace.analytics import get_agent_leaderboard
     return get_agent_leaderboard(tenant_id=tenant_id, community_id=community_id, limit=limit)
 
 
@@ -1100,7 +1100,6 @@ async def marketplace_agent_leaderboard(
 @router.get("/readiness/{community_id}")
 async def marketplace_readiness(community_id: str) -> dict:
     """Check whether a community is ready to participate in the marketplace."""
-    import contextlib
 
     from warden.marketplace.agent import list_agents as _list_agents
 
@@ -1650,81 +1649,127 @@ async def delete_autonomy_policy(
 # volume. Only the two routes were missing.
 
 
-def _trust_engines() -> tuple:
-    """Built TrustGraph plus SybilGuard.
+#: How long a computed TrustRank snapshot is reused.
+#:
+#: `_trust_engines()` used to build the graph on every request, inside an
+#: `async def`, on the event loop: load every completed purchase, then run
+#: PageRank over the result. One dashboard poll blocked the whole gateway for
+#: as long as that took, and the leaderboard page polls. The work is identical
+#: for every caller — the graph is global, only the trade totals are per-tenant
+#: — so it is computed at most this often and shared.
+_TRUST_SNAPSHOT_TTL_S = 30.0
 
-    The imports are deferred like every other route in this module (the graph
-    pulls in networkx), and doing it once here keeps one suppression instead of
-    one per route per import.
-    """
+#: The ranking covers at most this many agents. Both routes cap below it
+#: (leaderboard 50, graph 500), so one snapshot serves both.
+_TRUST_SNAPSHOT_SIZE = 500
+
+_trust_snapshot_cache: dict[str, tuple[float, dict]] = {}
+_trust_snapshot_lock = asyncio.Lock()
+
+
+def _build_trust_snapshot() -> dict:
+    """Rank every agent and read the Sybil flags. Blocking; call in a thread."""
     tg = TrustGraph()
-    with contextlib.suppress(Exception):
+    try:
         tg.build_graph()
-    return tg, SybilGuard()
+    except Exception as exc:
+        # `_load_trades` already records its own fail-open; this catches the
+        # PageRank half, which `contextlib.suppress` used to swallow whole.
+        record_failopen("marketplace_trust_graph", Reason.BACKEND_ERROR, exc)
+
+    flagged = {f["agent_id"]: f.get("reason", "") for f in SybilGuard().list_flagged()}
+    return {
+        "ranked": tg.top_agents(n=_TRUST_SNAPSHOT_SIZE),
+        "edges": tg.edges(),
+        "flagged": flagged,
+    }
+
+
+async def _trust_snapshot() -> dict:
+    now = time.monotonic()
+    cached = _trust_snapshot_cache.get("snapshot")
+    if cached and cached[0] > now:
+        return cached[1]
+
+    async with _trust_snapshot_lock:
+        # Re-check: several requests can queue on the lock while the first
+        # builds, and none of them should build it again.
+        cached = _trust_snapshot_cache.get("snapshot")
+        if cached and cached[0] > time.monotonic():
+            return cached[1]
+        snapshot = await asyncio.to_thread(_build_trust_snapshot)
+        _trust_snapshot_cache["snapshot"] = (
+            time.monotonic() + _TRUST_SNAPSHOT_TTL_S,
+            snapshot,
+        )
+        return snapshot
 
 
 @router.get("/trust/leaderboard", summary="TrustRank leaderboard with trade counts")
 async def marketplace_trust_leaderboard(
     limit: int = Query(default=20, ge=1, le=50),
-    tenant_id: str | None = Query(default=None),
+    auth: AuthResult = Depends(require_api_key),
 ) -> list[dict]:
-    """Top agents by TrustRank, joined to their completed-trade totals."""
-    tg, sg = _trust_engines()
+    """Top agents by TrustRank, joined to this tenant's completed-trade totals.
 
-    # Trades and volume come from completed purchases, where an agent may appear
-    # as either side. A "trade" for this table is any settled purchase the agent
-    # took part in.
-    totals: dict[str, dict[str, float]] = {}
-    board = get_agent_leaderboard(tenant_id=tenant_id, limit=50)
-    for side in ("top_sellers", "top_buyers"):
-        for row in board.get(side, []):
-            acc = totals.setdefault(row["agent_id"], {"trades": 0, "volume_usd": 0.0})
-            acc["trades"] += int(row.get("trades", 0))
-            acc["volume_usd"] += float(row.get("volume_usd", 0.0))
+    The tenant comes from the API key, never from a query parameter. The first
+    version took `tenant_id` as a query string with no authentication at all,
+    so any caller could read any tenant's trade counts and USD volume by
+    guessing an id.
+    """
+    snapshot = await _trust_snapshot()
+    ranked = snapshot["ranked"][:limit]
+    flagged = snapshot["flagged"]
 
-    out: list[dict] = []
-    for entry in tg.top_agents(n=limit):
-        agent_id = entry["agent_id"]
-        counted = totals.get(agent_id, {"trades": 0, "volume_usd": 0.0})
-        out.append({
-            "agent_id":     agent_id,
-            "trust_score":  round(float(entry["trust_rank"]), 4),
-            "trust_rank":   round(float(entry["trust_rank"]), 4),
-            "sybil_flag":   sg.is_flagged(agent_id),
-            "sybil_reason": sg.get_flag_reason(agent_id),
-            "trades":       int(counted["trades"]),
-            "volume_usd":   round(float(counted["volume_usd"]), 2),
+    agent_ids = [e["agent_id"] for e in ranked]
+    totals = await asyncio.to_thread(
+        agent_trade_totals, agent_ids, auth.tenant_id
+    )
+
+    return [
+        {
+            "agent_id":     e["agent_id"],
+            "trust_score":  round(float(e["trust_rank"]), 4),
+            "trust_rank":   round(float(e["trust_rank"]), 4),
+            "sybil_flag":   e["agent_id"] in flagged,
+            "sybil_reason": flagged.get(e["agent_id"], ""),
+            "trades":       int(totals.get(e["agent_id"], {}).get("trades", 0)),
+            "volume_usd":   round(float(totals.get(e["agent_id"], {}).get("volume_usd", 0.0)), 2),
             "transitive_peers": [],
-        })
-    return out
+        }
+        for e in ranked
+    ]
 
 
 @router.get("/trust/graph", summary="Trade trust graph — nodes and weighted edges")
 async def marketplace_trust_graph(
     limit: int = Query(default=100, ge=1, le=500),
+    _: AuthResult = Depends(require_api_key),
 ) -> dict:
     """The trade graph TrustRank is computed over.
 
     Advertised in the A2A agent card, so external agents fetch it to judge
-    whether this marketplace's reputation signal is worth trusting.
+    whether this marketplace's reputation signal is worth trusting. It carries
+    no per-tenant figures — agent ids and edge weights only — but it is still
+    the shape of who trades with whom, so it takes a key.
     """
-    tg, sg = _trust_engines()
-
-    ranked = tg.top_agents(n=limit)
+    snapshot = await _trust_snapshot()
+    ranked = snapshot["ranked"][:limit]
+    flagged = snapshot["flagged"]
     keep = {e["agent_id"] for e in ranked}
-    nodes = [
-        {
-            "id":          e["agent_id"],
-            "trust_score": round(float(e["trust_rank"]), 4),
-            "sybil_flag":  sg.is_flagged(e["agent_id"]),
-        }
-        for e in ranked
-    ]
-
-    edges = [e for e in tg.edges() if e["source"] in keep and e["target"] in keep]
 
     return {
-        "nodes": nodes,
-        "edges": edges,
+        "nodes": [
+            {
+                "id":          e["agent_id"],
+                "trust_score": round(float(e["trust_rank"]), 4),
+                "sybil_flag":  e["agent_id"] in flagged,
+            }
+            for e in ranked
+        ],
+        "edges": [
+            edge for edge in snapshot["edges"]
+            if edge["source"] in keep and edge["target"] in keep
+        ],
         "computed_at": datetime.now(UTC).isoformat(),
     }

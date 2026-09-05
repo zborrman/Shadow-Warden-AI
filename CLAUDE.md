@@ -220,7 +220,7 @@ MasterAgent (multi-agent SOC coordinator — v4.0):
     Human-in-the-Loop: REQUIRES_APPROVAL actions → Slack webhook → Redis pending (1h TTL) → /agent/approve/{token}
 ```
 
-24 Docker services. Gateway and UIs: `proxy` (80/443), `warden` (8001), `analytics` (8002), `admin` (8502, Streamlit), `dashboard` (3002, Next.js SOC), `portal` (3001). Data: `postgres` (TimescaleDB), `redis`, `clickhouse`, `minio` (9000/9001), `minio-init`. Workers: `arq-worker`, `autoheal`. Observability: `prometheus`, `grafana` (3000), `loki`, `promtail`, `jaeger`, `otel-collector`, `cadvisor`, `node-exporter`, `postgres-exporter`, `redis-exporter`. Edge: `cloudflared`.
+24 Docker services. Gateway and UIs: `proxy` (80/443), `warden` (8001), `analytics` (8002), `admin` (8502, Streamlit), `dashboard` (3002, Next.js SOC), `portal` (3001). Data: `postgres` (TimescaleDB), `redis`, `clickhouse`, `minio` (9000/9091), `minio-init`. Workers: `arq-worker`, `autoheal`. Observability: `prometheus`, `grafana` (3000), `loki`, `promtail`, `jaeger`, `otel-collector`, `cadvisor`, `node-exporter`, `postgres-exporter`, `redis-exporter`. Edge: `cloudflared`.
 
 ## Two Distinct Guard Classes (critical distinction)
 

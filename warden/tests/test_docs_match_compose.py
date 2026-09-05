@@ -20,9 +20,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
-yaml = pytest.importorskip("yaml")
+import yaml
 
 _ROOT = Path(__file__).resolve().parents[2]
 _COMPOSE = _ROOT / "docker-compose.yml"
@@ -81,15 +79,22 @@ def test_a_documented_service_port_is_that_service_s_port() -> None:
         # Only a parenthesis holding ports and nothing else. `(03:30 UTC)` is a
         # cron time, not a port, and matching it made the guard cry wolf on its
         # first run.
-        for m in re.finditer(r"`(?P<svc>[a-z][a-z0-9-]*)`\s*\((?P<port>\d{2,5})(?:/\d{2,5})*\)", text):
-            svc, port = m.group("svc"), m.group("port")
+        #
+        # Every port in the group is checked, not just the first. The pattern
+        # originally captured one, so `minio` (9000/9001) was judged on 9000
+        # alone and the 9001 half went unread — compose declares 9091.
+        for m in re.finditer(r"`(?P<svc>[a-z][a-z0-9-]*)`\s*\((?P<ports>\d{2,5}(?:/\d{2,5})*)\)", text):
+            svc = m.group("svc")
             if svc not in services:
                 continue
             declared = _declared_ports(services[svc])
-            if declared and port not in declared:
-                wrong.append(
-                    f"{name}: documents `{svc}` on {port}; compose gives it "
-                    f"{', '.join(sorted(declared))}"
-                )
+            if not declared:
+                continue
+            for port in m.group("ports").split("/"):
+                if port not in declared:
+                    wrong.append(
+                        f"{name}: documents `{svc}` on {port}; compose gives it "
+                        f"{', '.join(sorted(declared))}"
+                    )
 
     assert not wrong, "\n  ".join(["documented ports do not match compose:", *wrong])

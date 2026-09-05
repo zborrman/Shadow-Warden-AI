@@ -26250,6 +26250,115 @@
         }
       }
     },
+    "/marketplace/trust/leaderboard": {
+      "get": {
+        "tags": [
+          "Marketplace"
+        ],
+        "summary": "TrustRank leaderboard with trade counts",
+        "description": "Top agents by TrustRank, joined to this tenant's completed-trade totals.\n\nThe tenant comes from the API key, never from a query parameter. The first\nversion took `tenant_id` as a query string with no authentication at all,\nso any caller could read any tenant's trade counts and USD volume by\nguessing an id.",
+        "operationId": "marketplace_trust_leaderboard_marketplace_trust_leaderboard_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Marketplace Trust Leaderboard Marketplace Trust Leaderboard Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/marketplace/trust/graph": {
+      "get": {
+        "tags": [
+          "Marketplace"
+        ],
+        "summary": "Trade trust graph — nodes and weighted edges",
+        "description": "The trade graph TrustRank is computed over.\n\nAdvertised in the A2A agent card, so external agents fetch it to judge\nwhether this marketplace's reputation signal is worth trusting. It carries\nno per-tenant figures — agent ids and edge weights only — but it is still\nthe shape of who trades with whom, so it takes a key.",
+        "operationId": "marketplace_trust_graph_marketplace_trust_graph_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Marketplace Trust Graph Marketplace Trust Graph Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/marketplace/agents": {
       "get": {
         "tags": [
