@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -116,9 +118,25 @@ def test_a_fifo_is_refused_rather_than_opened(tmp_path: Path) -> None:
     fifo = tmp_path / "pipe"
     os.mkfifo(fifo)
 
-    assert main(["--expect-wal", str(fifo)]) == 1, (
-        "a FIFO was accepted as a target; if this test hangs instead of "
-        "failing, the script opened it."
+    # In-process would be simpler, and would hang this whole run if the probe
+    # regressed — a test for "does not hang" that hangs on failure reports
+    # nothing and blocks CI behind a timeout nobody set. Out-of-process with a
+    # bound turns the regression into a failed assertion.
+    script = Path(__file__).resolve().parents[2] / "scripts" / "check_sqlite_journal_mode.py"
+    try:
+        done = subprocess.run(
+            [sys.executable, str(script), "--expect-wal", str(fifo)],
+            capture_output=True, text=True, timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            "the probe blocked on a FIFO instead of refusing it, which is how "
+            "`--expect-wal` would stall a pipeline with no diagnostic"
+        )
+
+    assert done.returncode == 1, (
+        f"a FIFO was not counted as an invalid target (rc={done.returncode}): "
+        f"{done.stdout}{done.stderr}"
     )
 
 
