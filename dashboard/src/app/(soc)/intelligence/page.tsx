@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { TrendingUp, Shield, CheckCircle, AlertTriangle, Activity, Brain } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import { DataUnavailable, PlaceholderNotice } from "@/components/ui/data-unavailable";
 import { api, type BIUsage, type BIThreats, type BICompliance, type BIPredictive } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -81,34 +82,90 @@ export default function IntelligencePage() {
   const [tenantId, setTenantId] = useState("default");
   const [days,     setDays]     = useState(7);
 
-  const { data: usage }      = useQuery<BIUsage>({
+  const { data: usage, isError: usageErr, isPlaceholderData: usagePh }      = useQuery<BIUsage>({
     queryKey: ["bi-usage",  tenantId, days],
     queryFn:  () => api.biUsage(tenantId, days),
     placeholderData: MOCK_USAGE,
   });
 
-  const { data: threats }    = useQuery<BIThreats>({
+  const { data: threats, isError: threatsErr, isPlaceholderData: threatsPh }    = useQuery<BIThreats>({
     queryKey: ["bi-threats", tenantId, days],
     queryFn:  () => api.biThreats(tenantId, days),
     placeholderData: MOCK_THREATS,
   });
 
-  const { data: compliance } = useQuery<BICompliance>({
+  const { data: compliance, isError: complianceErr, isPlaceholderData: compliancePh } = useQuery<BICompliance>({
     queryKey: ["bi-compliance", tenantId],
     queryFn:  () => api.biCompliance(tenantId),
     placeholderData: MOCK_COMPLIANCE,
   });
 
-  const { data: predictive } = useQuery<BIPredictive>({
+  const { data: predictive, isError: predictiveErr, isPlaceholderData: predictivePh } = useQuery<BIPredictive>({
     queryKey: ["bi-predictive", tenantId],
     queryFn:  () => api.biPredictive(tenantId),
     placeholderData: MOCK_PREDICTIVE,
   });
 
-  const u = usage ?? MOCK_USAGE;
-  const t = threats ?? MOCK_THREATS;
-  const c = compliance ?? MOCK_COMPLIANCE;
-  const p = predictive ?? MOCK_PREDICTIVE;
+  // The four mocks stay as `placeholderData` above — sample figures for the
+  // moment before the first answer arrives. They used to be re-applied here,
+  // which is a different thing entirely: after the request resolved, a failed
+  // one rendered as a full BI report.
+  const unavailable =
+    usageErr || threatsErr || complianceErr || predictiveErr ||
+    !usage || !threats || !compliance || !predictive;
+
+  // Sample figures are fine while the first request is in flight, but only if
+  // the page says that is what they are. React Query keeps `isPlaceholderData`
+  // true for exactly that window; without the label a mock BI report renders
+  // as a finished one.
+  const showingSample = usagePh || threatsPh || compliancePh || predictivePh;
+
+  const attestColor = (a: string) =>
+    a === "PASS" ? "text-green-400" : a === "PARTIAL" ? "text-yellow-400" : "text-red-400";
+
+  const controls = (
+    <>
+      {/* Controls */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="text-xs text-gray-500">Tenant</label>
+        <input
+          value={tenantId}
+          onChange={e => setTenantId(e.target.value)}
+          className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 focus:outline-none focus:border-accent-blue w-40"
+          placeholder="Tenant ID"
+        />
+        <label className="text-xs text-gray-500 ml-4">Period</label>
+        {[7, 14, 30].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d)}
+            className={cn("px-3 py-1.5 text-xs rounded-lg border transition-colors",
+              days === d
+                ? "bg-accent-blue/20 border-accent-blue text-accent-blue"
+                : "bg-surface-3 border-border text-gray-400 hover:text-white"
+            )}
+          >{d}d</button>
+        ))}
+      </div>
+    </>
+  );
+
+  if (unavailable) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header title="Business Intelligence" subtitle="Analytics, trends, compliance scores and predictions" />
+        <div className="p-6 space-y-6 animate-fade-in">
+          {controls}
+          <DataUnavailable what="Business intelligence" />
+        </div>
+      </div>
+    );
+  }
+
+  const u = usage;
+  const t = threats;
+  const c = compliance;
+  const p = predictive;
 
   const usageData = Object.entries(u.daily_breakdown ?? {}).map(([day, v]) => ({
     day, total: v.total, blocked: v.blocked,
@@ -116,36 +173,21 @@ export default function IntelligencePage() {
 
   const threatData = (t.top_threats ?? []).map(x => ({ name: x.flag.replace(/_/g, " "), count: x.count }));
 
-  const attestColor = (a: string) =>
-    a === "PASS" ? "text-green-400" : a === "PARTIAL" ? "text-yellow-400" : "text-red-400";
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header title="Business Intelligence" subtitle="Analytics, trends, compliance scores and predictions" />
-      <div className="p-6 space-y-6 animate-fade-in">
+      <div className={cn("p-6 space-y-6 animate-fade-in", showingSample && "opacity-60")}>
 
-        {/* Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="text-xs text-gray-500">Tenant</label>
-          <input
-            value={tenantId}
-            onChange={e => setTenantId(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 focus:outline-none focus:border-accent-blue w-40"
-            placeholder="Tenant ID"
-          />
-          <label className="text-xs text-gray-500 ml-4">Period</label>
-          {[7, 14, 30].map(d => (
-            <button
-              key={d}
-              onClick={() => setDays(d)}
-              className={cn("px-3 py-1.5 text-xs rounded-lg border transition-colors",
-                days === d
-                  ? "bg-accent-blue/20 border-accent-blue text-accent-blue"
-                  : "bg-surface-3 border-border text-gray-400 hover:text-white"
-              )}
-            >{d}d</button>
-          ))}
-        </div>
+        {controls}
+        {showingSample && (
+          <div className="flex items-center gap-2">
+            <PlaceholderNotice />
+            <span className="text-[11px] text-gray-500">
+              Sample figures — the first request has not returned yet.
+            </span>
+          </div>
+        )}
 
         {/* KPI row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

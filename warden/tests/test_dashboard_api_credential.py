@@ -68,6 +68,28 @@ def test_proxy_restricts_paths() -> None:
     assert "allow.some(" in src, "proxy no longer checks the path against an allowlist"
 
 
+def test_every_verb_the_proxy_answers_has_its_own_allowlist() -> None:
+    """SW-9 added DELETE. A verb without a list of its own is an open relay.
+
+    The path check is `allow.some(...)` against whatever list the handler was
+    given, so the guarantee is only as good as the argument at that call site.
+    A DELETE handler that reused POST_ALLOW would accept a deletion nobody
+    approved; one that reused GET_ALLOW would accept a great deal more.
+    """
+    src = _read(_PROXY)
+    verbs = re.findall(r"export async function ([A-Z]+)\s*\(", src)
+    assert verbs, "the proxy exports no HTTP handlers at all"
+
+    for verb in verbs:
+        body_start = src.index(f"export async function {verb}")
+        body = src[body_start:src.index("\n}", body_start)]
+        assert f"{verb}_ALLOW" in body, (
+            f"the {verb} handler does not pass {verb}_ALLOW. Every verb needs "
+            f"its own list — sharing one grants each verb the other's routes."
+        )
+        assert f"const {verb}_ALLOW" in src, f"{verb}_ALLOW is not defined"
+
+
 def test_proxy_does_not_expose_the_detection_kill_switch() -> None:
     """
     `PATCH /config` retunes `semantic_threshold` for the whole gateway — the

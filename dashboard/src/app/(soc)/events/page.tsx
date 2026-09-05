@@ -6,6 +6,7 @@ import { Search, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Header } from "@/components/layout/header";
 import { VerdictBadge } from "@/components/ui/verdict-badge";
+import { DataUnavailable, PlaceholderNotice } from "@/components/ui/data-unavailable";
 import { api, type EventEntry } from "@/lib/api";
 import { fmtMs, cn } from "@/lib/utils";
 import type { Verdict } from "@/lib/types";
@@ -38,12 +39,16 @@ export default function EventsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Verdict | "ALL">("ALL");
 
-  const { data: raw } = useQuery({
+  const { data: raw, isError, isPlaceholderData } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.events(200),
     placeholderData: { total: MOCK_EVENTS.length, events: MOCK_EVENTS },
   });
-  const events = raw?.events ?? MOCK_EVENTS;
+  // No fallback. `api.events` throws on a non-200, so an unreachable gateway
+  // leaves this empty and the error state below renders instead. It used to
+  // fall back to MOCK_EVENTS, which put twenty invented security events on
+  // screen looking exactly like real ones.
+  const events = isError ? [] : (raw?.events ?? []);
 
   const filtered = events.filter(e => {
     const verdict = toVerdict(e);
@@ -56,8 +61,13 @@ export default function EventsPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header title="Security Events" subtitle={`${(raw?.total ?? events.length).toLocaleString()} events`} />
+      <Header
+        title="Security Events"
+        subtitle={isError ? "stream unavailable" : `${(raw?.total ?? events.length).toLocaleString()} events`}
+      />
       <div className="p-6 space-y-4 animate-fade-in">
+        {isError && <DataUnavailable what="Event stream" />}
+
         {/* Toolbar */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
@@ -69,6 +79,7 @@ export default function EventsPage() {
               className="w-full pl-8 pr-3 py-2 text-xs rounded-lg bg-surface-3 border border-border text-gray-300 placeholder-gray-600 focus:outline-none focus:border-accent-blue"
             />
           </div>
+          {isPlaceholderData && !isError && <PlaceholderNotice />}
           <div className="flex items-center gap-1 bg-surface-3 rounded-lg p-0.5 border border-border">
             {VERDICTS.map(v => (
               <button
@@ -86,7 +97,10 @@ export default function EventsPage() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl bg-surface-2 border border-border overflow-hidden">
+        <div className={cn(
+          "rounded-xl bg-surface-2 border border-border overflow-hidden",
+          isPlaceholderData && !isError && "opacity-50",
+        )}>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border">
@@ -117,7 +131,9 @@ export default function EventsPage() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div className="text-center py-12 text-gray-600 text-sm">No events match your filter</div>
+            <div className="text-center py-12 text-gray-600 text-sm">
+              {isError ? "No events to show — the API did not answer." : "No events match your filter"}
+            </div>
           )}
         </div>
       </div>

@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { Shield, Download, ExternalLink, CheckCircle, AlertTriangle, XCircle, RefreshCw } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
 import { api, type PostureResponse, type PostureStandard, type ComplianceHistoryResponse, WARDEN_PROXY } from "@/lib/api";
 import { cn, fmtNum } from "@/lib/utils";
 
@@ -146,7 +147,7 @@ export default function CompliancePage() {
   const [days, setDays] = useState(7);
   const API_URL = WARDEN_PROXY;
 
-  const { data: posture, isFetching, dataUpdatedAt } = useQuery({
+  const { data: posture, isFetching, isError: postureErr, dataUpdatedAt } = useQuery({
     queryKey:        ["posture", days],
     queryFn:         () => api.posture(days),
     refetchInterval: 30_000,
@@ -229,16 +230,20 @@ export default function CompliancePage() {
           </div>
         </div>
 
+        {/* Rows 1-2 are posture-dependent. Gating only the standards grid left
+            ScoreRing showing 0 / PARTIAL and the summary showing zero controls,
+            which read as measured posture rather than as no posture at all. */}
+        {postureErr || !p ? (
+          <DataUnavailable what="Compliance posture" />
+        ) : (
+        <>
         {/* Row 1: Score ring + summary + timeline */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           {/* Overall score */}
           <div className="rounded-xl border border-border bg-surface-2 p-6 flex flex-col items-center justify-center gap-4">
             <div className="text-xs font-semibold tracking-widest uppercase text-gray-500">Overall Posture</div>
-            <ScoreRing
-              score={p?.overall_score ?? 0}
-              status={p?.overall_status ?? "PARTIAL"}
-            />
+            <ScoreRing score={p.overall_score} status={p.overall_status} />
             <div className="grid grid-cols-3 gap-2 w-full text-center">
               <div>
                 <div className="text-lg font-bold text-emerald-400 tabular-nums">{fmtNum(totalPass)}</div>
@@ -253,7 +258,9 @@ export default function CompliancePage() {
                 <div className="text-[10px] text-gray-500 uppercase tracking-wide">Fail</div>
               </div>
             </div>
-            <div className="text-[11px] text-gray-600">{fmtNum(totalControls)} controls across {p?.standards.length ?? 5} standards</div>
+            <div className="text-[11px] text-gray-600">
+              {fmtNum(totalControls)} controls across {p.standards.length} standards
+            </div>
           </div>
 
           {/* Standard comparison bar */}
@@ -306,7 +313,7 @@ export default function CompliancePage() {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
                 <div className="text-xs text-gray-500">Snapshots accumulate as the dashboard polls.</div>
-                <div className="text-[11px] text-gray-600">Current score: <span className="text-white font-semibold">{(p?.overall_score ?? 0).toFixed(1)}%</span></div>
+                <div className="text-[11px] text-gray-600">Current score: <span className="text-white font-semibold">{p.overall_score.toFixed(1)}%</span></div>
               </div>
             )}
           </div>
@@ -316,11 +323,13 @@ export default function CompliancePage() {
         <div>
           <h2 className="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-3">Standards Breakdown</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-            {(p?.standards ?? PLACEHOLDER_STANDARDS).map(std => (
+            {p.standards.map(std => (
               <StandardCard key={std.short} std={std} />
             ))}
           </div>
         </div>
+        </>
+        )}
 
         {/* Row 3: Evidence actions */}
         <div className="rounded-xl border border-border bg-surface-2 p-5">
@@ -394,12 +403,3 @@ export default function CompliancePage() {
   );
 }
 
-// ── Placeholder data (shown while first fetch loads) ─────────────────────────
-
-const PLACEHOLDER_STANDARDS: PostureStandard[] = [
-  { standard: "SOC 2 Type II",          short: "soc2",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "GDPR (Art.5+30+35)",      short: "gdpr",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "ISO/IEC 27001:2022",      short: "iso27001",passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "HIPAA Security Rule",     short: "hipaa",   passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-  { standard: "EU NIS2 Directive",       short: "nis2",    passed: 0, partial: 0, failed: 0, total: 0, score: 0, attestation: "PARTIAL" },
-];

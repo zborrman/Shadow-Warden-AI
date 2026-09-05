@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Shield, Key, Globe, BookOpen, Users, CreditCard, AlertTriangle,
   CheckCircle, Plus, Trash2, Eye, EyeOff, Copy, HelpCircle,
@@ -9,7 +9,8 @@ import {
   TriangleAlert, Check, Bell, Clock, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WARDEN_PROXY } from "@/lib/api";
+import { api, type ApiKeyOut, WARDEN_PROXY } from "@/lib/api";
+import { DataUnavailable } from "@/components/ui/data-unavailable";
 
 // ─── Design tokens (match sw-* from design system) ──────────────────
 const sw = {
@@ -48,15 +49,6 @@ interface PipelineSettings {
   phishGuard:        boolean;
 }
 
-interface ApiKeyEntry {
-  id:        string;
-  name:      string;
-  prefix:    string;
-  created:   string;
-  last_used: string | null;
-  requests:  number;
-}
-
 interface WebhookEntry {
   id:     string;
   url:    string;
@@ -79,7 +71,6 @@ const DEFAULT_PIPELINE: PipelineSettings = {
 };
 
 const STORAGE_KEY = "sw_pipeline_settings";
-const KEYS_KEY    = "sw_api_keys";
 const HOOKS_KEY   = "sw_webhooks";
 
 // ─── Persistence helpers ──────────────────────────────────────────────
@@ -93,17 +84,6 @@ function loadSettings(): PipelineSettings {
 
 function saveSettings(s: PipelineSettings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-}
-
-function loadApiKeys(): ApiKeyEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEYS_KEY);
-    return raw ? JSON.parse(raw) : [
-      { id: "k1", name: "Production", prefix: "sw-prod-xxxx", created: "2026-01-15", last_used: "2 min ago", requests: 148320 },
-      { id: "k2", name: "Development", prefix: "sw-dev-xxxx", created: "2026-03-02", last_used: "1 hr ago",  requests: 4201 },
-    ];
-  } catch { return []; }
 }
 
 function loadWebhooks(): WebhookEntry[] {
@@ -460,42 +440,91 @@ function FilterPipelinePanel({
   );
 }
 
+/**
+ * SW-9. This panel used to generate `sw-<name>-<random>` in the browser, write
+ * it to localStorage, and make no request at all — while the line above the
+ * table told the operator the string authenticated requests to `/filter`. An
+ * operator could believe they had granted access, and have granted nothing.
+ * `loadApiKeys()` even seeded two invented keys, one of them credited with
+ * 148,320 requests.
+ *
+ * It now calls `warden/api/settings.py`, which hashes the key server-side and
+ * returns the full value exactly once. What that key does NOT yet do is
+ * authenticate the gateway: `warden/auth_guard.py` resolves credentials from
+ * `WARDEN_API_KEYS_PATH` or `WARDEN_API_KEY`, and nothing reads the per-tenant
+ * store this endpoint writes. That gap is a backend change with an auth blast
+ * radius and belongs in its own review, so the copy below says plainly what the
+ * key is and is not, rather than repeating a claim the code does not support.
+ */
 function ApiKeysPanel() {
-  const [keys, setKeys]       = useState<ApiKeyEntry[]>([]);
+  const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [copied, setCopied]   = useState<string | null>(null);
+  const [copyFailed, setCopyFailed] = useState<string | null>(null);
+  const [issued, setIssued]   = useState<{ label: string; key: string } | null>(null);
 
-  useEffect(() => { setKeys(loadApiKeys()); }, []);
-  const persist = (k: ApiKeyEntry[]) => { setKeys(k); localStorage.setItem(KEYS_KEY, JSON.stringify(k)); };
+  const { data: keys, isError } = useQuery({
+    queryKey: ["api-keys"],
+    queryFn:  api.apiKeys,
+    retry:    false,
+  });
+
+  const create = useMutation({
+    mutationFn: (label: string) => api.createApiKey(label),
+    onSuccess: created => {
+      setIssued({ label: created.label, key: created.key });
+      setNewName(""); setShowNew(false);
+      qc.invalidateQueries({ queryKey: ["api-keys"] });
+    },
+  });
+
+  const revokeKey = useMutation({
+    mutationFn: (id: string) => api.revokeApiKey(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["api-keys"] }),
+  });
 
   const createKey = () => {
-    if (!newName.trim()) return;
-    const id = `k${Date.now()}`;
-    const newKey: ApiKeyEntry = {
-      id, name: newName.trim(),
-      prefix: `sw-${newName.toLowerCase().slice(0,4)}-${Math.random().toString(36).slice(2,6)}`,
-      created: new Date().toISOString().split("T")[0],
-      last_used: null, requests: 0,
-    };
-    persist([...keys, newKey]);
-    setNewName(""); setShowNew(false);
+    // Single-issuance. Enter repeats while the request is in flight, and every
+    // extra success both mints a live key nobody asked for and overwrites
+    // `issued` — discarding a value the gateway will never show again.
+    if (create.isPending) return;
+    const label = newName.trim();
+    if (label) create.mutate(label);
   };
 
-  const revoke = (id: string) => persist(keys.filter(k => k.id !== id));
+  const revoke = (id: string) => revokeKey.mutate(id);
 
-  const copy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+  const copy = async (text: string, id: string) => {
+    // Report the copy only once it has happened. This used to swallow the
+    // rejection and say "Copied" regardless, so a failed copy of a key shown
+    // exactly once looked like a successful one.
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setCopyFailed(id);
+      setTimeout(() => setCopyFailed(null), 4000);
+      return;
+    }
     setCopied(id);
     setTimeout(() => setCopied(null), 1500);
   };
 
+  const rows: ApiKeyOut[] = keys ?? [];
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <p style={{ fontSize: 12.5, color: sw.fg3, margin: 0 }}>
-          API keys authenticate requests to <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>/filter</code> and all warden endpoints.
+        <p style={{ fontSize: 12.5, color: sw.fg3, margin: 0, maxWidth: 620 }}>
+          Keys are issued and revoked by the gateway, which stores only a SHA-256
+          digest. The full value is shown once, here, and never again.{" "}
+          <strong style={{ color: sw.fg2 }}>
+            Gateway authentication still reads its keys from{" "}
+            <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>WARDEN_API_KEYS_PATH</code>,
+            so a key issued here does not yet authenticate{" "}
+            <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>/filter</code>.
+          </strong>
         </p>
         <button
           onClick={() => setShowNew(true)}
@@ -509,6 +538,49 @@ function ApiKeysPanel() {
           <Plus size={13} /> New key
         </button>
       </div>
+
+      {isError && (
+        <div style={{ marginBottom: 16 }}>
+          <DataUnavailable what="API keys" />
+        </div>
+      )}
+
+      {issued && (
+        <div style={{
+          background: sw.surf2, border: `1px solid ${sw.borderStr}`,
+          borderRadius: 10, padding: 16, marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: sw.fg1, marginBottom: 6 }}>
+            {issued.label} — copy this now
+          </div>
+          <div style={{ fontSize: 11.5, color: sw.fg3, marginBottom: 10 }}>
+            The gateway keeps only a hash. Closing this panel loses the value.
+          </div>
+          {copyFailed === "issued" && (
+            <div style={{ fontSize: 11.5, color: sw.redLt, marginBottom: 10 }}>
+              The browser refused clipboard access — select the value and copy it
+              by hand before closing.
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <code style={{
+              flex: 1, fontFamily: "var(--font-mono, monospace)", fontSize: 12,
+              background: sw.surf3, border: `1px solid ${sw.border}`,
+              borderRadius: 8, padding: "8px 12px", color: sw.fg1,
+              overflowX: "auto", whiteSpace: "nowrap",
+            }}>{issued.key}</code>
+            <button onClick={() => copy(issued.key, "issued")} style={{
+              padding: "7px 12px", borderRadius: 8, border: `1px solid ${sw.border}`,
+              background: "transparent", color: copied === "issued" ? sw.green : sw.fg3,
+              fontSize: 12.5, cursor: "pointer",
+            }}>{copied === "issued" ? "Copied" : copyFailed === "issued" ? "Copy failed" : "Copy"}</button>
+            <button onClick={() => setIssued(null)} style={{
+              padding: "7px 12px", borderRadius: 8, border: `1px solid ${sw.border}`,
+              background: "transparent", color: sw.fg3, fontSize: 12.5, cursor: "pointer",
+            }}>Done</button>
+          </div>
+        </div>
+      )}
 
       {showNew && (
         <div style={{
@@ -529,15 +601,21 @@ function ApiKeysPanel() {
                 outline: "none", fontFamily: "inherit",
               }}
             />
-            <button onClick={createKey} style={{
+            <button onClick={createKey} disabled={create.isPending} style={{
               padding: "7px 16px", borderRadius: 8, border: "none",
-              background: sw.indigo, color: "#fff", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-            }}>Create</button>
+              background: sw.indigo, color: "#fff", fontSize: 12.5, fontWeight: 600,
+              cursor: create.isPending ? "wait" : "pointer", opacity: create.isPending ? 0.6 : 1,
+            }}>{create.isPending ? "Creating…" : "Create"}</button>
             <button onClick={() => setShowNew(false)} style={{
               padding: "7px 12px", borderRadius: 8, border: `1px solid ${sw.border}`,
               background: "transparent", color: sw.fg3, fontSize: 12.5, cursor: "pointer",
             }}>Cancel</button>
           </div>
+          {create.isError && (
+            <div style={{ fontSize: 11.5, color: sw.redLt, marginTop: 8 }}>
+              The gateway refused the request — no key was issued.
+            </div>
+          )}
         </div>
       )}
 
@@ -555,21 +633,26 @@ function ApiKeysPanel() {
             </tr>
           </thead>
           <tbody>
-            {keys.map((k, i) => (
+            {rows.map((k, i) => (
               <tr key={k.id} style={{
-                borderBottom: i < keys.length - 1 ? `1px solid ${sw.border}` : "none",
+                borderBottom: i < rows.length - 1 ? `1px solid ${sw.border}` : "none",
                 transition: "background 0.15s",
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = sw.surf2)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
               >
-                <td style={{ padding: "12px 14px", fontWeight: 600, color: sw.fg1 }}>{k.name}</td>
+                <td style={{ padding: "12px 14px", fontWeight: 600, color: sw.fg1 }}>
+                  {k.label}
+                  {!k.active && (
+                    <span style={{ marginLeft: 8, fontSize: 10, color: sw.fg4, textTransform: "uppercase" }}>revoked</span>
+                  )}
+                </td>
                 <td style={{ padding: "12px 14px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <code style={{
                       fontFamily: "var(--font-mono, monospace)", fontSize: 11,
                       color: sw.fg3, letterSpacing: "0.04em",
-                    }}>{revealed[k.id] ? k.prefix + "••••••••" : k.prefix.slice(0, 12) + "••••"}</code>
+                    }}>{revealed[k.id] ? k.prefix + "••••••••" : k.prefix.slice(0, 6) + "••••"}</code>
                     <button onClick={() => setRevealed(r => ({ ...r, [k.id]: !r[k.id] }))} style={{ background: "none", border: "none", cursor: "pointer", color: sw.fg4, padding: 0 }}>
                       {revealed[k.id] ? <EyeOff size={12} /> : <Eye size={12} />}
                     </button>
@@ -578,11 +661,11 @@ function ApiKeysPanel() {
                     </button>
                   </div>
                 </td>
-                <td style={{ padding: "12px 14px", color: sw.fg4, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.created}</td>
-                <td style={{ padding: "12px 14px", color: k.last_used ? sw.fg3 : sw.fg4, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.last_used ?? "never"}</td>
-                <td style={{ padding: "12px 14px", color: sw.fg3, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.requests.toLocaleString()}</td>
+                <td style={{ padding: "12px 14px", color: sw.fg4, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.created_at.slice(0, 10)}</td>
+                <td style={{ padding: "12px 14px", color: k.last_used_at ? sw.fg3 : sw.fg4, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.last_used_at?.slice(0, 10) ?? "never"}</td>
+                <td style={{ padding: "12px 14px", color: sw.fg3, fontFamily: "var(--font-mono, monospace)", fontSize: 11 }}>{k.request_count.toLocaleString()}</td>
                 <td style={{ padding: "12px 14px" }}>
-                  <button onClick={() => revoke(k.id)} style={{
+                  <button onClick={() => revoke(k.id)} disabled={!k.active || revokeKey.isPending} style={{
                     padding: "4px 10px", borderRadius: 6, border: `1px solid rgba(239,68,68,0.25)`,
                     background: "transparent", color: sw.redLt, fontSize: 11,
                     cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
@@ -592,8 +675,10 @@ function ApiKeysPanel() {
                 </td>
               </tr>
             ))}
-            {keys.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: "24px 14px", textAlign: "center", color: sw.fg4, fontSize: 12.5 }}>No API keys — create one above.</td></tr>
+            {rows.length === 0 && (
+              <tr><td colSpan={6} style={{ padding: "24px 14px", textAlign: "center", color: sw.fg4, fontSize: 12.5 }}>
+                {isError ? "Could not read the key list." : "No API keys — create one above."}
+              </td></tr>
             )}
           </tbody>
         </table>

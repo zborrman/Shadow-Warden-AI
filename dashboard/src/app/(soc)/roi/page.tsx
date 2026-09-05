@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Shield, Key, Ban, TrendingUp, ChevronDown } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { api, type RoiResponse } from "@/lib/api";
+import { formatMonthly, monthlyPriceUsd } from "@/lib/pricing";
 import { fmtUsd, cn } from "@/lib/utils";
 
 const INDUSTRIES = [
@@ -65,15 +66,51 @@ export default function RoiPage() {
   const calc     = useMemo(() => calcRoi(reqs, industry.breach), [reqs, industry.breach]);
 
   const live = liveRoi as RoiResponse | undefined;
-  const totalDisplay = live?.total_estimated_roi_usd
-    ? Math.max(live.total_estimated_roi_usd, calc.total_roi)
-    : calc.total_roi;
+
+  // The headline used to be `Math.max(live.total_estimated_roi_usd,
+  // calc.total_roi)`. Even with real data present it could not read below the
+  // calculator's own guess, so a gateway that had saved nothing still showed
+  // six figures. A number that by construction cannot fall is not a
+  // measurement.
+  //
+  // Nor is the gateway's own figure one. `/api/v1/compliance/roi` multiplies
+  // measured event counts by fixed constants — $4.45M/730 per high-risk block
+  // and $50,000 per redacted secret (analytics/main.py:400-406). Calling that
+  // "measured" would be the same overclaim this page is being fixed for. What
+  // is measured is the counts; the dollars are a model either way. The real
+  // distinction is which inputs the model ran on: this account's events, or
+  // the volume slider.
+  // Narrowed rather than flag-and-fallback: every period-dependent value below
+  // reads off `gateway`, so there is no "what if it is missing" default to
+  // invent. The first attempt wrote `live?.days ?? 30`, and this file's own
+  // guard flagged it — correctly. A 30 that is only ever read when the real
+  // value exists is still a number nobody measured.
+  const gateway = live?.total_estimated_roi_usd !== undefined ? live : undefined;
+
+  // The gateway aggregates over `live.days`, not a month. Labelling that total
+  // "Monthly Savings" and dividing it by a monthly price mixes periods, and
+  // for a short window overstates the multiple. Pro-rate the cost to the same
+  // window rather than extrapolating the savings, which would be one more
+  // model on top.
+  // From the shared mirror of warden/billing/pricing.py. This page divided by
+  // a typed 69, which is not the Pro price, and inflated every ROI multiple by
+  // about 45% against what the customer is actually charged.
+  const PRO_MONTHLY_USD = monthlyPriceUsd("pro");
+  const headline = gateway ? gateway.total_estimated_roi_usd : calc.total_roi;
+  // Pro-rate the price to the gateway's own window (30 = days per billing
+  // month). Extrapolating the savings to a month instead would be one more
+  // model stacked on the one already in the number.
+  const periodCost = gateway
+    ? (PRO_MONTHLY_USD * Math.max(gateway.days, 1)) / 30
+    : PRO_MONTHLY_USD;
 
   const cards = [
     {
       label:  "Breach Prevention",
       value:  live ? live.threat_mitigation.estimated_breach_cost_avoided : calc.breachSaved,
-      sub:    `${live?.threat_mitigation.high_block_events ?? calc.highBlocks} high-risk blocks`,
+      sub:    live
+        ? `${live.threat_mitigation.high_block_events} high-risk blocks (counted)`
+        : `${calc.highBlocks} high-risk blocks (modelled)`,
       icon:   Shield,
       color:  "text-red-400",
       bg:     "bg-red-500/10 border-red-500/20",
@@ -81,7 +118,9 @@ export default function RoiPage() {
     {
       label:  "Credential Protection",
       value:  live ? live.secret_protection.estimated_credential_savings : calc.secretSaved,
-      sub:    `${live?.secret_protection.secrets_redacted ?? calc.secrets} secrets redacted`,
+      sub:    live
+        ? `${live.secret_protection.secrets_redacted} secrets redacted (counted)`
+        : `${calc.secrets} secrets redacted (modelled)`,
       icon:   Key,
       color:  "text-amber-400",
       bg:     "bg-amber-500/10 border-amber-500/20",
@@ -89,7 +128,9 @@ export default function RoiPage() {
     {
       label:  "Shadow Ban Savings",
       value:  live ? live.shadow_ban.cost_saved_usd : calc.shadowSaved,
-      sub:    `${live?.shadow_ban.count ?? calc.shadowBans} attackers banned`,
+      sub:    live
+        ? `${live.shadow_ban.count} attackers banned (counted)`
+        : `${calc.shadowBans} attackers banned (modelled)`,
       icon:   Ban,
       color:  "text-purple-400",
       bg:     "bg-purple-500/10 border-purple-500/20",
@@ -168,13 +209,15 @@ export default function RoiPage() {
           <div className="absolute inset-0 pointer-events-none"
                style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 65%)" }} />
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-500 mb-2">
-            Estimated Monthly Savings
+            Estimated savings
           </p>
           <p className="text-[56px] font-black text-white leading-none mb-2 tabular-nums">
-            <CountUp value={totalDisplay} />
+            <CountUp value={headline} />
           </p>
           <p className="text-sm text-gray-500">
-            {industry.icon} {industry.label} · {REQ_PRESETS[reqPreset].label} · IBM 2024 breach data
+            {gateway
+              ? `Gateway estimate over ${gateway.days} days — this account's own event counts, priced by a fixed cost model`
+              : `Model estimate for ${industry.label} at ${REQ_PRESETS[reqPreset].label} — no gateway data, the volume above is a setting, not a measurement`}
           </p>
           {live && (
             <div className="inline-flex items-center gap-1.5 mt-4 px-3 py-1 rounded-full text-[11px] font-semibold"
@@ -206,13 +249,16 @@ export default function RoiPage() {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={14} className="text-accent-cyan" />
             <p className="text-sm font-semibold text-white">ROI Multiplier</p>
-            <span className="ml-auto text-[10px] text-gray-600">Pro plan · $69/mo</span>
+            <span className="ml-auto text-[10px] text-gray-600">Pro plan · {formatMonthly("pro")}</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Monthly Savings",  value: fmtUsd(totalDisplay),            color: "text-emerald-400" },
-              { label: "Monthly Cost",     value: "$69",                            color: "text-gray-300"   },
-              { label: "ROI Multiple",     value: `${Math.round(totalDisplay / 69)}×`, color: "text-amber-400"  },
+              { label: gateway ? `Savings · ${gateway.days}d` : "Savings · 30d (modelled)",
+                value: fmtUsd(headline),               color: "text-emerald-400" },
+              { label: gateway ? `Cost · ${gateway.days}d` : "Monthly Cost",
+                value: fmtUsd(periodCost),             color: "text-gray-300"   },
+              { label: "ROI Multiple",
+                value: `${Math.round(headline / periodCost)}×`, color: "text-amber-400"  },
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-surface-3 rounded-lg px-4 py-3 text-center">
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{label}</p>
@@ -221,8 +267,9 @@ export default function RoiPage() {
             ))}
           </div>
           <p className="text-[10px] text-gray-600 mt-3">
-            Source: IBM Cost of a Data Breach Report 2024. Estimates are conservative and based on industry averages.
-            Actual savings depend on threat volume and incident response capability.
+            {gateway
+              ? `Every dollar figure on this page is an estimate. The gateway counted this account's events over ${gateway.days} days and priced them with fixed constants — $4.45M/730 per high-risk block, $50,000 per redacted secret. Cost is pro-rated to the same window. The counts are measured; the money is a model.`
+              : "Every dollar figure on this page is an estimate, computed in your browser from the industry and volume selected above. The gateway reported nothing for this account, so none of it reflects your traffic."}
           </p>
         </div>
 

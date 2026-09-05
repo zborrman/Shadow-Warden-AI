@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Check, Zap, Building2, Shield, Lock } from "lucide-react";
+import { TIER_MONTHLY_USD, annualPriceUsd } from "@/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,12 +43,18 @@ interface Bundle {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
+// Prices come from `@/lib/pricing`, which mirrors warden/billing/pricing.py.
+// This table used to type its own: Pro at $69 and Community Business at $19,
+// against the $99.99 and $39.99 billing charges. The annual figures were typed
+// too, and Enterprise's 2541 did not match a 15% discount on its own monthly
+// price (2539.80). A quoted price the invoice will not honour is the same
+// defect this file's neighbours are being fixed for, one column over.
 const TIERS: TierConfig[] = [
   {
     id: "starter",
     label: "Starter",
-    monthlyPrice: 0,
-    annualPrice: null,
+    monthlyPrice: TIER_MONTHLY_USD.starter,
+    annualPrice: annualPriceUsd("starter"),
     requests: "1,000 req/mo",
     description: "Try the full filter pipeline",
     icon: Zap,
@@ -56,8 +63,8 @@ const TIERS: TierConfig[] = [
   {
     id: "individual",
     label: "Individual",
-    monthlyPrice: 5,
-    annualPrice: 51,
+    monthlyPrice: TIER_MONTHLY_USD.individual,
+    annualPrice: annualPriceUsd("individual"),
     requests: "5,000 req/mo",
     description: "Solo devs & consultants",
     icon: Shield,
@@ -67,8 +74,8 @@ const TIERS: TierConfig[] = [
   {
     id: "community_business",
     label: "Community Business",
-    monthlyPrice: 19,
-    annualPrice: 194,
+    monthlyPrice: TIER_MONTHLY_USD.community_business,
+    annualPrice: annualPriceUsd("community_business"),
     requests: "10,000 req/mo",
     description: "SMB teams & security communities",
     icon: Building2,
@@ -85,8 +92,8 @@ const TIERS: TierConfig[] = [
   {
     id: "pro",
     label: "Pro",
-    monthlyPrice: 69,
-    annualPrice: 703,
+    monthlyPrice: TIER_MONTHLY_USD.pro,
+    annualPrice: annualPriceUsd("pro"),
     requests: "50,000 req/mo",
     description: "Mid-market & growing teams",
     icon: Shield,
@@ -104,8 +111,8 @@ const TIERS: TierConfig[] = [
   {
     id: "enterprise",
     label: "Enterprise",
-    monthlyPrice: 249,
-    annualPrice: 2541,
+    monthlyPrice: TIER_MONTHLY_USD.enterprise,
+    annualPrice: annualPriceUsd("enterprise"),
     requests: "Unlimited",
     description: "MSPs & regulated enterprises",
     icon: Lock,
