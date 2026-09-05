@@ -17,10 +17,17 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from scripts.check_sqlite_journal_mode import journal_mode
+from scripts.check_sqlite_journal_mode import journal_mode, main
 
 
 def _make(path: Path, mode: str) -> None:
+    """Build a database in `mode`.
+
+    Deliberately raw `sqlite3`, not `warden.db.connect.open_db`: that applies
+    `init_pragmas`, which runs `PRAGMA journal_mode=WAL` on every connection.
+    Every fixture here would come out in WAL and the journal-mode cases would
+    pass without ever testing anything.
+    """
     con = sqlite3.connect(path)
     con.execute(f"PRAGMA journal_mode={mode}")
     con.execute("CREATE TABLE t (x INTEGER)")
@@ -56,6 +63,27 @@ def test_wal_survives_a_clean_close(tmp_path: Path) -> None:
     assert journal_mode(db) == "wal"
 
 
+def test_a_header_whose_two_versions_disagree_is_not_called_wal(
+    tmp_path: Path,
+) -> None:
+    """WAL needs bytes 18 AND 19 to be 2.
+
+    Reading byte 18 alone reported `wal` for a header the other half
+    contradicts, and `--expect-wal` passed on it. A file in a state neither
+    value describes is precisely what this script exists to notice, so it has
+    to say `unknown` rather than pick the reassuring answer.
+    """
+    db = tmp_path / "mismatched.db"
+    _make(db, "WAL")
+    raw = bytearray(db.read_bytes())
+    raw[19] = 1  # write_version=2, read_version=1
+    db.write_bytes(bytes(raw))
+
+    assert journal_mode(db) == "unknown(2,1)", (
+        f"a mismatched header was classified as {journal_mode(db)!r}"
+    )
+
+
 def test_a_file_that_cannot_answer_says_so(tmp_path: Path) -> None:
     """No mode is reported for something that is not a database.
 
@@ -70,6 +98,25 @@ def test_a_file_that_cannot_answer_says_so(tmp_path: Path) -> None:
     junk.write_bytes(b"not a database at all, but long enough to read")
     assert journal_mode(junk) == "not-sqlite"
 
-    assert "unreadable" in journal_mode(tmp_path / "nope.db") or journal_mode(
-        tmp_path / "nope.db"
-    ).startswith("unreadable")
+    assert journal_mode(tmp_path / "nope.db").startswith("unreadable")
+
+
+def test_enforcement_cannot_be_switched_off_by_accident(tmp_path: Path) -> None:
+    """A target that resolved to nothing, or a mistyped flag, must not pass.
+
+    `--expect-wal good.db missing.db` exited 0 while never looking at the file
+    the caller cared about, and `--expect-wla good.db` disabled enforcement
+    silently — a check a typo turns into a no-op still reports success, which
+    is the failure mode this whole change is about.
+    """
+    good = tmp_path / "good.db"
+    _make(good, "WAL")
+
+    assert main(["--expect-wal", str(good)]) == 0
+    assert main(["--expect-wal", str(good), str(tmp_path / "gone.db")]) == 1, (
+        "a target that does not exist was not counted as a failure"
+    )
+    assert main(["--expect-wla", str(good)]) == 2, (
+        "a mistyped flag was ignored instead of rejected, so enforcement was "
+        "silently off"
+    )
