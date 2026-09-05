@@ -1682,6 +1682,10 @@ def _build_trust_snapshot() -> dict:
         "ranked": tg.top_agents(n=_TRUST_SNAPSHOT_SIZE),
         "edges": tg.edges(),
         "flagged": flagged,
+        # When the graph was actually computed. Stamping `now` at response
+        # time would report a 30-second-old snapshot as current, which is the
+        # same kind of confident wrong number this branch exists to remove.
+        "computed_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -1771,5 +1775,7 @@ async def marketplace_trust_graph(
             edge for edge in snapshot["edges"]
             if edge["source"] in keep and edge["target"] in keep
         ],
-        "computed_at": datetime.now(UTC).isoformat(),
+        # The snapshot's own build time, not this request's. Reporting `now`
+        # would date a cached graph to the moment it was served.
+        "computed_at": snapshot["computed_at"],
     }

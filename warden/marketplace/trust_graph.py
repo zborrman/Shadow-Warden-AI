@@ -93,10 +93,22 @@ class TrustGraph:
                 self._g.setdefault(buyer, {})[seller] = {"weight": w_sum / n, "trades": n}
         self._recompute()
 
-    def _load_trades(self, db_path: str) -> dict:
+    def _load_trades(self, db_path: str | None = None) -> dict:
+        """Aggregate buyer->seller trades.
+
+        `db_path` was passed straight through to `open_db_readonly`, so the
+        no-argument `build_graph()` — which is how every caller uses it —
+        opened `file:None?mode=ro` and raised `unable to open database file`.
+        `_load_trades` swallowed that, so TrustRank has been computed over an
+        empty graph for the life of the feature: every score 0, every
+        leaderboard empty, every Sybil check trivially clean.
+
+        `_db_path()` was sitting right there, resolving on every call by
+        design (DE-6 P2). It was simply never called from here.
+        """
         agg: dict[tuple, list] = defaultdict(lambda: [0.0, 0])
         try:
-            con = open_db_readonly(db_path)
+            con = open_db_readonly(db_path or _db_path())
             rows = con.execute(
                 "SELECT buyer_agent, seller_agent, status FROM marketplace_purchases"
             ).fetchall()
