@@ -107,12 +107,15 @@ class TrustGraph:
         design (DE-6 P2). It was simply never called from here.
         """
         agg: dict[tuple, list] = defaultdict(lambda: [0.0, 0])
+        con = None
         try:
+            # `close()` used to sit after `execute()`, so a failing query — a
+            # missing table, a locked database — leaked the handle. This ran on
+            # every graph rebuild.
             con = open_db_readonly(db_path or _db_path())
             rows = con.execute(
                 "SELECT buyer_agent, seller_agent, status FROM marketplace_purchases"
             ).fetchall()
-            con.close()
             for buyer, seller, status in rows:
                 if buyer and seller and buyer != seller:
                     key = (buyer, seller)
@@ -124,6 +127,9 @@ class TrustGraph:
             # nobody learns the database was unreachable. Debug-level logging
             # is not an observation.
             record_failopen("marketplace_trust_graph", Reason.BACKEND_ERROR, exc)
+        finally:
+            if con is not None:
+                con.close()
         return agg
 
     # ── PageRank ──────────────────────────────────────────────────────────────

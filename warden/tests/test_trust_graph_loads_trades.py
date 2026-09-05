@@ -24,29 +24,44 @@ from pathlib import Path
 
 import pytest
 
+from warden.db.ddl_registry import ensure_schema
 from warden.marketplace.trust_graph import TrustGraph
+
+
+def _seeded_db(db: Path, *, rows: bool) -> Path:
+    """A marketplace database with the real schema, optionally holding trades.
+
+    The DDL comes from the registry rather than from a `CREATE TABLE` written
+    here. A fixture that invents its own columns tests the fixture: the real
+    `marketplace_purchases` has twelve, including `purchase_id`, `asset_id` and
+    `escrow_id`, and a hand-rolled six-column stand-in is how the clearing bug
+    in #325 passed its own tests while settling every trade at $0.00.
+    """
+    import warden.marketplace.listing  # noqa: F401,PLC0415 — registers the DDL
+
+    con = sqlite3.connect(db)
+    ensure_schema(con, "marketplace", str(db))
+    if rows:
+        con.executemany(
+            "INSERT INTO marketplace_purchases "
+            "(purchase_id, listing_id, asset_id, buyer_agent, seller_agent,"
+            " price_paid, status, purchased_at) VALUES (?,?,?,?,?,?,?,?)",
+            [
+                ("p1", "l1", "a1", "agent_buyer", "agent_seller",
+                 10.0, "completed", "2026-09-01"),
+                ("p2", "l2", "a2", "agent_buyer", "agent_third",
+                 5.0, "completed", "2026-09-02"),
+            ],
+        )
+    con.commit()
+    con.close()
+    return db
 
 
 @pytest.fixture
 def marketplace_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A marketplace database holding two completed trades between three agents."""
-    db = tmp_path / "warden_marketplace.db"
-    con = sqlite3.connect(db)
-    con.execute(
-        "CREATE TABLE marketplace_purchases ("
-        " listing_id TEXT, buyer_agent TEXT, seller_agent TEXT,"
-        " status TEXT, price_paid REAL, purchased_at TEXT)"
-    )
-    con.executemany(
-        "INSERT INTO marketplace_purchases VALUES (?,?,?,?,?,?)",
-        [
-            ("l1", "agent_buyer", "agent_seller", "completed", 10.0, "2026-09-01"),
-            ("l2", "agent_buyer", "agent_third", "completed", 5.0, "2026-09-02"),
-        ],
-    )
-    con.commit()
-    con.close()
-
+    db = _seeded_db(tmp_path / "warden_marketplace.db", rows=True)
     monkeypatch.setattr("warden.marketplace.trust_graph._db_path", lambda: str(db))
     return db
 
@@ -75,15 +90,7 @@ def test_an_explicit_path_still_wins(marketplace_db: Path, tmp_path: Path) -> No
 
     `warden/tests` and the backup tooling both pass a path explicitly.
     """
-    empty = tmp_path / "empty.db"
-    con = sqlite3.connect(empty)
-    con.execute(
-        "CREATE TABLE marketplace_purchases ("
-        " listing_id TEXT, buyer_agent TEXT, seller_agent TEXT,"
-        " status TEXT, price_paid REAL, purchased_at TEXT)"
-    )
-    con.commit()
-    con.close()
+    empty = _seeded_db(tmp_path / "empty.db", rows=False)
 
     tg = TrustGraph()
     tg.build_graph(db_path=str(empty))
