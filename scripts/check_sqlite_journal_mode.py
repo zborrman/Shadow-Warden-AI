@@ -90,8 +90,15 @@ def _targets(args: list[str]) -> tuple[list[Path], list[str]]:
             out.extend(found)
             if not found:
                 missing.append(f"{arg} (directory contains no .db files)")
-        elif p.exists():
+        elif p.is_file():
             out.append(p)
+        elif p.exists():
+            # `exists()` is true for FIFOs and device nodes, and opening a FIFO
+            # for reading blocks until a writer appears — so `--expect-wal fifo`
+            # hung instead of failing. A check that hangs is worse than one that
+            # reports a failure: nothing times it out and nothing tells the
+            # operator why the pipeline stopped.
+            missing.append(f"{arg} (not a regular file)")
         else:
             missing.append(arg)
     return out, missing

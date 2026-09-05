@@ -14,8 +14,11 @@ author also just made up.
 """
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
+
+import pytest
 
 from scripts.check_sqlite_journal_mode import journal_mode, main
 
@@ -99,6 +102,24 @@ def test_a_file_that_cannot_answer_says_so(tmp_path: Path) -> None:
     assert journal_mode(junk) == "not-sqlite"
 
     assert journal_mode(tmp_path / "nope.db").startswith("unreadable")
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="no mkfifo on this platform")
+def test_a_fifo_is_refused_rather_than_opened(tmp_path: Path) -> None:
+    """Opening a FIFO for reading blocks until someone writes to it.
+
+    `Path.exists()` is true for FIFOs and device nodes, so `--expect-wal fifo`
+    would hang with nothing to time it out and nothing to tell the operator why
+    the pipeline stopped. A check that hangs is worse than one that fails: the
+    failure at least says something.
+    """
+    fifo = tmp_path / "pipe"
+    os.mkfifo(fifo)
+
+    assert main(["--expect-wal", str(fifo)]) == 1, (
+        "a FIFO was accepted as a target; if this test hangs instead of "
+        "failing, the script opened it."
+    )
 
 
 def test_enforcement_cannot_be_switched_off_by_accident(tmp_path: Path) -> None:
