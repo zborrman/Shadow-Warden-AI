@@ -222,6 +222,26 @@ class TrustGraph:
 
     # ── Leaderboard ───────────────────────────────────────────────────────────
 
+    def edges(self) -> list[dict]:
+        """Weighted trade edges, independent of the networkx/dict backend.
+
+        Added for the `/marketplace/trust/graph` route (SW-11), which first
+        read `self._g` directly and had to re-implement the backend branch to
+        do it. A caller reaching past the class for a structure whose shape is
+        conditional is a bug waiting for the condition to change.
+        """
+        out: list[dict] = []
+        if hasattr(self._g, "edges"):
+            for src, dst, data in self._g.edges(data=True):
+                out.append({"source": src, "target": dst,
+                            "weight": round(float(data.get("weight", 0.0)), 4)})
+        else:
+            for src, targets in self._g.items():
+                for dst, data in targets.items():
+                    out.append({"source": src, "target": dst,
+                                "weight": round(float(data.get("weight", 0.0)), 4)})
+        return out
+
     def top_agents(self, n: int = 5) -> list[dict]:
         """Top N agents sorted descending by normalised TrustRank."""
         if not self._rank:

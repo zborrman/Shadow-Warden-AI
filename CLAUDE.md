@@ -176,7 +176,7 @@ POST /filter → TopologicalGatekeeper (n-gram point cloud → β₀/β₁ Betti
                 ↓ add_examples() hot-reload
     _brain_guard corpus
                 ↓
-    event_logger → data/logs.json → Streamlit dashboard (:8501)
+    event_logger → data/logs.json → Streamlit admin UI (:8502)
                 ↓ background S3 ship (fail-open)
     MinIO on-prem object store (S3_ENABLED=true)
         warden-evidence/bundles/<session_id>.json   ← Evidence Vault
@@ -220,7 +220,7 @@ MasterAgent (multi-agent SOC coordinator — v4.0):
     Human-in-the-Loop: REQUIRES_APPROVAL actions → Slack webhook → Redis pending (1h TTL) → /agent/approve/{token}
 ```
 
-11 Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres`, `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
+24 Docker services. Gateway and UIs: `proxy` (80/443), `warden` (8001), `analytics` (8002), `admin` (8502, Streamlit), `dashboard` (3002, Next.js SOC), `portal` (3001). Data: `postgres` (TimescaleDB), `redis`, `clickhouse`, `minio` (9000/9001), `minio-init`. Workers: `arq-worker`, `autoheal`. Observability: `prometheus`, `grafana` (3000), `loki`, `promtail`, `jaeger`, `otel-collector`, `cadvisor`, `node-exporter`, `postgres-exporter`, `redis-exporter`. Edge: `cloudflared`.
 
 ## Two Distinct Guard Classes (critical distinction)
 

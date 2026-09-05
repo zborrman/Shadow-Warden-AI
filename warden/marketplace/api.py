@@ -17,10 +17,12 @@ This file owns: /stats, /analytics/*, /protocol, /protocol/schema, /action, /cle
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
@@ -30,7 +32,10 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.analytics import get_agent_leaderboard
 from warden.marketplace.service import VALID_ASSET_TYPES
+from warden.marketplace.sybil_guard import SybilGuard
+from warden.marketplace.trust_graph import TrustGraph
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -1628,3 +1633,98 @@ async def delete_autonomy_policy(
     from warden.marketplace.autonomy import delete_policy  # noqa: PLC0415
     deleted = delete_policy(agent_id)
     return {"agent_id": agent_id, "deleted": deleted, "fallback": "L1 default"}
+
+
+# ── TrustRank leaderboard and graph (SW-11) ───────────────────────────────────
+#
+# The SOC dashboard has called `GET /marketplace/trust/leaderboard` and
+# `GET /marketplace/trust/graph` since those pages were written, and
+# `warden/protocols/a2a/agent_card.py` advertises the second one to other agents
+# as a capability of this service. Neither route existed. The leaderboard table
+# showed `trust_rank` under a "Trades" heading and a hardcoded em dash under
+# "Volume" — which is what a table looks like when it was built for a response
+# that never arrived.
+#
+# The machinery was all here: `TrustGraph` computes the ranks, `SybilGuard`
+# holds the flags, and `analytics.get_agent_leaderboard` counts trades and
+# volume. Only the two routes were missing.
+
+
+def _trust_engines() -> tuple:
+    """Built TrustGraph plus SybilGuard.
+
+    The imports are deferred like every other route in this module (the graph
+    pulls in networkx), and doing it once here keeps one suppression instead of
+    one per route per import.
+    """
+    tg = TrustGraph()
+    with contextlib.suppress(Exception):
+        tg.build_graph()
+    return tg, SybilGuard()
+
+
+@router.get("/trust/leaderboard", summary="TrustRank leaderboard with trade counts")
+async def marketplace_trust_leaderboard(
+    limit: int = Query(default=20, ge=1, le=50),
+    tenant_id: str | None = Query(default=None),
+) -> list[dict]:
+    """Top agents by TrustRank, joined to their completed-trade totals."""
+    tg, sg = _trust_engines()
+
+    # Trades and volume come from completed purchases, where an agent may appear
+    # as either side. A "trade" for this table is any settled purchase the agent
+    # took part in.
+    totals: dict[str, dict[str, float]] = {}
+    board = get_agent_leaderboard(tenant_id=tenant_id, limit=50)
+    for side in ("top_sellers", "top_buyers"):
+        for row in board.get(side, []):
+            acc = totals.setdefault(row["agent_id"], {"trades": 0, "volume_usd": 0.0})
+            acc["trades"] += int(row.get("trades", 0))
+            acc["volume_usd"] += float(row.get("volume_usd", 0.0))
+
+    out: list[dict] = []
+    for entry in tg.top_agents(n=limit):
+        agent_id = entry["agent_id"]
+        counted = totals.get(agent_id, {"trades": 0, "volume_usd": 0.0})
+        out.append({
+            "agent_id":     agent_id,
+            "trust_score":  round(float(entry["trust_rank"]), 4),
+            "trust_rank":   round(float(entry["trust_rank"]), 4),
+            "sybil_flag":   sg.is_flagged(agent_id),
+            "sybil_reason": sg.get_flag_reason(agent_id),
+            "trades":       int(counted["trades"]),
+            "volume_usd":   round(float(counted["volume_usd"]), 2),
+            "transitive_peers": [],
+        })
+    return out
+
+
+@router.get("/trust/graph", summary="Trade trust graph — nodes and weighted edges")
+async def marketplace_trust_graph(
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict:
+    """The trade graph TrustRank is computed over.
+
+    Advertised in the A2A agent card, so external agents fetch it to judge
+    whether this marketplace's reputation signal is worth trusting.
+    """
+    tg, sg = _trust_engines()
+
+    ranked = tg.top_agents(n=limit)
+    keep = {e["agent_id"] for e in ranked}
+    nodes = [
+        {
+            "id":          e["agent_id"],
+            "trust_score": round(float(e["trust_rank"]), 4),
+            "sybil_flag":  sg.is_flagged(e["agent_id"]),
+        }
+        for e in ranked
+    ]
+
+    edges = [e for e in tg.edges() if e["source"] in keep and e["target"] in keep]
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "computed_at": datetime.now(UTC).isoformat(),
+    }

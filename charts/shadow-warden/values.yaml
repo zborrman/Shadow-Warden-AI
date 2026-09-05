@@ -1,4 +1,17 @@
 # Shadow Warden AI — Helm values
+#
+# SW-13: this chart deploys only the warden gateway, redis, the arq worker and
+# the secrets it needs. It does not deploy the app, analytics, dashboard,
+# caddy, postgres, minio, prometheus, grafana or an ingress — those run from
+# `docker-compose.yml`, and Kubernetes users bring their own.
+#
+# Nine such blocks used to be configured here, each with an image, resource
+# limits and `enabled: true`, and no template read any of them. `helm lint` and
+# `helm template` both passed the whole time: a values block with no template
+# behind it is syntactically perfect and deploys nothing. Adding a component
+# here means adding its template in the same change —
+# `warden/tests/test_helm_values_render.py` fails otherwise.
+#
 # Override per environment: helm upgrade -f values.prod.yaml
 
 global:
@@ -29,68 +42,6 @@ warden:
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
-
-# ── App (FastAPI public API, port 8000) ────────────────────────────────────────
-app:
-  enabled: true
-  replicas: 2
-  image:
-    repository: shadow-warden-ai/app
-  resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "500m", memory: "512Mi" }
-  service:
-    port: 8000
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 6
-    targetCPUUtilizationPercentage: 70
-
-# ── Analytics (Streamlit, port 8501) ───────────────────────────────────────────
-analytics:
-  enabled: true
-  replicas: 1
-  image:
-    repository: shadow-warden-ai/analytics
-  resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "500m", memory: "512Mi" }
-  service:
-    port: 8501
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 3
-    targetCPUUtilizationPercentage: 70
-
-# ── Dashboard (Next.js SOC, port 3002) ─────────────────────────────────────────
-dashboard:
-  enabled: true
-  replicas: 2
-  image:
-    repository: shadow-warden-ai/dashboard
-  resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "500m", memory: "512Mi" }
-  service:
-    port: 3002
-
-# ── Caddy (reverse proxy, 80/443) ──────────────────────────────────────────────
-caddy:
-  enabled: true
-  replicas: 1
-  image:
-    repository: caddy
-    tag: "2.8-alpine"
-  resources:
-    requests: { cpu: "50m",  memory: "64Mi"  }
-    limits:   { cpu: "200m", memory: "128Mi" }
-  service:
-    httpPort: 80
-    httpsPort: 443
-
-# ── Redis ──────────────────────────────────────────────────────────────────────
 redis:
   enabled: true
   image:
@@ -104,66 +55,6 @@ redis:
     size: 4Gi
   service:
     port: 6379
-
-# ── PostgreSQL ─────────────────────────────────────────────────────────────────
-postgres:
-  enabled: true
-  image:
-    repository: postgres
-    tag: "16-alpine"
-  resources:
-    requests: { cpu: "250m", memory: "512Mi" }
-    limits:   { cpu: "1",    memory: "2Gi"   }
-  persistence:
-    enabled: true
-    size: 20Gi
-  env:
-    POSTGRES_DB: warden
-    POSTGRES_USER: warden
-
-# ── MinIO ──────────────────────────────────────────────────────────────────────
-minio:
-  enabled: true
-  image:
-    repository: minio/minio
-    tag: "latest"
-  resources:
-    requests: { cpu: "250m", memory: "512Mi" }
-    limits:   { cpu: "1",    memory: "2Gi"   }
-  persistence:
-    enabled: true
-    size: 50Gi
-  service:
-    apiPort: 9000
-    consolePort: 9001
-
-# ── Prometheus ─────────────────────────────────────────────────────────────────
-prometheus:
-  enabled: true
-  image:
-    repository: prom/prometheus
-    tag: "v2.53.0"
-  resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "500m", memory: "1Gi"   }
-  persistence:
-    enabled: true
-    size: 10Gi
-  retention: "30d"
-
-# ── Grafana ────────────────────────────────────────────────────────────────────
-grafana:
-  enabled: true
-  image:
-    repository: grafana/grafana
-    tag: "11.0.0"
-  resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "500m", memory: "512Mi" }
-  service:
-    port: 3000
-
-# ── ARQ Worker ─────────────────────────────────────────────────────────────────
 arqWorker:
   enabled: true
   replicas: 1
@@ -185,15 +76,3 @@ secrets:
   minioRootPassword: "changeme"
   slackWebhookUrl: ""
   sovereignAttestKey: ""
-
-# ── Ingress ────────────────────────────────────────────────────────────────────
-ingress:
-  enabled: false
-  className: nginx
-  annotations: {}
-  hosts:
-    - host: api.shadow-warden-ai.com
-      paths: [{ path: /, pathType: Prefix, service: warden }]
-    - host: dash.shadow-warden-ai.com
-      paths: [{ path: /, pathType: Prefix, service: dashboard }]
-  tls: []

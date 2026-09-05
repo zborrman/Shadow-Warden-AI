@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Shield, Search, Clock, ExternalLink, Share2, Loader2, Users } from "lucide-react";
-import { api, type CommunityFeedItem, type CommunityLookupResponse } from "@/lib/api";
+import { api, type CommunityLookupResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const RISK_COLOR: Record<string, string> = {
@@ -22,32 +22,6 @@ function RiskPill({ level }: { level: string }) {
   );
 }
 
-function FeedRow({ item }: { item: CommunityFeedItem }) {
-  const label = item.display_name.length > 52 ? item.display_name.slice(0, 52) + "…" : item.display_name;
-  return (
-    <div className="flex flex-col gap-1 py-2.5 border-b border-border/50 last:border-0 group">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <RiskPill level={item.risk_level} />
-          <span className="text-xs text-gray-300 truncate">{label}</span>
-        </div>
-        <span className="text-[10px] text-gray-600 font-mono flex items-center gap-1 shrink-0">
-          <Clock size={9} />
-          {item.created_at.slice(0, 10)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-gray-600 font-mono">{item.ueciid}</span>
-        <a
-          href={`/sep/${item.ueciid}`}
-          className="text-[10px] text-accent-cyan hover:underline flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <ExternalLink size={9} /> Details
-        </a>
-      </div>
-    </div>
-  );
-}
 
 function RecsPanel({ data }: { data: CommunityLookupResponse }) {
   return (
@@ -81,13 +55,6 @@ export function CommunityDefenseWidget() {
   const [query, setQuery] = useState("");
   const [lastResult, setLastResult] = useState<CommunityLookupResponse | null>(null);
 
-  const { data: feed, isLoading: feedLoading } = useQuery({
-    queryKey:       ["community-feed", "recent"],
-    queryFn:        () => api.communityFeed("jailbreak prompt injection", 6),
-    refetchInterval: 90_000,
-    retry: false,
-  });
-
   const lookup = useMutation({
     mutationFn: (q: string) => api.communityLookup({ query: q, auto_publish: false }),
     onSuccess:  (data) => setLastResult(data),
@@ -97,8 +64,6 @@ export function CommunityDefenseWidget() {
     const q = query.trim();
     if (q) lookup.mutate(q);
   };
-
-  const items: CommunityFeedItem[] = feed?.results ?? [];
 
   return (
     <div className="rounded-xl bg-surface-2 border border-border p-5 flex flex-col gap-4">
@@ -141,23 +106,13 @@ export function CommunityDefenseWidget() {
       {/* Results from lookup */}
       {lastResult && <RecsPanel data={lastResult} />}
 
-      {/* Recent feed */}
-      <div>
-        <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-2">Recent community reports</p>
-        {feedLoading ? (
-          <div className="space-y-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-8 rounded bg-surface-3 animate-pulse" />
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <p className="text-xs text-gray-600 text-center py-3">No community reports yet.</p>
-        ) : (
-          <div>
-            {items.map((item) => <FeedRow key={item.ueciid} item={item} />)}
-          </div>
-        )}
-      </div>
+      {/* SW-11: a "Recent community reports" list used to sit here, fed by
+          `/sep/ueciids/status` — a route that has never existed. It polled
+          every 90 seconds, 404'd every time, and rendered "No community
+          reports yet." for its whole life. The real route needs a community to
+          scope to and nothing on this page selects one, so the list is gone
+          rather than wired to an arbitrary community. The lookup above and the
+          SOVA button below both call routes that work. */}
 
       {/* Ask SOVA button */}
       <button
