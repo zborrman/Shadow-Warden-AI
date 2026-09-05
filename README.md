@@ -270,7 +270,7 @@ markdown is served from the *same* URL as the HTML, both variants carry
 |---------|-------------|
 | **Community M2M Agentic Marketplace (Phases 1-3)** | Agent DID registration (`did:shadow:{32 base62}`), asset tokenization (rules/models/signals with ReDoS gate + UECIID provenance), escrow flow (funded→delivered→confirmed), full marketplace commerce API with multi-agent auctions. 9 analytics endpoints, Streamlit `13_Marketplace_Analytics.py`, SOC Dashboard `/marketplace/` page with Recharts charts. |
 | **Community Event Notifications** | Real-time email, Slack, and Microsoft Teams notifications for all community events: member joins, transfers, peering changes, compliance events, incident escalations. Configurable per-community, per-event-type subscription model. |
-| **Deploy & Infrastructure Monitoring** | `GET /deploy/status` probes all 11 Docker services concurrently (proxy, warden, app, analytics, dashboard, postgres, redis, prometheus, grafana, minio, minio-init) with latency. SOC Dashboard `/platform/status` page auto-refreshes every 30s. Portal `/deployment/` infrastructure view with quick-links to Grafana, Jaeger, MinIO, and Prometheus. |
+| **Deploy & Infrastructure Monitoring** | `GET /deploy/status` reports on 10 of the stack's 24 services (warden, redis, postgres, minio, prometheus, grafana, analytics, arq_worker, proxy, dashboard — the route's own identifiers; Compose calls that service `arq-worker`) — `proxy` and `dashboard` are assumed rather than probed. It used to probe an `app` service that `docker-compose.yml` does not define, so that entry could never come back healthy. SOC Dashboard `/platform/status` page auto-refreshes every 30s. Portal `/deployment/` infrastructure view with quick-links to Grafana, Jaeger, MinIO, and Prometheus. |
 | **Public SDK & Developer Reference** | `site/src/pages/sdk.astro` — syntax-highlighted Python and TypeScript SDK installation and usage docs. OTel span processor, streaming proxy, LangChain callback, and agent monitor covered with live code examples. Portal `/sdk/` page. |
 
 ---
@@ -798,7 +798,7 @@ POST /filter
              └─► Zero-Trust Sandbox (agent calls)      capability manifests + kill-switch
 ```
 
-Eleven Docker services: `proxy` (80/443), `warden` (8001), `app` (8000), `analytics` (8002), `dashboard` (8501), `postgres` (TimescaleDB), `redis`, `prometheus`, `grafana` (3000), `minio` (9000/9001), `minio-init`.
+24 Docker services. Gateway and UIs: `proxy` (80/443), `warden` (8001), `analytics` (8002), `admin` (8502, Streamlit), `dashboard` (3002, Next.js SOC), `portal` (3001). Data: `postgres` (TimescaleDB), `redis`, `clickhouse`, `minio` (9000/9091), `minio-init`. Workers: `arq-worker`, `autoheal`. Observability: `prometheus`, `grafana` (3000), `loki`, `promtail`, `jaeger`, `otel-collector`, `cadvisor`, `node-exporter`, `postgres-exporter`, `redis-exporter`. Edge: `cloudflared`.
 
 ### Uptime Monitor (v3.0)
 

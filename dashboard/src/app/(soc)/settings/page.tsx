@@ -870,19 +870,34 @@ function DangerZonePanel({ onReset }: { onReset: () => void }) {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: sw.fg1, marginBottom: 4 }}>Purge all request logs</div>
-            <div style={{ fontSize: 12.5, color: sw.fg2 }}>Permanently delete all logs. Required for GDPR Art. 17 "right to erasure" requests. Irreversible.</div>
-            <div style={{ marginTop: 6, fontFamily: "var(--font-mono, monospace)", fontSize: 10.5, color: sw.fg4 }}>
-              Endpoint: <span style={{ color: sw.fg3 }}>DELETE /gdpr/purge</span>
+            <div style={{ fontSize: 12.5, color: sw.fg2 }}>
+              Erasure under GDPR Art. 17 is scoped, not global: purge one
+              session, one tenant, or everything before a date. Each is
+              irreversible, so none of them is a button on a dashboard.
+            </div>
+            {/* SW-12: this panel used to carry an "Open GDPR console" button
+                that called `window.open()` on a hardcoded
+                `https://api.shadow-warden-ai.com/gdpr/purge`. Three things were
+                wrong with one line. `window.open` issues a GET, and no GET
+                route exists there — the real ones are POST and DELETE, so it
+                answered 405. It addressed the API directly instead of the
+                same-origin proxy every other call in this file uses, so it
+                carried no credential and would have been rejected anyway. And
+                the label above it said the endpoint was `DELETE /gdpr/purge`,
+                which is not one of the four routes that exist. An operator
+                could believe they had opened an erasure console and have
+                opened an error page.
+
+                There is no GDPR console to open. The routes are listed instead,
+                because a destructive scoped delete belongs in a deliberate
+                call, not behind a button whose blast radius is "all logs". */}
+            <div style={{ marginTop: 8, fontFamily: "var(--font-mono, monospace)", fontSize: 10.5, color: sw.fg4, lineHeight: 1.8 }}>
+              <div>POST <span style={{ color: sw.fg3 }}>/gdpr/purge</span></div>
+              <div>DELETE <span style={{ color: sw.fg3 }}>/gdpr/purge/session/{"{session_id}"}</span></div>
+              <div>DELETE <span style={{ color: sw.fg3 }}>/gdpr/purge/tenant/{"{tenant_id}"}</span></div>
+              <div>DELETE <span style={{ color: sw.fg3 }}>/gdpr/purge/before/{"{iso_date}"}</span></div>
             </div>
           </div>
-          <button
-            onClick={() => window.open("https://api.shadow-warden-ai.com/gdpr/purge", "_blank")}
-            style={{
-              flexShrink: 0, padding: "7px 14px", borderRadius: 7,
-              border: `1px solid rgba(239,68,68,0.30)`,
-              background: "transparent", color: sw.redLt, fontSize: 12.5, cursor: "pointer",
-            }}
-          >Open GDPR console</button>
         </div>
       </div>
     </div>

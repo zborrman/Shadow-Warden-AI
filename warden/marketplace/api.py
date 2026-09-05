@@ -17,10 +17,13 @@ This file owns: /stats, /analytics/*, /protocol, /protocol/schema, /action, /cle
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
@@ -30,7 +33,10 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.analytics import agent_trade_totals, get_agent_leaderboard
 from warden.marketplace.service import VALID_ASSET_TYPES
+from warden.marketplace.sybil_guard import SybilGuard
+from warden.marketplace.trust_graph import TrustGraph
 from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.api")
@@ -1086,7 +1092,6 @@ async def marketplace_agent_leaderboard(
     community_id: str | None = Query(default=None),
     limit:        int        = Query(default=10, le=50),
 ) -> dict:
-    from warden.marketplace.analytics import get_agent_leaderboard
     return get_agent_leaderboard(tenant_id=tenant_id, community_id=community_id, limit=limit)
 
 
@@ -1095,7 +1100,6 @@ async def marketplace_agent_leaderboard(
 @router.get("/readiness/{community_id}")
 async def marketplace_readiness(community_id: str) -> dict:
     """Check whether a community is ready to participate in the marketplace."""
-    import contextlib
 
     from warden.marketplace.agent import list_agents as _list_agents
 
@@ -1628,3 +1632,150 @@ async def delete_autonomy_policy(
     from warden.marketplace.autonomy import delete_policy  # noqa: PLC0415
     deleted = delete_policy(agent_id)
     return {"agent_id": agent_id, "deleted": deleted, "fallback": "L1 default"}
+
+
+# ── TrustRank leaderboard and graph (SW-11) ───────────────────────────────────
+#
+# The SOC dashboard has called `GET /marketplace/trust/leaderboard` and
+# `GET /marketplace/trust/graph` since those pages were written, and
+# `warden/protocols/a2a/agent_card.py` advertises the second one to other agents
+# as a capability of this service. Neither route existed. The leaderboard table
+# showed `trust_rank` under a "Trades" heading and a hardcoded em dash under
+# "Volume" — which is what a table looks like when it was built for a response
+# that never arrived.
+#
+# The machinery was all here: `TrustGraph` computes the ranks, `SybilGuard`
+# holds the flags, and `analytics.get_agent_leaderboard` counts trades and
+# volume. Only the two routes were missing.
+
+
+#: How long a computed TrustRank snapshot is reused.
+#:
+#: `_trust_engines()` used to build the graph on every request, inside an
+#: `async def`, on the event loop: load every completed purchase, then run
+#: PageRank over the result. One dashboard poll blocked the whole gateway for
+#: as long as that took, and the leaderboard page polls. The work is identical
+#: for every caller — the graph is global, only the trade totals are per-tenant
+#: — so it is computed at most this often and shared.
+_TRUST_SNAPSHOT_TTL_S = 30.0
+
+#: The ranking covers at most this many agents. Both routes cap below it
+#: (leaderboard 50, graph 500), so one snapshot serves both.
+_TRUST_SNAPSHOT_SIZE = 500
+
+_trust_snapshot_cache: dict[str, tuple[float, dict]] = {}
+_trust_snapshot_lock = asyncio.Lock()
+
+
+def _build_trust_snapshot() -> dict:
+    """Rank every agent and read the Sybil flags. Blocking; call in a thread."""
+    tg = TrustGraph()
+    try:
+        tg.build_graph()
+    except Exception as exc:
+        # `_load_trades` already records its own fail-open; this catches the
+        # PageRank half, which `contextlib.suppress` used to swallow whole.
+        record_failopen("marketplace_trust_graph", Reason.BACKEND_ERROR, exc)
+
+    flagged = {f["agent_id"]: f.get("reason", "") for f in SybilGuard().list_flagged()}
+    return {
+        "ranked": tg.top_agents(n=_TRUST_SNAPSHOT_SIZE),
+        "edges": tg.edges(),
+        "flagged": flagged,
+        # When the graph was actually computed. Stamping `now` at response
+        # time would report a 30-second-old snapshot as current, which is the
+        # same kind of confident wrong number this branch exists to remove.
+        "computed_at": datetime.now(UTC).isoformat(),
+    }
+
+
+async def _trust_snapshot() -> dict:
+    now = time.monotonic()
+    cached = _trust_snapshot_cache.get("snapshot")
+    if cached and cached[0] > now:
+        return cached[1]
+
+    async with _trust_snapshot_lock:
+        # Re-check: several requests can queue on the lock while the first
+        # builds, and none of them should build it again.
+        cached = _trust_snapshot_cache.get("snapshot")
+        if cached and cached[0] > time.monotonic():
+            return cached[1]
+        snapshot = await asyncio.to_thread(_build_trust_snapshot)
+        _trust_snapshot_cache["snapshot"] = (
+            time.monotonic() + _TRUST_SNAPSHOT_TTL_S,
+            snapshot,
+        )
+        return snapshot
+
+
+@router.get("/trust/leaderboard", summary="TrustRank leaderboard with trade counts")
+async def marketplace_trust_leaderboard(
+    limit: int = Query(default=20, ge=1, le=50),
+    auth: AuthResult = Depends(require_api_key),
+) -> list[dict]:
+    """Top agents by TrustRank, joined to this tenant's completed-trade totals.
+
+    The tenant comes from the API key, never from a query parameter. The first
+    version took `tenant_id` as a query string with no authentication at all,
+    so any caller could read any tenant's trade counts and USD volume by
+    guessing an id.
+    """
+    snapshot = await _trust_snapshot()
+    ranked = snapshot["ranked"][:limit]
+    flagged = snapshot["flagged"]
+
+    agent_ids = [e["agent_id"] for e in ranked]
+    totals = await asyncio.to_thread(
+        agent_trade_totals, agent_ids, auth.tenant_id
+    )
+
+    return [
+        {
+            "agent_id":     e["agent_id"],
+            "trust_score":  round(float(e["trust_rank"]), 4),
+            "trust_rank":   round(float(e["trust_rank"]), 4),
+            "sybil_flag":   e["agent_id"] in flagged,
+            "sybil_reason": flagged.get(e["agent_id"], ""),
+            "trades":       int(totals.get(e["agent_id"], {}).get("trades", 0)),
+            "volume_usd":   round(float(totals.get(e["agent_id"], {}).get("volume_usd", 0.0)), 2),
+            "transitive_peers": [],
+        }
+        for e in ranked
+    ]
+
+
+@router.get("/trust/graph", summary="Trade trust graph — nodes and weighted edges")
+async def marketplace_trust_graph(
+    limit: int = Query(default=100, ge=1, le=500),
+    _: AuthResult = Depends(require_api_key),
+) -> dict:
+    """The trade graph TrustRank is computed over.
+
+    Advertised in the A2A agent card, so external agents fetch it to judge
+    whether this marketplace's reputation signal is worth trusting. It carries
+    no per-tenant figures — agent ids and edge weights only — but it is still
+    the shape of who trades with whom, so it takes a key.
+    """
+    snapshot = await _trust_snapshot()
+    ranked = snapshot["ranked"][:limit]
+    flagged = snapshot["flagged"]
+    keep = {e["agent_id"] for e in ranked}
+
+    return {
+        "nodes": [
+            {
+                "id":          e["agent_id"],
+                "trust_score": round(float(e["trust_rank"]), 4),
+                "sybil_flag":  e["agent_id"] in flagged,
+            }
+            for e in ranked
+        ],
+        "edges": [
+            edge for edge in snapshot["edges"]
+            if edge["source"] in keep and edge["target"] in keep
+        ],
+        # The snapshot's own build time, not this request's. Reporting `now`
+        # would date a cached graph to the moment it was served.
+        "computed_at": snapshot["computed_at"],
+    }

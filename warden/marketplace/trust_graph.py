@@ -20,6 +20,7 @@ from typing import Any
 
 from warden.config import data_path
 from warden.db.connect import open_db_readonly
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.trust_graph")
 
@@ -92,21 +93,43 @@ class TrustGraph:
                 self._g.setdefault(buyer, {})[seller] = {"weight": w_sum / n, "trades": n}
         self._recompute()
 
-    def _load_trades(self, db_path: str) -> dict:
+    def _load_trades(self, db_path: str | None = None) -> dict:
+        """Aggregate buyer->seller trades.
+
+        `db_path` was passed straight through to `open_db_readonly`, so the
+        no-argument `build_graph()` — which is how every caller uses it —
+        opened `file:None?mode=ro` and raised `unable to open database file`.
+        `_load_trades` swallowed that, so TrustRank has been computed over an
+        empty graph for the life of the feature: every score 0, every
+        leaderboard empty, every Sybil check trivially clean.
+
+        `_db_path()` was sitting right there, resolving on every call by
+        design (DE-6 P2). It was simply never called from here.
+        """
         agg: dict[tuple, list] = defaultdict(lambda: [0.0, 0])
+        con = None
         try:
-            con = open_db_readonly(db_path)
+            # `close()` used to sit after `execute()`, so a failing query — a
+            # missing table, a locked database — leaked the handle. This ran on
+            # every graph rebuild.
+            con = open_db_readonly(db_path or _db_path())
             rows = con.execute(
                 "SELECT buyer_agent, seller_agent, status FROM marketplace_purchases"
             ).fetchall()
-            con.close()
             for buyer, seller, status in rows:
                 if buyer and seller and buyer != seller:
                     key = (buyer, seller)
                     agg[key][0] += _trade_weight(status)
                     agg[key][1] += 1
         except Exception as exc:
-            log.debug("TrustGraph load error: %s", exc)
+            # SR-6: an empty aggregate is indistinguishable from "no trades
+            # yet", so the trust routes answer 200 with an empty graph and
+            # nobody learns the database was unreachable. Debug-level logging
+            # is not an observation.
+            record_failopen("marketplace_trust_graph", Reason.BACKEND_ERROR, exc)
+        finally:
+            if con is not None:
+                con.close()
         return agg
 
     # ── PageRank ──────────────────────────────────────────────────────────────
@@ -221,6 +244,26 @@ class TrustGraph:
             self._recompute()
 
     # ── Leaderboard ───────────────────────────────────────────────────────────
+
+    def edges(self) -> list[dict]:
+        """Weighted trade edges, independent of the networkx/dict backend.
+
+        Added for the `/marketplace/trust/graph` route (SW-11), which first
+        read `self._g` directly and had to re-implement the backend branch to
+        do it. A caller reaching past the class for a structure whose shape is
+        conditional is a bug waiting for the condition to change.
+        """
+        out: list[dict] = []
+        if hasattr(self._g, "edges"):
+            for src, dst, data in self._g.edges(data=True):
+                out.append({"source": src, "target": dst,
+                            "weight": round(float(data.get("weight", 0.0)), 4)})
+        else:
+            for src, targets in self._g.items():
+                for dst, data in targets.items():
+                    out.append({"source": src, "target": dst,
+                                "weight": round(float(data.get("weight", 0.0)), 4)})
+        return out
 
     def top_agents(self, n: int = 5) -> list[dict]:
         """Top N agents sorted descending by normalised TrustRank."""

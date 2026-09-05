@@ -110,8 +110,10 @@ export default function AgentsPage() {
                       <td className="px-4 py-3"><RankBadge rank={i + 1} /></td>
                       <td className="px-4 py-3 font-mono text-xs text-white/80 max-w-[180px] truncate">{agent.agent_id}</td>
                       <td className="px-4 py-3 text-right"><TrustBadge score={agent.trust_score} /></td>
-                      <td className="px-4 py-3 text-right text-white/60">{agent.trust_rank}</td>
-                      <td className="px-4 py-3 text-right text-white/60">—</td>
+                      <td className="px-4 py-3 text-right text-white/60">{agent.trades ?? 0}</td>
+                      <td className="px-4 py-3 text-right text-white/60">
+                        ${(agent.volume_usd ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         {agent.sybil_flag
                           ? <span className="text-red-400 text-xs font-bold">⚠ YES</span>

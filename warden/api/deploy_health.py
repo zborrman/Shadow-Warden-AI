@@ -34,7 +34,10 @@ router = APIRouter(prefix="/deploy", tags=["ops"])
 _MINIO_URL    = settings.minio_url
 _PROM_URL     = settings.prometheus_url
 _GRAFANA_URL  = settings.grafana_url
-_APP_URL      = settings.app_url
+# SW-14: there is no `app` service in docker-compose.yml, so probing
+# `${app_url}/health` reported "down" forever and could drag the aggregate
+# status down with it. The probe is gone; `settings.app_url` stays for the
+# other readers of it.
 _ANALYTICS_URL= settings.analytics_int_url
 _DATABASE_URL = settings.database_url
 _TIMEOUT      = 2.0
@@ -123,20 +126,19 @@ async def deploy_status() -> dict[str, Any]:
         _http_check("minio",      "MinIO",       f"{_MINIO_URL}/minio/health/live"),
         _http_check("prometheus", "Prometheus",  f"{_PROM_URL}/-/healthy", "Prometheus is Healthy."),
         _http_check("grafana",    "Grafana",     f"{_GRAFANA_URL}/api/health"),
-        _http_check("app",        "App Service", f"{_APP_URL}/health"),
         _http_check("analytics",  "Analytics",   f"{_ANALYTICS_URL}/api/v1/stats"),
         _postgres_check(),
         _arq_check(redis_result),
     )
 
-    minio, prom, grafana, app, analytics, postgres, arq = results
+    minio, prom, grafana, analytics, postgres, arq = results
 
     services: list[dict] = [
         {   "name": "warden", "display": "Filter Gateway",
             "status": "ok", "latency_ms": 0.1,
             "detail": "serving this request"},
         {k: v for k, v in redis_result.items() if k != "arq_worker_seen"},
-        postgres, minio, prom, grafana, app, analytics, arq,
+        postgres, minio, prom, grafana, analytics, arq,
         _unknown("proxy",     "Caddy Proxy",     "assumed up (request reached warden)"),
         _unknown("dashboard", "SOC Dashboard",   "Next.js :3002, not probed from here"),
     ]

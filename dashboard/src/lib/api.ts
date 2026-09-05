@@ -360,6 +360,11 @@ export type MktAgentTrust  = {
   trust_rank: number;
   sybil_flag: boolean;
   sybil_reason: string;
+  // Settled-purchase totals. The leaderboard table has had "Trades" and
+  // "Volume" columns since it was written; until SW-11 the route it fetched did
+  // not exist, so the first rendered `trust_rank` and the second an em dash.
+  trades?: number;
+  volume_usd?: number;
   transitive_peers: { agent_id: string; trust_rank: number; transitive_trust: number }[];
   recent_trades?: { trade_id: string; status: string; amount_usd: number }[];
 };
@@ -409,10 +414,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).then(r => r.json()),
-  communityFeed:   (q: string, limit = 5) =>
-    get<{ query: string; total: number; results: CommunityFeedItem[] }>(
-      API, "/sep/ueciids/search", { q, limit: String(limit) }
-    ),
+  // SW-11: `communityFeed` fetched `/sep/ueciids/search`, a route that has
+  // never existed, so this returned a 404 every 90 seconds and the widget's
+  // feed list has always been empty. The real route is `GET /sep/search`,
+  // which requires a `community_id`; nothing on the overview page selects a
+  // community, so the honest move is to stop calling it rather than pick one.
+  // `communityLookup` below is the widget's working path.
   communityLookup: (body: { query: string; auto_publish?: boolean; risk_level?: string }) =>
     post<CommunityLookupResponse>(API, "/agent/sova/community/lookup", body),
 
