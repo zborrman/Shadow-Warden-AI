@@ -957,6 +957,21 @@ services:
       # its own database and role (there is no `schema` key in [database], so a
       # schema inside `warden` is not an option), plus a second pg_dump in
       # warden/backup/service.py, which dumps exactly one database today.
+      # SW-16: set, parsed, and NOT in effect. Grafana logs "Config overridden
+      # from Environment variable var=GF_DATABASE_WAL=true" at startup, and
+      # #435 read that as confirmation — it only says the variable was parsed.
+      # Measured on prod 2026-09-05: grafana.db byte 18 is 1 (rollback journal,
+      # not WAL), with no -wal or -shm sidecar, so WAL has never engaged even
+      # transiently. `wal` is a real setting in this version
+      # (conf/defaults.ini:209, Grafana 13.1.3) and the volume is ext3, so
+      # neither the name nor the filesystem explains it. SQLITE_BUSY
+      # "database is locked" errors were still being logged on 2026-09-04 —
+      # the symptom this was meant to remove.
+      #
+      # Left set: it is harmless and correct to ask for. Why the pragma does
+      # not take is still open. Check it with
+      # `scripts/check_sqlite_journal_mode.py --expect-wal`, which reads the
+      # header rather than trusting the log line.
       - GF_DATABASE_WAL=true
     volumes:
       - grafana-data:/var/lib/grafana
@@ -1083,6 +1098,13 @@ services:
       - NEXT_PUBLIC_PROMETHEUS_URL=${PROMETHEUS_PUBLIC_URL:-}
       - NEXT_PUBLIC_MINIO_URL=${MINIO_PUBLIC_URL:-}
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-}
+      # SW-15: the line above turns a missing .env entry into an empty string
+      # rather than an absent variable, and the middleware used to read that as
+      # "no auth configured -> open access". It now fails closed and answers
+      # 503. Set this to `true` only where serving the SOC UI unauthenticated
+      # is acceptable; it is a distinct name from the gateway's
+      # ALLOW_UNAUTHENTICATED so one dev flag cannot open two doors.
+      - DASHBOARD_ALLOW_UNAUTHENTICATED=${DASHBOARD_ALLOW_UNAUTHENTICATED:-}
       # Server-side only — read by src/app/api/warden/[...path]/route.ts, never
       # inlined into the browser bundle. The dashboard is client-rendered, so a
       # NEXT_PUBLIC_* key would be served to every visitor.
