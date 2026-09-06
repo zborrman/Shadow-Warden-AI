@@ -69,7 +69,9 @@ class MultiAgentOrchestrator:
 
         # Fire all agents concurrently; collect non-None proposals
         from warden.business_community.agentic_commerce.multi_agent.connectors import (
-            claude_proposal, gemini_proposal, gpt_proposal,
+            claude_proposal,
+            gemini_proposal,
+            gpt_proposal,
         )
         results = await asyncio.gather(
             claude_proposal(purchase_request),
@@ -111,6 +113,10 @@ class MultiAgentOrchestrator:
                     score = assess_supplier(tenant_id, p.vendor)
                     if score and isinstance(score, dict):
                         p.risk = max(p.risk, score.get("composite_score", p.risk))
+                        # Persist the enriched score into raw so it survives
+                        # serialization (winner.raw / [p.raw ...] are what get stored).
+                        if isinstance(getattr(p, "raw", None), dict):
+                            p.raw["risk_score"] = p.risk
         except Exception as exc:
             log.debug("Supplier risk enrichment skipped: %s", exc)
         return proposals

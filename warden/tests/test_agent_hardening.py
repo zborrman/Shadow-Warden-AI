@@ -156,6 +156,11 @@ class _MemRedis:
         self._s = store
     def setex(self, k, _ttl, v):
         self._s[k] = v
+    def set(self, k, v, nx=False, ex=None):
+        if nx and k in self._s:
+            return None
+        self._s[k] = v
+        return True
     def get(self, k):
         return self._s.get(k)
     def delete(self, k):
@@ -277,3 +282,43 @@ def test_operator_mode_needs_pro():
     r = c.post("/agent/sova", json={"query": "hi", "operator_mode": True},
                headers={"X-Tenant-Tier": "community_business"})
     assert r.status_code == 403
+
+
+# ── Code-review fixes (F1..F4) ───────────────────────────────────────────────
+
+def test_master_request_rejects_auto_approve():
+    # F1: auto_approve must not be a settable field on the public MasterAgent API.
+    from warden.api.agent import MasterRequest
+    assert "auto_approve" not in MasterRequest.model_fields
+
+
+def test_try_consume_is_single_use(monkeypatch):
+    # F3: only the first caller may execute an approved token.
+    from warden.agent import approval
+    store: dict = {}
+    monkeypatch.setattr(approval, "_redis", lambda: _MemRedis(store))
+    tok = approval.issue("update_config", "ctx", "acme", params={"changes": {}})
+    approval.resolve(tok, True)
+    assert approval.try_consume(tok) is True
+    assert approval.try_consume(tok) is False
+    assert approval.try_consume(tok) is False
+
+
+@pytest.mark.asyncio
+async def test_subagent_surfaces_gated_token(monkeypatch):
+    # F2: a gated tool call inside a sub-agent surfaces a token in pending_approvals.
+    script = [
+        _Resp("tool_use", [_ToolBlock("update_config", {"changes": {"strict_mode": False}})]),
+        _Resp("end_turn", [_TextBlock("queued for approval")]),
+    ]
+    _install_fake_anthropic(monkeypatch, script)
+
+    from warden.agent import approval
+    store: dict = {}
+    monkeypatch.setattr(approval, "_redis", lambda: _MemRedis(store))
+
+    from warden.agent.master import SubAgent, _run_sub_agent
+    out = await _run_sub_agent(SubAgent.SOVA_OPERATOR, "turn off strict mode", "acme")
+    assert out["pending_approvals"], "gated tool token not surfaced"
+    assert out["pending_approvals"][0]["token"].startswith("appr-")
+    assert out["pending_approvals"][0]["action"] == "update_config"

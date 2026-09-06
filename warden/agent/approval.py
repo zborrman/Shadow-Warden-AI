@@ -144,3 +144,27 @@ def mark_consumed(token: str) -> None:
             r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
     except Exception:  # noqa: BLE001
         pass
+
+
+def try_consume(token: str) -> bool:
+    """
+    Atomically claim a resolved+approved token for a single execution.
+
+    Returns True for exactly one caller; every subsequent call (concurrent or
+    later) returns False. Fails closed if the store is unavailable.
+    """
+    try:
+        rec = resolution(token)
+        if not rec or rec.get("status") != "approved":
+            return False
+        r = _redis()
+        # SET NX is atomic — only the first caller wins the claim.
+        if not r.set(f"sova:approval:claimed:{token}", "1", nx=True, ex=_TTL):
+            return False
+        rec["consumed"] = True
+        r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(rec))
+        return True
+    except ApprovalStoreUnavailableError:
+        return False
+    except Exception:  # noqa: BLE001
+        return False

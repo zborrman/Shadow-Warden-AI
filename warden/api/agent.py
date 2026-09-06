@@ -62,8 +62,9 @@ class TaskResponse(BaseModel):
 
 class MasterRequest(BaseModel):
     task:         str  = Field(..., min_length=1, max_length=8000, description="High-level task for MasterAgent")
-    tenant_id:    str  = Field("default", description="Tenant context for all sub-agent tool calls")
-    auto_approve: bool = Field(False, description="Skip human-in-the-loop gate (trusted/scheduled callers only)")
+    tenant_id:    str | None = None   # ignored — bound from the API key
+    # auto_approve is NOT accepted from the API — state-changing sub-agent tools
+    # always return an approval token that a human must resolve.
 
 
 class MasterResponse(BaseModel):
@@ -276,7 +277,7 @@ async def run_master_agent(
     result = await run_master(
         task         = body.task,
         tenant_id    = auth.tenant_id or "default",
-        auto_approve = body.auto_approve,
+        auto_approve = False,   # never skip the gate for an API caller
     )
     return MasterResponse(
         synthesis       = result.synthesis,
@@ -348,28 +349,28 @@ async def execute_approved_action(token: str, auth: AuthResult = AuthDep) -> dic
         raise HTTPException(status_code=404, detail="No resolved approval for this token.")
     if rec.get("status") != "approved":
         raise HTTPException(status_code=409, detail=f"Token is {rec.get('status')}, not approved.")
-    if rec.get("consumed"):
-        raise HTTPException(status_code=409, detail="This approval has already been executed.")
-    if rec.get("tenant_id") not in (auth.tenant_id, "default", None):
+    # Exact tenant match only — a token issued for 'default'/internal flows is
+    # not executable by an arbitrary tenant.
+    caller = auth.tenant_id or "default"
+    if rec.get("tenant_id") != caller:
         raise HTTPException(status_code=403, detail="Token belongs to another tenant.")
 
     action = rec.get("action", "")
-    params = dict(rec.get("params", {}))
-    params["tenant_id"] = auth.tenant_id or params.get("tenant_id", "default")
-    params["approval_token"] = token
-
     handler = TOOL_HANDLERS.get(action)
     if handler is None:
         raise HTTPException(status_code=400, detail=f"Unknown action '{action}'.")
 
+    # Atomic single-use claim — concurrent / repeat calls get 409, not a double run.
+    if not _approval.try_consume(token):
+        raise HTTPException(status_code=409, detail="This approval has already been executed.")
+
+    params = dict(rec.get("params", {}))
+    params["tenant_id"] = caller
     try:
-        # is_approved() inside the gate wrapper lets the real call through.
-        from warden.agent.tools import _gated  # noqa: PLC0415
-        result = await _gated(action, handler, auto_approve=False)(**params)
+        result = await handler(**params)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"Execution failed: {exc}") from exc
 
-    _approval.mark_consumed(token)
     return {"token": token, "action": action, "executed": True, "result": result}
 
 

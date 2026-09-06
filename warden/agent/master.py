@@ -345,6 +345,7 @@ async def _run_sub_agent(
     client  = anthropic.AsyncAnthropic(api_key=api_key)
     history: list[dict] = [{"role": "user", "content": task}]
     tools_used: list[str] = []
+    pending_approvals: list[dict] = []
     total_tokens = 0
     total_out    = 0
     t0 = time.perf_counter()
@@ -377,6 +378,7 @@ async def _run_sub_agent(
                 "agent":       agent_type.value,
                 "response":    text,
                 "tools_used":  tools_used,
+                "pending_approvals": pending_approvals,
                 "tokens":      total_tokens,
                 "latency_ms":  round((time.perf_counter() - t0) * 1000, 1),
             }
@@ -399,6 +401,12 @@ async def _run_sub_agent(
             handler = sub_handlers.get(tool_name)
             try:
                 result       = await handler(**tool_input) if handler else {"error": f"Unknown tool: {tool_name}"}
+                if isinstance(result, dict) and result.get("status") == "approval_required":
+                    pending_approvals.append({
+                        "agent":  agent_type.value,
+                        "action": result.get("action", tool_name),
+                        "token":  result.get("token"),
+                    })
                 result_text  = json.dumps(result, default=str)
                 is_error     = False
             except Exception as exc:
@@ -429,6 +437,7 @@ async def _run_sub_agent(
         "agent":      agent_type.value,
         "response":   text,
         "tools_used": tools_used,
+        "pending_approvals": pending_approvals,
         "tokens":     total_tokens,
         "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
     }
@@ -562,13 +571,26 @@ async def run_master(
     total_tokens = (decomp_resp.usage.input_tokens + decomp_resp.usage.output_tokens
                     + sum(r.get("tokens", 0) for r in sub_results))
 
-    # ── Step 3: Check for REQUIRES_APPROVAL flags ─────────────────────────────
+    # ── Step 3: Collect approval tokens ──────────────────────────────────────
     approval_tokens: list[str] = []
+
+    # 3a. Real tokens from the gated tool layer (state-changing tools that did
+    #     NOT execute — the caller resolves them via /agent/execute/{token}).
+    for result in sub_results:
+        for pa in result.get("pending_approvals", []):
+            tok = pa.get("token")
+            if not tok:
+                continue
+            approval_tokens.append(tok)
+            await _post_approval_request(tok, f"{pa.get('agent')}:{pa.get('action')}", pa.get("action", ""))
+            log.info("master: gated action pending agent=%s action=%s token=%s",
+                     pa.get("agent"), pa.get("action"), tok)
+
+    # 3b. Legacy REQUIRES_APPROVAL text convention (older sub-agent prompts).
     if not auto_approve:
         for result in sub_results:
             response_text = result.get("response", "")
             if "REQUIRES_APPROVAL" in response_text:
-                # Extract action context
                 idx     = response_text.find("REQUIRES_APPROVAL")
                 context = response_text[max(0, idx - 50): idx + 200]
                 token   = _approval_token(result["agent"], context)
@@ -695,13 +717,13 @@ async def run_master_batch(
             await asyncio.sleep(poll_interval)
             batch = await client.beta.messages.batches.retrieve(batch.id)
 
-        decomp_text  = ""
-        decomp_tokens = 0
+        decomp_text = ""
+        decomp_in = decomp_out = 0
         async for result in client.beta.messages.batches.results(batch.id):  # type: ignore[attr-defined]
             if result.custom_id == "decompose" and result.result.type == "succeeded":
-                msg           = result.result.message
-                decomp_text   = "".join(b.text for b in msg.content if hasattr(b, "text"))
-                decomp_tokens = msg.usage.input_tokens + msg.usage.output_tokens
+                msg         = result.result.message
+                decomp_text = "".join(b.text for b in msg.content if hasattr(b, "text"))
+                decomp_in, decomp_out = msg.usage.input_tokens, msg.usage.output_tokens
 
     except Exception as exc:
         # Batches API unavailable (old SDK, no beta access) — fall through to regular API
@@ -711,8 +733,8 @@ async def run_master_batch(
             system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": decompose_prompt}],  # type: ignore[arg-type]
         )
-        decomp_text   = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
-        decomp_tokens = decomp_resp.usage.input_tokens + decomp_resp.usage.output_tokens
+        decomp_text = "".join(b.text for b in decomp_resp.content if hasattr(b, "text"))
+        decomp_in, decomp_out = decomp_resp.usage.input_tokens, decomp_resp.usage.output_tokens
 
     # Parse sub-agent assignments
     sub_tasks: dict[str, str] = {}
@@ -754,8 +776,8 @@ async def run_master_batch(
         "Findings by domain, Recommended Actions with priority (P1/P2/P3)."
     )
 
-    synthesis     = ""
-    synth_tokens  = 0
+    synthesis = ""
+    synth_in = synth_out = 0
     try:
         synth_batch = await client.beta.messages.batches.create(
             requests=[{
@@ -777,43 +799,54 @@ async def run_master_batch(
 
         async for result in client.beta.messages.batches.results(synth_batch.id):  # type: ignore[attr-defined]
             if result.custom_id == "synthesis" and result.result.type == "succeeded":
-                msg          = result.result.message
-                synthesis    = "".join(b.text for b in msg.content if hasattr(b, "text"))
-                synth_tokens = msg.usage.input_tokens + msg.usage.output_tokens
+                msg       = result.result.message
+                synthesis = "".join(b.text for b in msg.content if hasattr(b, "text"))
+                synth_in, synth_out = msg.usage.input_tokens, msg.usage.output_tokens
 
     except Exception as exc:
         log.warning("master_batch: synthesis Batches API error (%s) — falling back", exc)
-        synth_resp   = await client.messages.create(
+        synth_resp = await client.messages.create(
             model=_MODEL, max_tokens=2048,
             system=[{"type": "text", "text": _MASTER_SYSTEM, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": synthesis_prompt}],  # type: ignore[arg-type]
         )
-        synthesis    = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
-        synth_tokens = synth_resp.usage.input_tokens + synth_resp.usage.output_tokens
+        synthesis = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
+        synth_in, synth_out = synth_resp.usage.input_tokens, synth_resp.usage.output_tokens
 
     total_tokens = (
-        decomp_tokens
+        decomp_in + decomp_out
         + sum(r.get("tokens", 0) for r in sub_results)
-        + synth_tokens
+        + synth_in + synth_out
     )
     try:
         from warden.agent.accounting import record_llm_spend
         record_llm_spend(tenant_id, "master:orchestrator_batch", _MODEL,
-                         {"input_tokens": 0, "output_tokens": decomp_tokens + synth_tokens})
+                         {"input_tokens": decomp_in + synth_in,
+                          "output_tokens": decomp_out + synth_out})
     except Exception:  # pragma: no cover
         pass
 
+    # Surface any gated-tool approval tokens the sub-agents produced.
+    approval_tokens: list[str] = []
+    for r in sub_results:
+        for pa in r.get("pending_approvals", []):
+            tok = pa.get("token")
+            if tok:
+                approval_tokens.append(tok)
+                await _post_approval_request(tok, f"{pa.get('agent')}:{pa.get('action')}", pa.get("action", ""))
+
     latency = round((time.perf_counter() - t0) * 1000, 1)
     log.info(
-        "master_batch: complete agents=%s tokens=%d latency=%.0fms",
-        list(sub_tasks.keys()), total_tokens, latency,
+        "master_batch: complete agents=%s tokens=%d latency=%.0fms approvals=%d",
+        list(sub_tasks.keys()), total_tokens, latency, len(approval_tokens),
     )
 
     return MasterResult(
-        task         = task,
-        sub_results  = sub_results,
-        synthesis    = synthesis or "(batch result unavailable)",
-        tools_used   = all_tools,
-        total_tokens = total_tokens,
-        latency_ms   = latency,
+        task            = task,
+        sub_results     = sub_results,
+        synthesis       = synthesis or "(batch result unavailable)",
+        tools_used      = all_tools,
+        total_tokens    = total_tokens,
+        latency_ms      = latency,
+        approval_tokens = approval_tokens,
     )
