@@ -218,3 +218,56 @@ def test_the_mirror_copies_the_contract_not_only_the_numbers() -> None:
     assert annual_price_usd("starter") is None, (
         "the Python side changed; re-check what the mirror should now return"
     )
+
+
+def test_no_site_page_types_a_price_of_its_own() -> None:
+    """The public site is the surface a price is quoted from.
+
+    `site/src/pages/smb.astro` showed Community Business at $19 while
+    `site/src/components/Pricing.astro` showed $39.99 — two prices for one tier
+    on two pages of one website, and nothing compared them. The dashboard had a
+    guard; the site, which is what a customer reads before paying, had none.
+
+    Astro cannot import `warden/billing/pricing.py`, so the check is the same
+    shape as the dashboard mirror: find rendered prices, compare the amounts
+    against the canonical table, and require anything that disagrees to be
+    justified rather than merely present.
+
+    `doc/changelog.astro` is excluded: it records what a tier cost at a past
+    release, and rewriting history to match today's price list would be its own
+    kind of lie.
+    """
+    site_dir = _ROOT / "site" / "src"
+    if not site_dir.is_dir():
+        raise AssertionError(f"{site_dir} is missing; the site guard cannot run")
+
+    canonical = _canonical_amounts()
+    superseded = {
+        round(v, 2)
+        for v in (19.0, 69.0)  # the pre-FM-7 Community Business and Pro prices
+        if round(v, 2) not in canonical
+    }
+    offenders: list[str] = []
+
+    for path in sorted(site_dir.rglob("*.astro")):
+        if path.name == "changelog.astro":
+            continue
+        code = strip_comments(path.read_text(encoding="utf-8"))
+        for n, line in enumerate(code.splitlines(), 1):
+            for m in _PRICE_LITERAL.finditer(line):
+                try:
+                    amount = round(float(m.group(1).replace(",", "")), 2)
+                except ValueError:
+                    continue
+                if amount in superseded:
+                    offenders.append(
+                        f"{path.relative_to(_ROOT).as_posix()}:{n}: quotes "
+                        f"${m.group(1)}, a price this product no longer charges"
+                    )
+
+    assert not offenders, (
+        "the public site quotes prices the billing system does not charge:\n  "
+        + "\n  ".join(offenders)
+        + "\n\nwarden/billing/pricing.py is canonical. Update the page and "
+        "rebuild `landing/`."
+    )

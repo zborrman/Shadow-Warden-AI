@@ -691,10 +691,10 @@ async def moderate_community_post(
     """
     Tool #34 — Moderate a community post.
 
-    action: 'approve' | 'block' | 'requeue'
+    action: 'block'
       approve  — marks post as approved so it appears in the public feed
       block    — hard-block the post (requires ADMIN_KEY env var on the API side)
-      requeue  — re-enqueue NIM moderation job for a stuck/pending post
+      (requeue was removed: no moderation re-enqueue endpoint exists)
     """
     import os as _os
     try:
@@ -846,30 +846,29 @@ async def search_community_feed(
             },
         )
         entries = results if isinstance(results, list) else results.get("results", [])
+
+        # These are the fields `/sep/search` returns (warden/api/sep.py:136).
+        # The previous mapping also asked for `data_class`, `jurisdiction` and
+        # `metadata`, which the UECIID index does not carry — so repointing the
+        # path alone would have swapped a 404 for a response full of nulls, and
+        # the tool's own description still promised those fields.
         result_list = [
             {
                 "ueciid":       e.get("ueciid"),
+                "entity_id":    e.get("entity_id"),
                 "display_name": e.get("display_name"),
-                "data_class":   e.get("data_class"),
-                "jurisdiction": e.get("jurisdiction"),
+                "content_type": e.get("content_type"),
+                "byte_size":    e.get("byte_size"),
                 "created_at":   e.get("created_at"),
-                "metadata":     e.get("metadata", {}),
             }
             for e in entries[:limit]
         ]
-        # CM-25: award SEARCH_HIT +1 for each tenant whose entry matched
-        if result_list:
-            try:
-                from warden.communities.reputation import award_points
-                matched_tenants = {
-                    e.get("metadata", {}).get("publisher") or e.get("tenant_id")
-                    for e in entries[:limit]
-                }
-                for mt in matched_tenants:
-                    if mt and mt != tenant_id:  # don't self-award
-                        award_points(mt, "SEARCH_HIT")
-            except Exception:
-                pass
+
+        # CM-25's SEARCH_HIT award is gone with them. It keyed on
+        # `metadata.publisher` or `tenant_id`, neither of which is in this
+        # response, so `matched_tenants` was always empty and no points were
+        # ever awarded. Reinstating it needs the endpoint to expose the
+        # publishing tenant — a change to `/sep/search`, not to this caller.
         return {"query": query, "total": len(result_list), "results": result_list}
     except Exception as exc:
         log.warning("search_community_feed error: %s", exc)
@@ -1732,14 +1731,15 @@ TOOLS: list[dict] = [
         "description": (
             "Moderate a community post. "
             "action='block' hard-blocks a harmful post (requires ADMIN_KEY). "
-            "action='requeue' re-sends a stuck post through NIM moderation."
+            "Only 'block' is available: there is no moderation re-enqueue "
+            "endpoint, so a stuck post cannot be re-sent through NIM."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "post_id":   {"type": "string"},
-                "action":    {"type": "string", "enum": ["block", "requeue"],
-                              "description": "block | requeue"},
+                "action":    {"type": "string", "enum": ["block"],
+                              "description": "block — remove the post"},
                 "tenant_id": {"type": "string"},
             },
             "required": ["post_id", "action"],
@@ -1795,7 +1795,10 @@ TOOLS: list[dict] = [
         "name": "search_community_feed",
         "description": (
             "Search the SEP community incident feed by keyword. "
-            "Returns the top-N relevant incident records (UECIID, data_class, jurisdiction, metadata). "
+            "Returns the top-N matching index records (ueciid, entity_id, "
+            "display_name, content_type, byte_size, created_at). It does not "
+            "return the incident body, a data class, a jurisdiction or the "
+            "publishing tenant — the UECIID index does not hold them. "
             "Use it to check whether other communities have already documented a "
             "threat pattern before reporting it as novel. "
             "Also useful during threat_sync to enrich local CVE/ArXiv findings with peer intelligence."
