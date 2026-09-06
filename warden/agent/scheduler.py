@@ -30,10 +30,20 @@ def _ts() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
-async def _run(task: str, session_id: str) -> str:
+async def _run(task: str, session_id: str, operator: bool = False) -> str:
+    """
+    Run a SOVA task from a scheduled job.
+
+    operator=True grants state-changing tools with auto-approval — used only by
+    fixed-prompt system jobs (e.g. rotation-check). These are trusted, not user
+    input.
+    """
     from warden.agent.sova import run_task
     try:
-        return await run_task(task, session_id=session_id)
+        return await run_task(
+            task, session_id=session_id,
+            operator_mode=operator, auto_approve=operator,
+        )
     except Exception as exc:
         log.error("sova scheduler: task='%s' error: %s", task[:60], exc)
         return f"SOVA error: {exc}"
@@ -177,7 +187,7 @@ async def sova_rotation_check(ctx: dict) -> dict:
         "Report all actions taken with community IDs and key versions."
     )
 
-    response = await _run(task, session_id="sched-rotation-check")
+    response = await _run(task, session_id="sched-rotation-check", operator=True)
     log.info("sova: rotation check complete (%d chars)", len(response))
     return {"status": "ok", "ts": _ts(), "chars": len(response)}
 
@@ -473,11 +483,10 @@ async def sova_visual_patrol(ctx: dict) -> dict:
         log.error("sova visual patrol: unexpected error: %s", exc)
         return {"status": "error", "ts": _ts(), "error": str(exc)}
 
-    # ── Coverage report ───────────────────────────────────────────────────────
-    # "Critical" = weight > 2 (has failed at least once recently)
-    critical_urls    = [u for u in url_list if weights.get(u, 1.0) > 2.0]
-    critical_checked = sum(1 for u in critical_urls if any(f.get("url") == u for f in findings))
-    coverage_pct     = (critical_checked / len(critical_urls) * 100) if critical_urls else 100.0
+    # ── Result summary ───────────────────────────────────────────────────────
+    checked = len(findings)
+    failed  = len(issues)
+    pass_pct = ((checked - failed) / checked * 100) if checked else 0.0
 
     # ── Alert if issues found ─────────────────────────────────────────────────
     if issues:
@@ -489,18 +498,20 @@ async def sova_visual_patrol(ctx: dict) -> dict:
             f"*SOVA Visual Patrol Alert* [{_ts()}] `{session_id}`\n"
             + "\n".join(f"• {i}" for i in issues)
             + f"\n_Priority weights: {weight_summary}_"
-            + f"\n_Critical coverage: {coverage_pct:.0f}% ({critical_checked}/{len(critical_urls)})_"
+            + f"\n_Result: {checked - failed}/{checked} targets passed_"
         )
 
-    log.info("sova: visual patrol complete — %d targets, %d issues, coverage=%.0f%%",
-             len(targets), len(issues), coverage_pct)
+    log.info("sova: visual patrol complete — %d checked, %d failed (%.0f%% pass)",
+             checked, failed, pass_pct)
     return {
         "status":           "alerted" if issues else "ok",
         "ts":               _ts(),
         "session_id":       session_id,
         "targets":          len(targets),
+        "checked":          checked,
+        "failed":           failed,
+        "pass_pct":         round(pass_pct, 1),
         "issues":           issues,
-        "critical_coverage_pct": coverage_pct,
         "weights":          {u: round(weights.get(u, 1.0), 2) for u in url_list},
     }
 

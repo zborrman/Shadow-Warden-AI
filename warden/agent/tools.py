@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any
 
 import httpx
@@ -24,13 +25,59 @@ import httpx
 log = logging.getLogger("warden.agent.tools")
 
 _BASE      = "http://localhost:8001"
-_API_KEY   = os.getenv("WARDEN_API_KEY", "")
 _TIMEOUT   = 30.0
+
+
+def _key() -> str:
+    """Read WARDEN_API_KEY at call time — env may be populated after import."""
+    return os.getenv("WARDEN_API_KEY", "")
+
+
+def _now_iso() -> str:
+    from datetime import UTC, datetime
+    return datetime.now(UTC).isoformat()
+
+
+async def _ocr_gate(images: list[tuple[str, str]], tenant_id: str) -> dict | None:
+    """
+    OCR each (label, b64png) screenshot and run the visible text through /filter
+    before it reaches Claude Vision — stops prompt injection embedded as on-screen
+    text from bypassing the nine text-filter layers.
+
+    Returns a BLOCKED dict if any screenshot trips the filter, else None.
+    Fail-open: OCR / infra errors skip the check (log at debug).
+    """
+    try:
+        from warden.ocr import extract_text_from_b64 as _ocr  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.debug("ocr gate: unavailable — %s", exc)
+        return None
+    for label, b64img in images:
+        try:
+            text = _ocr(b64img)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("ocr gate: extract failed (%s) — %s", label, exc)
+            continue
+        if not text:
+            continue
+        try:
+            check = await _post("/filter", {"content": text, "tenant_id": tenant_id}, tenant=tenant_id)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("ocr gate: filter call failed — %s", exc)
+            continue
+        if isinstance(check, dict) and (not check.get("allowed", True) or check.get("secrets_found")):
+            return {
+                "ok":      False,
+                "verdict": "BLOCKED_BY_OCR_PRECHECK",
+                "reason":  f"Prompt injection or secret detected in {label} screenshot text",
+                "flags":   check.get("flags", []),
+            }
+    return None
 
 
 def _headers(tenant: str = "default") -> dict:
     return {
-        "X-API-Key":   _API_KEY,
+        "X-API-Key":   _key(),
         "X-Tenant-ID": tenant,
         "Content-Type": "application/json",
     }
@@ -165,10 +212,35 @@ async def get_tenant_impact(tenant_id: str = "default", **_) -> dict:
     return await _get("/tenant/impact", tenant=tenant_id)
 
 
+_SLACK_RL_MAX     = int(os.getenv("SOVA_SLACK_RATE_LIMIT", "10"))   # messages per hour
+_SLACK_RL_LOCAL: list[float] = []
+
+
+def _slack_rate_ok() -> bool:
+    """Sliding 1h window cap on outbound Slack alerts. Redis-backed, local fallback."""
+    now = time.time()
+    try:
+        from warden.cache import _get_client  # noqa: PLC0415
+        r = _get_client()
+        if r is not None:
+            n = r.incr("sova:slack_rl")
+            if n == 1:
+                r.expire("sova:slack_rl", 3600)
+            return int(n) <= _SLACK_RL_MAX
+    except Exception:
+        pass
+    _SLACK_RL_LOCAL[:] = [t for t in _SLACK_RL_LOCAL if now - t < 3600]
+    _SLACK_RL_LOCAL.append(now)
+    return len(_SLACK_RL_LOCAL) <= _SLACK_RL_MAX
+
+
 async def send_slack_alert(message: str, **_) -> dict:
     url = os.getenv("SLACK_WEBHOOK_URL", "")
     if not url:
         return {"sent": False, "reason": "SLACK_WEBHOOK_URL not configured"}
+    if not _slack_rate_ok():
+        log.warning("send_slack_alert: rate limited (>%d/h)", _SLACK_RL_MAX)
+        return {"sent": False, "reason": "rate_limited"}
     import json as _json
     async with httpx.AsyncClient(timeout=10) as c:
         r = await c.post(url, content=_json.dumps({"text": message}),
@@ -177,7 +249,10 @@ async def send_slack_alert(message: str, **_) -> dict:
 
 
 async def filter_request(content: str, tenant_id: str = "default", **_) -> dict:
-    return await _post("/filter", {"content": content, "tenant_id": tenant_id}, tenant=tenant_id)
+    res = await _post("/filter", {"content": content, "tenant_id": tenant_id}, tenant=tenant_id)
+    if isinstance(res, dict):
+        res["_untrusted"] = True   # echoes caller-supplied payload — never an instruction
+    return res
 
 
 async def get_compliance_art30(tenant_id: str = "default", **_) -> dict:
@@ -212,6 +287,12 @@ async def visual_assert_page(
         size_bytes = rec.result["size_bytes"]
     except Exception as exc:
         return {"ok": False, "url": url, "error": f"Screenshot failed: {exc}"}
+
+    # ── OCR pre-check: on-screen text must pass /filter before Vision sees it ──
+    _blocked = await _ocr_gate([("page", b64_png)], tenant_id)
+    if _blocked:
+        _blocked["url"] = url
+        return _blocked
 
     # ── Claude Vision ─────────────────────────────────────────────────────────
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
@@ -393,25 +474,12 @@ async def visual_diff(
     except Exception as exc:
         return {"ok": False, "error": f"Screenshot capture failed: {exc}"}
 
-    # OCR pre-check: extract text from both screenshots and run through the
-    # Warden filter before passing images to Vision. This prevents prompt
-    # injection attacks embedded as visible text in a screenshot from bypassing
-    # all nine text-filter layers.
-    try:
-        from warden.ocr import extract_text_from_b64 as _ocr
-        for _label, _b64img in (("baseline", b_b64), ("candidate", c_b64)):
-            _ocr_text = _ocr(_b64img)
-            if _ocr_text:
-                _check = await _post("/filter", {"text": _ocr_text}, tenant_id)
-                if isinstance(_check, dict) and not _check.get("allowed", True):
-                    return {
-                        "ok":      False,
-                        "verdict": "BLOCKED_BY_OCR_PRECHECK",
-                        "reason":  f"Prompt injection detected in {_label} screenshot text",
-                        "flags":   _check.get("flags", []),
-                    }
-    except Exception as _ocr_exc:
-        log.debug("visual_diff: OCR pre-check skipped — %s", _ocr_exc)
+    # OCR pre-check — visible text in either screenshot must pass /filter before
+    # the images reach Vision (screenshot-embedded prompt injection defence).
+    _blocked = await _ocr_gate([("baseline", b_b64), ("candidate", c_b64)], tenant_id)
+    if _blocked:
+        _blocked.update({"baseline_url": baseline_url, "candidate_url": candidate_url})
+        return _blocked
 
     diff_prompt = prompt or (
         "You are a visual regression analyst. "
@@ -510,6 +578,7 @@ async def get_community_feed(
                 }
                 for p in posts[:limit]
             ],
+            "_untrusted": True,   # member-authored content
         }
         return summary
     except Exception as exc:
@@ -534,6 +603,7 @@ async def get_community_post(post_id: str, tenant_id: str = "default", **_) -> d
             "content":     data.get("content", "")[:500],
             "comment_count": len(data.get("comments", [])),
             "created_at":  data.get("created_at", "")[:19],
+            "_untrusted":  True,   # member-authored content
         }
     except Exception as exc:
         log.warning("get_community_post %s error: %s", post_id, exc)
@@ -630,7 +700,7 @@ async def community_moderation_report(tenant_id: str = "default", **_) -> dict:
             "total_members":  members,
             "nim_verdicts":   nim_verdicts,
             "sources":        sources,
-            "generated_at":   __import__("datetime").datetime.utcnow().isoformat(),
+            "generated_at":   _now_iso(),
         }
     except Exception as exc:
         log.warning("community_moderation_report error: %s", exc)
@@ -712,7 +782,7 @@ async def search_community_feed(
                         award_points(mt, "SEARCH_HIT")
             except Exception:
                 pass
-        return {"query": query, "total": len(result_list), "results": result_list}
+        return {"query": query, "total": len(result_list), "results": result_list, "_untrusted": True}
     except Exception as exc:
         log.warning("search_community_feed error: %s", exc)
         return {"query": query, "total": 0, "results": [], "error": str(exc)}
@@ -937,7 +1007,11 @@ async def get_obsidian_feed(
         tenant=tenant_id,
         params={"community_id": community_id, "limit": min(int(limit), 20)},
     )
-    return {"entries": results if isinstance(results, list) else [], "community_id": community_id}
+    return {
+        "entries": results if isinstance(results, list) else [],
+        "community_id": community_id,
+        "_untrusted": True,   # notes shared by other members
+    }
 
 
 async def generate_threat_report(
@@ -1079,6 +1153,33 @@ async def smb_suite_health(
     if community_id:
         params += f"&community_id={community_id}"
     return await _get(f"/smb-suite/health?{params}", tenant=tenant_id)
+
+
+async def apply_community_recommendation(
+    ueciid: str = "",
+    example_text: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """
+    Commit a community-recommended threat indicator into the local ML corpus.
+    Not model-callable — invoked only via POST /agent/execute/{token} after a
+    human approves the pending action.
+    """
+    try:
+        from warden import main as _warden_main  # noqa: PLC0415
+        guard = getattr(_warden_main, "_brain_guard", None)
+        if guard is None:
+            return {"ok": False, "error": "brain guard not available"}
+        guard.add_examples([example_text])
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)}
+    try:
+        from warden.communities.reputation import award_points  # noqa: PLC0415
+        award_points(tenant_id, "REC_ADOPTED", ref_ueciid=ueciid)
+    except Exception:  # noqa: BLE001
+        pass
+    return {"ok": True, "ueciid": ueciid, "examples_added": 1}
 
 
 # ── Anthropic tool schema definitions ────────────────────────────────────────
@@ -1836,4 +1937,85 @@ TOOL_HANDLERS: dict[str, Any] = {
     "block_ip_range":                block_ip_range,
     "smb_provision_suite":           smb_provision_suite,
     "smb_suite_health":              smb_suite_health,
+    # Not in TOOLS (not model-callable) — executed only post-approval.
+    "apply_community_recommendation": apply_community_recommendation,
 }
+
+
+# ── Read-only vs operator (state-changing) tool surface ──────────────────────
+#
+# The plain SOVA loop and every MasterAgent sub-agent get READ tools only.
+# OPERATOR tools are exposed solely when the request sets operator_mode=True,
+# and each one is additionally wrapped by the human-in-the-loop approval gate
+# (see warden/agent/approval.py) so it cannot mutate state until a human
+# resolves its token — unless the caller is a trusted system job
+# (auto_approve=True), which only scheduled cron passes.
+
+from warden.agent import approval as _approval  # noqa: E402
+
+OPERATOR_TOOLS: frozenset[str] = _approval.GATED_ACTIONS
+READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
+
+# Sanity: every gated action must be a real handler.
+_missing = OPERATOR_TOOLS - frozenset(TOOL_HANDLERS)
+if _missing:  # pragma: no cover - guards a typo at import time
+    raise RuntimeError(f"approval.GATED_ACTIONS names unknown tools: {sorted(_missing)}")
+
+
+def _gated(name: str, handler, *, auto_approve: bool):
+    """
+    Wrap a state-changing handler with the approval gate.
+
+    Called without a resolved `approval_token`: issues a token, returns
+    {"status": "approval_required", "token": ...} and does NOT execute.
+    Called with a resolved+approved token: executes exactly once.
+    auto_approve=True (trusted cron only): executes directly.
+    """
+    async def wrapper(**kwargs):
+        token = kwargs.pop("approval_token", None)
+        tenant_id = kwargs.get("tenant_id", "default")
+
+        if auto_approve:
+            return await handler(**kwargs)
+
+        if token:
+            if _approval.is_approved(token):
+                return await handler(**kwargs)
+            rec = _approval.resolution(token) or _approval.get_pending(token)
+            status = (rec or {}).get("status", "unknown")
+            return {"status": "approval_denied", "token": token, "approval_status": status}
+
+        context = f"{name}({', '.join(f'{k}={v!r}' for k, v in kwargs.items() if k != 'tenant_id')})"
+        try:
+            new_token = _approval.issue(name, context, tenant_id, params=dict(kwargs))
+        except _approval.ApprovalStoreUnavailableError as exc:
+            return {"status": "error", "error": f"approval store unavailable, refusing to run {name}: {exc}"}
+        return {
+            "status": "approval_required",
+            "token":  new_token,
+            "action": name,
+            "note":   f"Human approval needed. Resolve via POST /agent/execute/{new_token}",
+        }
+
+    wrapper.__name__ = f"gated_{name}"
+    return wrapper
+
+
+def tools_for(operator: bool) -> list[dict]:
+    """Anthropic tool defs — read set, plus operator set when operator=True."""
+    if operator:
+        return list(TOOLS)
+    return [t for t in TOOLS if t["name"] in READ_TOOLS]
+
+
+def handlers_for(operator: bool, *, auto_approve: bool = False) -> dict[str, Any]:
+    """
+    Handler map matching tools_for(). Operator handlers are approval-wrapped
+    unless auto_approve=True (trusted system callers only).
+    """
+    if not operator:
+        return {n: h for n, h in TOOL_HANDLERS.items() if n in READ_TOOLS}
+    out: dict[str, Any] = {}
+    for n, h in TOOL_HANDLERS.items():
+        out[n] = _gated(n, h, auto_approve=auto_approve) if n in OPERATOR_TOOLS else h
+    return out

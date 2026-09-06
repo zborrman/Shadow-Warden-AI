@@ -1,0 +1,144 @@
+"""
+warden/agent/approval.py
+─────────────────────────
+Human-in-the-loop approval gate for state-changing agent tools.
+
+Enforcement lives in the tool layer: a gated handler called without a
+*resolved* token returns {"status": "approval_required", "token": ...}
+instead of executing. The action runs only after a human resolves the
+token via POST /agent/execute/{token}.
+
+Fail-closed: if the approval store (Redis) is unavailable, `issue()` raises
+`ApprovalStoreUnavailableError` and the caller surfaces a 503 — a mutation is
+never performed just because approvals could not be recorded.
+
+Redis keys
+──────────
+  sova:approval:{token}          pending JSON  (TTL 1h)
+  sova:approval:result:{token}   resolved JSON (TTL 1h)
+"""
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import logging
+import os
+import time
+
+log = logging.getLogger("warden.agent.approval")
+
+_TTL = 3600
+_SECRET = os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")
+
+# Tool names that must not execute without a resolved approval token.
+GATED_ACTIONS: frozenset[str] = frozenset({
+    "update_config",
+    "rotate_community_key",
+    "revoke_agent",
+    "block_ip_range",
+    "dismiss_threat",
+    "moderate_community_post",
+    "publish_to_community",
+    "post_community_announcement",
+    "smb_provision_suite",
+    "share_obsidian_note",
+    "sync_misp_feed",
+    "apply_community_recommendation",
+})
+
+
+class ApprovalStoreUnavailableError(RuntimeError):
+    """Raised when the approval store cannot be reached — caller must fail closed."""
+
+
+def _redis():
+    import redis  # noqa: PLC0415
+    url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    if not url or url == "memory://":
+        raise ApprovalStoreUnavailableError("REDIS_URL not configured for approvals")
+    try:
+        r = redis.from_url(url, decode_responses=True)
+        r.ping()
+        return r
+    except ApprovalStoreUnavailableError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ApprovalStoreUnavailableError(str(exc)) from exc
+
+
+def issue(action: str, context: str, tenant_id: str, params: dict | None = None) -> str:
+    """Create a pending approval and return its token. Raises if the store is down."""
+    ts = int(time.time())
+    payload = f"{action}:{hashlib.sha256(context.encode()).hexdigest()[:16]}:{ts}"
+    sig = hmac.new(_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
+    token = f"appr-{sig}"
+    r = _redis()
+    r.setex(
+        f"sova:approval:{token}",
+        _TTL,
+        json.dumps({
+            "action":    action,
+            "context":   context[:500],
+            "params":    params or {},
+            "tenant_id": tenant_id,
+            "issued_at": ts,
+            "status":    "pending",
+        }),
+    )
+    log.info("approval: issued token=%s action=%s tenant=%s", token, action, tenant_id)
+    return token
+
+
+def get_pending(token: str) -> dict | None:
+    try:
+        raw = _redis().get(f"sova:approval:{token}")
+    except ApprovalStoreUnavailableError:
+        return None
+    return json.loads(raw) if raw else None
+
+
+def resolve(token: str, approved: bool) -> bool:
+    """Consume a pending token, store the decision. Returns False if unknown/expired."""
+    try:
+        r = _redis()
+    except ApprovalStoreUnavailableError:
+        return False
+    key = f"sova:approval:{token}"
+    raw = r.get(key)
+    if not raw:
+        return False
+    data = json.loads(raw)
+    data["status"]      = "approved" if approved else "rejected"
+    data["resolved_at"] = int(time.time())
+    r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
+    r.delete(key)
+    log.info("approval: token=%s -> %s", token, data["status"])
+    return True
+
+
+def resolution(token: str) -> dict | None:
+    """Return the resolved record ({status: approved|rejected, ...}) or None."""
+    try:
+        raw = _redis().get(f"sova:approval:result:{token}")
+    except ApprovalStoreUnavailableError:
+        return None
+    return json.loads(raw) if raw else None
+
+
+def is_approved(token: str) -> bool:
+    rec = resolution(token)
+    return bool(rec and rec.get("status") == "approved" and not rec.get("consumed"))
+
+
+def mark_consumed(token: str) -> None:
+    """Mark a resolved approval as spent so it cannot be replayed."""
+    try:
+        r = _redis()
+        raw = r.get(f"sova:approval:result:{token}")
+        if raw:
+            data = json.loads(raw)
+            data["consumed"] = True
+            r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
+    except Exception:  # noqa: BLE001
+        pass

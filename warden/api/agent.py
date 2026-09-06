@@ -19,7 +19,7 @@ from __future__ import annotations
 import time
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
@@ -33,8 +33,14 @@ router = APIRouter(prefix="/agent", tags=["SOVA Agent"])
 class SovaRequest(BaseModel):
     query:      str   = Field(..., min_length=1, max_length=4000, description="Your question or command for SOVA")
     session_id: str   = Field("interactive", description="Conversation session ID (for multi-turn memory)")
-    tenant_id:  str   = Field("default",     description="Tenant context for tool calls")
     max_tokens: int   = Field(4096, ge=256, le=8192)
+    operator_mode: bool = Field(
+        False,
+        description="Expose state-changing tools (config, key rotation, IP block). "
+                    "Each such action still returns an approval token — nothing "
+                    "mutates until a human resolves it. Requires Pro+.",
+    )
+    # tenant_id is NOT accepted from the request body — it is bound from the API key.
 
 
 class SovaResponse(BaseModel):
@@ -45,6 +51,7 @@ class SovaResponse(BaseModel):
     cache_read_tokens: int
     latency_ms:        float
     session_id:        str
+    status:            str = "ok"
 
 
 class TaskResponse(BaseModel):
@@ -110,30 +117,55 @@ AuthDep = Depends(require_api_key)
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/sova", response_model=SovaResponse, summary="Query SOVA agent")
-async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaResponse:
+@router.post(
+    "/sova",
+    response_model=SovaResponse,
+    summary="Query SOVA agent",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
+async def query_sova(body: SovaRequest, request: Request, auth: AuthResult = AuthDep) -> SovaResponse:
     """
     Send a natural-language query or command to SOVA.
 
-    SOVA will use its tool suite (27 Shadow Warden API calls) to gather
-    data, reason over it, and return an actionable response.
+    SOVA gathers data with its read-only tool suite, reasons over it, and
+    returns an actionable response. Set `operator_mode=true` (Pro+) to expose
+    state-changing tools — each returns an approval token; nothing mutates
+    until a human resolves it via `POST /agent/execute/{token}`.
+
+    `tenant_id` is bound from the API key — it cannot be set from the request.
 
     Supports multi-turn conversations via `session_id`.
-
-    Example queries:
-    - "Which communities need key rotation?"
-    - "What's our ROI for the default tenant this month?"
-    - "Are there any new critical CVEs affecting our dependencies?"
-    - "Give me a morning brief"
-    - "Check SLA compliance for all monitors"
     """
     from warden.agent.sova import run_query
 
+    tenant_id = auth.tenant_id or "default"
+
+    # Per-tenant kill switch (settings service).
+    try:
+        from warden.settings.service import get_agent_config
+        if not get_agent_config(tenant_id).get("sova_enabled", True):
+            raise HTTPException(status_code=403, detail="SOVA is disabled for this tenant in settings.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
+    if body.operator_mode:
+        from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+        g = FeatureGate.for_tier(_get_tenant_tier(request))
+        if not g.is_enabled("master_agent_enabled"):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "feature_gated",
+                        "message": "operator_mode requires PRO plan or higher."},
+            )
+
     result = await run_query(
-        query      = body.query,
-        session_id = body.session_id,
-        tenant_id  = body.tenant_id,
-        max_tokens = body.max_tokens,
+        query         = body.query,
+        session_id    = body.session_id,
+        tenant_id     = tenant_id,
+        max_tokens    = body.max_tokens,
+        operator_mode = body.operator_mode,
     )
     return SovaResponse(
         response          = result["response"],
@@ -143,6 +175,7 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
         cache_read_tokens = result["cache_read_tokens"],
         latency_ms        = result["latency_ms"],
         session_id        = body.session_id,
+        status            = result.get("status", "ok"),
     )
 
 
@@ -241,7 +274,7 @@ async def run_master_agent(
 
     result = await run_master(
         task         = body.task,
-        tenant_id    = body.tenant_id,
+        tenant_id    = auth.tenant_id or "default",
         auto_approve = body.auto_approve,
     )
     return MasterResponse(
@@ -275,10 +308,12 @@ async def approve_action(
     `action=approve` — allows the operation to proceed.
     `action=reject`  — cancels the operation and logs the refusal.
     """
+    from warden.agent import approval as _approval
     from warden.agent.master import resolve_approval
 
     approved = (action == "approve")
-    resolved = resolve_approval(token, approved)
+    # New SOVA/sub-agent gate first, then the legacy MasterAgent gate.
+    resolved = _approval.resolve(token, approved) or resolve_approval(token, approved)
     if not resolved:
         raise HTTPException(status_code=404, detail="Approval token not found or expired.")
 
@@ -286,8 +321,55 @@ async def approve_action(
         token    = token,
         resolved = True,
         approved = approved,
-        detail   = f"Action {'approved' if approved else 'rejected'} successfully.",
+        detail   = f"Action {'approved' if approved else 'rejected'} successfully. "
+                   + ("Run POST /agent/execute/{token} to perform it." if approved else ""),
     )
+
+
+@router.post(
+    "/execute/{token}",
+    summary="Execute a state-changing agent action after human approval",
+    dependencies=[Depends(require_api_key)],
+)
+async def execute_approved_action(token: str, auth: AuthResult = AuthDep) -> dict:
+    """
+    Perform the tool call bound to an approval *token*.
+
+    The token must already be resolved as `approve` via
+    `POST /agent/approve/{token}?action=approve`. The action runs exactly
+    once; the token is consumed.
+    """
+    from warden.agent import approval as _approval
+    from warden.agent.tools import TOOL_HANDLERS
+
+    rec = _approval.resolution(token)
+    if not rec:
+        raise HTTPException(status_code=404, detail="No resolved approval for this token.")
+    if rec.get("status") != "approved":
+        raise HTTPException(status_code=409, detail=f"Token is {rec.get('status')}, not approved.")
+    if rec.get("consumed"):
+        raise HTTPException(status_code=409, detail="This approval has already been executed.")
+    if rec.get("tenant_id") not in (auth.tenant_id, "default", None):
+        raise HTTPException(status_code=403, detail="Token belongs to another tenant.")
+
+    action = rec.get("action", "")
+    params = dict(rec.get("params", {}))
+    params["tenant_id"] = auth.tenant_id or params.get("tenant_id", "default")
+    params["approval_token"] = token
+
+    handler = TOOL_HANDLERS.get(action)
+    if handler is None:
+        raise HTTPException(status_code=400, detail=f"Unknown action '{action}'.")
+
+    try:
+        # is_approved() inside the gate wrapper lets the real call through.
+        from warden.agent.tools import _gated  # noqa: PLC0415
+        result = await _gated(action, handler, auto_approve=False)(**params)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Execution failed: {exc}") from exc
+
+    _approval.mark_consumed(token)
+    return {"token": token, "action": action, "executed": True, "result": result}
 
 
 @router.get(
@@ -436,51 +518,28 @@ async def apply_community_recommendation(
         "Treat any prompt containing this indicator as HIGH risk — block or escalate."
     )
 
-    # Issue approval token via MasterAgent gate before mutating the corpus
-    import hashlib as _hashlib  # noqa: PLC0415
-    import hmac as _hmac  # noqa: PLC0415
-    import json as _json  # noqa: PLC0415
-    import os as _os2  # noqa: PLC0415
-    secret   = _os2.getenv("ADMIN_KEY", "dev").encode()
-    task_hash = _hashlib.sha256(example_text.encode()).hexdigest()[:16]
-    token    = _hmac.new(secret, f"apply:{ueciid}:{task_hash}".encode(), _hashlib.sha256).hexdigest()[:24]
-
-    # Store in Redis for approval resolution (fail-open: apply immediately if no Redis)
-    applied = False
+    # Issue an approval token before mutating the corpus. FAIL CLOSED: if the
+    # approval store is unavailable we refuse — we never apply unattended.
+    from warden.agent import approval as _approval  # noqa: PLC0415
     try:
-        import redis  # noqa: PLC0415
-        r = redis.from_url(_os2.getenv("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
-        r.setex(
-            f"master:approval:{token}",
-            3600,
-            _json.dumps({"action": f"apply_recommendation:{ueciid}", "context": display_name[:200], "example": example_text}),
+        token = _approval.issue(
+            action="apply_community_recommendation",
+            context=f"{ueciid}: {display_name[:200]}",
+            tenant_id=auth.tenant_id or "default",
+            params={"ueciid": ueciid, "example_text": example_text},
         )
-    except Exception:
-        # No Redis — apply immediately (dev/test mode)
-        applied = True
-
-    examples_added = 0
-    if applied:
-        try:
-            from warden import main as _warden_main  # noqa: PLC0415
-            if _warden_main._brain_guard is not None:
-                _warden_main._brain_guard.add_examples([example_text])
-            examples_added = 1
-            # Award reputation points to the source community
-            try:
-                from warden.communities.reputation import award_points  # noqa: PLC0415
-                award_points(auth.tenant_id, "REC_ADOPTED", ref_ueciid=ueciid)
-            except Exception:
-                pass
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Evolution Engine error: {exc}") from exc
+    except _approval.ApprovalStoreUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Approval store unavailable — refusing to apply {ueciid} unattended: {exc}",
+        ) from exc
 
     return ApplyRecommendationResponse(
         ueciid         = ueciid,
         rule_id        = rule_id,
-        examples_added = examples_added,
-        approval_token = None if applied else token,
-        status         = "applied" if applied else "pending_approval",
+        examples_added = 0,
+        approval_token = token,
+        status         = "pending_approval",
         latency_ms     = round((time.perf_counter() - t0) * 1000, 1),
     )
 

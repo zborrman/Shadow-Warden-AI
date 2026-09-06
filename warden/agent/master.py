@@ -274,10 +274,14 @@ async def _run_sub_agent(
     agent_type: SubAgent,
     task:       str,
     tenant_id:  str = "default",
+    auto_approve: bool = False,
 ) -> dict[str, Any]:
     """
     Run a specialist sub-agent with its dedicated tool subset and system prompt.
     Returns dict with keys: agent, response, tools_used, tokens, latency_ms.
+
+    State-changing tools in the subset are approval-gated (see
+    warden/agent/approval.py) unless auto_approve=True (trusted scheduled runs).
     """
     token = _issue_token(agent_type, task)
     if not _verify_token(token, agent_type):
@@ -294,14 +298,25 @@ async def _run_sub_agent(
 
     from warden.agent import tools as _tools
 
-    # Filter TOOLS list to only this agent's allowed tools
+    try:
+        from warden.agent.accounting import record_llm_spend
+    except Exception:  # pragma: no cover
+        def record_llm_spend(*_a, **_kw):  # type: ignore[misc]
+            return None
+
+    # Filter to this agent's allowed tools; state-changing ones are approval-gated.
     allowed   = set(_AGENT_TOOLS[agent_type])
-    sub_tools = [t for t in _tools.TOOLS if t["name"] in allowed]
+    sub_tools = [t for t in _tools.tools_for(operator=True) if t["name"] in allowed]
+    sub_handlers = {
+        n: h for n, h in _tools.handlers_for(operator=True, auto_approve=auto_approve).items()
+        if n in allowed
+    }
 
     client  = anthropic.AsyncAnthropic(api_key=api_key)
     history: list[dict] = [{"role": "user", "content": task}]
     tools_used: list[str] = []
     total_tokens = 0
+    total_out    = 0
     t0 = time.perf_counter()
 
     for _ in range(_SUB_AGENT_MAX_ITER):
@@ -322,9 +337,12 @@ async def _run_sub_agent(
             messages   = history,    # type: ignore[arg-type]
         )
         total_tokens += resp.usage.input_tokens + resp.usage.output_tokens
+        total_out    += resp.usage.output_tokens
 
         if resp.stop_reason == "end_turn":
             text = "".join(b.text for b in resp.content if hasattr(b, "text"))
+            record_llm_spend(tenant_id, f"master:{agent_type.value}", _MODEL,
+                             {"input_tokens": total_tokens - total_out, "output_tokens": total_out})
             return {
                 "agent":       agent_type.value,
                 "response":    text,
@@ -343,12 +361,12 @@ async def _run_sub_agent(
             if block.type != "tool_use":
                 continue
             tool_name  = block.name
-            tool_input = block.input or {}
-            if "tenant_id" not in tool_input:
-                tool_input["tenant_id"] = tenant_id
+            tool_input = dict(block.input or {})
+            # SECURITY: tenant is request-bound — the model never chooses it.
+            tool_input["tenant_id"] = tenant_id
             tools_used.append(tool_name)
 
-            handler = _tools.TOOL_HANDLERS.get(tool_name)
+            handler = sub_handlers.get(tool_name)
             try:
                 result       = await handler(**tool_input) if handler else {"error": f"Unknown tool: {tool_name}"}
                 result_text  = json.dumps(result, default=str)
@@ -372,7 +390,11 @@ async def _run_sub_agent(
         system=[{"type": "text", "text": _AGENT_PROMPTS[agent_type]}],
         messages=history + [{"role": "user", "content": "Summarize your findings concisely."}],  # type: ignore[arg-type]
     )
+    total_tokens += fallback.usage.input_tokens + fallback.usage.output_tokens
+    total_out    += fallback.usage.output_tokens
     text = "".join(b.text for b in fallback.content if hasattr(b, "text"))
+    record_llm_spend(tenant_id, f"master:{agent_type.value}", _MODEL,
+                     {"input_tokens": total_tokens - total_out, "output_tokens": total_out})
     return {
         "agent":      agent_type.value,
         "response":   text,
@@ -498,7 +520,7 @@ async def run_master(
     # ── Step 2: Dispatch sub-agents in parallel ───────────────────────────────
     agent_map: dict[str, SubAgent] = {a.value: a for a in SubAgent}
     coros = [
-        _run_sub_agent(agent_map[name], sub_task, tenant_id)
+        _run_sub_agent(agent_map[name], sub_task, tenant_id, auto_approve=auto_approve)
         for name, sub_task in sub_tasks.items()
         if name in agent_map
     ]
@@ -546,6 +568,15 @@ async def run_master(
     )
     synthesis = "".join(b.text for b in synth_resp.content if hasattr(b, "text"))
     total_tokens += synth_resp.usage.input_tokens + synth_resp.usage.output_tokens
+
+    _orch_in  = decomp_resp.usage.input_tokens + synth_resp.usage.input_tokens
+    _orch_out = decomp_resp.usage.output_tokens + synth_resp.usage.output_tokens
+    try:
+        from warden.agent.accounting import record_llm_spend
+        record_llm_spend(tenant_id, "master:orchestrator", _MODEL,
+                         {"input_tokens": _orch_in, "output_tokens": _orch_out})
+    except Exception:  # pragma: no cover
+        pass
 
     latency = round((time.perf_counter() - t0) * 1000, 1)
     log.info(
@@ -673,7 +704,7 @@ async def run_master_batch(
     # ── Step 2: Sub-agents via regular API (tool use requires sync loop) ──────
     agent_map: dict[str, SubAgent] = {a.value: a for a in SubAgent}
     coros      = [
-        _run_sub_agent(agent_map[name], sub_task, tenant_id)
+        _run_sub_agent(agent_map[name], sub_task, tenant_id, auto_approve=auto_approve)
         for name, sub_task in sub_tasks.items()
         if name in agent_map
     ]
@@ -733,6 +764,13 @@ async def run_master_batch(
         + sum(r.get("tokens", 0) for r in sub_results)
         + synth_tokens
     )
+    try:
+        from warden.agent.accounting import record_llm_spend
+        record_llm_spend(tenant_id, "master:orchestrator_batch", _MODEL,
+                         {"input_tokens": 0, "output_tokens": decomp_tokens + synth_tokens})
+    except Exception:  # pragma: no cover
+        pass
+
     latency = round((time.perf_counter() - t0) * 1000, 1)
     log.info(
         "master_batch: complete agents=%s tokens=%d latency=%.0fms",

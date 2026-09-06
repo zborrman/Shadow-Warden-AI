@@ -104,19 +104,22 @@ def now_iso() -> str:
 # ── pgvector semantic memory (AG-24) ──────────────────────────────────────────
 
 _PG_URL = os.getenv("PGVECTOR_URL", "")
-_pgconn = None   # lazy psycopg2 connection
+_pgconn = None     # lazy psycopg2 connection
+_schema_ready = False
 
 
 def _pgvector_conn():
     """Return a psycopg2 connection to the pgvector database, or None."""
-    global _pgconn
+    global _pgconn, _schema_ready
     if not _PG_URL:
         return None
     try:
         if _pgconn is None or _pgconn.closed:
             import psycopg2  # type: ignore[import]  # noqa: PLC0415
             _pgconn = psycopg2.connect(_PG_URL)
-            _ensure_schema(_pgconn)
+            if not _schema_ready:
+                _ensure_schema(_pgconn)
+                _schema_ready = True
         return _pgconn
     except Exception as exc:
         log.debug("pgvector: connection failed: %s", exc)
@@ -144,12 +147,12 @@ def _ensure_schema(conn) -> None:
 
 
 def _embed(text: str) -> list[float] | None:
-    """Embed text using the MiniLM model singleton."""
+    """Embed text using the MiniLM model singleton (@lru_cache _load_model)."""
     try:
-        from warden.brain.semantic import SemanticGuard  # noqa: PLC0415
-        guard = SemanticGuard()
-        emb = guard._embed(text)  # type: ignore[attr-defined]
-        return emb.tolist() if emb is not None else None
+        from warden.brain.semantic import _load_model  # noqa: PLC0415
+        model = _load_model()
+        vec = model.encode([text], normalize_embeddings=True)[0]
+        return vec.tolist() if hasattr(vec, "tolist") else list(vec)
     except Exception:
         return None
 

@@ -458,6 +458,16 @@ class WardenHealer:
                 messages=[{"role": "user", "content": classify_prompt}],
             )
             remedy = msg.content[0].text.strip() if msg.content else ""  # type: ignore[union-attr]
+            try:
+                from warden.agent.accounting import record_llm_spend  # noqa: PLC0415
+                record_llm_spend(
+                    os.getenv("DEFAULT_TENANT_ID", "default"), "healer",
+                    "claude-haiku-4-5-20251001",
+                    {"input_tokens": msg.usage.input_tokens,
+                     "output_tokens": msg.usage.output_tokens},
+                )
+            except Exception:  # noqa: BLE001
+                pass
             if remedy:
                 _save_recipe(fingerprint, remedy)
                 log.info("healer: LLM classified '%s' — recipe saved", fingerprint)

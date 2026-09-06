@@ -1,8 +1,20 @@
 # SOVA Agent Guide
 
 SOVA (Shadow Operations & Vigilance Agent) is an autonomous Claude Opus 4.6
-agentic loop with 37 tools. It runs both on-demand (REST API) and on schedule
-(ARQ cron jobs).
+agentic loop. It runs both on-demand (REST API) and on schedule (ARQ cron jobs).
+
+**Tool surface:** 50 handlers — 38 read-only (default) + 12 state-changing
+("operator") tools. The read set is all that `POST /agent/sova` exposes unless
+the request sets `operator_mode: true` (Pro+). Every operator tool is
+additionally approval-gated (see *Approval gate* below).
+
+**Tenant binding:** `tenant_id` is taken from the API key — it is never read
+from the request body and the model cannot choose it.
+
+**Cost guards:** per-call timeout (`SOVA_CALL_TIMEOUT_S`, 90s), overall deadline
+(`SOVA_DEADLINE_S`, 240s), token budget (`SOVA_TOKEN_BUDGET`, 60k). Every SOVA /
+MasterAgent / Healer LLM call is costed and written to the cost-allocation
+ledger (`vendor=anthropic`, `department=ai-agents`).
 
 ---
 
@@ -59,18 +71,40 @@ DELETE /agent/sova/{session_id}
 POST /agent/sova/task/{job_name}
 ```
 
-Available job names:
+Available job names (hyphenated — these are the `_MANUAL_TASKS` keys):
 
 | Job | Schedule |
 |-----|----------|
-| `morning_brief` | Daily 08:00 UTC |
-| `threat_sync` | Every 6 hours |
-| `rotation_check` | Daily 02:00 UTC |
-| `sla_report` | Monday 09:00 UTC |
-| `upgrade_scan` | Sunday 10:00 UTC |
-| `corpus_watchdog` | Every 30 min |
-| `visual_patrol` | Daily 03:00 UTC |
-| `community_watchdog` | Every hour at :20 |
+| `morning-brief` | Daily 08:00 UTC |
+| `threat-sync` | Every 6 hours |
+| `rotation-check` | Daily 02:00 UTC (runs in operator mode) |
+| `sla-report` | Monday 09:00 UTC |
+| `upgrade-scan` | Sunday 10:00 UTC |
+| `corpus-watchdog` | Every 30 min |
+| `visual-patrol` | Daily 03:00 UTC |
+| `community-lookup` | maps to `sova_community_watchdog` |
+
+---
+
+## Approval gate
+
+When `operator_mode: true`, a state-changing tool (`update_config`,
+`rotate_community_key`, `revoke_agent`, `block_ip_range`, `dismiss_threat`,
+`moderate_community_post`, `publish_to_community`, `post_community_announcement`,
+`smb_provision_suite`, `share_obsidian_note`, `sync_misp_feed`) does **not**
+execute. It returns `{"status": "approval_required", "token": "appr-…"}`.
+
+```bash
+# 1. Human approves
+POST /agent/approve/{token}?action=approve
+
+# 2. Run the pending action (once; token is then consumed)
+POST /agent/execute/{token}
+```
+
+Fail-closed: if the approval store (Redis) is unreachable, `issue()` raises and
+the caller gets a 503 — a mutation is never performed unattended. Scheduled
+cron jobs run with `auto_approve` (trusted, fixed-prompt) and skip the gate.
 
 ---
 
