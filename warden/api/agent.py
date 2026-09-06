@@ -571,3 +571,92 @@ async def misp_sync(auth: AuthResult = AuthDep) -> dict:
 
     result = await connector.sync()
     return result.to_dict()
+
+
+# ── Procurement co-pilot (PR-8) ──────────────────────────────────────────────
+
+class NegotiateRequest(BaseModel):
+    request:    str          = Field(..., min_length=3, max_length=2000,
+                                     description="What to buy, in natural language")
+    budget_usd: float | None = Field(None, gt=0)
+
+
+@router.post(
+    "/sova/commerce/negotiate",
+    summary="Run a guided procurement auction and return a ranked recommendation",
+    dependencies=[require_feature("master_agent_enabled")],
+)
+async def commerce_negotiate(
+    body: NegotiateRequest,
+    auth: AuthResult = AuthDep,
+) -> dict:
+    """
+    Run a multi-agent procurement auction for *request*, enrich each finalist
+    with supplier-risk and community fraud signals, and return a ranked
+    recommendation.
+
+    **No settlement is performed.** The response carries the `auction_id`; a
+    human completes the purchase through the normal
+    `/business-community/commerce` order + approval flow.
+    """
+    import time as _time  # noqa: PLC0415
+
+    tenant_id = auth.tenant_id or "default"
+    t0 = _time.perf_counter()
+
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (  # noqa: PLC0415
+        MultiAgentOrchestrator,
+    )
+
+    orch = MultiAgentOrchestrator()
+    auction_id = await orch.run_auction(tenant_id, body.request, budget_usd=body.budget_usd)
+    result = orch.get_auction(auction_id, tenant_id) or {}
+    proposals = result.get("proposals", [])
+
+    # Enrich finalists with supplier risk + community fraud signal
+    enriched: list[dict] = []
+    for p in proposals:
+        vendor = p.get("recommended_vendor") or p.get("vendor") or ""
+        row = {
+            "vendor":         vendor,
+            "price_usd":      p.get("estimated_price_usd") or p.get("price"),
+            "delivery_days":  p.get("delivery_days"),
+            "agent_risk":     p.get("risk_score"),
+            "rationale":      p.get("rationale", ""),
+        }
+        if vendor:
+            try:
+                from warden.communities.supplier_risk import assess_supplier  # noqa: PLC0415
+                sr = assess_supplier(tenant_id, vendor)
+                if isinstance(sr, dict):
+                    row["supplier_risk"] = sr.get("composite_score")
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                from warden.agent.tools import search_community_feed  # noqa: PLC0415
+                hits = await search_community_feed(query=vendor, limit=3, tenant_id=tenant_id)
+                row["community_fraud_hits"] = hits.get("total", 0)
+            except Exception:  # noqa: BLE001
+                pass
+        enriched.append(row)
+
+    # Rank: lowest combined risk, then price
+    def _score(r: dict) -> float:
+        ar = float(r.get("agent_risk") or 0)
+        sr = float(r.get("supplier_risk") or 0)
+        fh = float(r.get("community_fraud_hits") or 0)
+        return ar + sr + min(fh, 3) * 0.2
+
+    enriched.sort(key=_score)
+    top = enriched[0] if enriched else None
+
+    return {
+        "auction_id":    auction_id,
+        "tenant_id":     tenant_id,
+        "recommendation": top,
+        "ranked":        enriched,
+        "settlement":    "not_performed",
+        "next_step":     "Create an order via POST /business-community/commerce/orders, "
+                         "then approve it through the normal flow.",
+        "latency_ms":    round((_time.perf_counter() - t0) * 1000, 1),
+    }

@@ -56,6 +56,7 @@ class SubAgent(StrEnum):
     FORENSICS       = "forensics"
     COMPLIANCE      = "compliance"
     DATA_PRIVACY    = "data_privacy"    # AG-23
+    COMMERCE        = "commerce"        # PR-8 — Agentic Marketplace
 
 
 # Tools available to each sub-agent
@@ -94,6 +95,15 @@ _AGENT_TOOLS: dict[SubAgent, list[str]] = {
         "list_secrets_inventory", "get_secrets_report",
         "get_retention_policy", "run_retention_enforce",
         "get_compliance_posture",
+        "send_slack_alert",
+    ],
+    # PR-8: CommerceAgent — Agentic Marketplace oversight
+    SubAgent.COMMERCE: [
+        "list_mandates", "get_mandate", "get_agentic_spend",
+        "list_commerce_orders", "get_commerce_order", "reconcile_orders",
+        "list_commerce_auctions", "get_commerce_auction",
+        "get_agent_activity", "list_agents",
+        "revoke_mandate", "approve_purchase_intent",   # approval-gated
         "send_slack_alert",
     ],
 }
@@ -139,6 +149,22 @@ _AGENT_PROMPTS: dict[SubAgent, str] = {
         "For GDPR export/purge requests: confirm tenant_id scope before acting and "
         "tag every purge as REQUIRES_APPROVAL. "
         "Report findings in structured tables: standard, status, score, gap, remediation."
+    ),
+    # PR-8
+    SubAgent.COMMERCE: (
+        "You are CommerceAgent, the Agentic Marketplace oversight specialist. "
+        "Your domain: AP2 spending mandates, purchase orders and receipts, "
+        "multi-agent procurement auctions, and agent purchase behaviour. "
+        "Always start with get_agentic_spend and reconcile_orders. "
+        "Flag: mandates >=80% of cap or past expiry; auction winners with "
+        "risk_score >= 0.7; any order whose settled receipt is missing, zero, or "
+        "mismatched (a settlement failure — escalate immediately); and agents with "
+        "abnormal purchase velocity or first-time vendors. "
+        "revoke_mandate and approve_purchase_intent are state-changing — they return "
+        "an approval token and DO NOT execute until a human approves. Never claim an "
+        "action is done when you only hold a pending token. "
+        "Report: spend vs cap per mandate, reconciliation status, risky auctions, "
+        "recommended actions with priority."
     ),
 }
 
@@ -426,11 +452,13 @@ class MasterResult:
 
 _MASTER_SYSTEM = """You are MasterAgent, the supervisor of Shadow Warden AI's agentic SOC.
 
-You coordinate four specialist sub-agents:
-  • SOVAOperator  — gateway health, billing, key rotation
-  • ThreatHunter  — CVE triage, ArXiv intel, adversarial analysis
+You coordinate specialist sub-agents:
+  • SOVAOperator   — gateway health, billing, key rotation
+  • ThreatHunter   — CVE triage, ArXiv intel, adversarial analysis
   • ForensicsAgent — evidence vault, agent activity, GDPR compliance
   • ComplianceAgent — SLA status, uptime monitors, regulatory mapping
+  • DataPrivacyAgent — GDPR ROPA/DPIA, retention, secrets, PII
+  • CommerceAgent  — AP2 mandates, orders/receipts, procurement auctions
 
 Your responsibilities:
   1. Decompose the incoming task into specialist sub-tasks
@@ -489,7 +517,7 @@ async def run_master(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"|"data_privacy"|"commerce"], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
     decomp_resp = await client.messages.create(
@@ -643,7 +671,7 @@ async def run_master_batch(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"|"data_privacy"|"commerce"], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
 

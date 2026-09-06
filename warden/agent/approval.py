@@ -45,6 +45,8 @@ GATED_ACTIONS: frozenset[str] = frozenset({
     "share_obsidian_note",
     "sync_misp_feed",
     "apply_community_recommendation",
+    "revoke_mandate",
+    "approve_purchase_intent",
 })
 
 

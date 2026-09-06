@@ -1280,6 +1280,25 @@ async def reconcile_orders(hours: int = 24, tenant_id: str = "default", **_) -> 
             "mismatch_count": len(mismatches), "mismatches": mismatches}
 
 
+async def revoke_mandate(mandate_id: str, tenant_id: str = "default", **_) -> dict:
+    """Tool #58 (operator, approval-gated) — Revoke an agentic spending mandate."""
+    return await _delete(f"{_COMMERCE}/mandates/{mandate_id}?tenant_id={tenant_id}", tenant=tenant_id)
+
+
+async def approve_purchase_intent(
+    workflow_id: str,
+    action: str = "approve",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """Tool #59 (operator, approval-gated) — Resolve a pending MCP purchase intent."""
+    act = action if action in ("approve", "reject") else "approve"
+    return await _post(
+        f"{_COMMERCE}/approve/{workflow_id}?tenant_id={tenant_id}&action={act}",
+        {}, tenant=tenant_id,
+    )
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -2066,6 +2085,33 @@ TOOLS: list[dict] = [
             "properties": {"hours": {"type": "integer", "description": "Lookback window (default 24)"}},
         },
     },
+    {
+        "name": "revoke_mandate",
+        "description": (
+            "Revoke an agentic spending mandate — stops all future agent purchases against "
+            "it. State-changing: returns an approval token; a human must confirm."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"mandate_id": {"type": "string"}},
+            "required": ["mandate_id"],
+        },
+    },
+    {
+        "name": "approve_purchase_intent",
+        "description": (
+            "Resolve a pending MCP agent purchase intent (approve or reject). "
+            "State-changing: returns an approval token; a human must confirm."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workflow_id": {"type": "string"},
+                "action":      {"type": "string", "enum": ["approve", "reject"]},
+            },
+            "required": ["workflow_id"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -2128,6 +2174,8 @@ TOOL_HANDLERS: dict[str, Any] = {
     "list_commerce_auctions":        list_commerce_auctions,
     "get_commerce_auction":          get_commerce_auction,
     "reconcile_orders":              reconcile_orders,
+    "revoke_mandate":                revoke_mandate,
+    "approve_purchase_intent":       approve_purchase_intent,
     # Not in TOOLS (not model-callable) — executed only post-approval.
     "apply_community_recommendation": apply_community_recommendation,
 }

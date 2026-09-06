@@ -109,6 +109,26 @@ cron jobs run with `auto_approve` (trusted, fixed-prompt) and skip the gate.
 
 ---
 
+## Agentic Marketplace
+
+**Read tools** (SOVA + MasterAgent ForensicsAgent/CommerceAgent):
+`list_mandates` · `get_mandate` · `get_agentic_spend` · `list_commerce_orders` ·
+`get_commerce_order` · `list_commerce_auctions` · `get_commerce_auction` ·
+`reconcile_orders`.
+
+**Operator tools** (approval-gated): `revoke_mandate` · `approve_purchase_intent`.
+
+**CommerceAgent** — MasterAgent sub-agent (`SubAgent.COMMERCE`): reconciles
+spend, flags risky auctions and settlement failures, drives mandate revocation
+behind the approval gate.
+
+**Procurement co-pilot** — `POST /agent/sova/commerce/negotiate` (Pro+):
+runs a multi-agent auction, enriches finalists with supplier-risk + community
+fraud signals, returns a ranked recommendation. **No settlement** — hands back
+an `auction_id` for the normal order + approval flow.
+
+---
+
 ## Tool Categories
 
 ### System & Config
