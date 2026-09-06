@@ -218,3 +218,99 @@ def test_the_mirror_copies_the_contract_not_only_the_numbers() -> None:
     assert annual_price_usd("starter") is None, (
         "the Python side changed; re-check what the mirror should now return"
     )
+
+
+#: Tier display names as the site writes them, mapped to the canonical key.
+SITE_TIER_LABELS = {
+    "Community Business": "community_business",
+    "Enterprise":         "enterprise",
+    "Individual":         "individual",
+    "Pro":                "pro",
+    "Starter":            "starter",
+}
+
+#: How far after a tier heading its price may sit, in characters. The card
+#: markup between the two is a handful of divs.
+_TIER_PRICE_WINDOW = 400
+
+
+def test_a_price_shown_beside_a_tier_name_is_that_tier_s_price() -> None:
+    """The public site is the surface a price is quoted from.
+
+    `site/src/pages/smb.astro` showed Community Business at $19 while
+    `site/src/components/Pricing.astro` showed $39.99 — two prices for one tier
+    on two pages of one website, and nothing compared them. The dashboard got a
+    mirror guard; the site, which is what a customer reads before paying, had
+    none.
+
+    The check is deliberately not a list of superseded prices. That is a
+    deny-list: it catches $19 and $69 because those are the two that went
+    wrong, and would miss the next one. Nor is a plain allow-list of canonical
+    amounts enough — `usd_per_month: 19` is a real add-on price
+    (`warden/billing/addons.py`), so $19 on a page is not wrong in itself. It
+    was wrong *next to "Community Business"*.
+
+    So the invariant is positional: a price rendered near a tier heading has to
+    be that tier's price. Astro cannot import `warden/billing/pricing.py`, so
+    this compares against it from the outside.
+
+    `doc/changelog.astro` is excluded — it records what a tier cost at a past
+    release, and rewriting that to match today's list would be its own lie.
+    """
+    site_dir = _ROOT / "site" / "src"
+    assert site_dir.is_dir(), f"{site_dir} is missing; the site guard cannot run"
+
+    offenders: list[str] = []
+    for path in sorted(site_dir.rglob("*.astro")):
+        if path.name == "changelog.astro":
+            continue
+        code = strip_comments(path.read_text(encoding="utf-8"))
+
+        for label, key in SITE_TIER_LABELS.items():
+            expected = TIER_PRICE_USD_MONTH.get(key)
+            if expected is None:
+                continue
+            for m in re.finditer(r">\s*" + re.escape(label) + r"\s*<", code):
+                window = code[m.end():m.end() + _TIER_PRICE_WINDOW]
+                found = _PRICE_LITERAL.search(window)
+                if not found:
+                    continue
+                try:
+                    amount = round(float(found.group(1).replace(",", "")), 2)
+                except ValueError:
+                    continue
+                if amount != round(expected, 2):
+                    line = code[:m.start()].count("\n") + 1
+                    offenders.append(
+                        f"{path.relative_to(_ROOT).as_posix()}:{line}: "
+                        f"{label} is shown at ${found.group(1)}; billing charges "
+                        f"${expected}"
+                    )
+
+        # `Pricing.astro` holds its tiers as a data array and renders
+        # `${tier.price}`, so there is no literal beside the heading for the
+        # positional check above to find. Changing that array to 77 passed the
+        # first version of this test — the primary pricing page was the one
+        # place it could not see.
+        for m in re.finditer(
+            r"""name:\s*['"](?P<label>[A-Za-z ]+)['"]\s*,\s*price:\s*(?P<amt>[0-9.]+)""",
+            code,
+        ):
+            key = SITE_TIER_LABELS.get(m.group("label"))
+            expected = TIER_PRICE_USD_MONTH.get(key) if key else None
+            if expected is None:
+                continue
+            if round(float(m.group("amt")), 2) == round(expected, 2):
+                continue
+            offenders.append(
+                f"{path.relative_to(_ROOT).as_posix()}:"
+                f"{code[:m.start()].count(chr(10)) + 1}: {m.group('label')} is "
+                f"declared at ${m.group('amt')}; billing charges ${expected}"
+            )
+
+    assert not offenders, (
+        "the public site quotes tier prices the billing system does not "
+        "charge:\n  " + "\n  ".join(offenders)
+        + "\n\nwarden/billing/pricing.py is canonical. Update the page and "
+        "rebuild `landing/`."
+    )

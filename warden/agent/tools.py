@@ -691,10 +691,10 @@ async def moderate_community_post(
     """
     Tool #34 — Moderate a community post.
 
-    action: 'approve' | 'block' | 'requeue'
+    action: 'block'
       approve  — marks post as approved so it appears in the public feed
       block    — hard-block the post (requires ADMIN_KEY env var on the API side)
-      requeue  — re-enqueue NIM moderation job for a stuck/pending post
+      (requeue was removed: no moderation re-enqueue endpoint exists)
     """
     import os as _os
     try:
@@ -708,12 +708,19 @@ async def moderate_community_post(
                 r.raise_for_status()
                 return {"post_id": post_id, "action": "block", "result": r.json()}
         elif action == "requeue":
-            result = await _post(
-                f"/community/posts/{post_id}/requeue",
-                {"post_id": post_id},
-                tenant=tenant_id,
-            )
-            return {"post_id": post_id, "action": "requeue", "result": result}
+            # `/community/posts/{id}/requeue` has never existed — the moderation
+            # routes are POST /community/posts, GET and DELETE on one post, and
+            # a comment endpoint. There is nothing to re-enqueue against, so a
+            # requeue cannot be performed rather than merely failing.
+            return {
+                "post_id": post_id,
+                "action": "requeue",
+                "error": (
+                    "requeue is not available: no moderation re-enqueue "
+                    "endpoint exists. Use action='block' to remove the post, "
+                    "or leave it pending."
+                ),
+            }
         else:
             return {"error": f"Unknown action '{action}'. Use approve|block|requeue."}
     except Exception as exc:
@@ -813,6 +820,7 @@ async def search_community_feed(
     query: str,
     limit: int = 5,
     tenant_id: str = "default",
+    community_id: str = "",
     **_,
 ) -> dict:
     """
@@ -824,36 +832,43 @@ async def search_community_feed(
     communities before escalating or publishing a duplicate entry.
     """
     try:
+        # The route is `/sep/search`; `/sep/ueciids/search` has never existed, so
+        # this tool returned its error branch on every call since it was written.
+        # `community_id` is required by the real endpoint — defaulted the way
+        # `publish_to_community` already defaults it.
         results = await _get(
-            "/sep/ueciids/search",
+            "/sep/search",
             tenant=tenant_id,
-            params={"q": query, "limit": limit},
+            params={
+                "community_id": community_id or tenant_id,
+                "q": query,
+                "limit": limit,
+            },
         )
         entries = results if isinstance(results, list) else results.get("results", [])
+
+        # These are the fields `/sep/search` returns (warden/api/sep.py:136).
+        # The previous mapping also asked for `data_class`, `jurisdiction` and
+        # `metadata`, which the UECIID index does not carry — so repointing the
+        # path alone would have swapped a 404 for a response full of nulls, and
+        # the tool's own description still promised those fields.
         result_list = [
             {
                 "ueciid":       e.get("ueciid"),
+                "entity_id":    e.get("entity_id"),
                 "display_name": e.get("display_name"),
-                "data_class":   e.get("data_class"),
-                "jurisdiction": e.get("jurisdiction"),
+                "content_type": e.get("content_type"),
+                "byte_size":    e.get("byte_size"),
                 "created_at":   e.get("created_at"),
-                "metadata":     e.get("metadata", {}),
             }
             for e in entries[:limit]
         ]
-        # CM-25: award SEARCH_HIT +1 for each tenant whose entry matched
-        if result_list:
-            try:
-                from warden.communities.reputation import award_points
-                matched_tenants = {
-                    e.get("metadata", {}).get("publisher") or e.get("tenant_id")
-                    for e in entries[:limit]
-                }
-                for mt in matched_tenants:
-                    if mt and mt != tenant_id:  # don't self-award
-                        award_points(mt, "SEARCH_HIT")
-            except Exception:
-                pass
+
+        # CM-25's SEARCH_HIT award is gone with them. It keyed on
+        # `metadata.publisher` or `tenant_id`, neither of which is in this
+        # response, so `matched_tenants` was always empty and no points were
+        # ever awarded. Reinstating it needs the endpoint to expose the
+        # publishing tenant — a change to `/sep/search`, not to this caller.
         return {"query": query, "total": len(result_list), "results": result_list}
     except Exception as exc:
         log.warning("search_community_feed error: %s", exc)
@@ -902,41 +917,30 @@ async def publish_to_community(
 
     # Step 2: register UECIID
     display_name = f"[{risk_level}] {rule_id} — {verdict}"
-    try:
-        reg = await _post(
-            "/sep/ueciids",
-            {
-                "display_name": display_name,
-                "data_class":   "GENERAL",
-                "metadata": {
-                    "verdict":    verdict,
-                    "rule_id":    rule_id,
-                    "risk_level": risk_level,
-                    "evidence":   evidence_summary[:500],
-                    "publisher":  "sova",
-                },
-            },
-            tenant=tenant_id,
-        )
-    except Exception as exc:
-        log.warning("publish_to_community: register error: %s", exc)
-        return {"published": False, "error": f"UECIID registration failed: {exc}"}
 
-    ueciid = reg.get("ueciid")
-
-    # Award reputation points to the publishing tenant
-    try:
-        from warden.communities.reputation import award_points
-        award_points(tenant_id, "PUBLISH_ENTRY", ref_ueciid=ueciid or "")
-    except Exception:
-        pass
-
+    # NOT IMPLEMENTED, and saying so is the point. This posted to
+    # `/sep/ueciids`, a route that has never existed, with a body
+    # (`display_name`/`data_class`/`metadata`) that does not match any route
+    # that does. Every call took the exception branch below, so this tool has
+    # never published anything — while its own description, and
+    # `search_community_feed`'s, told the model it had.
+    #
+    # The real path is two steps: create the entity via
+    # `POST /communities/{id}/entities`, then index it with
+    # `POST /sep/register` (entity_id, content_type, byte_size). That is a new
+    # autonomous write into a peer community's store, and these handlers are
+    # called directly by SOVA's loop with no hard approval gate, so it is a
+    # decision to take deliberately rather than a defect to patch here.
     return {
-        "published":    True,
-        "ueciid":       ueciid,
+        "published": False,
+        "error": (
+            "publish_to_community is not implemented: the gateway has no "
+            "endpoint that accepts a threat report. Publishing requires "
+            "creating a community entity and registering it, which is a "
+            "deliberate change to SOVA's write authority. Report the finding "
+            "to the operator instead of publishing it."
+        ),
         "display_name": display_name,
-        "risk_level":   risk_level,
-        "verdict":      verdict,
         "community_id": community_id or tenant_id,
     }
 
@@ -977,7 +981,10 @@ async def get_community_recommendations(
     """
     target = community_id or tenant_id
     try:
-        report = await _get(f"/community-intel/{target}/report", tenant=tenant_id)
+        # `/community-intel/{id}` returns the CommunityIntelReport; the
+        # `/report` suffix was never a route, so this always fell through to the
+        # MITRE fallback below and the community half of the tool never ran.
+        report = await _get(f"/community-intel/{target}", tenant=tenant_id)
         all_recs = report.get("recommendations", [])
         ltype = incident_type.lower()
         relevant = [r for r in all_recs if ltype in r.lower() or risk_level.lower() in r.lower()]
@@ -1724,14 +1731,15 @@ TOOLS: list[dict] = [
         "description": (
             "Moderate a community post. "
             "action='block' hard-blocks a harmful post (requires ADMIN_KEY). "
-            "action='requeue' re-sends a stuck post through NIM moderation."
+            "Only 'block' is available: there is no moderation re-enqueue "
+            "endpoint, so a stuck post cannot be re-sent through NIM."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "post_id":   {"type": "string"},
-                "action":    {"type": "string", "enum": ["block", "requeue"],
-                              "description": "block | requeue"},
+                "action":    {"type": "string", "enum": ["block"],
+                              "description": "block — remove the post"},
                 "tenant_id": {"type": "string"},
             },
             "required": ["post_id", "action"],
@@ -1787,9 +1795,12 @@ TOOLS: list[dict] = [
         "name": "search_community_feed",
         "description": (
             "Search the SEP community incident feed by keyword. "
-            "Returns the top-N relevant incident records (UECIID, data_class, jurisdiction, metadata). "
-            "Use before publish_to_community to avoid duplicate entries — check if other "
-            "communities have already documented this threat pattern. "
+            "Returns the top-N matching index records (ueciid, entity_id, "
+            "display_name, content_type, byte_size, created_at). It does not "
+            "return the incident body, a data class, a jurisdiction or the "
+            "publishing tenant — the UECIID index does not hold them. "
+            "Use it to check whether other communities have already documented a "
+            "threat pattern before reporting it as novel. "
             "Also useful during threat_sync to enrich local CVE/ArXiv findings with peer intelligence."
         ),
         "input_schema": {
@@ -1797,6 +1808,8 @@ TOOLS: list[dict] = [
             "properties": {
                 "query":     {"type": "string", "description": "Search keyword or threat description"},
                 "limit":     {"type": "integer", "description": "Max results to return (default 5, max 20)"},
+                "community_id": {"type": "string",
+                                 "description": "Community to search; defaults to the tenant"},
                 "tenant_id": {"type": "string"},
             },
             "required": ["query"],
@@ -1805,10 +1818,12 @@ TOOLS: list[dict] = [
     {
         "name": "publish_to_community",
         "description": (
-            "Publish an anonymized security incident to the SEP community hub. "
-            "Runs the evidence_summary through the full filter pipeline first — "
-            "if PII or secrets are detected the publish is aborted. "
-            "On success, returns a UECIID that other community members can reference. "
+            "NOT IMPLEMENTED — this tool cannot publish anything and will "
+            "return an error explaining why. The gateway has no endpoint that "
+            "accepts a threat report; publishing would require creating a "
+            "community entity and indexing it, which is a pending decision "
+            "about SOVA's write authority. Report findings to the operator "
+            "instead. Do not tell anyone an incident was published. "
             "IMPORTANT: evidence_summary must already be anonymized (no IPs, user IDs, or PII). "
             "Use explain_decision to get the causal chain, then strip identifying fields before calling this."
         ),
@@ -2145,10 +2160,10 @@ TOOLS: list[dict] = [
     {
         "name": "resolve_dispute",
         "description": (
-            "Tool #60 — Cast a DAO governance vote to resolve a disputed marketplace escrow. "
-            "Creates a DAO proposal if none exists, then votes 'approve' (release to seller) or 'reject' (refund buyer). "
-            "Returns proposal_id, vote_weight, current_tally, and resolution_status. "
-            "Only call after check_escrow_status confirms state='disputed'."
+            "NOT IMPLEMENTED — returns an error explaining why. There is no "
+            "vote endpoint, no DAO proposal, no vote weight and no tally: the "
+            "escrow API can raise a dispute and an operator can resolve one. "
+            "Do not report a dispute as voted on or resolved."
         ),
         "input_schema": {
             "type": "object",
@@ -2315,11 +2330,26 @@ async def resolve_dispute(
     rationale: str = "",
     **_,
 ) -> dict:
-    """Tool #60 — Cast DAO vote to resolve a disputed escrow."""
-    return await _post(
-        f"/marketplace/escrow/{escrow_id}/dispute/vote",
-        {"vote": vote, "voter_id": voter_id, "rationale": rationale},
-    )
+    """Tool #60 — DAO voting on escrow disputes. Not implemented.
+
+    `/marketplace/escrow/{id}/dispute/vote` has never existed. The escrow API
+    has `POST .../dispute` (raise one) and `POST .../resolve` (settle one);
+    there is no vote, and no tally for a vote to contribute to. Pointing this
+    at `resolve` would let a single agent settle a dispute under the name of a
+    vote, which is a worse lie than the 404.
+    """
+    return {
+        "voted": False,
+        "escrow_id": escrow_id,
+        "error": (
+            "Escrow dispute voting is not implemented: the marketplace has no "
+            "vote endpoint or tally. Disputes are raised with raise_dispute "
+            "and settled by an operator through the resolve endpoint."
+        ),
+        "vote": vote,
+        "voter_id": voter_id,
+        "rationale": rationale,
+    }
 
 
 async def acp_search_catalog(
