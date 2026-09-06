@@ -1182,6 +1182,52 @@ async def apply_community_recommendation(
     return {"ok": True, "ueciid": ueciid, "examples_added": 1}
 
 
+# ── Agentic Marketplace read tools (PR-6) ────────────────────────────────────
+
+_COMMERCE = "/business-community/commerce"
+
+
+async def list_mandates(tenant_id: str = "default", **_) -> dict:
+    """Tool #50 — List AP2 spending mandates for the tenant (id, cap, spent, status)."""
+    return await _get(f"{_COMMERCE}/mandates", tenant=tenant_id)
+
+
+async def get_mandate(mandate_id: str, tenant_id: str = "default", **_) -> dict:
+    """Tool #51 — Full detail for one spending mandate: cap, balance, merchants, expiry."""
+    return await _get(f"{_COMMERCE}/mandates/{mandate_id}", tenant=tenant_id,
+                      params={"tenant_id": tenant_id})
+
+
+async def get_agentic_spend(tenant_id: str = "default", **_) -> dict:
+    """Tool #52 — Agentic spend summary: total committed vs cap per mandate."""
+    return await _get(f"{_COMMERCE}/analytics/spend", tenant=tenant_id,
+                      params={"tenant_id": tenant_id})
+
+
+async def list_commerce_orders(limit: int = 50, tenant_id: str = "default", **_) -> dict:
+    """Tool #53 — Recent agentic purchase orders (id, vendor, amount, status, ts)."""
+    return await _get(f"{_COMMERCE}/orders", tenant=tenant_id,
+                      params={"tenant_id": tenant_id, "limit": limit})
+
+
+async def get_commerce_order(order_id: str, tenant_id: str = "default", **_) -> dict:
+    """Tool #54 — One order plus its AP2 receipt — use to reconcile order vs settled total."""
+    return await _get(f"{_COMMERCE}/orders/{order_id}", tenant=tenant_id,
+                      params={"tenant_id": tenant_id})
+
+
+async def list_commerce_auctions(limit: int = 20, tenant_id: str = "default", **_) -> dict:
+    """Tool #55 — Recent multi-agent procurement auctions (id, request, winner, status)."""
+    return await _get(f"{_COMMERCE}/auctions", tenant=tenant_id,
+                      params={"tenant_id": tenant_id, "limit": limit})
+
+
+async def get_commerce_auction(auction_id: str, tenant_id: str = "default", **_) -> dict:
+    """Tool #56 — One auction result: all proposals, scores, chosen vendor, rationale."""
+    return await _get(f"{_COMMERCE}/auctions/{auction_id}", tenant=tenant_id,
+                      params={"tenant_id": tenant_id})
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1884,6 +1930,78 @@ TOOLS: list[dict] = [
             "required": ["tenant_id"],
         },
     },
+
+    # ── Agentic Marketplace read tools #50–#56 ───────────────────────────────
+    {
+        "name": "list_mandates",
+        "description": (
+            "List the tenant's AP2 agentic-payment spending mandates: id, spend cap, "
+            "amount committed, allowed merchants, expiry, status. Use to check for "
+            "mandates near their cap or past expiry."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_mandate",
+        "description": "Full detail for one spending mandate by id (cap, balance, merchants, expiry, signature status).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"mandate_id": {"type": "string"}},
+            "required": ["mandate_id"],
+        },
+    },
+    {
+        "name": "get_agentic_spend",
+        "description": (
+            "Agentic spend summary for the tenant — total committed vs cap across all "
+            "mandates. Use for budget monitoring and the commerce watchdog."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "list_commerce_orders",
+        "description": (
+            "Recent agentic purchase orders: id, vendor, amount, status, timestamp. "
+            "Use to spot rogue-agent purchase patterns or unexpected vendors."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "description": "Max orders (default 50)"}},
+        },
+    },
+    {
+        "name": "get_commerce_order",
+        "description": (
+            "One purchase order plus its AP2 receipt. Compare the order line-item total "
+            "to the settled receipt total — a mismatch or a $0.00 settlement is a "
+            "reconciliation failure worth escalating."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"order_id": {"type": "string"}},
+            "required": ["order_id"],
+        },
+    },
+    {
+        "name": "list_commerce_auctions",
+        "description": "Recent multi-agent procurement auctions: id, request, winning vendor, status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "description": "Max auctions (default 20)"}},
+        },
+    },
+    {
+        "name": "get_commerce_auction",
+        "description": (
+            "One auction result: every agent proposal with price / delivery / risk_score, "
+            "the chosen vendor, and the rationale. Flag winners with risk_score >= 0.7."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"auction_id": {"type": "string"}},
+            "required": ["auction_id"],
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -1937,6 +2055,14 @@ TOOL_HANDLERS: dict[str, Any] = {
     "block_ip_range":                block_ip_range,
     "smb_provision_suite":           smb_provision_suite,
     "smb_suite_health":              smb_suite_health,
+    # Agentic Marketplace read tools (PR-6)
+    "list_mandates":                 list_mandates,
+    "get_mandate":                   get_mandate,
+    "get_agentic_spend":             get_agentic_spend,
+    "list_commerce_orders":          list_commerce_orders,
+    "get_commerce_order":            get_commerce_order,
+    "list_commerce_auctions":        list_commerce_auctions,
+    "get_commerce_auction":          get_commerce_auction,
     # Not in TOOLS (not model-callable) — executed only post-approval.
     "apply_community_recommendation": apply_community_recommendation,
 }

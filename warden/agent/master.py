@@ -76,6 +76,10 @@ _AGENT_TOOLS: dict[SubAgent, list[str]] = {
         "get_agent_activity", "list_agents", "revoke_agent",
         "get_tenant_impact", "get_compliance_art30",
         "visual_assert_page", "send_slack_alert",
+        # Agentic Marketplace forensics (read-only)
+        "list_mandates", "get_mandate", "get_agentic_spend",
+        "list_commerce_orders", "get_commerce_order",
+        "list_commerce_auctions", "get_commerce_auction",
     ],
     SubAgent.COMPLIANCE: [
         "list_monitors", "get_monitor_status", "get_monitor_uptime",
