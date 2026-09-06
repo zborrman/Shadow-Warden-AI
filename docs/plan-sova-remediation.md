@@ -5,6 +5,19 @@
 **Shape:** eight stacked PRs. P0 → P1 → P2 land first (security/correctness), then F1 → F5
 (marketplace). Each PR is independently revertible and ships with tests.
 
+## Status (branch `sova-hardening-pr1-5`)
+
+| PR | State | Commit |
+|----|-------|--------|
+| PR-1..5 (security/correctness) | ✅ done | `08d414e0` |
+| PR-6 commerce read-tools + commerce-router auth | ✅ done | `3375e833` |
+| PR-7 `sova_commerce_watchdog` + `reconcile_orders` | ✅ done | `35403b23` |
+| PR-8 CommerceAgent sub-agent + `/agent/sova/commerce/negotiate` | ✅ done | `9c7109e6` |
+
+Deferred (below) not started: F5 healer rogue-agent check, F6 standalone reconciliation
+service + $1 canary order, F7 `get_vendor_reputation`, `tool_choice` subsetting,
+pub/sub approval wait.
+
 ---
 
 ## Ground rules
