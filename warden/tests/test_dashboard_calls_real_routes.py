@@ -22,6 +22,7 @@ them, so this compares them.
 """
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -42,38 +43,20 @@ ANALYTICS_PREFIX = "/api/v1/"
 #: than trusting it: each must have at least one real route beneath it.
 BASE_URLS = ("/api/warden", "/a2a")
 
-#: Paths in `warden/agent/tools.py` that are known not to exist, recorded so a
-#: NEW one fails this guard rather than joining them unnoticed. Five SOVA tools
-#: address routes this gateway has never served, so each returns its exception
-#: branch on every invocation:
+#: Paths in `warden/agent/tools.py` known not to exist, recorded so a NEW one
+#: fails this guard rather than joining them unnoticed.
 #:
-#:   /sep/ueciids/search  — the real route is `GET /sep/search`, which needs a
-#:                          `community_id` the tool does not take.
-#:   /sep/ueciids         — the real route is `POST /sep/register`, whose body
-#:                          is a different schema entirely (`entity_id`,
-#:                          `content_type`, `byte_size`) and which expects the
-#:                          entity to exist first. `publish_to_community` has
-#:                          therefore never published anything.
-#:   /community/posts/{}/requeue      — no moderation requeue route exists.
-#:   /community-intel/{}/report       — `/community-intel/{}` and its
-#:                          sub-resources exist; `/report` is not among them.
-#:   /marketplace/escrow/{}/dispute/vote — only `.../dispute` exists. The
-#:                          dashboard proxy allow-lists the vote path too, so a
-#:                          dead route is guarded as though it were live.
+#: Empty as of 2026-09-06, and it must stay that way. Five entries were recorded
+#: here on 2026-09-05 and all five are gone: `/sep/ueciids/search` and
+#: `/community-intel/{}/report` were repointed at the routes that do exist
+#: (`/sep/search`, `/community-intel/{}`), and the three with no equivalent —
+#: publishing a threat report, re-queueing moderation, voting on an escrow
+#: dispute — now refuse with a reason instead of calling a route that is not
+#: there. An agent told it can do something it cannot will report success it
+#: did not have; a refusal it can read is the honest failure.
 #:
-#: None of these is a rename: each needs a decision about what the endpoint
-#: should do. Recorded 2026-09-05; this list must shrink, never grow.
-KNOWN_BROKEN_AGENT_TOOL_PATHS = frozenset({
-    "/sep/ueciids/search",
-    "/sep/ueciids",
-    "/community/posts/{}/requeue",
-    "/community-intel/{}/report",
-    "/marketplace/escrow/{}/dispute/vote",
-})
-
-
-#: A quoted absolute path in Python source, in any of the three quote styles.
-_TOOL_PATH = re.compile(r"""['"`](/[a-z0-9][^'"`\s]*)['"`]""")
+#: This list must shrink, never grow.
+KNOWN_BROKEN_AGENT_TOOL_PATHS: frozenset[str] = frozenset()
 
 
 def _gateway_routes() -> set[str]:
@@ -161,31 +144,76 @@ def test_a_declared_base_url_really_has_routes_under_it() -> None:
         )
 
 
-def test_no_new_ghost_paths_in_the_agent_tools() -> None:
-    """SOVA's tools call the gateway over HTTP and have the same defect.
+def _tool_call_paths(source: str) -> list[tuple[int, str]]:
+    """(line, path) for absolute paths the code *uses*, ignoring prose.
 
-    Five of them address routes that do not exist, so those tools return their
-    error branch every time they are called. They are recorded in
-    KNOWN_BROKEN_AGENT_TOOL_PATHS rather than fixed here because the repair is
-    a schema decision, not a rename — but a third one must not be able to join
-    them quietly.
+    Parsed rather than matched. A regex over quoted strings also finds paths
+    written in a docstring — including the docstring that explains why a route
+    does not exist, which is how this guard first flagged its own explanation.
+    Docstrings are bare string expressions, so the AST separates them from
+    strings the code actually passes somewhere.
+    """
+    tree = ast.parse(source)
+    docstrings: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            body = getattr(node, "body", [])
+            if (
+                body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                docstrings.add(id(body[0].value))
+
+    # An f-string's literal fragments are Constant children of the JoinedStr,
+    # so walking both reported `/rotate` out of
+    # `f"/communities/{id}/rotate"` as a path of its own.
+    in_fstring: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            for v in node.values:
+                in_fstring.add(id(v))
+
+    out: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if id(node) in docstrings or id(node) in in_fstring:
+                continue
+            text = node.value
+        elif isinstance(node, ast.JoinedStr):
+            # An f-string: rebuild it with `{}` where the interpolations are.
+            text = "".join(
+                v.value if isinstance(v, ast.Constant) and isinstance(v.value, str) else "{}"
+                for v in node.values
+            )
+        else:
+            continue
+        if not text.startswith("/") or len(text) < 2 or not text[1].islower():
+            continue
+        out.append((node.lineno, text.split("?")[0].rstrip("/")))
+    return out
+
+
+def test_no_new_ghost_paths_in_the_agent_tools() -> None:
+    """SOVA's tools call the gateway over HTTP and had the same defect.
+
+    Five of them addressed routes that do not exist, so those tools returned
+    their error branch on every invocation. Two were repointed at the real
+    routes and three now refuse with a reason, so
+    KNOWN_BROKEN_AGENT_TOOL_PATHS is empty — a sixth must not be able to join
+    it quietly.
     """
     tools = _ROOT / "warden" / "agent" / "tools.py"
     routes = _gateway_routes()
     unexpected: list[str] = []
 
-    for n, line in enumerate(tools.read_text(encoding="utf-8").splitlines(), 1):
-        if line.lstrip().startswith("#"):
+    for lineno, path in _tool_call_paths(tools.read_text(encoding="utf-8")):
+        if path in KNOWN_BROKEN_AGENT_TOOL_PATHS:
             continue
-        for m in re.finditer(_TOOL_PATH, line):
-            path = m.group(1).split("?")[0].rstrip("/")
-            # f-string interpolations stand in for path params.
-            norm = re.sub(r"\{[^}]+\}", "{}", path)
-            if norm in KNOWN_BROKEN_AGENT_TOOL_PATHS or path in KNOWN_BROKEN_AGENT_TOOL_PATHS:
-                continue
-            if _resolves(norm, routes):
-                continue
-            unexpected.append(f"warden/agent/tools.py:{n}: {path}")
+        if _resolves(path, routes):
+            continue
+        unexpected.append(f"warden/agent/tools.py:{lineno}: {path}")
 
     assert not unexpected, (
         "these agent tools call gateway paths that do not exist, so they fail "
