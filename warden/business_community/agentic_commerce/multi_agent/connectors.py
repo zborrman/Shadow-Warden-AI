@@ -48,7 +48,9 @@ async def claude_proposal(request: str) -> AgentProposal | None:
     if not _ANTHROPIC_KEY:
         return None
     try:
-        import anthropic, json as _json
+        import json as _json
+
+        import anthropic
         client = anthropic.AsyncAnthropic(api_key=_ANTHROPIC_KEY)
         msg = await client.messages.create(
             model="claude-haiku-4-5-20251001",
@@ -66,7 +68,9 @@ async def gemini_proposal(request: str) -> AgentProposal | None:
     if not _GEMINI_KEY:
         return None
     try:
-        import httpx, json as _json
+        import json as _json
+
+        import httpx
         url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"gemini-1.5-flash-latest:generateContent?key={_GEMINI_KEY}"
@@ -87,7 +91,9 @@ async def gpt_proposal(request: str) -> AgentProposal | None:
     if not _OPENAI_KEY:
         return None
     try:
-        import httpx, json as _json
+        import json as _json
+
+        import httpx
         headers = {"Authorization": f"Bearer {_OPENAI_KEY}", "Content-Type": "application/json"}
         payload = {
             "model": "gpt-4o-mini",
