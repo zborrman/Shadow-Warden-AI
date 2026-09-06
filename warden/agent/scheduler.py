@@ -304,6 +304,104 @@ async def sova_community_watchdog(ctx: dict) -> dict:
     }
 
 
+async def sova_commerce_watchdog(ctx: dict) -> dict:
+    """
+    Hourly (:50) — Agentic Marketplace watchdog.  LLM-free: direct tool calls.
+
+    Alerts Slack when:
+      • a spending mandate is at/over its cap, or past expiry while still ACTIVE
+      • an auction winner has risk_score >= COMMERCE_WATCHDOG_RISK (default 0.7)
+      • an order's settled receipt is missing / zero / mismatched
+        (the "$0.00 settlement" ghost-schema canary)
+    """
+    log.info("sova: commerce watchdog [%s]", _ts())
+
+    import os  # noqa: PLC0415
+
+    from warden.agent.tools import (  # noqa: PLC0415
+        get_agentic_spend,
+        get_commerce_auction,
+        list_commerce_auctions,
+        reconcile_orders,
+    )
+
+    tenant_id  = os.getenv("DEFAULT_TENANT_ID", "default")
+    risk_limit = float(os.getenv("COMMERCE_WATCHDOG_RISK", "0.7"))
+    alerts: list[str] = []
+
+    # ── 1. Mandate budget + expiry ───────────────────────────────────────────
+    try:
+        spend = await get_agentic_spend(tenant_id=tenant_id)
+        now   = datetime.now(UTC)
+        for m in spend.get("mandates", []) if isinstance(spend, dict) else []:
+            cap  = float(m.get("max_amount", 0) or 0)
+            used = float(m.get("spent", 0) or 0)
+            mid  = str(m.get("id", "?"))[:8]
+            if cap > 0 and used >= cap:
+                alerts.append(f"mandate `{mid}` at/over cap: ${used:.2f} / ${cap:.2f}")
+            elif cap > 0 and used / cap >= 0.8:
+                alerts.append(f"mandate `{mid}` at {used / cap:.0%} of cap (${used:.2f} / ${cap:.2f})")
+            vu = m.get("valid_until", "")
+            try:
+                if vu and datetime.fromisoformat(vu.replace("Z", "+00:00")) < now \
+                   and str(m.get("status", "")).upper() == "ACTIVE":
+                    alerts.append(f"mandate `{mid}` is past expiry ({vu[:10]}) but still ACTIVE")
+            except ValueError:
+                pass
+    except Exception as exc:  # noqa: BLE001
+        log.warning("commerce watchdog: spend check failed: %s", exc)
+
+    # ── 2. Auction winner risk ───────────────────────────────────────────────
+    risky_auctions = 0
+    try:
+        listing = await list_commerce_auctions(limit=20, tenant_id=tenant_id)
+        for a in listing.get("auctions", []) if isinstance(listing, dict) else []:
+            aid = a.get("id")
+            if not aid:
+                continue
+            detail = await get_commerce_auction(auction_id=aid, tenant_id=tenant_id)
+            winner = (detail or {}).get("winner") or {}
+            rs = float(winner.get("risk_score", 0) or 0)
+            if rs >= risk_limit:
+                risky_auctions += 1
+                alerts.append(
+                    f"auction `{str(aid)[:8]}` winner risk_score={rs:.2f} "
+                    f"(vendor {winner.get('recommended_vendor', '?')})"
+                )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("commerce watchdog: auction check failed: %s", exc)
+
+    # ── 3. Order ↔ receipt reconciliation ────────────────────────────────────
+    mismatch_count = 0
+    try:
+        rec = await reconcile_orders(hours=24, tenant_id=tenant_id)
+        mismatch_count = rec.get("mismatch_count", 0)
+        for mm in rec.get("mismatches", [])[:5]:
+            alerts.append(
+                f"order `{str(mm.get('order_id'))[:8]}` {mm.get('reason')}: "
+                f"total ${mm.get('order_total')} vs settled {mm.get('settled_amount')}"
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("commerce watchdog: reconcile failed: %s", exc)
+
+    if alerts:
+        await _slack(
+            f"*SOVA Commerce Watchdog* [{_ts()}]\n"
+            + "\n".join(f"• {a}" for a in alerts[:15])
+            + (f"\n_…and {len(alerts) - 15} more_" if len(alerts) > 15 else "")
+        )
+
+    log.info("commerce watchdog: complete — alerts=%d risky_auctions=%d mismatches=%d",
+             len(alerts), risky_auctions, mismatch_count)
+    return {
+        "status":         "alerted" if alerts else "ok",
+        "ts":             _ts(),
+        "alerts":         len(alerts),
+        "risky_auctions": risky_auctions,
+        "mismatches":     mismatch_count,
+    }
+
+
 async def sova_corpus_watchdog(ctx: dict) -> dict:
     """
     Every 30 minutes — lightweight corpus and circuit breaker health check.

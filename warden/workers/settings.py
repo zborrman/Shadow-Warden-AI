@@ -42,6 +42,7 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from warden.agent.scheduler import (
+    sova_commerce_watchdog,
     sova_community_watchdog,
     sova_corpus_watchdog,
     sova_morning_brief,
@@ -98,6 +99,7 @@ class WorkerSettings:
         sova_corpus_watchdog,
         sova_visual_patrol,
         sova_community_watchdog,
+        sova_commerce_watchdog,      # PR-7 — Agentic Marketplace watchdog
         sova_obsidian_watchdog,
         sova_overage_billing,        # BL-19
         # Online learning pipeline
@@ -159,6 +161,9 @@ class WorkerSettings:
 
         # ── Community moderation watchdog — every hour ────────────────────────
         cron(sova_community_watchdog, minute=20, timeout=120),
+
+        # ── Agentic Marketplace watchdog — every hour at :50 (PR-7) ──────────
+        cron(sova_commerce_watchdog, minute=50, timeout=120),
 
         # ── Config drift + canary probe — every 15 minutes ───────────────────
         cron(watch_config_drift, minute={0, 15, 30, 45}, timeout=60),

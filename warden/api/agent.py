@@ -198,6 +198,7 @@ _MANUAL_TASKS = {
     "corpus-watchdog":  "sova_corpus_watchdog",
     "visual-patrol":    "sova_visual_patrol",
     "community-lookup": "sova_community_watchdog",
+    "commerce-watchdog": "sova_commerce_watchdog",
 }
 
 

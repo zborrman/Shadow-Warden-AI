@@ -83,6 +83,7 @@ Available job names (hyphenated — these are the `_MANUAL_TASKS` keys):
 | `corpus-watchdog` | Every 30 min |
 | `visual-patrol` | Daily 03:00 UTC |
 | `community-lookup` | maps to `sova_community_watchdog` |
+| `commerce-watchdog` | Every hour at :50 — mandate caps, auction risk, order↔receipt reconciliation |
 
 ---
 

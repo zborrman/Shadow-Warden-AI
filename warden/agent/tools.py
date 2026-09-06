@@ -1228,6 +1228,58 @@ async def get_commerce_auction(auction_id: str, tenant_id: str = "default", **_)
                       params={"tenant_id": tenant_id})
 
 
+async def reconcile_orders(hours: int = 24, tenant_id: str = "default", **_) -> dict:
+    """
+    Tool #57 — Reconcile recent agentic orders against their AP2 receipts.
+
+    For each PAID order in the window, compares the order line-item total to
+    the settled receipt amount. A missing receipt, a mismatch, or a $0.00
+    settlement on a non-zero order is a reconciliation failure — the exact
+    class of bug that let a marketplace settle every trade at $0.00 unnoticed.
+    """
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    cutoff = datetime.now(UTC) - timedelta(hours=max(1, int(hours)))
+    try:
+        listing = await _get(f"{_COMMERCE}/orders", tenant=tenant_id,
+                             params={"tenant_id": tenant_id, "limit": 200})
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc), "checked": 0, "mismatches": []}
+    orders = listing.get("orders", []) if isinstance(listing, dict) else []
+
+    checked = 0
+    mismatches: list[dict] = []
+    for o in orders:
+        ca = o.get("created_at", "") or ""
+        try:
+            if ca and datetime.fromisoformat(ca.replace("Z", "+00:00")) < cutoff:
+                continue
+        except ValueError:
+            pass
+        if o.get("status") != "PAID":
+            continue
+        checked += 1
+        total = float(o.get("total", 0) or 0)
+        try:
+            detail = await _get(f"{_COMMERCE}/orders/{o['id']}", tenant=tenant_id,
+                                params={"tenant_id": tenant_id})
+        except Exception:  # noqa: BLE001
+            continue
+        receipt = detail.get("receipt") if isinstance(detail, dict) else None
+        settled = float((receipt or {}).get("amount", 0) or 0)
+        if receipt is None or abs(settled - total) > 0.01:
+            mismatches.append({
+                "order_id":       o.get("id"),
+                "order_total":    total,
+                "settled_amount": None if receipt is None else settled,
+                "reason":         "no receipt" if receipt is None
+                                  else ("zero settlement" if settled == 0 else "amount mismatch"),
+            })
+
+    return {"window_hours": int(hours), "checked": checked,
+            "mismatch_count": len(mismatches), "mismatches": mismatches}
+
+
 # ── Anthropic tool schema definitions ────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -2002,6 +2054,18 @@ TOOLS: list[dict] = [
             "required": ["auction_id"],
         },
     },
+    {
+        "name": "reconcile_orders",
+        "description": (
+            "Reconcile recent PAID agentic orders against their AP2 receipts. Returns any "
+            "order whose settled receipt amount is missing, zero, or differs from the order "
+            "total — a settlement/ledger failure to escalate immediately."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"hours": {"type": "integer", "description": "Lookback window (default 24)"}},
+        },
+    },
 ]
 
 TOOL_HANDLERS: dict[str, Any] = {
@@ -2063,6 +2127,7 @@ TOOL_HANDLERS: dict[str, Any] = {
     "get_commerce_order":            get_commerce_order,
     "list_commerce_auctions":        list_commerce_auctions,
     "get_commerce_auction":          get_commerce_auction,
+    "reconcile_orders":              reconcile_orders,
     # Not in TOOLS (not model-callable) — executed only post-approval.
     "apply_community_recommendation": apply_community_recommendation,
 }
