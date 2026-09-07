@@ -347,8 +347,12 @@ class TestTheOperatorRelaysButCannotDecide:
             escrow.functions.resolveDispute(tid, True).transact({"from": op})
 
         # And the arbiter still can, so the refusal is about who asked.
+        # Exact, not `>= _AMOUNT`: the fixture mints the buyer 10x, so after one
+        # deposit it still holds 9x and the loose form passes whether or not the
+        # refund happened at all.
+        funded = token.functions.balanceOf(buyer).call()
         escrow.functions.resolveDispute(tid, True).transact({"from": arbiter})
-        assert token.functions.balanceOf(buyer).call() >= _AMOUNT
+        assert token.functions.balanceOf(buyer).call() == funded + _AMOUNT
 
     def test_the_operator_cannot_cancel_before_the_deadline(self, chain):
         """An early cancel refunds the buyer — a decision about who gets the
