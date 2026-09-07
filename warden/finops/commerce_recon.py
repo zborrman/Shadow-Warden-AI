@@ -96,14 +96,14 @@ def _load(tenant_id: str) -> tuple[list, list[dict], dict[str, dict], str]:
             # commerce_receipts has no tenant_id column — it is keyed by
             # order_id. Scope the read to this tenant's orders rather than
             # reading the whole table, which would be a cross-tenant read.
+            # json_each keeps this a constant SQL string with a single bound
+            # parameter, so no id is ever interpolated into the statement.
             order_ids = [str(o.get("id", "")) for o in orders if o.get("id")]
-            for chunk_start in range(0, len(order_ids), 400):
-                chunk = order_ids[chunk_start:chunk_start + 400]
-                placeholders = ",".join("?" * len(chunk))
+            if order_ids:
                 for row in con.execute(
-                    f"SELECT order_id, data_json FROM commerce_receipts "  # noqa: S608
-                    f"WHERE order_id IN ({placeholders})",
-                    chunk,
+                    "SELECT order_id, data_json FROM commerce_receipts "
+                    "WHERE order_id IN (SELECT value FROM json_each(?))",
+                    (json.dumps(order_ids),),
                 ).fetchall():
                     try:
                         receipts[row["order_id"]] = json.loads(row["data_json"])

@@ -107,13 +107,28 @@ class MultiAgentOrchestrator:
         return auction_id
 
     async def _enrich_with_risk(self, tenant_id: str, proposals) -> list:
+        """Raise each proposal's risk to the assessed supplier risk.
+
+        The enriched value is written back into ``p.raw`` as well as ``p.risk``:
+        only ``p.raw`` is persisted, so setting the attribute alone left every
+        stored auction carrying the bidding model's *self-reported* risk score.
+        ``risk_source`` records which of the two a reader is looking at.
+        """
+        for p in proposals:
+            p.raw.setdefault("risk_score", p.risk)
+            p.raw["risk_source"] = "self_reported"
         try:
             from warden.communities.supplier_risk import assess_supplier
             for p in proposals:
-                if p.vendor:
-                    score = assess_supplier(tenant_id, p.vendor)
-                    if score and isinstance(score, dict):
-                        p.risk = max(p.risk, score.get("composite_score", p.risk))
+                if not p.vendor:
+                    continue
+                score = assess_supplier(tenant_id, p.vendor)
+                if score and isinstance(score, dict):
+                    assessed = score.get("composite_score", p.risk)
+                    p.risk = max(p.risk, assessed)
+                    p.raw["risk_score"] = p.risk
+                    p.raw["assessed_risk"] = assessed
+                    p.raw["risk_source"] = "supplier_risk"
         except Exception as exc:
             log.debug("Supplier risk enrichment skipped: %s", exc)
         return proposals

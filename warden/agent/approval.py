@@ -29,7 +29,18 @@ import time
 log = logging.getLogger("warden.agent.approval")
 
 _TTL = 3600
-_SECRET = os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")
+
+
+def _secret() -> bytes:
+    """Signing key for approval tokens.
+
+    Resolved through :func:`warden.secret_keys.resolve_key` so it fails CLOSED
+    when unset in production. A module-level ``os.getenv(..., "<literal>")``
+    would make every approval token forgeable by anyone who can read the repo.
+    Same key material and purpose as master.py's task tokens.
+    """
+    from warden.secret_keys import resolve_key
+    return resolve_key("MASTER_AGENT_SECRET", purpose="master_agent")
 
 # Tool names that must not execute without a resolved approval token.
 GATED_ACTIONS: frozenset[str] = frozenset({
@@ -47,6 +58,9 @@ GATED_ACTIONS: frozenset[str] = frozenset({
     "apply_community_recommendation",
     "revoke_mandate",
     "approve_purchase_intent",
+    # AG-23 — both erase data irreversibly
+    "run_gdpr_purge",
+    "run_retention_enforce",
 })
 
 
@@ -54,8 +68,17 @@ class ApprovalStoreUnavailableError(RuntimeError):
     """Raised when the approval store cannot be reached — caller must fail closed."""
 
 
+#: Everything a redis round-trip can realistically fail with. Named explicitly
+#: rather than caught as a blanket ``Exception`` so a genuine bug in this module
+#: (a typo, a bad json payload) still surfaces instead of reading as "store down".
+_STORE_ERRORS: tuple[type[BaseException], ...] = (OSError, ValueError, TypeError)
+
+
 def _redis():
     import redis  # noqa: PLC0415
+    global _STORE_ERRORS
+    if redis.RedisError not in _STORE_ERRORS:
+        _STORE_ERRORS = (redis.RedisError, *_STORE_ERRORS)
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     if not url or url == "memory://":
         raise ApprovalStoreUnavailableError("REDIS_URL not configured for approvals")
@@ -63,9 +86,7 @@ def _redis():
         r = redis.from_url(url, decode_responses=True)
         r.ping()
         return r
-    except ApprovalStoreUnavailableError:
-        raise
-    except Exception as exc:  # noqa: BLE001
+    except _STORE_ERRORS as exc:
         raise ApprovalStoreUnavailableError(str(exc)) from exc
 
 
@@ -73,7 +94,7 @@ def issue(action: str, context: str, tenant_id: str, params: dict | None = None)
     """Create a pending approval and return its token. Raises if the store is down."""
     ts = int(time.time())
     payload = f"{action}:{hashlib.sha256(context.encode()).hexdigest()[:16]}:{ts}"
-    sig = hmac.new(_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()[:24]
+    sig = hmac.new(_secret(), payload.encode(), hashlib.sha256).hexdigest()[:24]
     token = f"appr-{sig}"
     r = _redis()
     r.setex(
@@ -142,8 +163,10 @@ def mark_consumed(token: str) -> None:
             data = json.loads(raw)
             data["consumed"] = True
             r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
-    except Exception:  # noqa: BLE001
-        pass
+    except (ApprovalStoreUnavailableError, *_STORE_ERRORS) as exc:
+        # Best-effort bookkeeping; try_consume() is the authoritative single-use
+        # claim, so a failure here cannot let a token execute twice.
+        log.warning("approval: mark_consumed failed for %s: %s", token, exc)
 
 
 def try_consume(token: str) -> bool:
@@ -164,7 +187,5 @@ def try_consume(token: str) -> bool:
         rec["consumed"] = True
         r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(rec))
         return True
-    except ApprovalStoreUnavailableError:
-        return False
-    except Exception:  # noqa: BLE001
-        return False
+    except (ApprovalStoreUnavailableError, *_STORE_ERRORS):
+        return False          # fail closed: an unclaimable token does not run

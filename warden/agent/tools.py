@@ -22,6 +22,7 @@ from typing import Any
 
 import httpx
 
+from warden.agent import approval as _approval
 from warden.agent.tool_budget import run_within_budget
 from warden.config import settings
 
@@ -80,8 +81,9 @@ async def _patch(path: str, body: dict, tenant: str = "default") -> Any:
 # image to Claude Vision runs the extracted text through /filter first.
 #
 # Fail-CLOSED by default: if OCR cannot run, or the filter check itself errors,
-# the image is NOT sent to the model. Set OCR_GATE_FAILOPEN=true to invert that
-# (recorded as a counted fail-open event, never silent).
+# the image is NOT sent to the model. Setting OCR_GATE_FAILOPEN=true inverts
+# that, and the bypass is then counted -- see the record_failopen() call in
+# _degraded() below, so an unscreened image is never silent.
 
 async def _ocr_injection_gate(
     images: list[tuple[str, str]],
@@ -753,6 +755,90 @@ async def list_commerce_orders(tenant_id: str = "default", limit: int = 50, **_)
         return {"tenant_id": tenant_id, "count": len(orders), "orders": orders}
     except Exception as exc:
         return {"error": str(exc)}
+
+
+# ── DataPrivacyAgent (AG-23) surface ─────────────────────────────────────────
+# These seven were listed in master._AGENT_TOOLS but never implemented, so the
+# allowlist intersection silently dropped them and the agent was left with four
+# tools while its system prompt instructed it to use all eleven. The routes all
+# exist; these are the missing adapters.
+
+async def get_gdpr_export(session_id: str, tenant_id: str = "default", **_) -> dict:
+    """Export all metadata recorded for a session (GDPR Art. 20)."""
+    return await _get(f"/gdpr/export/session/{session_id}", tenant=tenant_id)
+
+
+async def run_gdpr_purge(session_id: str, tenant_id: str = "default", **_) -> dict:
+    """Erase all traces of a session (GDPR Art. 17). Approval-gated — irreversible."""
+    return await _delete(f"/gdpr/purge/session/{session_id}", tenant=tenant_id)
+
+
+async def get_retention_policy(tenant_id: str = "default", **_) -> dict:
+    """Current per-data-class retention windows for a tenant."""
+    return await _get("/retention/policy", tenant=tenant_id)
+
+
+async def run_retention_enforce(tenant_id: str = "default", **_) -> dict:
+    """Trigger retention enforcement now. Approval-gated — it deletes data."""
+    return await _post("/retention/enforce", {}, tenant=tenant_id)
+
+
+async def list_secrets_inventory(
+    status: str = "",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """Secrets inventory for a tenant, optionally filtered by status."""
+    return await _get("/secrets/inventory", tenant=tenant_id,
+                      params={"status": status} if status else None)
+
+
+async def get_secrets_report(tenant_id: str = "default", **_) -> dict:
+    """Secrets governance report: rotation hygiene, expiry, risk distribution."""
+    return await _get("/secrets/report", tenant=tenant_id)
+
+
+async def get_compliance_posture(tenant_id: str = "default", **_) -> dict:
+    """Real-time compliance posture across all standards (CP-25)."""
+    return await _get("/compliance/posture", tenant=tenant_id)
+
+
+async def list_commerce_auctions(tenant_id: str = "default", limit: int = 20, **_) -> dict:
+    """List multi-agent procurement auctions for a tenant."""
+    try:
+        from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+            MultiAgentOrchestrator,
+        )
+        auctions = MultiAgentOrchestrator().list_auctions(tenant_id, limit=limit)
+        return {"tenant_id": tenant_id, "count": len(auctions), "auctions": auctions}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def revoke_mandate(mandate_id: str, tenant_id: str = "default", **_) -> dict:
+    """Revoke a spending mandate. Approval-gated — irreversible for in-flight orders."""
+    try:
+        from warden.business_community.agentic_commerce.ap2 import AP2Processor
+        ok = AP2Processor().revoke_mandate(mandate_id, tenant_id)
+        return {"revoked": bool(ok), "mandate_id": mandate_id, "tenant_id": tenant_id}
+    except Exception as exc:
+        return {"revoked": False, "mandate_id": mandate_id, "error": str(exc)}
+
+
+async def approve_purchase_intent(
+    workflow_id: str,
+    action: str = "approve",
+    tenant_id: str = "default",
+    **_,
+) -> dict:
+    """Approve or reject a pending MCP purchase intent. Approval-gated — it spends money."""
+    if action not in ("approve", "reject"):
+        return {"error": "action must be 'approve' or 'reject'"}
+    return await _post(
+        f"/business-community/commerce/approve/{workflow_id}"
+        f"?tenant_id={tenant_id}&action={action}",
+        {}, tenant_id,
+    )
 
 
 async def reconcile_orders(tenant_id: str = "default", **_) -> dict:
@@ -1752,6 +1838,116 @@ TOOLS: list[dict] = [
                 "limit":     {"type": "integer", "description": "Max orders (default 50)."},
                 "tenant_id": {"type": "string"},
             },
+        },
+    },
+    # ── Data privacy / GDPR (AG-23) ──────────────────────────────────────────
+    {
+        "name": "get_gdpr_export",
+        "description": "Export all metadata recorded for a session (GDPR Art. 20).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"session_id": {"type": "string"}, "tenant_id": {"type": "string"}},
+            "required": ["session_id"],
+        },
+    },
+    {
+        "name": "run_gdpr_purge",
+        "description": (
+            "Erase all traces of a session — evidence bundle, log entry, ERS keys "
+            "(GDPR Art. 17). Irreversible. REQUIRES_APPROVAL."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"session_id": {"type": "string"}, "tenant_id": {"type": "string"}},
+            "required": ["session_id"],
+        },
+    },
+    {
+        "name": "get_retention_policy",
+        "description": "Current retention window per data class for a tenant.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "run_retention_enforce",
+        "description": (
+            "Run retention enforcement now, deleting data past its window. "
+            "REQUIRES_APPROVAL."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "list_secrets_inventory",
+        "description": "Secrets inventory for a tenant, optionally filtered by status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status":    {"type": "string", "description": "Filter, e.g. 'active', 'expired'."},
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "get_secrets_report",
+        "description": "Secrets governance report: rotation hygiene, expiry, risk distribution.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "get_compliance_posture",
+        "description": "Real-time compliance posture across all standards, with per-framework scores.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "list_commerce_auctions",
+        "description": "List multi-agent procurement auctions for a tenant, with winner and proposals.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit":     {"type": "integer", "description": "Max auctions (default 20)."},
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "revoke_mandate",
+        "description": (
+            "Revoke a spending mandate so it can no longer authorise payments. "
+            "REQUIRES_APPROVAL — returns an approval token; a human must approve before it runs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mandate_id": {"type": "string"},
+                "tenant_id":  {"type": "string"},
+            },
+            "required": ["mandate_id"],
+        },
+    },
+    {
+        "name": "approve_purchase_intent",
+        "description": (
+            "Approve or reject a pending MCP purchase intent. This spends money. "
+            "REQUIRES_APPROVAL — returns an approval token; a human must approve before it runs."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workflow_id": {"type": "string"},
+                "action":      {"type": "string", "enum": ["approve", "reject"]},
+                "tenant_id":   {"type": "string"},
+            },
+            "required": ["workflow_id"],
         },
     },
     {
@@ -3065,7 +3261,20 @@ TOOL_HANDLERS: dict[str, Any] = {
     # Agentic Commerce read surface + reconciliation
     "list_mandates":                 list_mandates,
     "list_commerce_orders":          list_commerce_orders,
+    "list_commerce_auctions":        list_commerce_auctions,
     "reconcile_orders":              reconcile_orders,
+    # Agentic Commerce mutators — approval-gated (see approval.GATED_ACTIONS)
+    "revoke_mandate":                revoke_mandate,
+    "approve_purchase_intent":       approve_purchase_intent,
+    # DataPrivacyAgent (AG-23)
+    "get_gdpr_export":               get_gdpr_export,
+    "get_retention_policy":          get_retention_policy,
+    "list_secrets_inventory":        list_secrets_inventory,
+    "get_secrets_report":            get_secrets_report,
+    "get_compliance_posture":        get_compliance_posture,
+    # …and its two mutators — approval-gated
+    "run_gdpr_purge":                run_gdpr_purge,
+    "run_retention_enforce":         run_retention_enforce,
     # Document Intelligence (FE-50)
     "scan_document":                 scan_document,
     # Compliance Posture (CP-30)
@@ -3112,8 +3321,6 @@ _URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
 # OPERATOR tools appear solely when the caller sets operator_mode=True, and each
 # is additionally held behind the human-in-the-loop approval gate below, so the
 # agent can propose a mutation but never perform one unattended.
-
-from warden.agent import approval as _approval  # noqa: E402
 
 OPERATOR_TOOLS: frozenset[str] = _approval.GATED_ACTIONS & frozenset(TOOL_HANDLERS)
 READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
@@ -3223,18 +3430,19 @@ async def traced_dispatch(
         if _gate is not None:
             return _gate
 
-    # OTel unavailable/disabled — fail open to direct dispatch. Only the import +
-    # tracer acquisition are guarded here; exceptions from the handler itself are
-    # re-raised below (not swallowed), so a failing tool never runs twice.
+    # Only the import + tracer acquisition are guarded here; exceptions from the
+    # handler itself are re-raised below (not swallowed), so a failing tool never
+    # runs twice.
     try:
         import opentelemetry.trace as otel_trace
         tracer = otel_trace.get_tracer("sova.tool_dispatch")
     except Exception as _otel_err:
         from warden.observability import Reason as _Reason
         from warden.observability import record_failopen as _record_failopen
+        # Tracing unavailable/disabled: fail-open to direct dispatch, counted.
         _record_failopen("otel_tracing", _Reason.IMPORT_MISSING, _otel_err)
-        return _tag_untrusted(
-            tool_name, await run_within_budget(tool_name, lambda: handler(**tool_input)))
+        _out = await run_within_budget(tool_name, lambda: handler(**tool_input))
+        return _tag_untrusted(tool_name, _out)
 
     with tracer.start_as_current_span(f"sova.tool.{tool_name}") as span:
         span.set_attribute("tool.name", tool_name)

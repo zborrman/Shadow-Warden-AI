@@ -23,9 +23,56 @@
   atomic `try_consume()` single-use claim and exact tenant match. 14 tests.
   **Note:** upstream already has `_record_cost` in `sova.py` and `master.py` — the audit's
   cost-ledger gap is closed there, so `warden/agent/accounting.py` was dropped as dead code.
-- **Slice 3 (TODO):** PR-4 (`_untrusted` tags + `visual_assert_page` OCR + slack RL),
-  PR-7 (`reconcile_orders` + `sova_commerce_watchdog`), PR-8 (`SubAgent.COMMERCE` +
-  `/agent/sova/commerce/negotiate`).
+- **Slice 3a (PR-4):** `warden/ocr.py` gained `extract_text_from_b64_ex()` returning
+  `(text, status)` — the old function collapsed "no text in the image" and "OCR
+  backend missing" into `""`. `tools._ocr_injection_gate()` is one fail-CLOSED gate
+  for both vision tools (`OCR_GATE_FAILOPEN=true` inverts it and counts the bypass).
+  **`visual_diff`'s existing OCR pre-check had never run** — it posted `{"text": …}`
+  to `/filter`, which requires `content`, and the 422 was swallowed by a broad
+  `except` logging at debug. `visual_assert_page` had no gate at all. Plus
+  `UNTRUSTED_TOOLS` + `_tag_untrusted()` in `traced_dispatch` (16 tools),
+  a 12/hour Slack cap, and `check_commerce_budget` no longer returns
+  `{"allowed": true}` when its backend errors.
+- **Slice 3b (PR-7):** `warden/finops/commerce_recon.py` — cap breaches,
+  expired-but-ACTIVE mandates, spend drift (the $0.00 case named as the
+  ghost-schema signature), receipt gaps, $0.00 totals against real line items.
+  Same evidence vocabulary as `order_recon`: `not_available` is a failure, never a
+  clean pass. `sova_commerce_watchdog` cron hourly at :50, **LLM-free**, alerting
+  separately when it could not run. `reconcile_orders` / `list_mandates` /
+  `list_commerce_orders` tools. Also: `check_commerce_budget`, `get_spend_summary`,
+  `semantic_query` and `list_semantic_models` had handlers but **no schema**, so
+  the model could never call them — fixed, with a guard test asserting every
+  schema's required params exist in its handler signature.
+- **Slice 3c (PR-8):** `SubAgent.COMMERCE` + prompt; `revoke_mandate` /
+  `approve_purchase_intent` (auto-gated via `OPERATOR_TOOLS`);
+  `POST /agent/sova/commerce/negotiate` (Pro+, `settled: false`, tenant bound from
+  the key). `_enrich_with_risk` wrote `p.risk` but persisted `p.raw`, so every
+  stored auction carried the **bidding model's self-reported** risk; now written
+  where it is persisted with a `risk_source` label. `_AGENT_CHOICES` is derived
+  from the enum — `data_privacy` was hand-omitted from both decomposition prompts.
+  And AG-23's `DataPrivacyAgent` listed **7 tools that were never implemented**
+  (the allowlist intersection silently dropped them, leaving it 4 of 11 while its
+  prompt instructed it to use all 11); implemented against the existing
+  `/gdpr`, `/retention`, `/secrets` and `/compliance/posture` routes, with the two
+  destructive ones approval-gated.
+
+### Ratchets (run locally before pushing)
+
+All four green: `test_route_inventory` (2 routes added to the fixture by hand —
+**do not** regenerate here, the local dep set drops `warden.voice.api`),
+`test_no_new_counterless_failopen` (back to 200: my OCR comment now names its
+`record_failopen`, and the `_tag_untrusted` wrap had pushed the OTel bypass's
+counter out of the ±4-line coverage window), `test_no_new_raw_signing_key`
+(`approval.py` had `os.getenv("MASTER_AGENT_SECRET", "shadow-warden-master-v1")`
+— a repo-readable default makes every approval token forgeable; now
+`resolve_key(..., purpose="master_agent")`, the same key master.py uses), and
+`test_no_new_suppressions` (838→839; I removed 5 of my own — E402, S608, 3×
+BLE001 narrowed to real exception types — and kept 2: the conventional lazy
+`import redis` and one HTTP-boundary broad catch).
+
+⚠️ The route-inventory child subprocess imports from `os.getcwd()`. A stray `cd`
+into another worktree makes it silently measure *that* tree — it reported my new
+routes as ADDED, then REMOVED, from the same code.
 
 ## Audit findings re-checked against live `main` (084d4038)
 

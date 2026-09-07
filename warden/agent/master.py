@@ -65,6 +65,7 @@ class SubAgent(StrEnum):
     FORENSICS       = "forensics"
     COMPLIANCE      = "compliance"
     DATA_PRIVACY    = "data_privacy"    # AG-23
+    COMMERCE        = "commerce"        # PR-8 — Agentic Commerce
 
 
 # Tools available to each sub-agent
@@ -94,14 +95,29 @@ _AGENT_TOOLS: dict[SubAgent, list[str]] = {
     ],
     # AG-23: DataPrivacyAgent — GDPR, data retention, DPIA, PII governance
     SubAgent.DATA_PRIVACY: [
-        "get_compliance_art30", "get_gdpr_export", "get_gdpr_purge",
+        "get_compliance_art30", "get_gdpr_export", "run_gdpr_purge",
         "get_tenant_impact", "get_stats",
         "list_secrets_inventory", "get_secrets_report",
         "get_retention_policy", "run_retention_enforce",
         "get_compliance_posture",
         "send_slack_alert",
     ],
+    # PR-8: CommerceAgent — Agentic Commerce oversight. Read tools plus two
+    # mutators that are approval-gated in tools.OPERATOR_TOOLS, so the agent can
+    # propose revoking a mandate or approving an intent but cannot execute either.
+    SubAgent.COMMERCE: [
+        "list_mandates", "list_commerce_orders", "list_commerce_auctions",
+        "reconcile_orders", "get_spend_summary", "check_commerce_budget",
+        "get_financial_impact",
+        "revoke_mandate", "approve_purchase_intent",
+        "send_slack_alert",
+    ],
 }
+
+# Derived from the enum so a new sub-agent cannot be registered in _AGENT_TOOLS
+# and then silently never routed to: data_privacy was hand-omitted from both
+# decomposition prompts, so the supervisor was never offered it as a choice.
+_AGENT_CHOICES = "|".join(f'"{a.value}"' for a in SubAgent)
 
 _AGENT_PROMPTS: dict[SubAgent, str] = {
     SubAgent.SOVA_OPERATOR: (
@@ -144,6 +160,20 @@ _AGENT_PROMPTS: dict[SubAgent, str] = {
         "For GDPR export/purge requests: confirm tenant_id scope before acting and "
         "tag every purge as REQUIRES_APPROVAL. "
         "Report findings in structured tables: standard, status, score, gap, remediation."
+    ),
+    # PR-8
+    SubAgent.COMMERCE: (
+        "You are CommerceAgent, the Agentic Commerce oversight specialist. "
+        "Your domain: AP2 spending mandates, purchase orders and receipts, "
+        "multi-agent procurement auctions, and month-to-date agentic spend. "
+        "Always start with reconcile_orders — the books are the ground truth, and "
+        "a mandate's own spent_so_far has read $0.00 against paid orders in production. "
+        "Treat an 'evidence' of 'not_available' as a FAILED check, never a clean one: "
+        "say plainly that nothing was verified. "
+        "Quote dollar amounts to the cent and name the mandate or order id behind each. "
+        "You may propose revoking a mandate or approving a purchase intent; both are "
+        "REQUIRES_APPROVAL and will return an approval token rather than executing. "
+        "Never claim a payment settled — you cannot settle one."
     ),
 }
 
@@ -546,7 +576,7 @@ async def run_master(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        f'{{"agents": [{_AGENT_CHOICES}], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
     decomp_resp = await client.messages.create(
@@ -731,7 +761,7 @@ async def run_master_batch(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        f'{{"agents": [{_AGENT_CHOICES}], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
 

@@ -216,6 +216,68 @@ async def query_sova_stream(body: SovaRequest, request: Request, auth: AuthResul
     )
 
 
+class NegotiateRequest(BaseModel):
+    purchase_request: str = Field(..., min_length=1, max_length=2000,
+                                  description="What is being procured.")
+    budget_usd: float | None = Field(None, gt=0,
+                                     description="Hard ceiling; proposals above it are dropped.")
+    tenant_id: str | None = None   # ignored — bound from the API key
+
+
+@router.post(
+    "/sova/commerce/negotiate",
+    summary="Run a supervised procurement negotiation (no settlement)",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
+async def commerce_negotiate(
+    body: NegotiateRequest,
+    request: Request,
+    auth: AuthResult = AuthDep,
+) -> dict:
+    """
+    Run a multi-agent procurement auction and return the ranked proposals,
+    enriched with supplier risk.
+
+    **This endpoint never settles anything.** It buys nothing, creates no
+    mandate and moves no money — acting on the result means approving a
+    purchase intent, which is itself approval-gated. Pro+ (it spends model
+    tokens across three bidding agents).
+    """
+    from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+    if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "feature_gated",
+                    "message": "commerce negotiation requires PRO plan or higher."},
+        )
+
+    tenant_id = auth.tenant_id or "default"   # request-bound, never from the body
+
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+        MultiAgentOrchestrator,
+    )
+    orch = MultiAgentOrchestrator()
+    auction_id = await orch.run_auction(
+        tenant_id=tenant_id,
+        purchase_request=body.purchase_request,
+        budget_usd=body.budget_usd,
+    )
+    auction = orch.get_auction(auction_id, tenant_id) or {}
+    proposals = auction.get("proposals", [])
+
+    return {
+        "auction_id": auction_id,
+        "tenant_id":  tenant_id,
+        "settled":    False,
+        "note":       "Ranked proposals only — nothing was purchased and no mandate was "
+                      "created. To act on this, approve a purchase intent (approval-gated).",
+        "winner":     auction.get("winner"),
+        "proposals":  proposals,
+        "proposal_count": len(proposals),
+        "budget_usd": body.budget_usd,
+    }
+
+
 @router.delete(
     "/sova/{session_id}",
     status_code=204,
