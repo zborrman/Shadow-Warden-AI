@@ -7,6 +7,21 @@
 **Reference (do not merge):** PR #447 diff + `docs/audit-sova-integration.md` +
 `docs/plan-sova-remediation.md` (all on the old branch) hold the design and the tested code.
 
+## Progress
+
+- **Slice 1 (commit `62ecf7da`, pushed):** P0-1 tenant force (sova.py both loops +
+  master `_run_sub_agent`); `sova_agent_enabled` feature key; `/agent/sova` +
+  `/sova/stream` tier-gated; tenant bound from `auth.tenant_id` everywhere;
+  `MasterRequest.auto_approve` removed (F1); `approval.py` + `accounting.py` dropped in.
+  37 tests green, ruff clean.
+- **Slice 2 (TODO):** wire `_gated` into `tools.py` (READ/OPERATOR split, `tools_for` /
+  `handlers_for` — must compose with upstream `_select_tools`/`tool_profile`);
+  `operator_mode` param through `run_query`/`stream_query`; `POST /agent/execute/{token}`;
+  `record_llm_spend` calls in sova/master/healer; sub-agent `pending_approvals`.
+- **Slice 3 (TODO):** PR-4 (`_untrusted` tags + `visual_assert_page` OCR + slack RL),
+  PR-7 (`reconcile_orders` + `sova_commerce_watchdog`), PR-8 (`SubAgent.COMMERCE` +
+  `/agent/sova/commerce/negotiate`).
+
 ## Audit findings re-checked against live `main` (084d4038)
 
 | Finding | Live state | Action |
