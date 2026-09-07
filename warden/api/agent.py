@@ -235,6 +235,7 @@ _MANUAL_TASKS = {
     "corpus-watchdog":  "sova_corpus_watchdog",
     "visual-patrol":    "sova_visual_patrol",
     "community-lookup": "sova_community_watchdog",
+    "commerce-watchdog": "sova_commerce_watchdog",
 }
 
 
@@ -254,6 +255,7 @@ async def trigger_task(job: str, auth: AuthResult = AuthDep) -> TaskResponse:
     - `sla-report`      — 7-day SLA compliance report → Slack
     - `upgrade-scan`    — identify tenants near quota limit
     - `corpus-watchdog` — check circuit breaker + bypass rate
+    - `commerce-watchdog` — reconcile mandates/orders/receipts (no LLM)
     """
     if job not in _MANUAL_TASKS:
         raise HTTPException(

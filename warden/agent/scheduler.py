@@ -15,6 +15,7 @@ Cron schedule (UTC)
   sova_upgrade_scan       — every Sunday 10:00
   sova_corpus_watchdog    — every 30 minutes (delegates to WardenHealer)
   sova_visual_patrol      — daily 03:00 (ScreencastRecorder + Claude Vision → MinIO)
+  sova_commerce_watchdog  — hourly at :50 (LLM-free money reconciliation)
 """
 from __future__ import annotations
 
@@ -306,6 +307,66 @@ async def sova_community_watchdog(ctx: dict) -> dict:
         "warn_verdicts":  warn_verdicts,
         "sampled":        len(posts),
     }
+
+
+async def sova_commerce_watchdog(ctx: dict) -> dict:
+    """
+    Hourly at :50 — Agentic Commerce money reconciliation. **No LLM.**
+
+    Deliberately arithmetic, not agentic: this watchdog exists because the
+    money layer has silently disagreed with itself before (clearing settled
+    every trade at $0.00 for months, and live mandates currently report
+    $4 000 authorised against $0.00 spent). A check on that class of defect
+    must not itself depend on a model's judgement.
+
+    Alerts on any critical finding, and — separately — whenever the check could
+    not run at all. "The reconciler was down" and "the books balance" must never
+    look the same in Slack.
+    """
+    log.info("sova: commerce watchdog [%s]", _ts())
+
+    from warden.finops.commerce_recon import reconcile_commerce
+    from warden.observability import NOT_AVAILABLE
+
+    tenant_id = settings.default_tenant_id
+    try:
+        report = reconcile_commerce(tenant_id)
+    except Exception as exc:
+        log.error("commerce watchdog: reconciliation raised: %s", exc)
+        await _slack(f"*Commerce Watchdog* [{_ts()}]\n:rotating_light: reconciliation "
+                     f"crashed for `{tenant_id}`: {exc}")
+        return {"status": "error", "ts": _ts(), "error": str(exc)}
+
+    if report["evidence"] == NOT_AVAILABLE:
+        await _slack(
+            f"*Commerce Watchdog* [{_ts()}]\n"
+            f":warning: reconciliation could not read the commerce tables for "
+            f"`{tenant_id}` — nothing was verified this run."
+        )
+        return {"status": "degraded", "ts": _ts(), **report}
+
+    findings = report["findings"]
+    if findings:
+        lines = [
+            f"• `{f['type']}` ({f['severity']}) "
+            f"{f.get('mandate_id') or f.get('order_id', '')}: {f['detail']}"
+            for f in findings[:10]
+        ]
+        more = f"\n…and {len(findings) - 10} more" if len(findings) > 10 else ""
+        icon = ":rotating_light:" if report["critical"] else ":warning:"
+        await _slack(
+            f"*Commerce Watchdog* [{_ts()}] {icon}\n"
+            f"{len(findings)} finding(s), {report['critical']} critical across "
+            f"{report['mandates_checked']} mandate(s) / {report['orders_checked']} order(s)\n"
+            + "\n".join(lines) + more
+        )
+        log.warning("commerce watchdog: %d findings (%d critical) by_type=%s",
+                    len(findings), report["critical"], report["by_type"])
+        return {"status": "alerted", "ts": _ts(), **report}
+
+    log.info("commerce watchdog: clean — %d mandates / %d orders (evidence=%s)",
+             report["mandates_checked"], report["orders_checked"], report["evidence"])
+    return {"status": "ok", "ts": _ts(), **report}
 
 
 async def sova_corpus_watchdog(ctx: dict) -> dict:

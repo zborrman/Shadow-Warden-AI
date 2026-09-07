@@ -734,6 +734,46 @@ async def get_spend_summary(
         return {"error": str(exc)}
 
 
+async def list_mandates(tenant_id: str = "default", **_) -> dict:
+    """Spending mandates for a tenant, with authorised/spent/remaining totals."""
+    try:
+        from warden.business_community.agentic_commerce.ap2 import AP2Processor
+        return AP2Processor().get_mandate_usage(tenant_id)
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def list_commerce_orders(tenant_id: str = "default", limit: int = 50, **_) -> dict:
+    """Agentic Commerce purchase-order history for a tenant."""
+    try:
+        from warden.business_community.agentic_commerce.service import (
+            AgenticCommerceService,
+        )
+        orders = AgenticCommerceService().get_order_history(tenant_id, limit=limit)
+        return {"tenant_id": tenant_id, "count": len(orders), "orders": orders}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+async def reconcile_orders(tenant_id: str = "default", **_) -> dict:
+    """
+    Reconcile mandates, purchase orders and receipts for a tenant.
+
+    Read-only arithmetic over the commerce tables — no LLM, no network. Reports
+    cap breaches, mandates past valid_until still ACTIVE, spend that paid orders
+    record but the mandate does not, orders marked PAID with no receipt, and
+    receipts whose amount disagrees with the order.
+
+    ``evidence="not_available"`` means the check could not read the tables — that
+    is a failure, not a clean run.
+    """
+    try:
+        from warden.finops.commerce_recon import reconcile_commerce
+        return reconcile_commerce(tenant_id)
+    except Exception as exc:
+        return {"ok": False, "evidence": "not_available", "error": str(exc)}
+
+
 async def list_semantic_models(
     tenant_id: str = "default",
     **_,
@@ -1656,6 +1696,98 @@ TOOLS: list[dict] = [
     {
         "name": "get_billing_quota",
         "description": "Get current monthly request usage and quota percentage for a tenant.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    # ── Agentic Commerce ─────────────────────────────────────────────────────
+    # check_commerce_budget / get_spend_summary / semantic_query /
+    # list_semantic_models had handlers but no schema, so the model could never
+    # call them. Declared here alongside the new commerce read + recon tools.
+    {
+        "name": "check_commerce_budget",
+        "description": (
+            "Pre-flight budget check for a proposed Agentic Commerce payment. Returns "
+            "allow / require_approval / block with MTD spend and remaining budget. "
+            "Fails CLOSED: if the budget backend is unreachable the answer is "
+            "require_approval, never allow."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "amount_usd": {"type": "number", "description": "Proposed payment in USD."},
+                "merchant":   {"type": "string", "description": "Merchant domain (audit)."},
+                "department": {"type": "string", "description": "Cost center."},
+                "tenant_id":  {"type": "string"},
+            },
+            "required": ["amount_usd"],
+        },
+    },
+    {
+        "name": "get_spend_summary",
+        "description": "Month-to-date agentic spend for a tenant: budget utilisation %, remaining budget.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "list_mandates",
+        "description": (
+            "List AP2 spending mandates for a tenant with authorised, spent and remaining "
+            "totals per mandate, plus status and expiry."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "list_commerce_orders",
+        "description": "Agentic Commerce purchase-order history for a tenant (most recent first).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit":     {"type": "integer", "description": "Max orders (default 50)."},
+                "tenant_id": {"type": "string"},
+            },
+        },
+    },
+    {
+        "name": "reconcile_orders",
+        "description": (
+            "Reconcile mandates, purchase orders and receipts for a tenant. Reports mandate "
+            "cap breaches, expired-but-ACTIVE mandates, spend that paid orders record but the "
+            "mandate does not, PAID orders with no receipt, and receipt/order amount "
+            "disagreements. Read-only arithmetic. An 'evidence' of 'not_available' means the "
+            "check could not run — treat that as a failure, not a clean result."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"tenant_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "semantic_query",
+        "description": "Run a Semantic Layer query (named model + metrics/dimensions) and return rows.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "model_id":   {"type": "string", "description": "Registered semantic model id."},
+                "metrics":    {"type": "array", "items": {"type": "string"}},
+                "dimensions": {"type": "array", "items": {"type": "string"}},
+                "filters":    {"type": "array", "items": {"type": "object"}},
+                "limit":      {"type": "integer"},
+                "intent":     {"type": "string", "description": "Why this query is being run (audit)."},
+                "tenant_id":  {"type": "string"},
+            },
+            "required": ["model_id", "metrics"],
+        },
+    },
+    {
+        "name": "list_semantic_models",
+        "description": "List registered Semantic Layer models with their metrics and dimensions.",
         "input_schema": {
             "type": "object",
             "properties": {"tenant_id": {"type": "string"}},
@@ -2930,6 +3062,10 @@ TOOL_HANDLERS: dict[str, Any] = {
     # Commerce budget (Semantic Layer–backed)
     "check_commerce_budget":         check_commerce_budget,
     "get_spend_summary":             get_spend_summary,
+    # Agentic Commerce read surface + reconciliation
+    "list_mandates":                 list_mandates,
+    "list_commerce_orders":          list_commerce_orders,
+    "reconcile_orders":              reconcile_orders,
     # Document Intelligence (FE-50)
     "scan_document":                 scan_document,
     # Compliance Posture (CP-30)

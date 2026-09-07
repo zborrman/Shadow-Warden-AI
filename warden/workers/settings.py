@@ -31,6 +31,7 @@ Environment variables
     OSV API dependency CVE scan → data/cve_report.json → Slack on new CRITICALs.
 
   sova_community_watchdog     — every hour at :20
+  sova_commerce_watchdog      — every hour at :50 (LLM-free money reconciliation)
     Auto-blocks WARN-scored posts ≥ 0.85; alerts Slack on any BLOCK verdicts.
 """
 from __future__ import annotations
@@ -46,6 +47,7 @@ from arq import cron
 from arq.connections import RedisSettings
 
 from warden.agent.scheduler import (
+    sova_commerce_watchdog,
     sova_community_watchdog,
     sova_corpus_watchdog,
     sova_error_budget_alert,
@@ -100,7 +102,7 @@ _REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # ── OB-4: worker observability ───────────────────────────────────────────────
 # This container has no HTTP surface, so until OB-4 nothing here was scrapeable:
-# 31 cron jobs — the nightly encrypted backup, overage settlement, ledger and
+# 32 cron jobs — the nightly encrypted backup, overage settlement, ledger and
 # hold reconciliation, x402 settlement, the clearing outbox relay, the AML sweep
 # — ran with no `up` series, no duration, no failure counter. A cron that stops
 # firing looks exactly like a cron that runs and finds nothing to do.
@@ -215,6 +217,7 @@ class WorkerSettings:
         sova_error_budget_alert,     # FM-5 — SLA burn-rate alerts
         sova_visual_patrol,
         sova_community_watchdog,
+        sova_commerce_watchdog,
         sova_obsidian_watchdog,
         sova_overage_billing,        # BL-19
         sova_marketplace_state_sync, # M2M loop state
@@ -302,6 +305,9 @@ class WorkerSettings:
 
         # ── Community moderation watchdog — every hour ────────────────────────
         cron(sova_community_watchdog, minute=20, timeout=120),
+
+        # ── Commerce money reconciliation — every hour at :50 ────────────────
+        cron(sova_commerce_watchdog, minute=50, timeout=120),
 
         # ── Config drift + canary probe — every 15 minutes ───────────────────
         cron(watch_config_drift, minute={0, 15, 30, 45}, timeout=60),
