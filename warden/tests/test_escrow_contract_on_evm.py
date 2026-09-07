@@ -343,7 +343,7 @@ class TestTheOperatorRelaysButCannotDecide:
         tid = _deposit(escrow, token, buyer, seller, op)
         escrow.functions.raiseDispute(tid, "stalled").transact({"from": op})
 
-        with pytest.raises(TransactionFailed):
+        with expect_revert("NotArbiter"):
             escrow.functions.resolveDispute(tid, True).transact({"from": op})
 
         # And the arbiter still can, so the refusal is about who asked.
@@ -357,7 +357,11 @@ class TestTheOperatorRelaysButCannotDecide:
         op = self._operator(w3, escrow)
         tid = _deposit(escrow, token, buyer, seller, op)
 
-        with pytest.raises(TransactionFailed):
+        # DeadlineNotReached, not NotArbiter: `cancelDeposit` has no identity
+        # guard of its own — before the deadline it admits only the arbiter, and
+        # after it admits anyone. Naming the error is what surfaced that; the
+        # broad assertion could not tell the two guards apart.
+        with expect_revert("DeadlineNotReached"):
             escrow.functions.cancelDeposit(tid).transact({"from": op})
 
         escrow.functions.cancelDeposit(tid).transact({"from": arbiter})
@@ -416,5 +420,5 @@ class TestTheOperatorRelaysButCannotDecide:
         """Adding an allowed sender must not widen the door for anyone else."""
         w3, escrow, token, arbiter, buyer, seller = chain
         stranger = w3.eth.accounts[4]
-        with pytest.raises(TransactionFailed):
+        with expect_revert("NotBuyer"):
             _deposit(escrow, token, buyer, seller, stranger, trade_id=b"\x09" * 32)
