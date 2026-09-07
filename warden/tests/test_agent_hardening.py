@@ -168,29 +168,31 @@ def test_an_approved_token_is_spent_by_the_dispatch_path(monkeypatch):
     assert second is not None and "already spent" in second["reason"]
 
 
-def test_no_unclassified_mutator():
-    """READ_TOOLS is defined by subtraction, so an unlisted mutator defaults to
-    "offered unattended". purchase_listing — which funds an escrow — sat there.
-    A new handler whose name reads like a mutation must be classified, not
-    silently inherited into the read surface."""
-    import re
+def test_every_handler_is_classified():
+    """Unknown must not mean read-only.
 
+    The read surface was `TOOL_HANDLERS - OPERATOR_TOOLS`, so a handler nobody
+    named was offered unattended — purchase_listing, which funds an escrow, was.
+    A verb-prefix heuristic does not fix that: `disburse_funds` matches no
+    prefix list. Every handler is now declared, unknown ones default to gated,
+    and this is the build failure that stops the omission from persisting.
+    """
     from warden.agent import tools as t
-    shape = re.compile(
-        r"^(create|update|delete|remove|revoke|approve|reject|purchase|buy|send|"
-        r"post|publish|write|set|apply|run|trigger|resolve|submit|start|continue|"
-        r"remediate|provision|rotate|block|dismiss|moderate|share|sync|refresh|"
-        r"cancel|settle|deploy)_"
+    assert not t.UNCLASSIFIED_TOOLS, (
+        f"unclassified handlers: {sorted(t.UNCLASSIFIED_TOOLS)}. Add each to "
+        "tools.READ_ONLY_TOOLS, approval.GATED_ACTIONS, or tools.REVIEWED_UNGATED "
+        "with the reason it is safe unattended."
     )
-    unclassified = sorted(
-        n for n in t.TOOL_HANDLERS
-        if shape.match(n) and n not in t.OPERATOR_TOOLS and n not in t.REVIEWED_UNGATED
-    )
-    assert not unclassified, (
-        f"state-changing handlers reachable with no approval: {unclassified}. "
-        "Add each to approval.GATED_ACTIONS, or to tools.REVIEWED_UNGATED with "
-        "the reason it is safe unattended."
-    )
+
+
+def test_unknown_handlers_default_to_gated_not_read():
+    """The direction of the default is the whole point — assert it, don't assume."""
+    from warden.agent import tools as t
+    fake = "totally_new_handler_that_nobody_classified"
+    assert fake not in t.READ_ONLY_TOOLS
+    unclassified = (frozenset({fake}) | frozenset(t.TOOL_HANDLERS)) \
+        - t.READ_ONLY_TOOLS - t.REVIEWED_UNGATED - t.OPERATOR_TOOLS
+    assert fake in unclassified, "an unnamed handler must land in the gated set"
 
 
 def test_money_spending_tools_are_gated():

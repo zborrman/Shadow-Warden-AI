@@ -349,9 +349,12 @@ async def sova_commerce_watchdog(ctx: dict) -> dict:
 
     # The default tenant is checked even when it holds no rows yet, so a first
     # bad write there is caught on the next run rather than the next deploy.
+    # It goes FIRST, before the cap: appending it and then slicing would drop it
+    # on every run as soon as discovery alone filled max_tenants, while this
+    # docstring went on claiming it is always checked.
     default_tid = settings.default_tenant_id
-    if default_tid and default_tid not in tenants:
-        tenants.append(default_tid)
+    if default_tid:
+        tenants = [default_tid] + [t for t in tenants if t != default_tid]
 
     truncated = max(0, len(tenants) - max_tenants)
     tenants = tenants[:max_tenants]
@@ -365,7 +368,10 @@ async def sova_commerce_watchdog(ctx: dict) -> dict:
         try:
             report = reconcile_commerce(tid)
         except Exception as exc:              # one tenant must not end the sweep
-            log.warning("commerce watchdog: %s raised: %s", tid, exc)
+            # Type only: a malformed persisted field can put the raw value into
+            # the exception text, and this log line is not a place for content.
+            log.warning("commerce watchdog: tenant %s unreadable (%s)",
+                        tid, type(exc).__name__)
             unreadable.append(tid)
             continue
         if report["evidence"] == NOT_AVAILABLE:

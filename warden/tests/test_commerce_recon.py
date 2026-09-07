@@ -303,6 +303,29 @@ async def test_watchdog_is_quiet_when_clean(monkeypatch):
     assert out["tenants_checked"] >= 2
 
 
+@pytest.mark.asyncio
+async def test_the_default_tenant_survives_the_cap(monkeypatch):
+    """Appending the default tenant and then slicing dropped it on every run
+    once discovery alone filled the cap — while the docstring claimed it is
+    always checked."""
+    from warden.agent import scheduler as sch
+    from warden.config import settings
+    seen: list[str] = []
+
+    def _per_tenant(tid):
+        seen.append(tid)
+        return _report(tid)
+
+    discovered = [f"t-{i}" for i in range(600)]      # more than the 500 cap
+    assert settings.default_tenant_id not in discovered
+    _patch_watchdog(monkeypatch, sch, discovered, COUNTED, _per_tenant)
+
+    out = await sch.sova_commerce_watchdog({})
+    assert settings.default_tenant_id in seen
+    assert out["truncated"] > 0                       # the cap did apply
+    assert out["tenants_checked"] == 500
+
+
 async def _noop() -> None:
     return None
 

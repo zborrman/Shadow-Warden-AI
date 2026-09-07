@@ -3329,15 +3329,39 @@ _URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
 # is additionally held behind the human-in-the-loop approval gate below, so the
 # agent can propose a mutation but never perform one unattended.
 
-# READ_TOOLS is defined by subtraction, which means the default for a newly
-# registered handler is "offered unattended". That default is wrong, and it was
-# not theoretical: purchase_listing (creates an AP2 mandate and funds an escrow)
-# and six other mutators sat in the read surface because nothing had named them.
-# GATED_ACTIONS is therefore the declared mutator set, and
-# tests/test_agent_hardening.py::test_no_unclassified_mutator fails on any new
-# handler whose name reads like a mutation and is not listed in one of the two.
-OPERATOR_TOOLS: frozenset[str] = _approval.GATED_ACTIONS & frozenset(TOOL_HANDLERS)
-READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
+# Every handler must be classified. The read surface used to be
+# `TOOL_HANDLERS - OPERATOR_TOOLS`, which made "offered unattended" the default
+# for anything nobody had named — and purchase_listing, which funds an escrow,
+# was sitting in it. A verb-prefix heuristic does not fix that either: a mutator
+# called `disburse_funds` or `escrow_release` matches no prefix list.
+#
+# So the read set is declared, and anything unclassified is treated as an
+# operator tool — the safe direction — while
+# tests/test_agent_hardening.py::test_every_handler_is_classified fails so the
+# omission is fixed rather than inherited.
+
+#: Handlers reviewed as read-only: they answer questions and change no state.
+READ_ONLY_TOOLS: frozenset[str] = frozenset({
+    "acp_search_catalog", "check_commerce_budget", "check_escrow_status",
+    "community_moderation_report", "disk_encryption_status", "explain_decision",
+    "filter_request", "generate_proposal", "generate_threat_report", "get_agent_activity",
+    "get_billing_quota", "get_community", "get_community_feed", "get_community_post",
+    "get_community_recommendations", "get_compliance_art30", "get_compliance_posture",
+    "get_compliance_report", "get_config", "get_cost_saved", "get_financial_impact",
+    "get_gdpr_export", "get_health", "get_monitor_history", "get_monitor_status",
+    "get_monitor_uptime", "get_obsidian_feed", "get_protocol_schema", "get_reputation",
+    "get_retention_policy", "get_rotation_progress", "get_secrets_report",
+    "get_spend_summary", "get_stats", "get_tenant_impact", "list_agents",
+    "list_commerce_auctions", "list_commerce_orders", "list_communities",
+    "list_community_members", "list_community_posts_members", "list_mandates",
+    "list_marketplace_listings", "list_monitors", "list_secrets_inventory",
+    "list_semantic_models", "list_threats", "onboarding_status", "query_marketplace_db",
+    "read_handoff_memory", "reconcile_orders", "scan_obsidian_note", "scan_shadow_ai",
+    "search_community_feed", "semantic_listing_search", "semantic_query",
+    "smb_suite_health", "visual_assert_page", "visual_diff", "voice_auction", "voice_buy",
+    "voice_compliance_check", "voice_negotiate", "voice_portfolio", "voice_search",
+    "voice_trust_query",
+})
 
 #: Names that read like mutations but are deliberately ungated, each with the
 #: reason. Reviewed individually; this is not a place to silence the guard.
@@ -3355,6 +3379,26 @@ REVIEWED_UNGATED: frozenset[str] = frozenset({
     # continue_onboarding, which advances it, IS gated.
     "start_onboarding",
 })
+
+#: Registered handlers that appear in no classification. Empty in a healthy
+#: tree; non-empty means someone added a tool and did not say what it does.
+UNCLASSIFIED_TOOLS: frozenset[str] = (
+    frozenset(TOOL_HANDLERS) - READ_ONLY_TOOLS - REVIEWED_UNGATED
+    - _approval.GATED_ACTIONS
+)
+
+if UNCLASSIFIED_TOOLS:                       # fail-closed, and say so once
+    log.warning(
+        "agent tools: %d unclassified handler(s) defaulted to approval-gated: %s",
+        len(UNCLASSIFIED_TOOLS), sorted(UNCLASSIFIED_TOOLS),
+    )
+
+# Unknown => gated. An unclassified handler is refused pending approval rather
+# than offered unattended; the test above turns that into a build failure.
+OPERATOR_TOOLS: frozenset[str] = (
+    (_approval.GATED_ACTIONS & frozenset(TOOL_HANDLERS)) | UNCLASSIFIED_TOOLS
+)
+READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
 
 
 def tools_for(operator: bool, tool_defs: list[dict] | None = None) -> list[dict]:
