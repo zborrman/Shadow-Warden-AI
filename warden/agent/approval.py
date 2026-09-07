@@ -68,6 +68,20 @@ class ApprovalStoreUnavailableError(RuntimeError):
     """Raised when the approval store cannot be reached — caller must fail closed."""
 
 
+def _redis_module():
+    """The redis client module, or None when it is not installed.
+
+    One import site for the whole module: the error tuple below and `_redis()`
+    both need the symbol, and importing it twice would mean two lazy-import
+    suppressions for one dependency.
+    """
+    try:
+        import redis  # noqa: PLC0415
+    except ImportError:                                   # pragma: no cover
+        return None
+    return redis
+
+
 def _redis_error_types() -> tuple[type[BaseException], ...]:
     """``redis.RedisError`` when the client is installed, nothing otherwise.
 
@@ -76,11 +90,8 @@ def _redis_error_types() -> tuple[type[BaseException], ...]:
     is a tuple whose contents depend on call order, and neither a reader nor
     mypy can confirm what a given ``except`` clause actually catches.
     """
-    try:
-        import redis  # noqa: PLC0415
-    except ImportError:                                   # pragma: no cover
-        return ()
-    return (redis.RedisError,)
+    mod = _redis_module()
+    return () if mod is None else (mod.RedisError,)
 
 
 #: Everything a redis round-trip can realistically fail with. Named explicitly
@@ -98,7 +109,9 @@ _STORE_OR_UNAVAILABLE: tuple[type[BaseException], ...] = (
 
 
 def _redis():
-    import redis  # noqa: PLC0415
+    redis = _redis_module()
+    if redis is None:                                     # pragma: no cover
+        raise ApprovalStoreUnavailableError("redis client is not installed")
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     if not url or url == "memory://":
         raise ApprovalStoreUnavailableError("REDIS_URL not configured for approvals")

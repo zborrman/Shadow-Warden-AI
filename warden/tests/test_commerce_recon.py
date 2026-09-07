@@ -255,16 +255,21 @@ def test_watchdog_registered_as_cron_and_manual_task():
     from warden.api.agent import _MANUAL_TASKS
     assert _MANUAL_TASKS["commerce-watchdog"] == "sova_commerce_watchdog"
 
+    # The source check runs unconditionally, because it is the half that can
+    # always run and "the cron was never registered" is exactly what this test
+    # exists to catch. Importing the module is the stronger check but it is not
+    # always possible: without arq it raises ImportError, and *with* arq under a
+    # `memory://` REDIS_URL its module-level RedisSettings.from_dsn() raises
+    # RuntimeError("invalid DSN scheme"). Guarding on only one of those made a
+    # missing registration invisible in whichever environment hit the other —
+    # which is how this passed locally and failed in CI.
+    src = _ws_source()
+    assert "cron(sova_commerce_watchdog" in src
+    assert "        sova_commerce_watchdog," in src            # functions tuple
+
     try:
         from warden.workers import settings as ws
-    except ImportError:
-        # arq is not installed in every dev env, but "the cron was never
-        # registered" is precisely the failure this test exists to catch — so
-        # fall back to asserting on the source rather than skipping outright.
-        import pathlib
-        src = pathlib.Path(ws_path()).read_text(encoding="utf-8")
-        assert "cron(sova_commerce_watchdog" in src
-        assert "        sova_commerce_watchdog," in src        # functions tuple
+    except (ImportError, RuntimeError):
         return
     names = {getattr(c, "name", getattr(c, "__name__", "")) for c in ws.WorkerSettings.cron_jobs}
     assert any("commerce_watchdog" in str(n) for n in names)
@@ -272,8 +277,9 @@ def test_watchdog_registered_as_cron_and_manual_task():
                for f in ws.WorkerSettings.functions)
 
 
-def ws_path() -> str:
+def _ws_source() -> str:
     import pathlib
 
     import warden
-    return str(pathlib.Path(warden.__file__).parent / "workers" / "settings.py")
+    path = pathlib.Path(warden.__file__).parent / "workers" / "settings.py"
+    return path.read_text(encoding="utf-8")
