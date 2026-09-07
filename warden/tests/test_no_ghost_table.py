@@ -54,6 +54,7 @@ _ALEMBIC = re.compile(r'create_table\(\s*["\'](\w+)["\']')
 # aliases a query defines for itself.
 _NOT_TABLES = {
     "sqlite_master", "sqlite_sequence", "dual", "unnest", "generate_series",
+    "json_each", "json_tree",   # SQLite table-valued functions, like unnest above
     "information_schema", "pg_extension", "pg_catalog", "alembic_version",
     "values", "select", "lateral", "set",
 }
