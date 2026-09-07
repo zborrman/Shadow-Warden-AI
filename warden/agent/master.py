@@ -65,6 +65,7 @@ class SubAgent(StrEnum):
     FORENSICS       = "forensics"
     COMPLIANCE      = "compliance"
     DATA_PRIVACY    = "data_privacy"    # AG-23
+    COMMERCE        = "commerce"        # PR-8 — Agentic Commerce
 
 
 # Tools available to each sub-agent
@@ -94,14 +95,29 @@ _AGENT_TOOLS: dict[SubAgent, list[str]] = {
     ],
     # AG-23: DataPrivacyAgent — GDPR, data retention, DPIA, PII governance
     SubAgent.DATA_PRIVACY: [
-        "get_compliance_art30", "get_gdpr_export", "get_gdpr_purge",
+        "get_compliance_art30", "get_gdpr_export", "run_gdpr_purge",
         "get_tenant_impact", "get_stats",
         "list_secrets_inventory", "get_secrets_report",
         "get_retention_policy", "run_retention_enforce",
         "get_compliance_posture",
         "send_slack_alert",
     ],
+    # PR-8: CommerceAgent — Agentic Commerce oversight. Read tools plus two
+    # mutators that are approval-gated in tools.OPERATOR_TOOLS, so the agent can
+    # propose revoking a mandate or approving an intent but cannot execute either.
+    SubAgent.COMMERCE: [
+        "list_mandates", "list_commerce_orders", "list_commerce_auctions",
+        "reconcile_orders", "get_spend_summary", "check_commerce_budget",
+        "get_financial_impact",
+        "revoke_mandate", "approve_purchase_intent",
+        "send_slack_alert",
+    ],
 }
+
+# Derived from the enum so a new sub-agent cannot be registered in _AGENT_TOOLS
+# and then silently never routed to: data_privacy was hand-omitted from both
+# decomposition prompts, so the supervisor was never offered it as a choice.
+_AGENT_CHOICES = "|".join(f'"{a.value}"' for a in SubAgent)
 
 _AGENT_PROMPTS: dict[SubAgent, str] = {
     SubAgent.SOVA_OPERATOR: (
@@ -144,6 +160,20 @@ _AGENT_PROMPTS: dict[SubAgent, str] = {
         "For GDPR export/purge requests: confirm tenant_id scope before acting and "
         "tag every purge as REQUIRES_APPROVAL. "
         "Report findings in structured tables: standard, status, score, gap, remediation."
+    ),
+    # PR-8
+    SubAgent.COMMERCE: (
+        "You are CommerceAgent, the Agentic Commerce oversight specialist. "
+        "Your domain: AP2 spending mandates, purchase orders and receipts, "
+        "multi-agent procurement auctions, and month-to-date agentic spend. "
+        "Always start with reconcile_orders — the books are the ground truth, and "
+        "a mandate's own spent_so_far has read $0.00 against paid orders in production. "
+        "Treat an 'evidence' of 'not_available' as a FAILED check, never a clean one: "
+        "say plainly that nothing was verified. "
+        "Quote dollar amounts to the cent and name the mandate or order id behind each. "
+        "You may propose revoking a mandate or approving a purchase intent; both are "
+        "REQUIRES_APPROVAL and will return an approval token rather than executing. "
+        "Never claim a payment settled — you cannot settle one."
     ),
 }
 
@@ -327,10 +357,15 @@ async def _run_sub_agent(
     agent_type: SubAgent,
     task:       str,
     tenant_id:  str = "default",
+    auto_approve: bool = False,
 ) -> dict[str, Any]:
     """
     Run a specialist sub-agent with its dedicated tool subset and system prompt.
-    Returns dict with keys: agent, response, tools_used, tokens, latency_ms.
+    Returns dict with keys: agent, response, tools_used, pending_approvals,
+    tokens, latency_ms.
+
+    State-changing tools in the subset are held behind the approval gate unless
+    auto_approve=True (trusted scheduled runs only).
     """
     token = _issue_token(agent_type, task)
     if not _verify_token(token, agent_type):
@@ -349,11 +384,12 @@ async def _run_sub_agent(
 
     # Filter TOOLS list to only this agent's allowed tools
     allowed   = set(_AGENT_TOOLS[agent_type])
-    sub_tools = [t for t in _tools.TOOLS if t["name"] in allowed]
+    sub_tools = [t for t in _tools.tools_for(True) if t["name"] in allowed]
 
     client  = anthropic.AsyncAnthropic(api_key=api_key)
     history: list[dict] = [{"role": "user", "content": task}]
     tools_used: list[str] = []
+    pending_approvals: list[dict] = []
     total_tokens = 0
     t0 = time.perf_counter()
 
@@ -385,6 +421,7 @@ async def _run_sub_agent(
                 "agent":       agent_type.value,
                 "response":    text,
                 "tools_used":  tools_used,
+                "pending_approvals": pending_approvals,
                 "tokens":      total_tokens,
                 "latency_ms":  round((time.perf_counter() - t0) * 1000, 1),
             }
@@ -400,8 +437,8 @@ async def _run_sub_agent(
                 continue
             tool_name  = block.name
             tool_input = block.input or {}
-            if "tenant_id" not in tool_input:
-                tool_input["tenant_id"] = tenant_id
+            # SECURITY: tenant is request-bound — the model never chooses it.
+            tool_input["tenant_id"] = tenant_id
             tools_used.append(tool_name)
 
             # Phase 7: dispatch through traced_dispatch, NOT TOOL_HANDLERS directly.
@@ -417,7 +454,14 @@ async def _run_sub_agent(
                 else:
                     result      = await _tools.traced_dispatch(
                         tool_name, tool_input, master_agent_id(str(agent_type.value)),
+                        approval_gate=not auto_approve,
                     )
+                    if isinstance(result, dict) and result.get("status") == "approval_required":
+                        pending_approvals.append({
+                            "agent":  agent_type.value,
+                            "action": result.get("action", tool_name),
+                            "token":  result.get("token"),
+                        })
                     result_text = json.dumps(result, default=str)
                     is_error    = False
             except Exception as exc:
@@ -445,6 +489,7 @@ async def _run_sub_agent(
         "agent":      agent_type.value,
         "response":   text,
         "tools_used": tools_used,
+        "pending_approvals": pending_approvals,
         "tokens":     total_tokens,
         "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
     }
@@ -531,7 +576,7 @@ async def run_master(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        f'{{"agents": [{_AGENT_CHOICES}], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
     decomp_resp = await client.messages.create(
@@ -567,7 +612,7 @@ async def run_master(
     # ── Step 2: Dispatch sub-agents in parallel ───────────────────────────────
     agent_map: dict[str, SubAgent] = {a.value: a for a in SubAgent}
     coros = [
-        _run_sub_agent(agent_map[name], sub_task, tenant_id)
+        _run_sub_agent(agent_map[name], sub_task, tenant_id, auto_approve=auto_approve)
         for name, sub_task in sub_tasks.items()
         if name in agent_map
     ]
@@ -577,8 +622,24 @@ async def run_master(
     total_tokens = (decomp_resp.usage.input_tokens + decomp_resp.usage.output_tokens
                     + sum(r.get("tokens", 0) for r in sub_results))
 
-    # ── Step 3: Check for REQUIRES_APPROVAL flags ─────────────────────────────
+    # ── Step 3: Collect approval tokens ──────────────────────────────────────
     approval_tokens: list[str] = []
+
+    # 3a. Real tokens from the gated tool layer — the sub-agent proposed a
+    #     state-changing call and it did NOT run. Surface + notify, or the
+    #     pending action is unreachable.
+    for result in sub_results:
+        for pa in result.get("pending_approvals", []):
+            tok = pa.get("token")
+            if not tok:
+                continue
+            approval_tokens.append(tok)
+            await _post_approval_request(
+                tok, f"{pa.get('agent')}:{pa.get('action')}", str(pa.get("action", "")))
+            log.info("master: gated action pending agent=%s action=%s token=%s",
+                     pa.get("agent"), pa.get("action"), tok)
+
+    # 3b. Legacy REQUIRES_APPROVAL text / autonomy-policy convention.
     if not auto_approve:
         for result in sub_results:
             response_text = result.get("response", "")
@@ -700,7 +761,7 @@ async def run_master_batch(
     decompose_prompt = (
         f"Task: {task}\n\n"
         "Which sub-agents should handle this task? Reply with a JSON object:\n"
-        '{"agents": ["sova_operator"|"threat_hunter"|"forensics"|"compliance"], '
+        f'{{"agents": [{_AGENT_CHOICES}], '
         '"sub_tasks": {"agent_name": "specific sub-task description"}}'
     )
 
@@ -767,7 +828,7 @@ async def run_master_batch(
     # ── Step 2: Sub-agents via regular API (tool use requires sync loop) ──────
     agent_map: dict[str, SubAgent] = {a.value: a for a in SubAgent}
     coros      = [
-        _run_sub_agent(agent_map[name], sub_task, tenant_id)
+        _run_sub_agent(agent_map[name], sub_task, tenant_id, auto_approve=auto_approve)
         for name, sub_task in sub_tasks.items()
         if name in agent_map
     ]
@@ -829,17 +890,28 @@ async def run_master_batch(
         + sum(r.get("tokens", 0) for r in sub_results)
         + synth_tokens
     )
+    # Surface any gated-tool approval tokens the sub-agents produced.
+    batch_approvals: list[str] = []
+    for r in sub_results:
+        for pa in r.get("pending_approvals", []):
+            tok = pa.get("token")
+            if tok:
+                batch_approvals.append(tok)
+                await _post_approval_request(
+                    tok, f"{pa.get('agent')}:{pa.get('action')}", str(pa.get("action", "")))
+
     latency = round((time.perf_counter() - t0) * 1000, 1)
     log.info(
-        "master_batch: complete agents=%s tokens=%d latency=%.0fms",
-        list(sub_tasks.keys()), total_tokens, latency,
+        "master_batch: complete agents=%s tokens=%d latency=%.0fms approvals=%d",
+        list(sub_tasks.keys()), total_tokens, latency, len(batch_approvals),
     )
 
     return MasterResult(
-        task         = task,
-        sub_results  = sub_results,
-        synthesis    = synthesis or "(batch result unavailable)",
-        tools_used   = all_tools,
-        total_tokens = total_tokens,
-        latency_ms   = latency,
+        task            = task,
+        sub_results     = sub_results,
+        synthesis       = synthesis or "(batch result unavailable)",
+        tools_used      = all_tools,
+        total_tokens    = total_tokens,
+        latency_ms      = latency,
+        approval_tokens = batch_approvals,
     )

@@ -1,6 +1,6 @@
 {
   "type_ignore": 228,
-  "noqa": 838,
+  "noqa": 839,
   "per_file": {
     "agent_monitor.py": {
       "type_ignore": 0,
@@ -154,6 +154,10 @@
       "type_ignore": 0,
       "noqa": 6
     },
+    "agent/approval.py": {
+      "type_ignore": 0,
+      "noqa": 1
+    },
     "agent/gate.py": {
       "type_ignore": 0,
       "noqa": 6
@@ -200,7 +204,7 @@
     },
     "api/agent.py": {
       "type_ignore": 0,
-      "noqa": 12
+      "noqa": 13
     },
     "api/billing_audit.py": {
       "type_ignore": 0,
@@ -328,7 +332,7 @@
     },
     "billing/quota_middleware.py": {
       "type_ignore": 0,
-      "noqa": 4
+      "noqa": 5
     },
     "billing/router.py": {
       "type_ignore": 0,
@@ -368,7 +372,7 @@
     },
     "brain/semantic.py": {
       "type_ignore": 1,
-      "noqa": 1
+      "noqa": 2
     },
     "brain/threat_feed.py": {
       "type_ignore": 0,
@@ -487,10 +491,6 @@
       "noqa": 3
     },
     "db/__init__.py": {
-      "type_ignore": 0,
-      "noqa": 1
-    },
-    "discovery/well_known.py": {
       "type_ignore": 0,
       "noqa": 1
     },
@@ -652,7 +652,7 @@
     },
     "mcp/gateway.py": {
       "type_ignore": 0,
-      "noqa": 15
+      "noqa": 14
     },
     "multimodal/handler.py": {
       "type_ignore": 3,
@@ -835,10 +835,6 @@
       "noqa": 1
     },
     "workers/gdpr_retention.py": {
-      "type_ignore": 0,
-      "noqa": 1
-    },
-    "workers/probe_worker.py": {
       "type_ignore": 0,
       "noqa": 1
     },

@@ -55,6 +55,7 @@ Feature matrix
   byok_enabled               ✗         ✗           ✗         ✓
   pqc_enabled                ✗         ✗           ✗         ✓
   master_agent_enabled       ✗         ✗           ✓         ✓
+  sova_agent_enabled         ✗         ✗    (CB ✓)     ✓         ✓
   shadow_ai_enabled          ✗         ✗           add-on    ✓
   xai_reports_enabled        ✗         add-on      ✓         ✓
   sovereign_enabled          ✗         ✗           ✗         ✓
@@ -179,6 +180,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "byok_enabled":                False,
         "pqc_enabled":                 False,
         "master_agent_enabled":        False,
+        "sova_agent_enabled":          False,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
         "shadow_ai_enabled":           False,  # add-on only; not available at starter
         "xai_reports_enabled":         False,  # add-on only; not available at starter
         "sovereign_enabled":           False,
@@ -253,6 +255,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "byok_enabled":                False,
         "pqc_enabled":                 False,
         "master_agent_enabled":        False,
+        "sova_agent_enabled":          False,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
         "shadow_ai_enabled":           False,  # add-on only at individual tier
         "xai_reports_enabled":         False,  # add-on ($9/mo) unlocks at individual
         "sovereign_enabled":           False,
@@ -325,6 +328,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "byok_enabled":                False,
         "pqc_enabled":                 False,
         "master_agent_enabled":        True,    # ← MasterAgent SOC (included in $69 Pro)
+        "sova_agent_enabled":          True ,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
         "shadow_ai_enabled":           False,   # ← add-on: +$15/mo Shadow AI Discovery
         "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports included at Pro
         "sovereign_enabled":           False,
@@ -410,6 +414,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "byok_enabled":                False,
         "pqc_enabled":                 False,
         "master_agent_enabled":        False,
+        "sova_agent_enabled":          True ,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
         "sovereign_enabled":           False,
         "referral_program":            True,
         "referral_bonus_requests":     1_000,
@@ -480,6 +485,7 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "byok_enabled":                True,    # ← Bring Your Own Key
         "pqc_enabled":                 True,    # ← Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768)
         "master_agent_enabled":        True,    # ← MasterAgent SOC (included at $249/mo)
+        "sova_agent_enabled":          True ,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
         "shadow_ai_enabled":           True,    # ← Shadow AI Discovery (included at Enterprise)
         "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports (included)
         "sovereign_enabled":           True,    # ← MASQUE Jurisdictional Tunnels (included)
@@ -535,6 +541,7 @@ FEATURE_SEMANTIC_LAYER     = "semantic_layer_enabled"
 FEATURE_COMPLIANCE_SCORING = "compliance_scoring_enabled"
 FEATURE_ISO27001           = "iso27001_enabled"
 FEATURE_MASTER_AGENT       = "master_agent_enabled"
+FEATURE_SOVA_AGENT         = "sova_agent_enabled"
 FEATURE_SOVEREIGN          = "sovereign_enabled"
 FEATURE_SHADOW_AI          = "shadow_ai_enabled"
 FEATURE_XAI_REPORTS        = "xai_reports_enabled"

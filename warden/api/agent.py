@@ -20,7 +20,7 @@ import json
 import time
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -35,8 +35,14 @@ router = APIRouter(prefix="/agent", tags=["SOVA Agent"])
 class SovaRequest(BaseModel):
     query:      str   = Field(..., min_length=1, max_length=4000, description="Your question or command for SOVA")
     session_id: str   = Field("interactive", description="Conversation session ID (for multi-turn memory)")
-    tenant_id:  str   = Field("default",     description="Tenant context for tool calls")
     max_tokens: int   = Field(4096, ge=256, le=8192)
+    operator_mode: bool = Field(
+        False,
+        description="Expose state-changing tools (config, key rotation, IP block, "
+                    "agent revocation). Each such call returns an approval token — "
+                    "nothing mutates until a human resolves it. Requires Pro+.",
+    )
+    tenant_id:  str | None = None   # ignored — bound from the API key
 
 
 class SovaResponse(BaseModel):
@@ -57,8 +63,8 @@ class TaskResponse(BaseModel):
 
 class MasterRequest(BaseModel):
     task:         str  = Field(..., min_length=1, max_length=8000, description="High-level task for MasterAgent")
-    tenant_id:    str  = Field("default", description="Tenant context for all sub-agent tool calls")
-    auto_approve: bool = Field(False, description="Skip human-in-the-loop gate (trusted/scheduled callers only)")
+    tenant_id:    str | None = None   # ignored — bound from the API key
+    # auto_approve is NOT accepted from the API — the approval gate always applies.
 
 
 class MasterResponse(BaseModel):
@@ -112,8 +118,13 @@ AuthDep = Depends(require_api_key)
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/sova", response_model=SovaResponse, summary="Query SOVA agent")
-async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaResponse:
+@router.post(
+    "/sova",
+    response_model=SovaResponse,
+    summary="Query SOVA agent",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
+async def query_sova(body: SovaRequest, request: Request, auth: AuthResult = AuthDep) -> SovaResponse:
     """
     Send a natural-language query or command to SOVA.
 
@@ -131,11 +142,21 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     """
     from warden.agent.sova import run_query
 
+    if body.operator_mode:
+        from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+        if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "feature_gated",
+                        "message": "operator_mode requires PRO plan or higher."},
+            )
+
     result = await run_query(
         query      = body.query,
         session_id = body.session_id,
-        tenant_id  = body.tenant_id,
+        tenant_id  = auth.tenant_id or "default",   # request-bound, never from the body
         max_tokens = body.max_tokens,
+        operator_mode = body.operator_mode,
     )
     return SovaResponse(
         response          = result["response"],
@@ -148,8 +169,12 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     )
 
 
-@router.post("/sova/stream", summary="Query SOVA agent (streaming SSE)")
-async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> StreamingResponse:
+@router.post(
+    "/sova/stream",
+    summary="Query SOVA agent (streaming SSE)",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
+async def query_sova_stream(body: SovaRequest, request: Request, auth: AuthResult = AuthDep) -> StreamingResponse:
     """
     Streaming variant of ``POST /agent/sova``. Returns a Server-Sent Events
     stream of the agent loop: routing status, live answer tokens, tool-use /
@@ -160,13 +185,25 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
     """
     from warden.agent.sova import stream_query
 
+    if body.operator_mode:
+        from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+        if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "feature_gated",
+                        "message": "operator_mode requires PRO plan or higher."},
+            )
+
+    _tid = auth.tenant_id or "default"
+
     async def _sse():
         try:
             async for event in stream_query(
                 query      = body.query,
                 session_id = body.session_id,
-                tenant_id  = body.tenant_id,
+                tenant_id  = _tid,
                 max_tokens = body.max_tokens,
+                operator_mode = body.operator_mode,
             ):
                 yield f"data: {json.dumps(event, default=str)}\n\n"
         except Exception as exc:
@@ -177,6 +214,68 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class NegotiateRequest(BaseModel):
+    purchase_request: str = Field(..., min_length=1, max_length=2000,
+                                  description="What is being procured.")
+    budget_usd: float | None = Field(None, gt=0,
+                                     description="Hard ceiling; proposals above it are dropped.")
+    tenant_id: str | None = None   # ignored — bound from the API key
+
+
+@router.post(
+    "/sova/commerce/negotiate",
+    summary="Run a supervised procurement negotiation (no settlement)",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
+async def commerce_negotiate(
+    body: NegotiateRequest,
+    request: Request,
+    auth: AuthResult = AuthDep,
+) -> dict:
+    """
+    Run a multi-agent procurement auction and return the ranked proposals,
+    enriched with supplier risk.
+
+    **This endpoint never settles anything.** It buys nothing, creates no
+    mandate and moves no money — acting on the result means approving a
+    purchase intent, which is itself approval-gated. Pro+ (it spends model
+    tokens across three bidding agents).
+    """
+    from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+    if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "feature_gated",
+                    "message": "commerce negotiation requires PRO plan or higher."},
+        )
+
+    tenant_id = auth.tenant_id or "default"   # request-bound, never from the body
+
+    from warden.business_community.agentic_commerce.multi_agent.orchestrator import (
+        MultiAgentOrchestrator,
+    )
+    orch = MultiAgentOrchestrator()
+    auction_id = await orch.run_auction(
+        tenant_id=tenant_id,
+        purchase_request=body.purchase_request,
+        budget_usd=body.budget_usd,
+    )
+    auction = orch.get_auction(auction_id, tenant_id) or {}
+    proposals = auction.get("proposals", [])
+
+    return {
+        "auction_id": auction_id,
+        "tenant_id":  tenant_id,
+        "settled":    False,
+        "note":       "Ranked proposals only — nothing was purchased and no mandate was "
+                      "created. To act on this, approve a purchase intent (approval-gated).",
+        "winner":     auction.get("winner"),
+        "proposals":  proposals,
+        "proposal_count": len(proposals),
+        "budget_usd": body.budget_usd,
+    }
 
 
 @router.delete(
@@ -198,6 +297,7 @@ _MANUAL_TASKS = {
     "corpus-watchdog":  "sova_corpus_watchdog",
     "visual-patrol":    "sova_visual_patrol",
     "community-lookup": "sova_community_watchdog",
+    "commerce-watchdog": "sova_commerce_watchdog",
 }
 
 
@@ -217,6 +317,7 @@ async def trigger_task(job: str, auth: AuthResult = AuthDep) -> TaskResponse:
     - `sla-report`      — 7-day SLA compliance report → Slack
     - `upgrade-scan`    — identify tenants near quota limit
     - `corpus-watchdog` — check circuit breaker + bypass rate
+    - `commerce-watchdog` — reconcile mandates/orders/receipts (no LLM)
     """
     if job not in _MANUAL_TASKS:
         raise HTTPException(
@@ -274,8 +375,8 @@ async def run_master_agent(
 
     result = await run_master(
         task         = body.task,
-        tenant_id    = body.tenant_id,
-        auto_approve = body.auto_approve,
+        tenant_id    = auth.tenant_id or "default",
+        auto_approve = False,   # never skip the gate for an API caller
     )
     return MasterResponse(
         synthesis       = result.synthesis,
@@ -308,10 +409,11 @@ async def approve_action(
     `action=approve` — allows the operation to proceed.
     `action=reject`  — cancels the operation and logs the refusal.
     """
+    from warden.agent import approval as _approval
     from warden.agent.master import resolve_approval
 
     approved = (action == "approve")
-    resolved = resolve_approval(token, approved)
+    resolved = _approval.resolve(token, approved) or resolve_approval(token, approved)
     if not resolved:
         raise HTTPException(status_code=404, detail="Approval token not found or expired.")
 
@@ -319,8 +421,54 @@ async def approve_action(
         token    = token,
         resolved = True,
         approved = approved,
-        detail   = f"Action {'approved' if approved else 'rejected'} successfully.",
+        detail   = (f"Action {'approved' if approved else 'rejected'} successfully."
+                    + (f" Run POST /agent/execute/{token} to perform it." if approved else "")),
     )
+
+
+@router.post(
+    "/execute/{token}",
+    summary="Execute a state-changing agent action after human approval",
+    dependencies=[Depends(require_api_key)],
+)
+async def execute_approved_action(token: str, auth: AuthResult = AuthDep) -> dict:
+    """
+    Perform the tool call bound to an approval *token*.
+
+    The token must already be resolved as `approve` via
+    `POST /agent/approve/{token}?action=approve`. The action runs exactly once —
+    the claim is atomic, so a concurrent or repeated call gets 409, not a
+    second execution.
+    """
+    from warden.agent import approval as _approval
+    from warden.agent.tools import TOOL_HANDLERS, traced_dispatch
+
+    rec = _approval.resolution(token)
+    if not rec:
+        raise HTTPException(status_code=404, detail="No resolved approval for this token.")
+    if rec.get("status") != "approved":
+        raise HTTPException(status_code=409, detail=f"Token is {rec.get('status')}, not approved.")
+    # Exact tenant match — a token issued for another tenant is not executable here.
+    caller = auth.tenant_id or "default"
+    if rec.get("tenant_id") != caller:
+        raise HTTPException(status_code=403, detail="Token belongs to another tenant.")
+
+    action = rec.get("action", "")
+    if action not in TOOL_HANDLERS:
+        raise HTTPException(status_code=400, detail=f"Unknown action '{action}'.")
+
+    if not _approval.try_consume(token):
+        raise HTTPException(status_code=409, detail="This approval has already been executed.")
+
+    params = dict(rec.get("params", {}))
+    params["tenant_id"] = caller
+    try:
+        result = await traced_dispatch(action, params, agent_id="approval:execute",
+                                       approval_gate=False)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Execution failed: {exc}") from exc
+
+    return {"token": token, "action": action, "executed": True, "result": result}
 
 
 @router.get(
@@ -379,14 +527,14 @@ async def community_lookup(
     t0 = time.perf_counter()
 
     feed = await search_community_feed(
-        query=body.query, limit=10, tenant_id=body.tenant_id
+        query=body.query, limit=10, tenant_id=(auth.tenant_id or 'default')
     )
     results = feed.get("results", [])
 
     recs = await get_community_recommendations(
         incident_type=body.query,
         risk_level=body.risk_level,
-        tenant_id=body.tenant_id,
+        tenant_id=(auth.tenant_id or 'default'),
     )
 
     ueciid: str | None = None
@@ -397,7 +545,7 @@ async def community_lookup(
             rule_id=f"community_lookup:{body.query[:40]}",
             risk_level=body.risk_level,
             evidence_summary=f"Community lookup: {body.query}",
-            tenant_id=body.tenant_id,
+            tenant_id=(auth.tenant_id or 'default'),
         )
         published = pub.get("published", False)
         ueciid = pub.get("ueciid")

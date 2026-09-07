@@ -61,16 +61,19 @@ POST /agent/sova/task/{job_name}
 
 Available job names:
 
-| Job | Schedule |
-|-----|----------|
-| `morning_brief` | Daily 08:00 UTC |
-| `threat_sync` | Every 6 hours |
-| `rotation_check` | Daily 02:00 UTC |
-| `sla_report` | Monday 09:00 UTC |
-| `upgrade_scan` | Sunday 10:00 UTC |
-| `corpus_watchdog` | Every 30 min |
-| `visual_patrol` | Daily 03:00 UTC |
-| `community_watchdog` | Every hour at :20 |
+The job name in the path is the hyphenated key, not the function name.
+
+| Job | Schedule | Notes |
+|-----|----------|-------|
+| `morning-brief` | Daily 08:00 UTC | |
+| `threat-sync` | Every 6 hours | |
+| `rotation-check` | Daily 02:00 UTC | |
+| `sla-report` | Monday 09:00 UTC | |
+| `upgrade-scan` | Sunday 10:00 UTC | |
+| `corpus-watchdog` | Every 30 min | Delegates to WardenHealer |
+| `visual-patrol` | Daily 03:00 UTC | |
+| `community-lookup` | Every hour at :20 | Runs `sova_community_watchdog` |
+| `commerce-watchdog` | Every hour at :50 | Mandate/order/receipt reconciliation. **No LLM** |
 
 ---
 
@@ -105,6 +108,23 @@ Available job names:
 ### Security & XAI
 `filter_request` · `get_compliance_art30` · `scan_shadow_ai` ·
 `explain_decision`
+
+### Agentic Commerce
+`list_mandates` · `list_commerce_orders` · `list_commerce_auctions` ·
+`reconcile_orders` · `get_spend_summary` · `check_commerce_budget` ·
+`revoke_mandate`† · `approve_purchase_intent`†
+
+### Data Privacy (AG-23)
+`get_gdpr_export` · `get_retention_policy` · `list_secrets_inventory` ·
+`get_secrets_report` · `get_compliance_posture` ·
+`run_gdpr_purge`† · `run_retention_enforce`†
+
+† **Approval-gated.** These are offered only when the caller sets
+`operator_mode=true` (Pro+), and calling one returns
+`{"status": "approval_required", "token": "appr-…"}` instead of executing.
+A human resolves it with `POST /agent/approve/{token}?action=approve`, and the
+action then runs exactly once via `POST /agent/execute/{token}`. If the approval
+store is unreachable the call is refused, never auto-applied.
 
 ### Visual (tools #28, #31)
 `visual_assert_page` · `visual_diff`
