@@ -29,6 +29,17 @@ _CALLER = _ROOT / "warden" / "marketplace" / "escrow.py"
 _CALL_RE = re.compile(r'_call_contract\(\s*[^,]+,\s*"([A-Za-z_][A-Za-z0-9_]*)"')
 _SOL_FN_RE = re.compile(r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", re.MULTILINE)
 
+#: Public state variables are real ABI entries with no `function` keyword in the
+#: source — Solidity synthesises a getter for each. Derived rather than listed:
+#: the list was `{"arbiter", "trades"}` and went stale the moment `operator` was
+#: split out of the arbiter, which is the same second-copy-of-the-vocabulary
+#: failure this file exists to catch one layer up.
+_SOL_PUBLIC_VAR_RE = re.compile(
+    r"^\s*[\w\s\(\)=>\[\]]+?public(?:\s+(?:immutable|constant))?\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*;",
+    re.MULTILINE,
+)
+
 
 def _abi() -> list[dict]:
     if not _ABI.exists():
@@ -53,10 +64,9 @@ def test_abi_covers_every_function_the_gateway_calls() -> None:
 def test_the_solidity_source_defines_what_the_abi_claims() -> None:
     if not _SOL.exists():
         pytest.skip("no Solidity source committed")
-    declared = set(_SOL_FN_RE.findall(_SOL.read_text(encoding="utf-8")))
-    # `arbiter` and `trades` are public state variables: real ABI entries with no
-    # `function` keyword in the source.
-    declared |= {"arbiter", "trades"}
+    source = _SOL.read_text(encoding="utf-8")
+    declared = set(_SOL_FN_RE.findall(source))
+    declared |= set(_SOL_PUBLIC_VAR_RE.findall(source))
     overclaimed = sorted(_abi_functions() - declared)
     assert not overclaimed, (
         f"the ABI advertises {overclaimed}, which Escrow.sol does not define"
