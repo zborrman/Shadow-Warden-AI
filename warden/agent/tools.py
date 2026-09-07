@@ -2827,12 +2827,64 @@ _URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
 })
 
 
+# ── Read-only vs operator (state-changing) tool surface ──────────────────────
+#
+# The plain SOVA loop and every MasterAgent sub-agent are offered READ tools only.
+# OPERATOR tools appear solely when the caller sets operator_mode=True, and each
+# is additionally held behind the human-in-the-loop approval gate below, so the
+# agent can propose a mutation but never perform one unattended.
+
+from warden.agent import approval as _approval  # noqa: E402
+
+OPERATOR_TOOLS: frozenset[str] = _approval.GATED_ACTIONS & frozenset(TOOL_HANDLERS)
+READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
+
+
+def tools_for(operator: bool, tool_defs: list[dict] | None = None) -> list[dict]:
+    """Filter Anthropic tool defs to the read set unless *operator* is True."""
+    defs = TOOLS if tool_defs is None else tool_defs
+    if operator:
+        return list(defs)
+    return [t for t in defs if t.get("name") in READ_TOOLS]
+
+
+def _approval_check(tool_name: str, tool_input: dict[str, Any], tenant_id: str) -> dict | None:
+    """
+    Return a dict to short-circuit dispatch, or None to let the call proceed.
+
+    With a resolved+approved ``approval_token`` in the input the call proceeds;
+    otherwise a pending token is issued and the tool does not run.
+    """
+    token = tool_input.pop("approval_token", None)
+    if token:
+        if _approval.is_approved(token):
+            return None
+        rec = _approval.resolution(token) or _approval.get_pending(token) or {}
+        return {"status": "approval_denied", "token": token,
+                "approval_status": rec.get("status", "unknown")}
+
+    ctx = f"{tool_name}({', '.join(f'{k}={v!r}' for k, v in tool_input.items() if k != 'tenant_id')})"
+    try:
+        new_token = _approval.issue(tool_name, ctx[:400], tenant_id, params=dict(tool_input))
+    except _approval.ApprovalStoreUnavailableError as exc:
+        return {"status": "error",
+                "error": f"approval store unavailable, refusing to run {tool_name}: {exc}"}
+    return {
+        "status": "approval_required",
+        "token":  new_token,
+        "action": tool_name,
+        "note":   f"Human approval needed. Approve via POST /agent/approve/{new_token}"
+                  f"?action=approve then POST /agent/execute/{new_token}",
+    }
+
+
 async def traced_dispatch(
     tool_name: str,
     tool_input: dict[str, Any],
     agent_id: str = "sova",
     *,
     already_gated: bool = False,
+    approval_gate: bool = True,
 ) -> Any:
     """
     OTel-traced tool dispatch for SOVA / MasterAgent sub-agents.
@@ -2881,6 +2933,16 @@ async def traced_dispatch(
         from warden.observability import Reason as _Reason
         from warden.observability import record_failopen as _record_failopen
         _record_failopen("sac_guard", _Reason.BACKEND_ERROR, _sac_err)
+
+    # ── Human-in-the-loop approval gate ──────────────────────────────────────
+    # A state-changing tool does NOT execute on the agent's say-so. It returns a
+    # token; a human resolves it via POST /agent/approve/{token}?action=approve
+    # and the action then runs once via POST /agent/execute/{token}.
+    # Fail-CLOSED: no approval store -> the call is refused, never auto-applied.
+    if approval_gate and tool_name in OPERATOR_TOOLS:
+        _gate = _approval_check(tool_name, tool_input, tenant_id)
+        if _gate is not None:
+            return _gate
 
     # OTel unavailable/disabled — fail open to direct dispatch. Only the import +
     # tracer acquisition are guarded here; exceptions from the handler itself are

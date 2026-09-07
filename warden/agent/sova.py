@@ -278,6 +278,8 @@ async def run_query(
     maestro_risk: str = "NONE",
     round_count: int = 0,
     tool_profile: str = "full",
+    operator_mode: bool = False,
+    auto_approve: bool = False,
 ) -> dict[str, Any]:
     """
     Run a query through SOVA.
@@ -349,7 +351,7 @@ async def run_query(
 
     # Cache the tools prefix once per query — subset by profile, stable order so
     # the cache prefix stays stable per profile ("full" = every tool).
-    _cached_tool_defs = _select_tools(_tools.TOOLS, tool_profile)
+    _cached_tool_defs = _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile))
 
     # System = cached prompt (stable prefix) + optional recalled-memory block
     # (query-specific, sits AFTER the cache boundary so it never breaks caching).
@@ -423,7 +425,8 @@ async def run_query(
                 _span_tool(span, tool_name, phase="result", status="error", detail="unknown tool")
                 return block, f"Unknown tool: {tool_name}", True
             try:
-                result = await _tools.traced_dispatch(tool_name, tool_input)
+                result = await _tools.traced_dispatch(
+                    tool_name, tool_input, approval_gate=not auto_approve)
                 _span_tool(span, tool_name, phase="result", status="ok")
                 return block, json.dumps(result, default=str), False
             except Exception as exc:
@@ -492,6 +495,8 @@ async def stream_query(
     maestro_risk: str = "NONE",
     round_count: int = 0,
     tool_profile: str = "full",
+    operator_mode: bool = False,
+    auto_approve: bool = False,
 ) -> AsyncIterator[dict[str, Any]]:
     """Streaming variant of :func:`run_query` — an async generator of events.
 
@@ -534,7 +539,7 @@ async def stream_query(
     cache_read = 0
     t0 = time.perf_counter()
 
-    tool_defs = _select_tools(_tools.TOOLS, tool_profile)
+    tool_defs = _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile))
     system_blocks: list[dict] = [
         {"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
     ]
@@ -604,7 +609,8 @@ async def stream_query(
                 _span_tool(span, tool_name, phase="result", status="error", detail="unknown tool")
                 return block, f"Unknown tool: {tool_name}", True
             try:
-                result = await _tools.traced_dispatch(tool_name, tool_input)
+                result = await _tools.traced_dispatch(
+                    tool_name, tool_input, approval_gate=not auto_approve)
                 _span_tool(span, tool_name, phase="result", status="ok")
                 return block, json.dumps(result, default=str), False
             except Exception as exc:
@@ -647,7 +653,8 @@ async def stream_query(
 
 
 async def run_task(
-    task: str, session_id: str | None = None, tool_profile: str = "full"
+    task: str, session_id: str | None = None, tool_profile: str = "full",
+    operator_mode: bool = False, auto_approve: bool = False,
 ) -> str:
     """Convenience wrapper for scheduled jobs — returns text response only.
 
@@ -655,5 +662,6 @@ async def run_task(
     "compliance") to shrink the offered tool set for cheaper, focused runs.
     """
     sid = session_id or f"sched-{task[:20].replace(' ', '-')}"
-    result = await run_query(task, session_id=sid, tool_profile=tool_profile)
+    result = await run_query(task, session_id=sid, tool_profile=tool_profile,
+                             operator_mode=operator_mode, auto_approve=auto_approve)
     return result["response"]

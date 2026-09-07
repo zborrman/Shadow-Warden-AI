@@ -20,7 +20,7 @@ import json
 import time
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,12 @@ class SovaRequest(BaseModel):
     query:      str   = Field(..., min_length=1, max_length=4000, description="Your question or command for SOVA")
     session_id: str   = Field("interactive", description="Conversation session ID (for multi-turn memory)")
     max_tokens: int   = Field(4096, ge=256, le=8192)
+    operator_mode: bool = Field(
+        False,
+        description="Expose state-changing tools (config, key rotation, IP block, "
+                    "agent revocation). Each such call returns an approval token — "
+                    "nothing mutates until a human resolves it. Requires Pro+.",
+    )
     tenant_id:  str | None = None   # ignored — bound from the API key
 
 
@@ -118,7 +124,7 @@ AuthDep = Depends(require_api_key)
     summary="Query SOVA agent",
     dependencies=[require_feature("sova_agent_enabled")],
 )
-async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaResponse:
+async def query_sova(body: SovaRequest, request: Request, auth: AuthResult = AuthDep) -> SovaResponse:
     """
     Send a natural-language query or command to SOVA.
 
@@ -136,11 +142,21 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     """
     from warden.agent.sova import run_query
 
+    if body.operator_mode:
+        from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+        if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "feature_gated",
+                        "message": "operator_mode requires PRO plan or higher."},
+            )
+
     result = await run_query(
         query      = body.query,
         session_id = body.session_id,
         tenant_id  = auth.tenant_id or "default",   # request-bound, never from the body
         max_tokens = body.max_tokens,
+        operator_mode = body.operator_mode,
     )
     return SovaResponse(
         response          = result["response"],
@@ -158,7 +174,7 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     summary="Query SOVA agent (streaming SSE)",
     dependencies=[require_feature("sova_agent_enabled")],
 )
-async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> StreamingResponse:
+async def query_sova_stream(body: SovaRequest, request: Request, auth: AuthResult = AuthDep) -> StreamingResponse:
     """
     Streaming variant of ``POST /agent/sova``. Returns a Server-Sent Events
     stream of the agent loop: routing status, live answer tokens, tool-use /
@@ -169,6 +185,15 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
     """
     from warden.agent.sova import stream_query
 
+    if body.operator_mode:
+        from warden.billing.feature_gate import FeatureGate, _get_tenant_tier
+        if not FeatureGate.for_tier(_get_tenant_tier(request)).is_enabled("master_agent_enabled"):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "feature_gated",
+                        "message": "operator_mode requires PRO plan or higher."},
+            )
+
     _tid = auth.tenant_id or "default"
 
     async def _sse():
@@ -178,6 +203,7 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
                 session_id = body.session_id,
                 tenant_id  = _tid,
                 max_tokens = body.max_tokens,
+                operator_mode = body.operator_mode,
             ):
                 yield f"data: {json.dumps(event, default=str)}\n\n"
         except Exception as exc:
@@ -319,10 +345,11 @@ async def approve_action(
     `action=approve` — allows the operation to proceed.
     `action=reject`  — cancels the operation and logs the refusal.
     """
+    from warden.agent import approval as _approval
     from warden.agent.master import resolve_approval
 
     approved = (action == "approve")
-    resolved = resolve_approval(token, approved)
+    resolved = _approval.resolve(token, approved) or resolve_approval(token, approved)
     if not resolved:
         raise HTTPException(status_code=404, detail="Approval token not found or expired.")
 
@@ -330,8 +357,54 @@ async def approve_action(
         token    = token,
         resolved = True,
         approved = approved,
-        detail   = f"Action {'approved' if approved else 'rejected'} successfully.",
+        detail   = (f"Action {'approved' if approved else 'rejected'} successfully."
+                    + (f" Run POST /agent/execute/{token} to perform it." if approved else "")),
     )
+
+
+@router.post(
+    "/execute/{token}",
+    summary="Execute a state-changing agent action after human approval",
+    dependencies=[Depends(require_api_key)],
+)
+async def execute_approved_action(token: str, auth: AuthResult = AuthDep) -> dict:
+    """
+    Perform the tool call bound to an approval *token*.
+
+    The token must already be resolved as `approve` via
+    `POST /agent/approve/{token}?action=approve`. The action runs exactly once —
+    the claim is atomic, so a concurrent or repeated call gets 409, not a
+    second execution.
+    """
+    from warden.agent import approval as _approval
+    from warden.agent.tools import TOOL_HANDLERS, traced_dispatch
+
+    rec = _approval.resolution(token)
+    if not rec:
+        raise HTTPException(status_code=404, detail="No resolved approval for this token.")
+    if rec.get("status") != "approved":
+        raise HTTPException(status_code=409, detail=f"Token is {rec.get('status')}, not approved.")
+    # Exact tenant match — a token issued for another tenant is not executable here.
+    caller = auth.tenant_id or "default"
+    if rec.get("tenant_id") != caller:
+        raise HTTPException(status_code=403, detail="Token belongs to another tenant.")
+
+    action = rec.get("action", "")
+    if action not in TOOL_HANDLERS:
+        raise HTTPException(status_code=400, detail=f"Unknown action '{action}'.")
+
+    if not _approval.try_consume(token):
+        raise HTTPException(status_code=409, detail="This approval has already been executed.")
+
+    params = dict(rec.get("params", {}))
+    params["tenant_id"] = caller
+    try:
+        result = await traced_dispatch(action, params, agent_id="approval:execute",
+                                       approval_gate=False)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Execution failed: {exc}") from exc
+
+    return {"token": token, "action": action, "executed": True, "result": result}
 
 
 @router.get(
