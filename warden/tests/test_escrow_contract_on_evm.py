@@ -266,7 +266,7 @@ class TestAccessControlAddedAfterSlither:
         """Unrecoverable: no dispute could resolve, no trade cancel early."""
         w3, escrow, token, arbiter, buyer, seller = chain
         abi, code = _artifacts("escrow")
-        with pytest.raises(TransactionFailed):
+        with expect_revert("ZeroArbiter"):
             w3.eth.contract(abi=abi, bytecode=code).constructor(
                 "0x" + "00" * 20, arbiter
             ).transact({"from": arbiter})
@@ -274,10 +274,15 @@ class TestAccessControlAddedAfterSlither:
     def test_a_zero_operator_deployment_is_refused(self, chain):
         """Merely useless rather than unrecoverable — the parties could still
         call for themselves — but it silently disables every gateway-relayed
-        trade, so it is refused at the same gate."""
+        trade, so it is refused at the same gate.
+
+        Named, not `TransactionFailed`: the arbiter argument here is nonzero
+        precisely so the call reaches the operator guard, and a broad assertion
+        would stay green if it never got that far.
+        """
         w3, escrow, token, arbiter, buyer, seller = chain
         abi, code = _artifacts("escrow")
-        with pytest.raises(TransactionFailed):
+        with expect_revert("ZeroOperator"):
             w3.eth.contract(abi=abi, bytecode=code).constructor(
                 arbiter, "0x" + "00" * 20
             ).transact({"from": arbiter})
@@ -325,8 +330,14 @@ class TestTheOperatorRelaysButCannotDecide:
         assert escrow.functions.stateOf(tid).call() == 5   # Disputed
 
     def test_the_operator_cannot_resolve_a_dispute(self, chain):
-        """The whole reason for the split. A compromised VPS must not be able
-        to award itself the escrowed funds."""
+        """The whole reason for the split: dispute resolution moves to a key
+        that never has to be hot.
+
+        Narrower than it sounds, and deliberately worded that way. A compromised
+        operator still cannot *decide* a dispute, but it is not thereby unable to
+        take money — see
+        `test_a_compromised_operator_can_still_drain_a_standing_allowance`.
+        """
         w3, escrow, token, arbiter, buyer, seller = chain
         op = self._operator(w3, escrow)
         tid = _deposit(escrow, token, buyer, seller, op)
@@ -360,6 +371,46 @@ class TestTheOperatorRelaysButCannotDecide:
         escrow.functions.deliverAsset(tid, b"\xcd" * 32).transact({"from": arbiter})
         escrow.functions.confirmReceipt(tid).transact({"from": arbiter})
         assert token.functions.balanceOf(seller).call() == _AMOUNT
+
+    def test_a_compromised_operator_can_still_drain_a_standing_allowance(self, chain):
+        """The limit of this split, pinned so it cannot be assumed away.
+
+        `deposit` lets the caller choose `buyer`, `seller`, `token` and `amount`,
+        and `TradeExists` only stops reuse of an id — it authorises no field. So
+        an operator that opens a trade against a victim's standing allowance,
+        naming *itself* as seller, can walk that trade to release without the
+        buyer or the seller ever agreeing, and without touching `resolveDispute`.
+
+        The precondition is a standing approval to this contract, which
+        `deposit`'s own comment calls "the common integration".
+
+        This is NOT a regression: before the split `arbiter` held exactly this
+        power, and it is the same shape as the unguarded `deposit` fixed in #394.
+        What is new is the claim that the hot key is now bounded — it is bounded
+        away from disputes, not away from funds. Closing it needs buyer/seller
+        intent binding (EIP-712 with nonce + deadline), which is a contract
+        change, a rebuild and a re-audit: step 2, not this PR.
+
+        When that lands, this test flips to `expect_revert(...)`. Until then a
+        green run here is the honest statement of the residual risk.
+        """
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+        attacker_seller = w3.eth.accounts[5]
+        victim = buyer                      # its allowance is the whole precondition
+
+        assert token.functions.allowance(victim, escrow.address).call() >= _AMOUNT
+        before = token.functions.balanceOf(attacker_seller).call()
+
+        tid = _deposit(escrow, token, victim, attacker_seller, op,
+                       trade_id=b"\x0e" * 32)
+        escrow.functions.deliverAsset(tid, b"\x00" * 32).transact({"from": op})
+        escrow.functions.confirmReceipt(tid).transact({"from": op})
+
+        assert token.functions.balanceOf(attacker_seller).call() == before + _AMOUNT, (
+            "If this now fails, operator authorisation was tightened — good. "
+            "Rewrite this test as a refusal instead of deleting it."
+        )
 
     def test_a_stranger_is_still_refused_everywhere(self, chain):
         """Adding an allowed sender must not widen the door for anyone else."""
