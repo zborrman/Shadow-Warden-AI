@@ -23,6 +23,8 @@ import base64
 import logging
 import os
 
+from warden.observability import COUNTED, NOT_AVAILABLE, NOTHING_TO_CHECK
+
 log = logging.getLogger("warden.ocr")
 
 _BACKEND = os.getenv("WARDEN_OCR_BACKEND", "tesseract").lower()
@@ -100,26 +102,37 @@ def _ocr_vision(image_bytes: bytes, media_type: str = "image/png") -> str | None
         return None
 
 
-def extract_text_from_b64(b64_image: str, media_type: str = "image/png") -> str:
+def extract_text_from_b64_ex(
+    b64_image: str, media_type: str = "image/png"
+) -> tuple[str, str]:
     """
-    Extract visible text from a base64-encoded image using the configured backend.
+    Extract visible text from a base64-encoded image and say *how it went*.
 
-    Returns the extracted text (may be empty string). Never raises — callers
-    should treat an empty return as "no text found / OCR unavailable".
+    Returns ``(text, status)`` where ``status`` is one of the reconciliation
+    labels from :mod:`warden.observability`:
 
-    The returned text is safe to pass directly into the Warden filter pipeline.
+      ``counted``           — OCR ran and found text (may still be benign).
+      ``nothing_to_check``  — OCR ran and the image genuinely has no text.
+      ``not_available``     — OCR could not run (backend disabled/missing,
+                              image undecodable or too large).
+
+    The distinction matters: a caller that gates on OCR must not treat
+    "the scanner is missing" as "the image is clean". :func:`extract_text_from_b64`
+    collapses both into ``""`` and is kept only for existing callers.
+
+    Never raises.
     """
     if _BACKEND == "disabled":
-        return ""
+        return "", NOT_AVAILABLE
 
     try:
         image_bytes = base64.b64decode(b64_image)
     except Exception:
-        return ""
+        return "", NOT_AVAILABLE
 
     if len(image_bytes) > _MAX_IMAGE_BYTES:
         log.debug("OCR: image too large (%d bytes) — skipped", len(image_bytes))
-        return ""
+        return "", NOT_AVAILABLE
 
     text: str | None = None
 
@@ -133,9 +146,27 @@ def extract_text_from_b64(b64_image: str, media_type: str = "image/png") -> str:
         text = _ocr_vision(image_bytes, media_type)
     else:
         log.warning("OCR: unknown backend '%s' — OCR disabled", _BACKEND)
-        return ""
+        return "", NOT_AVAILABLE
 
+    if text is None:
+        # Every backend errored or was missing — the image was NOT inspected.
+        return "", NOT_AVAILABLE
     if not text:
-        return ""
+        return "", NOTHING_TO_CHECK
 
-    return text[:_MAX_OCR_CHARS]
+    return text[:_MAX_OCR_CHARS], COUNTED
+
+
+def extract_text_from_b64(b64_image: str, media_type: str = "image/png") -> str:
+    """
+    Extract visible text from a base64-encoded image using the configured backend.
+
+    Returns the extracted text (may be empty string). Never raises — callers
+    should treat an empty return as "no text found / OCR unavailable".
+
+    The returned text is safe to pass directly into the Warden filter pipeline.
+
+    Prefer :func:`extract_text_from_b64_ex` in security gates: this function
+    cannot tell "no text" from "OCR unavailable".
+    """
+    return extract_text_from_b64_ex(b64_image, media_type)[0]
