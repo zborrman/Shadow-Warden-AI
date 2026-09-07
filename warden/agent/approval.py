@@ -68,17 +68,37 @@ class ApprovalStoreUnavailableError(RuntimeError):
     """Raised when the approval store cannot be reached — caller must fail closed."""
 
 
+def _redis_error_types() -> tuple[type[BaseException], ...]:
+    """``redis.RedisError`` when the client is installed, nothing otherwise.
+
+    Resolved once at import rather than appended to a module global on first
+    use: a tuple that only becomes complete after some other function has run
+    is a tuple whose contents depend on call order, and neither a reader nor
+    mypy can confirm what a given ``except`` clause actually catches.
+    """
+    try:
+        import redis  # noqa: PLC0415
+    except ImportError:                                   # pragma: no cover
+        return ()
+    return (redis.RedisError,)
+
+
 #: Everything a redis round-trip can realistically fail with. Named explicitly
 #: rather than caught as a blanket ``Exception`` so a genuine bug in this module
 #: (a typo, a bad json payload) still surfaces instead of reading as "store down".
-_STORE_ERRORS: tuple[type[BaseException], ...] = (OSError, ValueError, TypeError)
+_STORE_ERRORS: tuple[type[BaseException], ...] = (
+    *_redis_error_types(), OSError, ValueError, TypeError,
+)
+
+#: The same set plus our own unavailability signal, for callers that fail soft.
+#: Bound to a name because mypy cannot check a starred unpack in an `except`.
+_STORE_OR_UNAVAILABLE: tuple[type[BaseException], ...] = (
+    ApprovalStoreUnavailableError, *_STORE_ERRORS,
+)
 
 
 def _redis():
     import redis  # noqa: PLC0415
-    global _STORE_ERRORS
-    if redis.RedisError not in _STORE_ERRORS:
-        _STORE_ERRORS = (redis.RedisError, *_STORE_ERRORS)
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     if not url or url == "memory://":
         raise ApprovalStoreUnavailableError("REDIS_URL not configured for approvals")
@@ -163,7 +183,7 @@ def mark_consumed(token: str) -> None:
             data = json.loads(raw)
             data["consumed"] = True
             r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
-    except (ApprovalStoreUnavailableError, *_STORE_ERRORS) as exc:
+    except _STORE_OR_UNAVAILABLE as exc:
         # Best-effort bookkeeping; try_consume() is the authoritative single-use
         # claim, so a failure here cannot let a token execute twice.
         log.warning("approval: mark_consumed failed for %s: %s", token, exc)
@@ -187,5 +207,5 @@ def try_consume(token: str) -> bool:
         rec["consumed"] = True
         r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(rec))
         return True
-    except (ApprovalStoreUnavailableError, *_STORE_ERRORS):
+    except _STORE_OR_UNAVAILABLE:
         return False          # fail closed: an unclaimable token does not run
