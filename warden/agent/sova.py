@@ -45,10 +45,19 @@ def _cached_tools(tool_defs: list[dict]) -> list[dict]:
     tools prefix (~68 schemas) is cached ephemerally instead of re-sent every turn.
 
     Does not mutate the shared ``tools.TOOLS`` list — copies the last element.
+
+    Idempotent, and safe to apply after a filtering pass: any inherited
+    ``cache_control`` is stripped first. Without that, marking the tools *before*
+    filtering (``tools_for`` drops approval-gated entries) could delete the
+    breakpoint along with the last tool, or leave it stranded mid-list — either
+    way the ~68-schema prefix silently stops being cached.
     """
     if not tool_defs:
         return tool_defs
-    cached = list(tool_defs)
+    cached = [
+        {k: v for k, v in d.items() if k != "cache_control"} if "cache_control" in d else d
+        for d in tool_defs
+    ]
     last = dict(cached[-1])
     last["cache_control"] = {"type": "ephemeral"}
     cached[-1] = last
@@ -351,7 +360,8 @@ async def run_query(
 
     # Cache the tools prefix once per query — subset by profile, stable order so
     # the cache prefix stays stable per profile ("full" = every tool).
-    _cached_tool_defs = _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile))
+    _cached_tool_defs = _cached_tools(
+        _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile)))
 
     # System = cached prompt (stable prefix) + optional recalled-memory block
     # (query-specific, sits AFTER the cache boundary so it never breaks caching).
@@ -418,8 +428,14 @@ async def run_query(
             # Inject tenant context if not explicitly set
             # SECURITY: tenant is request-bound — the model never chooses it.
             tool_input["tenant_id"] = tenant_id
-            log.info("sova: calling tool=%s input=%s", tool_name,
-                     json.dumps(tool_input)[:200])
+            # GDPR (hard requirement): metadata only. The previous line logged
+            # json.dumps(tool_input)[:200], which is request-derived *content* —
+            # filter_request carries the payload, the GDPR export/purge tools
+            # carry subject identifiers, and the commerce tools carry order ids.
+            # Truncating content does not turn it into metadata. Shape only.
+            log.info("sova: calling tool=%s args=%s bytes=%d", tool_name,
+                     sorted(k for k in tool_input if k != "tenant_id"),
+                     len(json.dumps(tool_input, default=str)))
             _span_tool(span, tool_name, phase="call")
             if tool_name not in _tools.TOOL_HANDLERS:
                 _span_tool(span, tool_name, phase="result", status="error", detail="unknown tool")
@@ -539,7 +555,8 @@ async def stream_query(
     cache_read = 0
     t0 = time.perf_counter()
 
-    tool_defs = _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile))
+    tool_defs = _cached_tools(
+        _tools.tools_for(operator_mode, _select_tools(_tools.TOOLS, tool_profile)))
     system_blocks: list[dict] = [
         {"type": "text", "text": _SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
     ]

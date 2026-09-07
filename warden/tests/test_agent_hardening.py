@@ -39,6 +39,19 @@ class _MemRedis:
         return True
 
 
+def _shared_store(monkeypatch):
+    """Install a _MemRedis backed by ONE dict.
+
+    `lambda: _MemRedis({})` hands out a fresh, empty store on every call, so an
+    issued token is gone by the time it is resolved — the record lookup then
+    fails for a reason that has nothing to do with what the test is checking.
+    """
+    from warden.agent import approval
+    store: dict = {}
+    monkeypatch.setattr(approval, "_redis", lambda: _MemRedis(store))
+    return store
+
+
 # ── Tool-surface split ───────────────────────────────────────────────────────
 
 def test_read_surface_excludes_operator_tools():
@@ -50,9 +63,13 @@ def test_read_surface_excludes_operator_tools():
 
 
 def test_operator_surface_includes_them():
+    """Both sides of the old assertion were derived from TOOLS, so it held even
+    if tools_for(operator=True) returned nothing."""
     from warden.agent import tools as t
     op_defs = {d["name"] for d in t.tools_for(operator=True)}
-    assert t.OPERATOR_TOOLS & op_defs == t.OPERATOR_TOOLS & {d["name"] for d in t.TOOLS}
+    schema_names = {d["name"] for d in t.TOOLS}
+    assert t.OPERATOR_TOOLS & schema_names <= op_defs
+    assert t.OPERATOR_TOOLS & schema_names, "no gated tool has a schema"
 
 
 def test_known_mutators_are_gated():
@@ -89,6 +106,99 @@ def test_approval_check_lets_approved_token_through(monkeypatch):
     assert "approval_token" not in inp                               # popped before dispatch
 
 
+def test_a_token_cannot_be_replayed_on_a_different_action(monkeypatch):
+    """The agent chooses which tool to attach a token to.
+
+    Approving `revoke_mandate` and redeeming that token for `run_gdpr_purge`
+    would make the gate decorative: a human would be shown one action and a
+    different one would run.
+    """
+    from warden.agent import approval
+    from warden.agent import tools as t
+    _shared_store(monkeypatch)
+
+    issued = t._approval_check("revoke_mandate", {"mandate_id": "X"}, "acme")
+    tok = issued["token"]
+    assert approval.resolve(tok, True) is True
+
+    out = t._approval_check("run_gdpr_purge", {"session_id": "Y", "approval_token": tok}, "acme")
+    assert out is not None and out["status"] == "approval_denied"
+    assert "different action" in out["reason"]
+
+
+def test_a_token_cannot_be_used_by_another_tenant(monkeypatch):
+    from warden.agent import approval
+    from warden.agent import tools as t
+    _shared_store(monkeypatch)
+
+    tok = t._approval_check("update_config", {"changes": {}}, "acme")["token"]
+    approval.resolve(tok, True)
+
+    out = t._approval_check("update_config", {"changes": {}, "approval_token": tok}, "evil")
+    assert out is not None and "different tenant" in out["reason"]
+
+
+def test_a_token_cannot_be_redeemed_with_different_arguments(monkeypatch):
+    """A human approved specific arguments, not the tool in the abstract."""
+    from warden.agent import approval
+    from warden.agent import tools as t
+    _shared_store(monkeypatch)
+
+    tok = t._approval_check("block_ip_range", {"cidr": "10.0.0.0/24"}, "acme")["token"]
+    approval.resolve(tok, True)
+
+    out = t._approval_check(
+        "block_ip_range", {"cidr": "0.0.0.0/0", "approval_token": tok}, "acme")
+    assert out is not None and "arguments differ" in out["reason"]
+
+
+def test_an_approved_token_is_spent_by_the_dispatch_path(monkeypatch):
+    """Redemption must consume, or one approval authorises unlimited calls."""
+    from warden.agent import approval
+    from warden.agent import tools as t
+    _shared_store(monkeypatch)
+
+    tok = t._approval_check("update_config", {"changes": {}}, "acme")["token"]
+    approval.resolve(tok, True)
+
+    assert t._approval_check(
+        "update_config", {"changes": {}, "approval_token": tok}, "acme") is None
+    second = t._approval_check(
+        "update_config", {"changes": {}, "approval_token": tok}, "acme")
+    assert second is not None and "already spent" in second["reason"]
+
+
+def test_no_unclassified_mutator():
+    """READ_TOOLS is defined by subtraction, so an unlisted mutator defaults to
+    "offered unattended". purchase_listing — which funds an escrow — sat there.
+    A new handler whose name reads like a mutation must be classified, not
+    silently inherited into the read surface."""
+    import re
+
+    from warden.agent import tools as t
+    shape = re.compile(
+        r"^(create|update|delete|remove|revoke|approve|reject|purchase|buy|send|"
+        r"post|publish|write|set|apply|run|trigger|resolve|submit|start|continue|"
+        r"remediate|provision|rotate|block|dismiss|moderate|share|sync|refresh|"
+        r"cancel|settle|deploy)_"
+    )
+    unclassified = sorted(
+        n for n in t.TOOL_HANDLERS
+        if shape.match(n) and n not in t.OPERATOR_TOOLS and n not in t.REVIEWED_UNGATED
+    )
+    assert not unclassified, (
+        f"state-changing handlers reachable with no approval: {unclassified}. "
+        "Add each to approval.GATED_ACTIONS, or to tools.REVIEWED_UNGATED with "
+        "the reason it is safe unattended."
+    )
+
+
+def test_money_spending_tools_are_gated():
+    from warden.agent import tools as t
+    for name in ("purchase_listing", "send_order_proposal", "approve_purchase_intent"):
+        assert name in t.OPERATOR_TOOLS, f"{name} spends money without approval"
+
+
 def test_issue_fails_closed_without_redis(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "memory://")
     from warden.agent import approval
@@ -109,7 +219,7 @@ def test_try_consume_is_single_use(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_gated_tool_does_not_execute(monkeypatch):
-    """traced_dispatch must NOT reach the handler for an ungated mutator."""
+    """traced_dispatch must NOT reach the handler for a gated mutator."""
     from warden.agent import approval
     from warden.agent import tools as t
     monkeypatch.setattr(approval, "_redis", lambda: _MemRedis({}))
@@ -122,8 +232,10 @@ async def test_gated_tool_does_not_execute(monkeypatch):
 
     monkeypatch.setitem(t.TOOL_HANDLERS, "update_config", _fake)
     out = await t.traced_dispatch("update_config", {"tenant_id": "acme", "changes": {}})
-    assert isinstance(out, dict)
-    assert out.get("status") in ("approval_required", "error")
+    # Pinned, not `in (...)`: the store is stubbed and working, so the only
+    # correct outcome is a token. Accepting "error" would keep this green if the
+    # stub broke and the gate short-circuited for an unrelated reason.
+    assert out["status"] == "approval_required"
     assert called["n"] == 0
 
 

@@ -313,60 +313,108 @@ async def sova_commerce_watchdog(ctx: dict) -> dict:
     """
     Hourly at :50 — Agentic Commerce money reconciliation. **No LLM.**
 
-    Deliberately arithmetic, not agentic: this watchdog exists because the
-    money layer has silently disagreed with itself before (clearing settled
-    every trade at $0.00 for months, and live mandates currently report
-    $4 000 authorised against $0.00 spent). A check on that class of defect
-    must not itself depend on a model's judgement.
+    Deliberately arithmetic, not agentic: this watchdog exists because the money
+    layer has silently disagreed with itself before (clearing settled every trade
+    at $0.00 for months, and live mandates report $4,000 authorised against $0.00
+    spent). A check on that class of defect must not depend on a model's
+    judgement.
 
-    Alerts on any critical finding, and — separately — whenever the check could
-    not run at all. "The reconciler was down" and "the books balance" must never
-    look the same in Slack.
+    Runs across **every tenant holding commerce records**, not just the default
+    one: a reconciler that checks a single hardcoded tenant reports nothing wrong
+    for every tenant it never looked at, which is the same silence as no
+    reconciler at all. Each tenant is isolated — one unreadable tenant does not
+    stop the sweep — and the run is capped so an enumeration returning thousands
+    of rows cannot turn an hourly job into an unbounded one.
+
+    Alerts on any critical finding, on tenants that could not be checked, and —
+    separately — when the check could not run at all. "The reconciler was down"
+    and "the books balance" must never look the same in Slack.
     """
     log.info("sova: commerce watchdog [%s]", _ts())
 
-    from warden.finops.commerce_recon import reconcile_commerce
+    from warden.finops.commerce_recon import active_tenants, reconcile_commerce
     from warden.observability import NOT_AVAILABLE
 
-    tenant_id = settings.default_tenant_id
-    try:
-        report = reconcile_commerce(tenant_id)
-    except Exception as exc:
-        log.error("commerce watchdog: reconciliation raised: %s", exc)
-        await _slack(f"*Commerce Watchdog* [{_ts()}]\n:rotating_light: reconciliation "
-                     f"crashed for `{tenant_id}`: {exc}")
-        return {"status": "error", "ts": _ts(), "error": str(exc)}
+    max_tenants = int(getattr(settings, "commerce_recon_max_tenants", 0) or 500)
+    tenants, evidence = active_tenants()
 
-    if report["evidence"] == NOT_AVAILABLE:
+    if evidence == NOT_AVAILABLE:
         await _slack(
             f"*Commerce Watchdog* [{_ts()}]\n"
-            f":warning: reconciliation could not read the commerce tables for "
-            f"`{tenant_id}` — nothing was verified this run."
+            ":warning: could not enumerate commerce tenants — nothing was "
+            "verified this run."
         )
-        return {"status": "degraded", "ts": _ts(), **report}
+        return {"status": "degraded", "ts": _ts(), "evidence": evidence,
+                "tenants_checked": 0}
 
-    findings = report["findings"]
-    if findings:
+    # The default tenant is checked even when it holds no rows yet, so a first
+    # bad write there is caught on the next run rather than the next deploy.
+    default_tid = settings.default_tenant_id
+    if default_tid and default_tid not in tenants:
+        tenants.append(default_tid)
+
+    truncated = max(0, len(tenants) - max_tenants)
+    tenants = tenants[:max_tenants]
+
+    findings: list[dict] = []
+    critical = 0
+    unreadable: list[str] = []
+    mandates = orders = 0
+
+    for tid in tenants:
+        try:
+            report = reconcile_commerce(tid)
+        except Exception as exc:              # one tenant must not end the sweep
+            log.warning("commerce watchdog: %s raised: %s", tid, exc)
+            unreadable.append(tid)
+            continue
+        if report["evidence"] == NOT_AVAILABLE:
+            unreadable.append(tid)
+            continue
+        mandates += report["mandates_checked"]
+        orders += report["orders_checked"]
+        critical += report["critical"]
+        for f in report["findings"]:
+            findings.append({**f, "tenant_id": tid})
+
+    if findings or unreadable or truncated:
         lines = [
-            f"• `{f['type']}` ({f['severity']}) "
+            f"• `{f['type']}` ({f['severity']}) [{f['tenant_id']}] "
             f"{f.get('mandate_id') or f.get('order_id', '')}: {f['detail']}"
             for f in findings[:10]
         ]
-        more = f"\n…and {len(findings) - 10} more" if len(findings) > 10 else ""
-        icon = ":rotating_light:" if report["critical"] else ":warning:"
+        if len(findings) > 10:
+            lines.append(f"…and {len(findings) - 10} more findings")
+        if unreadable:
+            lines.append(f"• {len(unreadable)} tenant(s) could not be read — "
+                         "nothing was verified for them")
+        if truncated:
+            lines.append(f"• {truncated} tenant(s) not reached this run "
+                         f"(cap {max_tenants})")
+        icon = ":rotating_light:" if critical else ":warning:"
         await _slack(
             f"*Commerce Watchdog* [{_ts()}] {icon}\n"
-            f"{len(findings)} finding(s), {report['critical']} critical across "
-            f"{report['mandates_checked']} mandate(s) / {report['orders_checked']} order(s)\n"
-            + "\n".join(lines) + more
+            f"{len(findings)} finding(s), {critical} critical across "
+            f"{len(tenants)} tenant(s) / {mandates} mandate(s) / {orders} order(s)\n"
+            + "\n".join(lines)
         )
-        log.warning("commerce watchdog: %d findings (%d critical) by_type=%s",
-                    len(findings), report["critical"], report["by_type"])
-        return {"status": "alerted", "ts": _ts(), **report}
+        log.warning("commerce watchdog: %d findings (%d critical) across %d tenants, "
+                    "%d unreadable", len(findings), critical, len(tenants), len(unreadable))
+        return {
+            "status": "alerted", "ts": _ts(), "evidence": evidence,
+            "tenants_checked": len(tenants), "unreadable": len(unreadable),
+            "truncated": truncated, "findings": findings, "critical": critical,
+            "mandates_checked": mandates, "orders_checked": orders,
+        }
 
-    log.info("commerce watchdog: clean — %d mandates / %d orders (evidence=%s)",
-             report["mandates_checked"], report["orders_checked"], report["evidence"])
-    return {"status": "ok", "ts": _ts(), **report}
+    log.info("commerce watchdog: clean — %d tenants / %d mandates / %d orders",
+             len(tenants), mandates, orders)
+    return {
+        "status": "ok", "ts": _ts(), "evidence": evidence,
+        "tenants_checked": len(tenants), "unreadable": 0, "truncated": 0,
+        "findings": [], "critical": 0,
+        "mandates_checked": mandates, "orders_checked": orders,
+    }
 
 
 async def sova_corpus_watchdog(ctx: dict) -> dict:

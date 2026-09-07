@@ -118,6 +118,40 @@ def _load(tenant_id: str) -> tuple[list, list[dict], dict[str, dict], str]:
     return mandates, orders, receipts, COUNTED
 
 
+def active_tenants() -> tuple[list[str], str]:
+    """Every tenant with commerce records, and whether the list can be trusted.
+
+    Returns ``(tenant_ids, evidence)``. A reconciler that runs for one hardcoded
+    tenant reports "clean" for every other tenant it never looked at, so the
+    caller needs to know the difference between "no other tenants" and "could
+    not enumerate them".
+    """
+    try:
+        from warden.business_community.agentic_commerce.ap2 import _conn, _db_lock
+    except Exception as exc:
+        record_failopen("commerce_recon", Reason.IMPORT_MISSING, exc)
+        return [], NOT_AVAILABLE
+
+    found: set[str] = set()
+    try:
+        with _db_lock, _conn() as con:
+            # Written out rather than interpolated from a loop variable: the
+            # table names are fixed, and a constant statement needs no
+            # "this interpolation is safe" suppression to prove it.
+            for sql in (
+                "SELECT DISTINCT tenant_id FROM commerce_mandates",
+                "SELECT DISTINCT tenant_id FROM commerce_orders",
+            ):
+                for row in con.execute(sql).fetchall():
+                    if row["tenant_id"]:
+                        found.add(str(row["tenant_id"]))
+    except Exception as exc:
+        record_failopen("commerce_recon", Reason.BACKEND_ERROR, exc)
+        return sorted(found), NOT_AVAILABLE
+
+    return sorted(found), (COUNTED if found else NOTHING_TO_CHECK)
+
+
 def reconcile_commerce(tenant_id: str = "default") -> dict[str, Any]:
     """Reconcile mandates, orders and receipts for one tenant.
 

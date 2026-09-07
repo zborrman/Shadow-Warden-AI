@@ -122,40 +122,40 @@ def test_empty_tenant_is_nothing_to_check(monkeypatch):
 
 
 def test_load_scopes_receipts_to_tenant_orders(tmp_path, monkeypatch):
-    """commerce_receipts has no tenant column — the read must not cross tenants."""
-    import sqlite3
-    db = tmp_path / "c.db"
-    con = sqlite3.connect(db)
-    con.row_factory = sqlite3.Row
-    con.executescript(
-        "CREATE TABLE commerce_orders (id TEXT, tenant_id TEXT, mandate_id TEXT,"
-        " data_json TEXT, created_at TEXT);"
-        "CREATE TABLE commerce_receipts (id TEXT, order_id TEXT, data_json TEXT,"
-        " created_at TEXT);"
-    )
-    con.execute("INSERT INTO commerce_orders VALUES ('o1','acme','m1',?,'')",
-                (json.dumps(_order()),))
-    con.execute("INSERT INTO commerce_receipts VALUES ('r1','o1',?,'')",
-                (json.dumps({"amount": 100.0}),))
-    con.execute("INSERT INTO commerce_receipts VALUES ('r9','other-tenant-order',?,'')",
-                (json.dumps({"amount": 999.0}),))
-    con.commit()
+    """commerce_receipts has no tenant column — the read must not cross tenants.
 
-    import contextlib
+    Built through `open_db` against the commerce DDL that ap2.py registers,
+    rather than a hand-written CREATE TABLE: a fixture that declares its own
+    schema can drift from production and still pass, which is how a reconciler
+    ends up agreeing with a table shape nothing actually writes.
+    """
     import threading
 
     from warden.business_community.agentic_commerce import ap2
+    from warden.db.connect import open_db
+
+    db = str(tmp_path / "commerce.db")
+    with open_db("commerce", db, module_default_path=db) as con:
+        con.execute(
+            "INSERT INTO commerce_orders(id, tenant_id, mandate_id, data_json,"
+            " created_at) VALUES ('o1','acme','m1',?,'')", (json.dumps(_order()),))
+        con.execute("INSERT INTO commerce_receipts(id, order_id, data_json,"
+                    " created_at) VALUES ('r1','o1',?,'')",
+                    (json.dumps({"amount": 100.0}),))
+        con.execute("INSERT INTO commerce_receipts(id, order_id, data_json,"
+                    " created_at) VALUES ('r9','other-tenant-order',?,'')",
+                    (json.dumps({"amount": 999.0}),))
+
     monkeypatch.setattr(ap2, "_db_lock", threading.RLock())
     monkeypatch.setattr(ap2, "_conn",
-                        lambda *_a, **_k: contextlib.nullcontext(con))
+                        lambda *_a, **_k: open_db("commerce", db, module_default_path=db))
     monkeypatch.setattr(ap2.AP2Processor, "list_mandates",
                         lambda _s, _t: [_mandate(spent=100.0)])
 
     _m, orders, receipts, evidence = cr._load("acme")
     assert evidence == COUNTED
-    assert list(receipts) == ["o1"]
+    assert list(receipts) == ["o1"]          # the other tenant's receipt is not read
     assert len(orders) == 1
-    con.close()
 
 
 # ── Tool + cron wiring ───────────────────────────────────────────────────────
@@ -198,53 +198,109 @@ def test_every_tool_schema_matches_its_handler():
 
 
 @pytest.mark.asyncio
-async def test_watchdog_alerts_on_findings(monkeypatch):
-    from warden.agent import scheduler as sch
+def _report(tenant, findings=(), critical=0, evidence=COUNTED, mandates=1, orders=1):
+    return {"ok": not findings, "evidence": evidence, "findings": list(findings),
+            "critical": critical, "by_type": {}, "mandates_checked": mandates,
+            "orders_checked": orders, "receipts_seen": orders,
+            "tenant_id": tenant, "checked_at": "now"}
+
+
+def _patch_watchdog(monkeypatch, sch, tenants, evidence, per_tenant):
     sent: list[str] = []
     monkeypatch.setattr(sch, "_slack", lambda msg: sent.append(msg) or _noop())
-    monkeypatch.setattr(
-        "warden.finops.commerce_recon.reconcile_commerce",
-        lambda _t: {"ok": False, "evidence": COUNTED, "findings": [
-            {"type": "spend_drift", "severity": "critical", "mandate_id": "m1",
-             "detail": "paid orders total $1000.00 but mandate records $0.00"}],
-            "critical": 1, "by_type": {"spend_drift": 1},
-            "mandates_checked": 1, "orders_checked": 1, "receipts_seen": 1,
-            "tenant_id": "acme", "checked_at": "now"})
+    monkeypatch.setattr("warden.finops.commerce_recon.active_tenants",
+                        lambda: (list(tenants), evidence))
+    monkeypatch.setattr("warden.finops.commerce_recon.reconcile_commerce", per_tenant)
+    return sent
+
+
+_DRIFT = {"type": "spend_drift", "severity": "critical", "mandate_id": "m1",
+          "detail": "paid orders total $1000.00 but mandate records $0.00"}
+
+
+@pytest.mark.asyncio
+async def test_watchdog_alerts_on_findings(monkeypatch):
+    from warden.agent import scheduler as sch
+    sent = _patch_watchdog(monkeypatch, sch, ["acme"], COUNTED,
+                           lambda t: _report(t, [_DRIFT], critical=1))
     out = await sch.sova_commerce_watchdog({})
     assert out["status"] == "alerted"
     assert sent and "spend_drift" in sent[0]
 
 
 @pytest.mark.asyncio
-async def test_watchdog_alerts_when_it_could_not_run(monkeypatch):
+async def test_watchdog_checks_every_tenant_not_just_the_default(monkeypatch):
+    """A reconciler that checks one hardcoded tenant reports nothing wrong for
+    every tenant it never looked at — the same silence as no reconciler."""
+    from warden.agent import scheduler as sch
+    seen: list[str] = []
+
+    def _per_tenant(tid):
+        seen.append(tid)
+        return _report(tid, [_DRIFT], critical=1) if tid == "acme-2" else _report(tid)
+
+    sent = _patch_watchdog(monkeypatch, sch, ["acme-1", "acme-2", "acme-3"],
+                           COUNTED, _per_tenant)
+    out = await sch.sova_commerce_watchdog({})
+    assert {"acme-1", "acme-2", "acme-3"} <= set(seen)
+    assert out["status"] == "alerted"
+    assert out["tenants_checked"] >= 3
+    assert out["findings"][0]["tenant_id"] == "acme-2"
+    assert sent and "acme-2" in sent[0]
+
+
+@pytest.mark.asyncio
+async def test_one_bad_tenant_does_not_stop_the_sweep(monkeypatch):
+    from warden.agent import scheduler as sch
+    seen: list[str] = []
+
+    def _per_tenant(tid):
+        seen.append(tid)
+        if tid == "boom":
+            raise RuntimeError("db locked")
+        return _report(tid)
+
+    sent = _patch_watchdog(monkeypatch, sch, ["a", "boom", "z"], COUNTED, _per_tenant)
+    out = await sch.sova_commerce_watchdog({})
+    assert {"a", "boom", "z"} <= set(seen)          # kept going past the failure
+    assert out["unreadable"] == 1
+    assert out["status"] == "alerted"               # and says so rather than "ok"
+    assert sent and "could not be read" in sent[0]
+
+
+@pytest.mark.asyncio
+async def test_a_tenant_that_could_not_be_read_is_not_counted_clean(monkeypatch):
+    from warden.agent import scheduler as sch
+    sent = _patch_watchdog(monkeypatch, sch, ["a"], COUNTED,
+                           lambda t: _report(t, evidence=NOT_AVAILABLE))
+    out = await sch.sova_commerce_watchdog({})
+    assert out["status"] == "alerted"
+    assert sent and "could not be read" in sent[0]
+    # Every tenant checked came back not_available (the default tenant is always
+    # added to the sweep), and none of them was counted as clean.
+    assert out["unreadable"] == out["tenants_checked"]
+    assert out["mandates_checked"] == 0
+
+
+@pytest.mark.asyncio
+async def test_watchdog_alerts_when_it_cannot_enumerate_tenants(monkeypatch):
     """'The reconciler was down' must not read the same as 'the books balance'."""
     from warden.agent import scheduler as sch
-    sent: list[str] = []
-    monkeypatch.setattr(sch, "_slack", lambda msg: sent.append(msg) or _noop())
-    monkeypatch.setattr(
-        "warden.finops.commerce_recon.reconcile_commerce",
-        lambda _t: {"ok": False, "evidence": NOT_AVAILABLE, "findings": [],
-                    "critical": 0, "by_type": {}, "mandates_checked": 0,
-                    "orders_checked": 0, "receipts_seen": 0, "tenant_id": "acme",
-                    "checked_at": "now"})
+    sent = _patch_watchdog(monkeypatch, sch, [], NOT_AVAILABLE,
+                           lambda t: _report(t))
     out = await sch.sova_commerce_watchdog({})
     assert out["status"] == "degraded"
-    assert sent and "could not read" in sent[0]
+    assert sent and "could not enumerate" in sent[0]
 
 
 @pytest.mark.asyncio
 async def test_watchdog_is_quiet_when_clean(monkeypatch):
     from warden.agent import scheduler as sch
-    sent: list[str] = []
-    monkeypatch.setattr(sch, "_slack", lambda msg: sent.append(msg) or _noop())
-    monkeypatch.setattr(
-        "warden.finops.commerce_recon.reconcile_commerce",
-        lambda _t: {"ok": True, "evidence": COUNTED, "findings": [], "critical": 0,
-                    "by_type": {}, "mandates_checked": 2, "orders_checked": 3,
-                    "receipts_seen": 3, "tenant_id": "acme", "checked_at": "now"})
+    sent = _patch_watchdog(monkeypatch, sch, ["a", "b"], COUNTED, lambda t: _report(t))
     out = await sch.sova_commerce_watchdog({})
     assert out["status"] == "ok"
     assert sent == []
+    assert out["tenants_checked"] >= 2
 
 
 async def _noop() -> None:

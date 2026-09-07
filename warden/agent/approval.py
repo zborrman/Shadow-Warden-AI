@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import time
+from typing import Any
 
 log = logging.getLogger("warden.agent.approval")
 
@@ -61,6 +62,17 @@ GATED_ACTIONS: frozenset[str] = frozenset({
     # AG-23 — both erase data irreversibly
     "run_gdpr_purge",
     "run_retention_enforce",
+    # Mutators that were reachable unattended because the read surface was
+    # derived by subtraction: anything not named here counted as read-only.
+    # purchase_listing creates an AP2 mandate and funds an escrow — it spends
+    # money — and the rest each change state outside this process.
+    "purchase_listing",
+    "send_order_proposal",
+    "a2a_submit_task",
+    "remediate_gap",
+    "continue_onboarding",
+    "write_handoff_memory",
+    "resolve_dispute",
 })
 
 
@@ -94,18 +106,38 @@ def _redis_error_types() -> tuple[type[BaseException], ...]:
     return () if mod is None else (mod.RedisError,)
 
 
-#: Everything a redis round-trip can realistically fail with. Named explicitly
-#: rather than caught as a blanket ``Exception`` so a genuine bug in this module
-#: (a typo, a bad json payload) still surfaces instead of reading as "store down".
-_STORE_ERRORS: tuple[type[BaseException], ...] = (
-    *_redis_error_types(), OSError, ValueError, TypeError,
-)
+#: The store is unreachable: redis transport, socket, or configuration. This set
+#: deliberately excludes ValueError/TypeError — a corrupt approval record and a
+#: Redis outage have different causes and different responses, and folding the
+#: first into the second turns a code defect into "the store was down".
+_STORE_ERRORS: tuple[type[BaseException], ...] = (*_redis_error_types(), OSError)
 
-#: The same set plus our own unavailability signal, for callers that fail soft.
+#: A record we read but could not make sense of: bad JSON, wrong shape.
+_RECORD_ERRORS: tuple[type[BaseException], ...] = (ValueError, TypeError, KeyError)
+
+#: Store failures plus our own unavailability signal, for callers that fail soft.
 #: Bound to a name because mypy cannot check a starred unpack in an `except`.
 _STORE_OR_UNAVAILABLE: tuple[type[BaseException], ...] = (
     ApprovalStoreUnavailableError, *_STORE_ERRORS,
 )
+
+
+def fingerprint(token: str) -> str:
+    """A short, non-reversible handle for logs.
+
+    An approval token *is* the credential accepted by
+    ``POST /agent/execute/{token}``, so it must never reach a log line. This is
+    enough to correlate two events about the same approval and nothing more.
+    """
+    return "appr:" + hashlib.sha256(str(token).encode()).hexdigest()[:12]
+
+
+#: One client per URL. Each `from_url()` builds a connection pool and each PING
+#: is a round trip; a single /agent/execute request calls _redis() three times
+#: before dispatch, so the uncached version paid for three pools to do one job.
+#: Keyed by URL so a test or a reload that changes REDIS_URL gets a new client
+#: rather than a stale one.
+_CLIENTS: dict[str, Any] = {}
 
 
 def _redis():
@@ -115,9 +147,13 @@ def _redis():
     url = os.getenv("REDIS_URL", "redis://localhost:6379")
     if not url or url == "memory://":
         raise ApprovalStoreUnavailableError("REDIS_URL not configured for approvals")
+    cached = _CLIENTS.get(url)
+    if cached is not None:
+        return cached
     try:
         r = redis.from_url(url, decode_responses=True)
         r.ping()
+        _CLIENTS[url] = r
         return r
     except _STORE_ERRORS as exc:
         raise ApprovalStoreUnavailableError(str(exc)) from exc
@@ -198,8 +234,13 @@ def mark_consumed(token: str) -> None:
             r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(data))
     except _STORE_OR_UNAVAILABLE as exc:
         # Best-effort bookkeeping; try_consume() is the authoritative single-use
-        # claim, so a failure here cannot let a token execute twice.
-        log.warning("approval: mark_consumed failed for %s: %s", token, exc)
+        # claim, so a failure here cannot let a token execute twice. Fingerprint,
+        # not the token: it is the credential /agent/execute accepts.
+        log.warning("approval: mark_consumed store failure for %s (%s)",
+                    fingerprint(token), type(exc).__name__)
+    except _RECORD_ERRORS as exc:
+        log.error("approval: stored record for %s is unreadable (%s)",
+                  fingerprint(token), type(exc).__name__)
 
 
 def try_consume(token: str) -> bool:
@@ -220,5 +261,13 @@ def try_consume(token: str) -> bool:
         rec["consumed"] = True
         r.setex(f"sova:approval:result:{token}", _TTL, json.dumps(rec))
         return True
-    except _STORE_OR_UNAVAILABLE:
+    except _STORE_OR_UNAVAILABLE as exc:
+        log.warning("approval: try_consume store failure for %s (%s)",
+                    fingerprint(token), type(exc).__name__)
         return False          # fail closed: an unclaimable token does not run
+    except _RECORD_ERRORS as exc:
+        # A record we cannot parse is not an outage. Say so, and still refuse:
+        # silently returning False here made the two indistinguishable.
+        log.error("approval: stored record for %s is unreadable (%s)",
+                  fingerprint(token), type(exc).__name__)
+        return False

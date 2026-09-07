@@ -15,6 +15,7 @@ Tool registry
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import UTC, datetime
@@ -175,7 +176,10 @@ def _tag_untrusted(tool_name: str, result: Any) -> Any:
     if tool_name not in UNTRUSTED_TOOLS:
         return result
     if isinstance(result, dict):
-        return {"_untrusted": True, "_note": _UNTRUSTED_NOTE, **result}
+        # Marker last: several of these handlers return an upstream payload
+        # verbatim, so spreading `result` afterwards would let the third party
+        # the marker warns about overwrite the marker.
+        return {**result, "_untrusted": True, "_note": _UNTRUSTED_NOTE}
     if isinstance(result, list):
         return {"_untrusted": True, "_note": _UNTRUSTED_NOTE, "items": result}
     return result
@@ -708,8 +712,11 @@ async def check_commerce_budget(
         }
     except Exception as exc:
         # A budget check that cannot run must not read as "within budget".
-        from warden.observability import Reason, record_failopen
-        record_failopen("agent.commerce_budget", Reason.BACKEND_ERROR, exc)
+        # Deliberately NOT record_failopen: that counter means "allowed after a
+        # guard failed", and this branch refuses instead. Recording it there
+        # would inflate a bypass metric with events that bypassed nothing.
+        log.error("check_commerce_budget: backend unavailable (%s) — refusing",
+                  type(exc).__name__)
         return {
             "error":      str(exc),
             "allowed":    False,
@@ -3322,8 +3329,32 @@ _URL_SENSITIVE_TOOLS: frozenset[str] = frozenset({
 # is additionally held behind the human-in-the-loop approval gate below, so the
 # agent can propose a mutation but never perform one unattended.
 
+# READ_TOOLS is defined by subtraction, which means the default for a newly
+# registered handler is "offered unattended". That default is wrong, and it was
+# not theoretical: purchase_listing (creates an AP2 mandate and funds an escrow)
+# and six other mutators sat in the read surface because nothing had named them.
+# GATED_ACTIONS is therefore the declared mutator set, and
+# tests/test_agent_hardening.py::test_no_unclassified_mutator fails on any new
+# handler whose name reads like a mutation and is not listed in one of the two.
 OPERATOR_TOOLS: frozenset[str] = _approval.GATED_ACTIONS & frozenset(TOOL_HANDLERS)
 READ_TOOLS: frozenset[str] = frozenset(TOOL_HANDLERS) - OPERATOR_TOOLS
+
+#: Names that read like mutations but are deliberately ungated, each with the
+#: reason. Reviewed individually; this is not a place to silence the guard.
+REVIEWED_UNGATED: frozenset[str] = frozenset({
+    # Refreshes a local intel cache from a feed. No tenant state changes, and
+    # the scheduled sync would otherwise need an approval on every run.
+    "refresh_threat_intel",
+    # Outbound notification only. Gating the agent's own way of reporting would
+    # leave it unable to raise an alarm; bounded instead by the hourly cap in
+    # send_slack_alert.
+    "send_slack_alert",
+    # Read-side analysis of a supplied document; writes no tenant record.
+    "scan_document",
+    # Creates an onboarding draft for the calling tenant and nothing else;
+    # continue_onboarding, which advances it, IS gated.
+    "start_onboarding",
+})
 
 
 def tools_for(operator: bool, tool_defs: list[dict] | None = None) -> list[dict]:
@@ -3334,20 +3365,47 @@ def tools_for(operator: bool, tool_defs: list[dict] | None = None) -> list[dict]
     return [t for t in defs if t.get("name") in READ_TOOLS]
 
 
+def _canonical_params(params: dict[str, Any]) -> str:
+    """Stable text for the arguments a human actually approved."""
+    return json.dumps(params, sort_keys=True, default=str)
+
+
 def _approval_check(tool_name: str, tool_input: dict[str, Any], tenant_id: str) -> dict | None:
     """
     Return a dict to short-circuit dispatch, or None to let the call proceed.
 
     With a resolved+approved ``approval_token`` in the input the call proceeds;
     otherwise a pending token is issued and the tool does not run.
+
+    A token authorises *one specific call*. "Approved" alone is not enough:
+    approving ``revoke_mandate(mandate_id=X)`` and then redeeming that token for
+    ``run_gdpr_purge(session_id=Y)`` would make the gate decorative, since the
+    agent chooses which tool to attach a token to. So the record's action,
+    tenant and arguments must all match the call in hand, and the claim is
+    consumed here — a token spends exactly once, whichever path redeems it.
     """
     token = tool_input.pop("approval_token", None)
     if token:
-        if _approval.is_approved(token):
-            return None
         rec = _approval.resolution(token) or _approval.get_pending(token) or {}
-        return {"status": "approval_denied", "token": token,
-                "approval_status": rec.get("status", "unknown")}
+
+        def _denied(reason: str) -> dict:
+            log.warning("approval: refused token %s for %s (%s)",
+                        _approval.fingerprint(token), tool_name, reason)
+            return {"status": "approval_denied", "token": token, "reason": reason,
+                    "approval_status": rec.get("status", "unknown")}
+
+        if rec.get("status") != "approved":
+            return _denied("not approved")
+        if rec.get("action") != tool_name:
+            # The agent picked which tool to present this token with.
+            return _denied("token was approved for a different action")
+        if rec.get("tenant_id") != tenant_id:
+            return _denied("token belongs to a different tenant")
+        if _canonical_params(rec.get("params") or {}) != _canonical_params(tool_input):
+            return _denied("arguments differ from the approved ones")
+        if not _approval.try_consume(token):
+            return _denied("token already spent")
+        return None
 
     ctx = f"{tool_name}({', '.join(f'{k}={v!r}' for k, v in tool_input.items() if k != 'tenant_id')})"
     try:
