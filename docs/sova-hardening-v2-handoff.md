@@ -14,10 +14,15 @@
   `/sova/stream` tier-gated; tenant bound from `auth.tenant_id` everywhere;
   `MasterRequest.auto_approve` removed (F1); `approval.py` + `accounting.py` dropped in.
   37 tests green, ruff clean.
-- **Slice 2 (TODO):** wire `_gated` into `tools.py` (READ/OPERATOR split, `tools_for` /
-  `handlers_for` — must compose with upstream `_select_tools`/`tool_profile`);
-  `operator_mode` param through `run_query`/`stream_query`; `POST /agent/execute/{token}`;
-  `record_llm_spend` calls in sova/master/healer; sub-agent `pending_approvals`.
+- **Slice 2 (commit `ea471d04`, pushed):** approval gate lives in `traced_dispatch`
+  (`approval_gate=True`), so both SOVA loops, `stream_query` and every MasterAgent
+  sub-agent get it from one place. `OPERATOR_TOOLS`/`READ_TOOLS` split; `tools_for()`
+  composes with upstream `_select_tools`/`tool_profile`; `operator_mode` + `auto_approve`
+  through `run_query`/`stream_query`/`run_task`; sub-agent `pending_approvals` harvested
+  into `MasterResult.approval_tokens` + Slack; `POST /agent/execute/{token}` with an
+  atomic `try_consume()` single-use claim and exact tenant match. 14 tests.
+  **Note:** upstream already has `_record_cost` in `sova.py` and `master.py` — the audit's
+  cost-ledger gap is closed there, so `warden/agent/accounting.py` was dropped as dead code.
 - **Slice 3 (TODO):** PR-4 (`_untrusted` tags + `visual_assert_page` OCR + slack RL),
   PR-7 (`reconcile_orders` + `sova_commerce_watchdog`), PR-8 (`SubAgent.COMMERCE` +
   `/agent/sova/commerce/negotiate`).
