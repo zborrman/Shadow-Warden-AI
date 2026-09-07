@@ -35,8 +35,8 @@ router = APIRouter(prefix="/agent", tags=["SOVA Agent"])
 class SovaRequest(BaseModel):
     query:      str   = Field(..., min_length=1, max_length=4000, description="Your question or command for SOVA")
     session_id: str   = Field("interactive", description="Conversation session ID (for multi-turn memory)")
-    tenant_id:  str   = Field("default",     description="Tenant context for tool calls")
     max_tokens: int   = Field(4096, ge=256, le=8192)
+    tenant_id:  str | None = None   # ignored — bound from the API key
 
 
 class SovaResponse(BaseModel):
@@ -57,8 +57,8 @@ class TaskResponse(BaseModel):
 
 class MasterRequest(BaseModel):
     task:         str  = Field(..., min_length=1, max_length=8000, description="High-level task for MasterAgent")
-    tenant_id:    str  = Field("default", description="Tenant context for all sub-agent tool calls")
-    auto_approve: bool = Field(False, description="Skip human-in-the-loop gate (trusted/scheduled callers only)")
+    tenant_id:    str | None = None   # ignored — bound from the API key
+    # auto_approve is NOT accepted from the API — the approval gate always applies.
 
 
 class MasterResponse(BaseModel):
@@ -112,7 +112,12 @@ AuthDep = Depends(require_api_key)
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.post("/sova", response_model=SovaResponse, summary="Query SOVA agent")
+@router.post(
+    "/sova",
+    response_model=SovaResponse,
+    summary="Query SOVA agent",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
 async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaResponse:
     """
     Send a natural-language query or command to SOVA.
@@ -134,7 +139,7 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     result = await run_query(
         query      = body.query,
         session_id = body.session_id,
-        tenant_id  = body.tenant_id,
+        tenant_id  = auth.tenant_id or "default",   # request-bound, never from the body
         max_tokens = body.max_tokens,
     )
     return SovaResponse(
@@ -148,7 +153,11 @@ async def query_sova(body: SovaRequest, auth: AuthResult = AuthDep) -> SovaRespo
     )
 
 
-@router.post("/sova/stream", summary="Query SOVA agent (streaming SSE)")
+@router.post(
+    "/sova/stream",
+    summary="Query SOVA agent (streaming SSE)",
+    dependencies=[require_feature("sova_agent_enabled")],
+)
 async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> StreamingResponse:
     """
     Streaming variant of ``POST /agent/sova``. Returns a Server-Sent Events
@@ -160,12 +169,14 @@ async def query_sova_stream(body: SovaRequest, auth: AuthResult = AuthDep) -> St
     """
     from warden.agent.sova import stream_query
 
+    _tid = auth.tenant_id or "default"
+
     async def _sse():
         try:
             async for event in stream_query(
                 query      = body.query,
                 session_id = body.session_id,
-                tenant_id  = body.tenant_id,
+                tenant_id  = _tid,
                 max_tokens = body.max_tokens,
             ):
                 yield f"data: {json.dumps(event, default=str)}\n\n"
@@ -274,8 +285,8 @@ async def run_master_agent(
 
     result = await run_master(
         task         = body.task,
-        tenant_id    = body.tenant_id,
-        auto_approve = body.auto_approve,
+        tenant_id    = auth.tenant_id or "default",
+        auto_approve = False,   # never skip the gate for an API caller
     )
     return MasterResponse(
         synthesis       = result.synthesis,
@@ -379,14 +390,14 @@ async def community_lookup(
     t0 = time.perf_counter()
 
     feed = await search_community_feed(
-        query=body.query, limit=10, tenant_id=body.tenant_id
+        query=body.query, limit=10, tenant_id=(auth.tenant_id or 'default')
     )
     results = feed.get("results", [])
 
     recs = await get_community_recommendations(
         incident_type=body.query,
         risk_level=body.risk_level,
-        tenant_id=body.tenant_id,
+        tenant_id=(auth.tenant_id or 'default'),
     )
 
     ueciid: str | None = None
@@ -397,7 +408,7 @@ async def community_lookup(
             rule_id=f"community_lookup:{body.query[:40]}",
             risk_level=body.risk_level,
             evidence_summary=f"Community lookup: {body.query}",
-            tenant_id=body.tenant_id,
+            tenant_id=(auth.tenant_id or 'default'),
         )
         published = pub.get("published", False)
         ueciid = pub.get("ueciid")

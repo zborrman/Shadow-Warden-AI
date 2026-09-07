@@ -400,8 +400,8 @@ async def _run_sub_agent(
                 continue
             tool_name  = block.name
             tool_input = block.input or {}
-            if "tenant_id" not in tool_input:
-                tool_input["tenant_id"] = tenant_id
+            # SECURITY: tenant is request-bound — the model never chooses it.
+            tool_input["tenant_id"] = tenant_id
             tools_used.append(tool_name)
 
             # Phase 7: dispatch through traced_dispatch, NOT TOOL_HANDLERS directly.

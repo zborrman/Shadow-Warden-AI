@@ -414,8 +414,8 @@ async def run_query(
             tool_name = block.name
             tool_input = dict(block.input or {})
             # Inject tenant context if not explicitly set
-            if "tenant_id" not in tool_input:
-                tool_input["tenant_id"] = tenant_id
+            # SECURITY: tenant is request-bound — the model never chooses it.
+            tool_input["tenant_id"] = tenant_id
             log.info("sova: calling tool=%s input=%s", tool_name,
                      json.dumps(tool_input)[:200])
             _span_tool(span, tool_name, phase="call")
@@ -597,8 +597,8 @@ async def stream_query(
         async def _run_one(block: Any) -> tuple[Any, str, bool]:
             tool_name = block.name
             tool_input = dict(block.input or {})
-            if "tenant_id" not in tool_input:
-                tool_input["tenant_id"] = tenant_id
+            # SECURITY: tenant is request-bound — the model never chooses it.
+            tool_input["tenant_id"] = tenant_id
             _span_tool(span, tool_name, phase="call")
             if tool_name not in _tools.TOOL_HANDLERS:
                 _span_tool(span, tool_name, phase="result", status="error", detail="unknown tool")
