@@ -42,7 +42,7 @@ _SURFACES = ("site/src", "landing", "portal/src", "dashboard/src", "docs")
 #: the matrix records what each one is and what to do about it, and the
 #: programme records that the work happened. A guard that cannot tell a claim
 #: from a citation of one forces the register to be written in euphemism.
-_CLAIM_REGISTERS = {"capability-matrix.md", "launch-program.md"}
+_CLAIM_REGISTERS = {"capability-matrix.md", "launch-program.md", "plan-85.md"}
 
 _SUFFIXES = {".astro", ".html", ".tsx", ".ts", ".jsx", ".js", ".md", ".mdx", ".svelte", ".vue"}
 

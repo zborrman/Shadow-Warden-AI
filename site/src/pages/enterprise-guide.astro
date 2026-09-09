@@ -60,10 +60,10 @@ import Layout from '../layouts/Layout.astro';
       <!-- Key metrics row -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10">
         {[
-          ['97.3%', 'Detection Rate'],
-          ['< 8 ms', 'P99 Latency'],
+          ['36.2%', 'Measured catch rate'],
+          ['0 / 35', 'Benign false positives'],
           ['15 Layers', 'Defense Depth'],
-          ['SOC 2 + GDPR', 'Compliance'],
+          ['GDPR', 'Content never logged'],
         ].map(([val, label]) => (
           <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
             <div class="text-[22px] font-bold text-white mb-1">{val}</div>
@@ -107,7 +107,8 @@ import Layout from '../layouts/Layout.astro';
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
         Shadow Warden AI is a zero-trust AI security gateway deployed inline between your application and every LLM call.
-        It processes requests in under 8 ms P99, blocks 97.3% of adversarial prompts, strips secrets and PII before they
+        It filters requests through a nine-stage pipeline, catches 36.2% of prompts in our own published adversarial
+        corpus at HIGH or BLOCK with zero false positives on 35 benign prompts, strips secrets and PII before they
         reach third-party models, and self-improves through an automated Evolution Engine — all without sending sensitive
         data to external services.
       </p>
@@ -237,7 +238,7 @@ import Layout from '../layouts/Layout.astro';
         {[
           {
             label: 'Pattern A — Direct REST Filter',
-            desc: 'Send every AI request through POST /filter before passing to your LLM. Synchronous, <8 ms P99.',
+            desc: 'Send every AI request through POST /filter before passing to your LLM. Synchronous — one inline call on your request path; each response returns its own processing_ms.',
             code: `curl -X POST https://api.shadow-warden-ai.com/filter \\
   -H "X-API-Key: $WARDEN_KEY" \\
   -H "Content-Type: application/json" \\
