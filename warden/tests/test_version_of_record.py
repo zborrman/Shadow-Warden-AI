@@ -50,6 +50,10 @@ _DECLARED_IN = [
     ("PLAN.md", r"^\*\*Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s"),
     ("Rule.md", r"^>\s*\*\*Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s"),
     ("TODO.list", r"Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s*·"),
+    ("PROGRAM.md", r"^\*\*Version:\*\*\s*([0-9]+\.[0-9]+(?:\.[0-9]+)?)"),
+    ("STRATEGY.md", r"^\*\*Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s"),
+    ("CONTRIBUTING.md", r"^\*\*Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s"),
+    ("Skill.md", r"^\*\*Version\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)\s"),
 ]
 
 
@@ -103,3 +107,20 @@ def test_version_is_pep440_and_not_a_placeholder():
         f"__version__ = {v!r} — expected a three-part release version"
     )
     assert not v.startswith("0."), "0.x reads as pre-release for a product that is in production"
+
+
+def test_no_orphan_root_openapi_spec():
+    """The repo root must not carry a hand-committed ``openapi.json``.
+
+    The live gateway serves ``/openapi.json`` dynamically and
+    ``scripts/export_openapi.py`` writes the published copy to
+    ``site/public/openapi.json``. A third copy at the repo root has no generator,
+    so it silently rots — it last shipped 562 paths at ``info.version`` 5.6.0
+    while the product moved four majors on. If it comes back, delete it or wire a
+    generator + a version check.
+    """
+    orphan = _REPO / "openapi.json"
+    assert not orphan.exists(), (
+        "openapi.json is back at the repo root. It has no generator and drifts "
+        "silently — the published spec lives at site/public/openapi.json."
+    )
