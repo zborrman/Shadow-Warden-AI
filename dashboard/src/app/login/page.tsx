@@ -278,7 +278,7 @@ export default function LoginPage() {
 
           <div className="space-y-3">
             {[
-              { icon:"⬡", accent:"#FF2D55", label:"15-layer causal defense pipeline", sub:"< 2ms end-to-end latency" },
+              { icon:"⬡", accent:"#FF2D55", label:"15-layer causal defense pipeline", sub:"synchronous, inline on every request" },
               { icon:"🔐", accent:"#6366f1", label:"Post-Quantum Cryptography",        sub:"FIPS 203/204 — ML-KEM-768 + ML-DSA-65" },
               { icon:"🌍", accent:"#10b981", label:"Sovereign AI Cloud",               sub:"8 jurisdictions · GDPR Art. 35 DPIA" },
               { icon:"🧠", accent:"#8b5cf6", label:"Self-improving ML",                sub:"Claude Opus 4.6 Evolution Engine" },

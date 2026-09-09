@@ -1,10 +1,10 @@
 ---
-// The per-stage millisecond badges that used to sit here (<2ms, <1ms, <8ms …)
-// were never measured: they predated any instrument, and
-// `warden_filter_stage_duration_seconds` now contradicts most of them — the
-// brain measures a p95 near 100 ms against a published <8ms. Removed rather
-// than restated, because a p95 read off 201 requests is not a figure to
-// publish either. docs/capability-matrix.md holds the measurement; the
+// The per-stage millisecond badges that used to sit here were never
+// measured: they predated any instrument, and
+// `warden_filter_stage_duration_seconds` now contradicts most of them (the
+// brain's measured p95 is far above what the page had claimed). Removed
+// rather than restated, because a p95 read off 201 requests is not a figure
+// to publish either. docs/capability-matrix.md holds the measurement; the
 // Grafana panel is the only quotable source.
 const stages = [
   { id: '01', label: 'Topological\nGatekeeper',   color: '#FF2D55' },
@@ -40,7 +40,7 @@ const pillars = [
       <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
         Every request. Every layer.<br />
         <span class="bg-gradient-to-r from-[#BF5AF2] to-[#0A84FF] bg-clip-text text-transparent">
-          Under 20ms total.
+          One synchronous pass.
         </span>
       </h2>
       <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
@@ -96,7 +96,6 @@ const pillars = [
         <div class="flex-shrink-0 w-[100px] rounded-xl border border-[#30D158]/30 bg-[#30D158]/[0.07] p-3 text-center">
           <div class="text-[9px] font-bold font-mono mb-1.5 text-[#30D158] opacity-50">DECISION</div>
           <div class="text-[11px] font-semibold text-[#F5F5F7] leading-[1.4]">ALLOW /<br/>BLOCK</div>
-          <div class="mt-2 text-[9px] font-mono font-bold text-[#30D158]">&lt;20ms</div>
         </div>
       </div>
 

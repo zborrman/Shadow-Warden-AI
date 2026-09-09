@@ -209,7 +209,7 @@ const softwareApplication = {
         { val: '1.5%',  unit: 'take rate',   color: '#10b981',
           desc: 'Platform commission on cleared M2M transactions — computed with Decimal math, zero float drift' },
         { val: '<20',   unit: 'ms',          color: '#ef4444',
-          desc: 'Causal Transfer Guard evaluates every trade — blocks exfiltration at P ≥ 0.70 in under 20ms' },
+          desc: 'Causal Transfer Guard evaluates every trade — blocks exfiltration at P ≥ 0.70 before settlement' },
         { val: '30+',   unit: 'tools',       color: '#80b4fd',
           desc: 'SOVA agent manages your marketplace SOC: visual patrol, shadow AI discovery, corpus watchdog' },
       ].map(s => (
@@ -375,7 +375,7 @@ const softwareApplication = {
       <h2 class="text-[20px] font-bold mb-1" style="color:#f0f4fc">
         Every request. Every time.
       </h2>
-      <p style="font-size:13px;color:#6b7c96">Full cycle &lt;2ms — faster than your network RTT</p>
+      <p style="font-size:13px;color:#6b7c96">One synchronous call on your request path</p>
     </div>
 
     <div class="overflow-x-auto -mx-4 px-4 pb-2">
@@ -454,7 +454,7 @@ const softwareApplication = {
     <div class="flex justify-center mt-8">
       <span class="text-[12px] font-mono px-4 py-1.5 rounded"
             style="color:#ef4444;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.20)">
-        Total latency &lt; 2ms · Covers OWASP LLM Top 10
+        Synchronous · maps to all ten OWASP LLM vectors
       </span>
     </div>
   </div>

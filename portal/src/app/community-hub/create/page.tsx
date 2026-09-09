@@ -545,7 +545,7 @@ function Step4({ d, set }: { d: WizardData; set: (k: keyof WizardData, v: unknow
           <InfoBox>
             MASQUE tunnels support MASQUE_H3, MASQUE_H2, and CONNECT_TCP protocols with TOFU TLS
             pinning. Cross-border transfers are validated against your Sovereign AI Cloud policy.
-            The Causal Transfer Guard blocks exfiltration risk ≥ 0.70 in &lt;20 ms.
+            The Causal Transfer Guard blocks exfiltration risk ≥ 0.70 before the transfer proceeds.
           </InfoBox>
         </>
       )}

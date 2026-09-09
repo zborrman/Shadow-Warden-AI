@@ -15,7 +15,7 @@ const schema = z.object({
 type Form = z.infer<typeof schema>
 
 const STATS = [
-  { value: '< 2ms',  label: 'Filter latency' },
+  { value: '9', label: 'Pipeline stages' },
   { value: '15',     label: 'Defense layers' },
   { value: '99.9%',  label: 'Uptime SLA' },
 ]
@@ -89,7 +89,7 @@ export default function LoginPage() {
             </h2>
             <p className="text-[13px] leading-relaxed" style={{ color: '#64748b' }}>
               15-layer real-time security gateway. Blocks jailbreaks, strips PII,<br />
-              enforces compliance — all in under 2ms.
+              enforces compliance — all inline.
             </p>
           </div>
 

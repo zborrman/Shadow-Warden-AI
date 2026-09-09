@@ -116,7 +116,6 @@ import Layout from '../layouts/Layout.astro';
         {[
           ['$2.3M', 'Average annual breach cost avoided (IBM 2024)', '#FF2D55'],
           ['340%', '3-year ROI for mid-market deployments', '#80b4fd'],
-          ['< 2 ms', 'Topological gatekeeper P50 latency', '#10b981'],
         ].map(([val, desc, color]) => (
           <div class="rounded-xl p-5 border border-white/[0.07]" style={`background:rgba(255,255,255,0.02);border-top:2px solid ${color}`}>
             <div class="text-[26px] font-bold mb-2" style={`color:${color}`}>{val}</div>
@@ -157,23 +156,22 @@ import Layout from '../layouts/Layout.astro';
       </p>
       <div class="space-y-3">
         {[
-          ['L1', 'Auth Guard', 'Per-tenant API keys (SHA-256 hash, constant-time compare). Fail-closed — missing key = 401.', '#FF2D55', '< 0.1 ms'],
-          ['L2', 'Topological Gatekeeper', 'n-gram point cloud → β₀/β₁ Betti numbers via TDA. Rejects structurally anomalous prompts.', '#f59e0b', '< 2 ms'],
-          ['L3', 'Obfuscation Decoder', 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, unicode homoglyphs.', '#10b981', '< 1 ms'],
-          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', '#80b4fd', '< 0.5 ms'],
-          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', '#38bdf8', '< 1 ms'],
-          ['L6', 'ML Brain (MiniLM)', 'all-MiniLM-L6-v2 cosine similarity + Poincaré ball hyperbolic distance blend (70/30). Adversarial suffix stripping.', '#06b6d4', '3–6 ms'],
-          ['L7', 'Causal Arbiter', 'Bayesian DAG — 5 nodes, Pearl do-calculus, backdoor correction. P(HIGH_RISK|evidence).', '#f59e0b', '< 0.5 ms'],
-          ['L8', 'Phishing & SE Guard', 'URL phishing detection + social engineering classification (PhishGuard + SE-Arbiter).', '#10b981', '< 0.5 ms'],
-          ['L9', 'ERS & Shadow Ban', 'Redis sliding-window rate limiter. Shadow-ban at score ≥ 0.75 — gaslight / delay / standard modes.', '#FF2D55', '< 0.3 ms'],
-        ].map(([layer, name, desc, color, latency]) => (
+          ['L1', 'Auth Guard', 'Per-tenant API keys (SHA-256 hash, constant-time compare). Fail-closed — missing key = 401.', '#FF2D55'],
+          ['L2', 'Topological Gatekeeper', 'n-gram point cloud → β₀/β₁ Betti numbers via TDA. Rejects structurally anomalous prompts.', '#f59e0b'],
+          ['L3', 'Obfuscation Decoder', 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, unicode homoglyphs.', '#10b981'],
+          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', '#80b4fd'],
+          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', '#38bdf8'],
+          ['L6', 'ML Brain (MiniLM)', 'all-MiniLM-L6-v2 cosine similarity + Poincaré ball hyperbolic distance blend (70/30). Adversarial suffix stripping.', '#06b6d4'],
+          ['L7', 'Causal Arbiter', 'Bayesian DAG — 5 nodes, Pearl do-calculus, backdoor correction. P(HIGH_RISK|evidence).', '#f59e0b'],
+          ['L8', 'Phishing & SE Guard', 'URL phishing detection + social engineering classification (PhishGuard + SE-Arbiter).', '#10b981'],
+          ['L9', 'ERS & Shadow Ban', 'Redis sliding-window rate limiter. Shadow-ban at score ≥ 0.75 — gaslight / delay / standard modes.', '#FF2D55'],
+        ].map(([layer, name, desc, color]) => (
           <div class="flex gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                  style={`background:${color}20;color:${color};border:1px solid ${color}30`}>{layer}</div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-[13px] font-semibold text-white">{name}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono" style={`background:${color}15;color:${color}`}>{latency}</span>
               </div>
               <div class="text-[12px]" style="color:#64748b">{desc}</div>
             </div>

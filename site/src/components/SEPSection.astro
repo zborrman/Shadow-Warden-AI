@@ -21,7 +21,7 @@ const sepFeatures = [
   {
     icon: '🛡️', color: '#FF2D55', title: 'Causal Transfer Guard',
     file: 'communities/transfer_guard.py',
-    desc: 'Bayesian risk gate on every transfer. Maps data_class + velocity + peering age → arbitrate() evidence. Blocks exfiltration P≥0.70 in <20ms. Redis sliding window.',
+    desc: 'Bayesian risk gate on every transfer. Maps data_class + velocity + peering age → arbitrate() evidence. Blocks exfiltration at P≥0.70 before the transfer proceeds. Redis sliding window.',
     badge: 'P≥0.70 BLOCK',
   },
   {
