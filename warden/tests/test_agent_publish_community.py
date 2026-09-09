@@ -21,6 +21,7 @@ os.environ.setdefault("ANTHROPIC_API_KEY", "")
 
 
 def _status_error(code: int, detail: str = "nope") -> httpx.HTTPStatusError:
+    """Build an HTTP status error returned by a mocked internal API call."""
     req = httpx.Request("POST", "http://localhost:8001/x")
     resp = httpx.Response(code, json={"detail": detail}, request=req)
     return httpx.HTTPStatusError("err", request=req, response=resp)
@@ -29,6 +30,7 @@ def _status_error(code: int, detail: str = "nope") -> httpx.HTTPStatusError:
 # ── gating ───────────────────────────────────────────────────────────────────
 
 def test_publish_to_community_is_approval_gated():
+    """Keep community publishing unavailable to non-operator dispatches."""
     from warden.agent import tools as t
     assert "publish_to_community" in t._approval.GATED_ACTIONS
     assert "publish_to_community" in t.OPERATOR_TOOLS
@@ -37,6 +39,7 @@ def test_publish_to_community_is_approval_gated():
 
 @pytest.mark.asyncio
 async def test_dispatch_returns_token_not_execution(monkeypatch):
+    """Require approval instead of executing a publish immediately."""
     from warden.agent import approval
     from warden.agent import tools as t
     from warden.tests.test_agent_hardening import _MemRedis
@@ -45,6 +48,7 @@ async def test_dispatch_returns_token_not_execution(monkeypatch):
     called = {"n": 0}
 
     async def _fake(**_kw):
+        """Record any unexpected invocation of the publish handler."""
         called["n"] += 1
         return {"published": True}
 
@@ -61,10 +65,12 @@ async def test_dispatch_returns_token_not_execution(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_happy_path_stores_and_indexes(monkeypatch):
+    """Store a clean incident and index its resulting entity."""
     from warden.agent import tools as t
     posts: list[tuple[str, dict]] = []
 
     async def _fake_post(path, body, tenant="default"):
+        """Return successful responses for each publish pipeline step."""
         posts.append((path, body))
         if path == "/filter":
             return {"secrets_found": []}
@@ -96,10 +102,12 @@ async def test_happy_path_stores_and_indexes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_pii_in_evidence_aborts_before_any_write(monkeypatch):
+    """Abort publishing when the privacy filter finds a secret."""
     from warden.agent import tools as t
     posts: list[str] = []
 
     async def _fake_post(path, body, tenant="default"):
+        """Reject any write attempted after the privacy filter response."""
         posts.append(path)
         if path == "/filter":
             return {"secrets_found": ["AWS_KEY"]}
@@ -117,12 +125,15 @@ async def test_pii_in_evidence_aborts_before_any_write(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ambiguous_community_is_refused(monkeypatch):
+    """Require an explicit target when multiple communities are active."""
     from warden.agent import tools as t
 
     async def _fake_post(path, body, tenant="default"):
+        """Accept the privacy-filter request."""
         return {"secrets_found": []}
 
     async def _fake_get(path, tenant="default", params=None):
+        """Return multiple active communities to make selection ambiguous."""
         return [
             {"community_id": "c-1", "status": "ACTIVE"},
             {"community_id": "c-2", "status": "ACTIVE"},
@@ -140,9 +151,11 @@ async def test_ambiguous_community_is_refused(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_single_community_is_auto_resolved(monkeypatch):
+    """Select the sole active community when no target is supplied."""
     from warden.agent import tools as t
 
     async def _fake_post(path, body, tenant="default"):
+        """Return successful responses for the auto-resolved target."""
         if path == "/filter":
             return {"secrets_found": []}
         if path == "/communities/c-only/entities":
@@ -152,6 +165,7 @@ async def test_single_community_is_auto_resolved(monkeypatch):
         raise AssertionError(path)
 
     async def _fake_get(path, tenant="default", params=None):
+        """Return one active and one removed community."""
         return [{"community_id": "c-only", "status": "ACTIVE"},
                 {"community_id": "c-old", "status": "REMOVED"}]
 
@@ -167,9 +181,11 @@ async def test_single_community_is_auto_resolved(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tier_gate_surfaces_as_readable_error(monkeypatch):
+    """Translate a tier-gate response into an actionable error."""
     from warden.agent import tools as t
 
     async def _fake_post(path, body, tenant="default"):
+        """Pass filtering and reject the entity write on tier grounds."""
         if path == "/filter":
             return {"secrets_found": []}
         raise _status_error(403)
@@ -185,9 +201,11 @@ async def test_tier_gate_surfaces_as_readable_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_index_failure_reports_partial_write(monkeypatch):
+    """Report a stored entity when indexing fails afterward."""
     from warden.agent import tools as t
 
     async def _fake_post(path, body, tenant="default"):
+        """Store the entity before simulating an index failure."""
         if path == "/filter":
             return {"secrets_found": []}
         if path.endswith("/entities"):
