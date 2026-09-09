@@ -57,7 +57,7 @@ _SKIP_PARTS = {"node_modules", ".next", "dist", ".astro", "__pycache__", ".git"}
 
 #: The registers whose job is to *discuss* the claim — the matrix records what it
 #: is and what to do about it, the programme records that the work happened.
-_CLAIM_REGISTERS = {"capability-matrix.md", "launch-program.md"}
+_CLAIM_REGISTERS = {"capability-matrix.md", "launch-program.md", "plan-85.md"}
 
 #: A duration offered as a bound on how long something takes. Covers the spelled
 #: form the matrix listed (`sub-2ms`), the symbolic form the site actually uses
