@@ -1,6 +1,6 @@
 # Contributing to Shadow Warden AI
 
-**Version 5.1 · Last updated 2026-05-30**
+**Version 7.9 · Last updated 2026-09-09**
 
 Shadow Warden is a security-critical project. Every line of code runs in front of real AI workloads across 9 filter layers, 153 modules, 11 Docker services, and a 7-page Community & Tunnel Astro SPA. These guidelines keep the codebase safe, fast, and reviewable.
 
