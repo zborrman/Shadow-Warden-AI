@@ -15,6 +15,7 @@ Tool registry
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -1110,8 +1111,8 @@ async def search_community_feed(
     try:
         # The route is `/sep/search`; `/sep/ueciids/search` has never existed, so
         # this tool returned its error branch on every call since it was written.
-        # `community_id` is required by the real endpoint — defaulted the way
-        # `publish_to_community` already defaults it.
+        # `community_id` is required by the real endpoint; default it to the
+        # tenant's own id so a bare query still resolves.
         results = await _get(
             "/sep/search",
             tenant=tenant_id,
@@ -1154,6 +1155,31 @@ async def search_community_feed(
 
 
 
+# Attribution string written into the (community-key-signed) envelope. SOVA is
+# not a community member and holds no Member_ID; naming it plainly is more honest
+# than borrowing a human's MID. `create_envelope` stores this verbatim — it does
+# not check it against the membership roster.
+_SOVA_SENDER_MID = "sova-autonomous-operator"
+
+
+def _http_error(exc: httpx.HTTPStatusError) -> str:
+    """A caller-facing reason for a failed internal API call."""
+    code = exc.response.status_code
+    known = {
+        402: "the tenant's plan does not include community publishing",
+        403: "publishing to a community requires the Community Business tier or above",
+        404: "community not found, or not owned by this tenant",
+        409: "the community has no active keypair — rotate the community key first",
+    }
+    if code in known:
+        return known[code]
+    try:
+        detail = exc.response.json().get("detail")
+    except Exception:
+        detail = None
+    return f"HTTP {code}: {detail or exc.response.text[:200]}"
+
+
 async def publish_to_community(
     verdict: str,
     rule_id: str,
@@ -1168,11 +1194,22 @@ async def publish_to_community(
 
     Workflow:
       1. Validate evidence_summary through /filter — abort if PII/secrets detected.
-      2. Register a new UECIID with incident metadata (verdict, rule_id, risk_level).
-      3. Return the UECIID so the caller can link it in STIX audit or Slack alerts.
+      2. Store the incident as a PUBLIC, community-key-encrypted entity via
+         ``POST /communities/{id}/entities``.
+      3. Index it in the UECIID feed via ``POST /sep/register`` so peer
+         communities can discover it.
+      4. Return the UECIID so the caller can link it in STIX audit or Slack alerts.
+
+    ``community_id`` must be a community owned by ``tenant_id``. When omitted it
+    is resolved automatically only if the tenant owns exactly one active
+    community; otherwise the caller must name one.
 
     evidence_summary must already be anonymized (_anonymize_for_evolution output).
     PII or secrets will cause an immediate abort before any SEP write.
+
+    This handler is approval-gated (``approval.GATED_ACTIONS``): SOVA's loop
+    reaches it only through ``traced_dispatch`` after a human resolves the token
+    via ``POST /agent/execute/{token}``.
     """
     # Step 1: PII gate — confirm evidence is clean before any SEP write
     try:
@@ -1191,33 +1228,88 @@ async def publish_to_community(
         log.warning("publish_to_community: filter gate error: %s", exc)
         return {"published": False, "error": f"PII filter check failed: {exc}"}
 
-    # Step 2: register UECIID
     display_name = f"[{risk_level}] {rule_id} — {verdict}"
 
-    # NOT IMPLEMENTED, and saying so is the point. This posted to
-    # `/sep/ueciids`, a route that has never existed, with a body
-    # (`display_name`/`data_class`/`metadata`) that does not match any route
-    # that does. Every call took the exception branch below, so this tool has
-    # never published anything — while its own description, and
-    # `search_community_feed`'s, told the model it had.
-    #
-    # The real path is two steps: create the entity via
-    # `POST /communities/{id}/entities`, then index it with
-    # `POST /sep/register` (entity_id, content_type, byte_size). That is a new
-    # autonomous write into a peer community's store, and these handlers are
-    # called directly by SOVA's loop with no hard approval gate, so it is a
-    # decision to take deliberately rather than a defect to patch here.
+    # Step 2: resolve the target community
+    target = community_id
+    if not target:
+        try:
+            communities = await _get("/communities", tenant=tenant_id)
+        except Exception as exc:
+            return {"published": False, "error": f"could not list communities: {exc}"}
+        active = [c for c in (communities or []) if c.get("status") == "ACTIVE"]
+        if len(active) != 1:
+            return {
+                "published": False,
+                "error": (
+                    f"community_id is required: the tenant owns {len(active)} "
+                    "active communities, so the target is ambiguous"
+                ),
+            }
+        target = active[0]["community_id"]
+
+    # Step 3: store the incident as an encrypted community entity
+    record = {
+        "verdict":          verdict,
+        "rule_id":          rule_id,
+        "risk_level":       risk_level,
+        "evidence_summary": evidence_summary,
+        "published_by":     _SOVA_SENDER_MID,
+        "published_at":     datetime.now(UTC).isoformat(),
+    }
+    payload = json.dumps(record, separators=(",", ":")).encode()
+    try:
+        meta = await _post(
+            f"/communities/{target}/entities",
+            {
+                "content_b64":  base64.b64encode(payload).decode(),
+                "clearance":    "PUBLIC",
+                "content_type": "application/json",
+                "sender_mid":   _SOVA_SENDER_MID,
+            },
+            tenant=tenant_id,
+        )
+    except httpx.HTTPStatusError as exc:
+        return {"published": False, "error": _http_error(exc), "community_id": target}
+    except Exception as exc:
+        log.warning("publish_to_community: entity write failed: %s", exc)
+        return {"published": False, "error": str(exc), "community_id": target}
+
+    entity_id = meta.get("entity_id")
+    byte_size = meta.get("byte_size", len(payload))
+
+    # Step 4: index the entity in the UECIID / SEP feed
+    try:
+        idx = await _post(
+            "/sep/register",
+            {
+                "entity_id":    entity_id,
+                "community_id": target,
+                "display_name": display_name,
+                "content_type": "application/json",
+                "byte_size":    byte_size,
+            },
+            tenant=tenant_id,
+        )
+    except Exception as exc:
+        # The entity is stored but not discoverable. Report both facts rather
+        # than claiming success or hiding the write that did land.
+        log.warning("publish_to_community: SEP index failed: %s", exc)
+        return {
+            "published":    True,
+            "indexed":      False,
+            "entity_id":    entity_id,
+            "community_id": target,
+            "error":        f"stored but not indexed: {exc}",
+        }
+
     return {
-        "published": False,
-        "error": (
-            "publish_to_community is not implemented: the gateway has no "
-            "endpoint that accepts a threat report. Publishing requires "
-            "creating a community entity and registering it, which is a "
-            "deliberate change to SOVA's write authority. Report the finding "
-            "to the operator instead of publishing it."
-        ),
+        "published":    True,
+        "indexed":      True,
+        "ueciid":       idx.get("ueciid"),
+        "entity_id":    entity_id,
+        "community_id": target,
         "display_name": display_name,
-        "community_id": community_id or tenant_id,
     }
 
 
@@ -2296,13 +2388,15 @@ TOOLS: list[dict] = [
     {
         "name": "publish_to_community",
         "description": (
-            "NOT IMPLEMENTED — this tool cannot publish anything and will "
-            "return an error explaining why. The gateway has no endpoint that "
-            "accepts a threat report; publishing would require creating a "
-            "community entity and indexing it, which is a pending decision "
-            "about SOVA's write authority. Report findings to the operator "
-            "instead. Do not tell anyone an incident was published. "
-            "IMPORTANT: evidence_summary must already be anonymized (no IPs, user IDs, or PII). "
+            "Publish an anonymized security incident to a community you own so "
+            "peer communities can discover the threat pattern. Stores the "
+            "incident as a PUBLIC, community-key-encrypted entity and indexes it "
+            "in the SEP UECIID feed; returns the assigned ueciid. "
+            "community_id must be a community owned by this tenant — omit it only "
+            "if the tenant owns exactly one active community. "
+            "Approval-gated: a human must resolve the approval token before this runs. "
+            "IMPORTANT: evidence_summary must already be anonymized (no IPs, user IDs, or PII); "
+            "the /filter secret/PII gate aborts the publish if any is detected. "
             "Use explain_decision to get the causal chain, then strip identifying fields before calling this."
         ),
         "input_schema": {
