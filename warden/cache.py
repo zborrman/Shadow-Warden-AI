@@ -80,7 +80,10 @@ def check_redis_health() -> dict:
         lat = round((time.perf_counter() - t0) * 1000, 2)
         return {"status": "ok", "latency_ms": lat}
     except Exception as exc:
-        return {"status": f"degraded: {exc}", "latency_ms": None}
+        # Don't surface raw transport errors (can carry internal host/port) in a
+        # response body — log the detail, return a stable status.
+        log.warning("Redis health probe failed: %r", exc)
+        return {"status": "degraded: redis unavailable", "latency_ms": None}
 
 
 def _key(content: str) -> str:
