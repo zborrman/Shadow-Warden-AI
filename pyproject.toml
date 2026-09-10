@@ -54,6 +54,10 @@ dev = [
     # repository keeps finding.
     "eth-tester[py-evm]>=0.11.0",
     "mypy>=1.10.0",
+    # `warden/` imports PyYAML in ~a dozen modules; without the stubs mypy
+    # reports `import-untyped` for every one. Bundling the stub here is what
+    # makes `mypy warden/` exit 0 in CI (plan-85 M-4).
+    "types-PyYAML>=6.0.12",
     # Lower bound matches warden/constraints.txt's mutmut==3.6.0 pin — the
     # [tool.mutmut] block below is written for the 3.x config schema
     # (source_paths / pytest_add_cli_args_test_selection), which replaced the
