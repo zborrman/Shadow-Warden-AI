@@ -26,7 +26,7 @@ Internet
 ┌───────────────────────────────────────────────────────────────┐
 │  warden (FastAPI, Python 3.12)  — port 8001                   │
 │                                                               │
-│  POST /filter ──► 9-layer Security Pipeline (< 2 ms)         │
+│  POST /filter ──► 9-layer Security Pipeline                     │
 │  /communities  /marketplace  /compliance  /semantic-layer     │
 │  /document-intel  /sovereign  /sep  /xai  /agent  /settings  │
 └──────────┬───────────────────────────────────────────────────┘
@@ -52,7 +52,7 @@ Internet
 
 ## 2. Security Pipeline (9 layers)
 
-Every `POST /filter` request passes through these stages in order, target < 2 ms:
+Every `POST /filter` request passes through these stages in order:
 
 | # | Stage | Module | What it does |
 |---|---|---|---|
@@ -143,7 +143,7 @@ WebSocket `/compliance/ws` pushes updates every 30s.
 2. Caddy terminates TLS, proxies to warden:8001
 3. auth_guard  — constant-time API key compare (per-tenant multi-key)
 4. Redis SHA-256 cache check  (5-min TTL, fail-open)
-5. 9-layer pipeline  (< 2 ms, CPU-only torch, MiniLM ONNX)
+5. 9-layer pipeline  (CPU-only torch, MiniLM ONNX)
 6. Decision:
    ALLOW → 200 {"allowed":true, "risk_level":"low", "processing_ms":1.4}
    BLOCK → 200 {"allowed":false, "blocked":true, "flags":["jailbreak"]}

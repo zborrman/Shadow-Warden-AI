@@ -199,15 +199,15 @@ Sessions can be revoked via `DELETE /agents/sessions/{id}`.  Post-session, an `E
 
 | Stage | Typical latency | Notes |
 |-------|----------------|-------|
-| Auth + rate-limit | < 1 ms | Constant-time key lookup |
-| Cache hit | < 2 ms | Redis round-trip |
-| Obfuscation decoder | < 1 ms | Pure Python regex |
+| Auth + rate-limit | Constant-time key lookup |
+| Cache hit | Redis round-trip |
+| Obfuscation decoder | Pure Python regex |
 | Secret redactor | 1–3 ms | 15 compiled regex patterns |
 | Semantic Guard (rules) | 1–2 ms | Deterministic |
 | Semantic Brain (ML) | 8–25 ms | MiniLM, CPU inference |
 | Multimodal (image/audio) | 50–200 ms | Only on multimodal endpoints |
 | ERS lookup | 1–3 ms | Redis pipeline |
-| Logger | < 1 ms | Async NDJSON append |
+| Logger | Async NDJSON append |
 | **Total (text, cache miss)** | **~15–35 ms** | p95 target |
 
 Per-stage timings are returned in every `FilterResponse.processing_ms` dict for live observability.

@@ -644,7 +644,7 @@ asyncio.run(stream())
 
 | Key | Stage | Notes |
 |-----|-------|-------|
-| `cache_check` | Redis SHA-256 lookup | <1 ms typical |
+| `cache_check` | Redis SHA-256 lookup | in-memory hash |
 | `obfuscation` | Base64/hex/ROT13/homoglyph decoder | ~0.3 ms |
 | `redaction` | SecretRedactor (15 regex patterns) | ~1 ms |
 | `rules` | SemanticGuard (rule engine + compound escalation) | ~2 ms |

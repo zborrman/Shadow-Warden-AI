@@ -127,7 +127,7 @@ curl -s -X POST http://localhost:8001/communities \
 - [ ] Prometheus scraping all targets (`http://91.98.234.160:9090/targets`)
 - [ ] Test Slack alert (trigger from SOVA: `POST /agent/sova` → "send a test alert")
 - [ ] Monitor error rate < 0.1% (Grafana: `warden_requests_total{status="5xx"}`)
-- [ ] Monitor P99 latency < 50ms (Grafana: `warden_filter_duration_seconds p99`)
+- [ ] Monitor P99 latency against the SLA target (Grafana: `warden_filter_duration_seconds` p99)
 - [ ] MinIO Evidence Vault receiving bundles (`warden-evidence` bucket)
 - [ ] SOVA morning brief fires at 08:00 UTC (check ARQ logs)
 

@@ -44,7 +44,7 @@ We publish an updated priority snapshot every quarter. Re-ordering happens openl
 
 ## 1. Security Pipeline
 
-The 9-layer filter that processes every AI request in under 2ms.
+The 9-layer filter that processes every AI request inline.
 
 | Status | Feature | Since | Tier |
 |--------|---------|-------|------|
@@ -64,7 +64,7 @@ The 9-layer filter that processes every AI request in under 2ms.
 | ✅ | Adaptive OTel sampling — 10% ALLOW / 100% HIGH+BLOCK | v4.14 | All |
 | 📋 | Multi-modal content guard — image prompt injection | — | Pro+ |
 | 📋 | Audio/video transcription guard — Whisper pre-scan | — | Enterprise |
-| 📋 | ONNX fine-tuned model export — <1ms inference | — | All |
+| 📋 | ONNX fine-tuned model export | — | All |
 
 ---
 
@@ -100,7 +100,7 @@ Federated knowledge-sharing between Security Operations teams via SEP.
 | ✅ | UECIID codec — `SEP-{11 base-62}`, lexicographic = chronological | v4.6 | Community+ |
 | ✅ | Inter-community peering — MIRROR_ONLY/REWRAP_ALLOWED/FULL_SYNC | v4.6 | Community+ |
 | ✅ | Knock-and-Verify invitations — one-time Redis token, 72h TTL | v4.6 | Community+ |
-| ✅ | Causal Transfer Guard — exfiltration P≥0.70 block in <20ms | v4.7 | Community+ |
+| ✅ | Causal Transfer Guard — exfiltration P≥0.70 block | v4.7 | Community+ |
 | ✅ | STIX 2.1 Audit Chain — SHA-256 prev_hash, OASIS-compatible | v4.7 | Community+ |
 | ✅ | Sovereign Data Pods — per-jurisdiction MinIO routing | v4.7 | Enterprise |
 | ✅ | Community Charter — versioned governance, DRAFT→ACTIVE lifecycle | v4.8 | Community+ |

@@ -27,7 +27,7 @@
 ```
 POST /filter
     ↓
-TopologicalGatekeeper  (< 2ms, unchanged)
+TopologicalGatekeeper  (unchanged)
     ↓
 ObfuscationDecoder     (unchanged)
     ↓
@@ -39,7 +39,7 @@ HyperbolicBrain        (MiniLM, unchanged)
     ↓
 CausalArbiter          (Bayesian DAG, fast path — unchanged)
     ↓ [MEDIUM confidence only — gray zone]
-NemotronArbiter ★ NEW  (thinking mode, < 150ms async budget)
+NemotronArbiter ★ NEW  (thinking mode, async budget ~150ms)
     ↓
 ERS / Shadow Ban       (unchanged)
     ↓
@@ -51,7 +51,7 @@ Background:
                _brain_guard corpus
 ```
 
-**Key design constraint:** Nemotron sits on the **async gray-zone path only** — it never adds latency to the P99 fast path. The Bayesian CausalArbiter remains the primary < 5ms path; Nemotron is invoked only when confidence is in the 0.45–0.65 range.
+**Key design constraint:** Nemotron sits on the **async gray-zone path only** — it never adds latency to the P99 fast path. The Bayesian CausalArbiter remains the primary synchronous path; Nemotron is invoked only when confidence is in the 0.45–0.65 range.
 
 ---
 
@@ -272,8 +272,8 @@ NVIDIA_NGC_KEY=                # required for NIM container pull
 
 | Component | Latency target | Path type |
 |-----------|---------------|-----------|
-| CausalArbiter (Bayesian DAG) | < 5ms | Synchronous, always runs |
-| NemotronArbiter (gray-zone) | < 150ms timeout | Async, gray-zone only (~8% of traffic) |
+| CausalArbiter (Bayesian DAG) | synchronous | always runs |
+| NemotronArbiter (gray-zone) | ~150ms timeout budget | Async, gray-zone only (~8% of traffic) |
 | NemotronEvolutionEngine | < 30s | Background task, never blocks response |
 | Threat Intel Analysis | < 60s | Scheduled background job |
 
