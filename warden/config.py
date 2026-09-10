@@ -299,8 +299,17 @@ class Settings:
     )
 
     # ── Image Guard ────────────────────────────────────────────────────────────
+    # Default OFF (S-3). The CLIP model (openai/clip-vit-b-32, ~600 MB) is not
+    # baked into the runtime image — only MiniLM is — so on-by-default means
+    # `_load_model()` errors under `local_files_only` and every image request is
+    # then passed through unscreened, incrementing
+    # `warden_stage_failopen_total{stage="image_guard"}`. Production ran that way
+    # for weeks: a guard advertised as active, disabled in fact, and invisible
+    # to `/health/pipeline` (it is not one of the 9 core stages). Same precedent
+    # as BROWSER_ENABLED. A deployment that ships the CLIP weights sets
+    # IMAGE_GUARD_ENABLED=true. Capability matrix row: Multi-Modal Guard = BUILT.
     image_guard_enabled: bool = field(
-        default_factory=lambda: _bool("IMAGE_GUARD_ENABLED", True)
+        default_factory=lambda: _bool("IMAGE_GUARD_ENABLED", False)
     )
     image_guard_threshold: float = field(
         default_factory=lambda: _float("IMAGE_GUARD_THRESHOLD", 0.28)
@@ -319,8 +328,11 @@ class Settings:
     )
 
     # ── Audio Guard ────────────────────────────────────────────────────────────
+    # Default OFF (S-3), same reason as image_guard: the Whisper weights are not
+    # in the runtime image, so on-by-default lets every audio request through
+    # unscreened while incrementing the stage bypass counter.
     audio_guard_enabled: bool = field(
-        default_factory=lambda: _bool("AUDIO_GUARD_ENABLED", True)
+        default_factory=lambda: _bool("AUDIO_GUARD_ENABLED", False)
     )
     audio_guard_model: str = field(
         default_factory=lambda: _env("AUDIO_GUARD_MODEL", "tiny.en")

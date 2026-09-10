@@ -150,12 +150,18 @@ def _load_model():
 
 
 def prewarm() -> bool:
-    """Pre-load CLIP model at startup.  Returns True on success."""
+    """Pre-load CLIP model at startup.
+
+    Returns True only when the model actually loaded. `_load_model()` swallows
+    its own failure and returns `(None, None)`, so a bare
+    `_load_model(); return True` reported success while the guard was inert —
+    which is how the MOTD showed CLIP+WHISPER on a gateway that had neither.
+    """
     if not ENABLED:
         return False
     try:
-        _load_model()
-        return True
+        model, processor = _load_model()
+        return model is not None and processor is not None
     except Exception as exc:
         log.warning("ImageGuard: model pre-warm failed (non-fatal): %s", exc)
         return False

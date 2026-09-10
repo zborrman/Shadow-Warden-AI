@@ -1241,8 +1241,14 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
+              # `by (stage, reason)` (S-2), not a bare `sum()`: an aggregate
+              # rolls a persistent single-stage fail-open — image_guard's
+              # model_not_loaded ran for weeks — into the same one alert as a
+              # transient blip, and the notification never says which guard.
+              # One alert instance per (stage, reason) makes a stuck stage its
+              # own firing series that will not silence until it is fixed.
               expr: >
-                sum(increase(warden_stage_failopen_total[5m]))
+                sum by (stage, reason) (increase(warden_stage_failopen_total[5m]))
               intervalMs: 15000
               maxDataPoints: 43200
               instant: true
@@ -1262,12 +1268,15 @@ groups:
           severity: critical
           team: warden
         annotations:
-          summary: "Warden fail-open events firing — requests may be bypassing a guard"
+          summary: "Warden fail-open: {{ $labels.stage }} bypassed ({{ $labels.reason }})"
           description: >
-            warden_stage_failopen_total increased in the last 5 minutes: a security
-            guard errored and allowed the request through (fail-open). Break down by
-            stage/reason in Prometheus. Common causes: Redis down (redis_unavailable),
-            model not loaded (model_not_loaded), upstream timeout.
+            warden_stage_failopen_total{stage="{{ $labels.stage }}",
+            reason="{{ $labels.reason }}"} increased in the last 5 minutes: that
+            guard errored and allowed the request through (fail-open). Common
+            causes: Redis down (redis_unavailable), model not loaded
+            (model_not_loaded — the stage is enabled but its weights are not in
+            the image), upstream timeout. A stage that should not be running at
+            all belongs OFF in config, not fail-opening on every request.
 
       # ── Detached background task failed ──────────────────────────────────────
       # process_blocked / alert_block_event / alert_push_verdict / the Telegram
