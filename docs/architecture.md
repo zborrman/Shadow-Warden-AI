@@ -3,7 +3,7 @@
 **Status:** Phases 1-2 landed · Phase 3 in progress (safety net + 2 groups
 extracted) · Phase 4 layer-guard landed — **zero upward imports of `warden.main`,
 enforced in CI**
-**Style:** Layered modular monolith (single-node, CPU-only, fail-open <2ms hot path)
+**Style:** Layered modular monolith (single-node, CPU-only, fail-open hot path)
 **Non-goal:** microservices / event bus — they break the latency budget and add ops
 weight a single-tenant-per-node security gateway does not need.
 

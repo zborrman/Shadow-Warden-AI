@@ -51,7 +51,7 @@ Your Application → Shadow Warden AI → Your LLM (OpenAI / Azure / Bedrock)
 
 ## How It Works (Business Language)
 
-Shadow Warden AI sits as a **transparent proxy** between your application and any LLM. Every request passes through a nine-stage security pipeline in under 6ms:
+Shadow Warden AI sits as a **transparent proxy** between your application and any LLM. Every request passes through a nine-stage security pipeline:
 
 | Stage | What it does | Why it matters |
 |-------|-------------|----------------|
@@ -104,7 +104,7 @@ Auditors get machine-readable proof. Prep time drops by **60–80%**.
 | Cryptographic compliance evidence | ✅ | ❌ | ❌ | ❌ |
 | On-prem data sovereignty | ✅ | ✅ | ❌ | ❌ |
 | Self-improving via live attack data | ✅ | ❌ | ❌ | ❌ |
-| Sub-6ms latency impact | ✅ | ✅ | Partial | ✅ |
+| Inline single-pass pipeline | ✅ | ✅ | Partial | ✅ |
 | Multi-LLM (OpenAI/Azure/Bedrock/Vertex) | ✅ | N/A | ❌ (vendor-locked) | ❌ (Azure only) |
 
 **No other product combines data sovereignty, agent safety, ML detection, and cryptographic audit evidence in a single gateway.**
@@ -198,7 +198,7 @@ This is the **Vendor Lock-in by ROI** model. Customers buy Warden not because we
 - v2.1 in production with full nine-stage pipeline
 - Evidence Vault output accepted as SOC 2 control documentation
 - On-prem MinIO storage satisfies EU data residency requirements out-of-the-box
-- Sub-6ms P99 latency at 1,000 req/sec on 2-CPU / 4GB RAM instance
+- Runs on a 2-CPU / 4GB RAM instance (CPU-only)
 - GDPR-safe by design: content never logged, only metadata
 
 ---
@@ -224,7 +224,7 @@ This is the **Vendor Lock-in by ROI** model. Customers buy Warden not because we
 
 ## One-Paragraph Investor Summary
 
-Shadow Warden AI is the world's first purpose-built AI security gateway with cryptographic compliance evidence. It blocks jailbreaks, strips PII, monitors agents, and generates tamper-evident SOC 2 audit bundles — all in under 6ms, all on your infrastructure. In a market where EU regulators are fining companies for inadequate AI controls, where cyber insurers are demanding demonstrable AI security postures, and where enterprises are deploying agents at scale with no visibility into what they're doing, Shadow Warden is the only product that solves the security, compliance, and data sovereignty problem simultaneously. We are not selling a feature. We are selling the right to operate AI in regulated industries.
+Shadow Warden AI is the world's first purpose-built AI security gateway with cryptographic compliance evidence. It blocks jailbreaks, strips PII, monitors agents, and generates tamper-evident SOC 2 audit bundles — all on your infrastructure. In a market where EU regulators are fining companies for inadequate AI controls, where cyber insurers are demanding demonstrable AI security postures, and where enterprises are deploying agents at scale with no visibility into what they're doing, Shadow Warden is the only product that solves the security, compliance, and data sovereignty problem simultaneously. We are not selling a feature. We are selling the right to operate AI in regulated industries.
 
 ---
 

@@ -1,20 +1,5 @@
 {
-  "docs/api.md": 1,
-  "docs/architecture-overview.md": 3,
-  "docs/architecture.md": 1,
   "docs/architecture/decisions.md": 1,
-  "docs/architecture/overview.md": 2,
-  "docs/architecture/pipeline.md": 3,
-  "docs/community-creation-guide.md": 2,
-  "docs/executive-pitch.md": 4,
-  "docs/fintech-development-plan.md": 2,
-  "docs/modernization-plan-v8.md": 1,
-  "docs/nemotron-integration-plan.md": 5,
-  "docs/pipeline-anatomy.md": 4,
-  "docs/product-pillars.md": 2,
-  "docs/production-launch.md": 1,
-  "docs/project-structure.md": 1,
-  "docs/roadmap.md": 3,
-  "docs/security-model.md": 2,
+  "docs/architecture/pipeline.md": 1,
   "docs/sla.md": 4
 }

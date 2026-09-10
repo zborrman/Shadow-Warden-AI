@@ -26,7 +26,7 @@ graph TB
         J[/soc/* · /xai/* · /sep/* · ...]
     end
 
-    subgraph Pipeline["Filter Pipeline (&lt;10ms)"]
+    subgraph Pipeline["Filter Pipeline"]
         L1[TopologicalGatekeeper]
         L2[ObfuscationDecoder]
         L3[SecretRedactor]
@@ -83,7 +83,7 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A[Raw content] --> B[TopologicalGatekeeper\nn-gram Betti numbers <2ms]
+    A[Raw content] --> B[TopologicalGatekeeper\nn-gram Betti numbers]
     B --> C[ObfuscationDecoder\nbase64/hex/ROT13/homoglyphs depth-3]
     C --> D[SecretRedactor\n15 regex + Shannon entropy]
     D --> E[SemanticGuard rules\ncompound risk escalation]

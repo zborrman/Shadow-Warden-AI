@@ -16,7 +16,7 @@ tamper-evident audit chain.
 - ✅ UECIID codec — Snowflake → base-62 `SEP-{11}`, lexicographic = chronological (`communities/sep.py`, `communities/id_generator.py`)
 - ✅ Sovereign Pod Tags — per-entity data residency; PHI EU→US blocked (`communities/sep.py`)
 - ✅ Causal Transfer Proof — HMAC-SHA256 + optional ML-DSA-65 PQC signature (`communities/sep.py`)
-- ✅ Causal Transfer Guard — pre-transfer exfiltration block (P≥0.70, <20 ms) (`communities/transfer_guard.py`)
+- ✅ Causal Transfer Guard — pre-transfer exfiltration block (P≥0.70) (`communities/transfer_guard.py`)
 - ✅ Sovereign Data Pods — per-jurisdiction MinIO routing, Fernet-encrypted keys (`communities/data_pod.py`)
 - ✅ STIX 2.1 tamper-evident audit chain — SHA-256 prev-hash, JSONL export (`communities/stix_audit.py`)
 - ✅ REST surface — 24 endpoints `/sep/*` (`api/sep.py`)
@@ -109,7 +109,7 @@ The 9-stage `/filter` pipeline plus the agentic SOC that operates and self-heals
 it. GDPR-hard: content is never logged, only metadata.
 
 ### 3.1 The 9-Stage Pipeline (`POST /filter`)
-- ✅ Stage 1 — Topological Gatekeeper: n-gram point cloud → β₀/β₁ Betti numbers, <2 ms (`topology_guard.py`)
+- ✅ Stage 1 — Topological Gatekeeper: n-gram point cloud → β₀/β₁ Betti numbers (`topology_guard.py`)
 - ✅ Stage 1b — Obfuscation Decoder: base64/hex/ROT13/Caesar/word-split/UUencode/homoglyphs, depth-3 (`obfuscation.py`)
 - ✅ Stage 1c — Secret Redactor: 15 regex + Shannon entropy scan (`secret_redactor.py`)
 - ✅ Stage 2 — Semantic Guard (rules): compound risk escalation (`semantic_guard.py`)

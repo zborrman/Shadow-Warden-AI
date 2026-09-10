@@ -25,7 +25,7 @@ Converts the text into an n-gram point cloud and computes Betti numbers
 Jailbreak prompts tend to have anomalous topology — high β₁ relative to β₀.
 
 - **Threshold:** configurable `TOPOLOGY_BETA1_MAX`
-- **Speed:** < 2ms (pure numpy, no external deps)
+- **Implementation:** pure numpy, no external deps
 - **Fallback:** if `ripser` unavailable, uses simplified distance matrix
 
 ### Layer 2 — ObfuscationDecoder
@@ -111,4 +111,4 @@ differentiated strategies:
 | BrainSemanticGuard | 3–5ms | MiniLM ONNX (CPU) |
 | CausalArbiter | 0.5ms | Matrix multiply |
 | ERS | 0.5ms | Redis GET/SET |
-| **Total P99** | **< 50ms** | Per SLA |
+| **Total P99** | target — see [SLA](../sla.md) | not yet verified in production |

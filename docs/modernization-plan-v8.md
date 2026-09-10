@@ -13,7 +13,7 @@ the agent-URL SSRF gap existed until FE-52 closed it.
 
 | # | Category | Score | Evidence & gap |
 |---|----------|-------|----------------|
-| 1 | Core filter pipeline (9-layer: topology → obfuscation → redaction → semantic → brain → causal → ERS) | **88** | Mature, contract-tested (52 invariant tests), <2ms topology stage, fail-open discipline. Gap: thresholds are static env vars, no calibration loop. |
+| 1 | Core filter pipeline (9-layer: topology → obfuscation → redaction → semantic → brain → causal → ERS) | **88** | Mature, contract-tested (52 invariant tests), topology stage, fail-open discipline. Gap: thresholds are static env vars, no calibration loop. |
 | 2 | ML & mathematical models (TDA Betti, Poincaré blend, Bayesian DAG) | **78** | Real math, pure-numpy, do-calculus with backdoor correction, CPT drift gate. Gaps: MiniLM (2021-era) embedder; fixed 70/30 hyperbolic blend; β₀/β₁ only (no persistence); no online learning anywhere. |
 | 3 | Agent runtime & safety (SOVA, MasterAgent, staff, SAC guard) | **82** | Boundaries+velocity+A2A HMAC+approval gates; SAC guard now screens dispatch (SSRF fail-CLOSED) and produces GSAM telemetry. Gaps: SOVA/Master bypass BoundaryRegistry (staff-only); no OS-level isolation; model routing is static per-level. |
 | 4 | GSAM / observability | **55** | Ingest (collector/spool/ClickHouse) + first producer (SAC) + JIT lease rebuilt. Missing: rollup sink → `gsam_agent_stats`, EWMA drift math, quarantine, read API, semantic model — DDL exists, code does not. |

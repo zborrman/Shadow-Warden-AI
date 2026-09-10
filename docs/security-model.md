@@ -24,7 +24,7 @@ Shadow Warden AI is designed to defend against the following threat actors and a
 | LLM01 | Prompt Injection | SemanticGuard + BrainGuard + TopologicalGatekeeper |
 | LLM02 | Insecure Output Handling | OutputGuard + OutputSanitizer |
 | LLM03 | Training Data Poisoning | EvolutionEngine corpus validation + CanaryGuard |
-| LLM04 | Model Denial of Service | TopologicalGatekeeper (< 2ms noise filter) + ERS shadow ban |
+| LLM04 | Model Denial of Service | TopologicalGatekeeper (noise filter) + ERS shadow ban |
 | LLM05 | Supply Chain Vulnerabilities | Immutable Docker image + CPU-only torch (no CUDA supply chain); cosign keyless signature + signed in-toto SBOM attestation + SLSA provenance on the GHCR image — ⚠️ **see "What the attestation covers" below — production runs the attested image only when `PIN_SIGNED_IMAGE=true`** |
 | LLM06 | Sensitive Information Disclosure | SecretRedactor + Encrypted PII Vault |
 | LLM07 | Insecure Plugin Design | Zero-Trust Agent Sandbox (capability manifests) |
@@ -83,7 +83,7 @@ Stage 0:   Auth Gate           — per-tenant API key, constant-time compare
                                  Fail-closed: startup halts if no key configured
                                  (ALLOW_UNAUTHENTICATED=true required for dev mode)
 Stage 0.5: Redis Cache         — SHA-256 content hash, 5-min TTL
-Stage 1:   Topological Guard   — n-gram point cloud → β₀/β₁ Betti numbers, < 2ms
+Stage 1:   Topological Guard   — n-gram point cloud → β₀/β₁ Betti numbers
 Stage 2:   Obfuscation Decoder — base64/hex/ROT13/homoglyphs, depth-3 recursive
 Stage 3:   Secret Redactor     — 15 regex patterns + Shannon entropy scan
 Stage 4:   Semantic Guard      — rule-based, compound escalation (3× MEDIUM → HIGH)

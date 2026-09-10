@@ -12,7 +12,7 @@ This plan is the reconciliation of an external integration guide (TypeScript/Pri
 |---|---|---|---|
 | **Architecture** | 78 | Layered monolith + app factory (`RouterSpec`), DDL registry, `WARDEN_DATA_DIR` consolidation, route-inventory guard, CI layer-rule enforcement | 100+ routers in one process; single-node deployment; SQLite sprawl (mitigated, not eliminated) |
 | **Security** | 88 | Fail-closed signing keys (`resolve_key`), SSRF IP-pinning (SR-2.3 complete), agentic gate on every tool dispatch, gating SAST (bandit/semgrep/gitleaks), PQC hybrid, STIX audit chains | BrowserSandbox process isolation (DE-7 remainder); single-tenant blast radius on one VPS |
-| **Efficiency** | 55 | CPU-only ML (<2ms TDA gate), Redis cache, ONNX export, model singleton | ~17 containers on a 4 GB VPS; no memory-limit audit; hourly rollups instead of real-time rating |
+| **Efficiency** | 55 | CPU-only ML (TDA gate), Redis cache, ONNX export, model singleton | ~17 containers on a 4 GB VPS; no memory-limit audit; hourly rollups instead of real-time rating |
 | **Resource economy** | 60 | L1/L2/L3 model routing (Haiku/Sonnet/Opus), `TokenCostTracker`, prompt caching in SOVA | Cost math ignores the 90% cached-token discount → margins over-reported; no per-tenant COGS |
 | **Monetization** | 70 | Full stack built: 5 tiers ($0→$249), add-ons (402/403 gates), two-phase wallet, x402 nanopayments, Lemon Squeezy metered billing, referral flywheel, 14-day trial | Demand unproven; no conversion-funnel instrumentation; wallet/trial/referral are three disjoint balance systems |
 | **Profitability** | pre-revenue | Gross-margin potential >90% on `/filter` traffic (local ML, zero marginal LLM cost); infra floor ≈ $25/mo | Distribution, not technology, is the bottleneck |
@@ -90,7 +90,7 @@ With per-action real costs (FM-2) and prompt-cache-corrected math:
 
 ### FM-4 — Resource efficiency on the 4 GB node (defer MILP)
 - **Memory-limit audit**: every service in `docker-compose.yml` gets an explicit `mem_limit`; sum ≤ 3.4 GB (leave 600 MB for kernel/page cache). Today limits are partial — one leaky container can OOM-evict the gateway.
-- **Latency SLO model**: treat warden as M/G/1 with service time S (P50≈2ms filter path). P99 wait ≈ (λ·E[S²])/(2(1−ρ)) · scaling; solve for the max sustainable λ at P99 < 50 ms (the SLA). Publish the derived capacity ceiling as a Prometheus recording rule; alert at ρ > 0.7.
+- **Latency SLO model**: treat warden as M/G/1 with service time S (P50≈2ms filter path). P99 wait ≈ (λ·E[S²])/(2(1−ρ)) · scaling; solve for the max sustainable λ at the SLA P99 target. Publish the derived capacity ceiling as a Prometheus recording rule; alert at ρ > 0.7.
 - Consolidation candidates (measure, then act): Jaeger+Loki cohabitation, Grafana render pressure, MinIO idle overhead.
 - **MILP (archived for ≥2 nodes)**: min Σ_k c_k·y_k s.t. Σ_k x_jk = 1 ∀j; Σ_j w_j·x_jk ≤ C_k·y_k ∀k; x,y ∈ {0,1}. Correct formulation, adopt only when a second Hetzner node exists — then via a proper solver dependency, not `/tmp` scripts.
 

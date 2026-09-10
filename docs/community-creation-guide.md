@@ -13,7 +13,7 @@ community gets:
 - A **SEP UECIID** — a base-62 provenance identifier (`SEP-{11 chars}`) for all transfers.
 - An **Ed25519 keypair** (optionally upgraded to Hybrid PQC: Ed25519 + ML-DSA-65).
 - A **STIX 2.1 tamper-evident audit chain** for every data transfer.
-- A **Causal Transfer Guard** that blocks exfiltration risk ≥ 0.70 in < 20 ms.
+- A **Causal Transfer Guard** that blocks exfiltration risk ≥ 0.70 before the transfer proceeds.
 - Optional **Document Intelligence** auto-scanning of all uploaded files.
 - Optional **Evolution Engine** for sharing anonymized jailbreak-detection rule bundles.
 
@@ -99,7 +99,7 @@ Select jurisdictions through which federated traffic is routed:
 - The **Causal Transfer Guard** runs on every `transfer_entity()` call:
   - Evaluates data_class, transfer velocity, peering age/policy, burst pattern.
   - Blocks if `P(HIGH_RISK|evidence) ≥ TRANSFER_RISK_THRESHOLD` (default 0.70).
-  - Runs in < 20 ms; produces a REJECTED transfer record (full audit trail kept).
+  - Produces a REJECTED transfer record (full audit trail kept).
 
 ### Step 5 — Compliance & Audit
 

@@ -120,7 +120,7 @@ Key modules that live at `warden/*.py` (not yet promoted to a subpackage):
 | `schemas.py` | Pydantic models — FilterRequest, FilterResponse, RiskLevel |
 | `semantic_guard.py` | Rule-based semantic analyser (compound risk escalation) |
 | `secret_redactor.py` | 15 PII/secret regex + Shannon entropy scan |
-| `topology_guard.py` | TDA Gatekeeper (n-gram → Betti numbers, < 2ms) |
+| `topology_guard.py` | TDA Gatekeeper (n-gram → Betti numbers) |
 | `causal_arbiter.py` | Bayesian DAG causal inference (Pearl do-calculus) |
 | `obfuscation.py` | Obfuscation decoder (base64/hex/ROT13/homoglyphs, depth-3) |
 | `shadow_ban.py` | Shadow Ban Engine (gaslight/delay/standard strategies) |
