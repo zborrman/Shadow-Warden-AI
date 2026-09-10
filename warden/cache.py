@@ -55,6 +55,34 @@ def _get_client():
     return _client
 
 
+def check_redis_health() -> dict:
+    """Probe Redis and return degradation info for the health endpoints.
+
+    ``_get_client()`` returns None both when Redis is intentionally disabled
+    (REDIS_URL unset or ``memory://``) and when it's configured but unreachable —
+    a real outage. Those two cases must not collapse into the same "unavailable"
+    status, or a genuine outage gets reported "ok" by ``/health`` (Redis is
+    optional-by-design for the content-hash cache, so only the disabled case
+    counts as healthy).
+
+    Synchronous and network-bound (``_get_client`` dials with a 5 s connect
+    timeout, ``ping()`` a 3 s socket timeout) — call it via
+    ``asyncio.to_thread`` from an async handler.
+    """
+    if not _REDIS_URL or _REDIS_URL == "memory://":
+        return {"status": "unavailable", "latency_ms": None}
+    try:
+        client = _get_client()
+        if client is None:
+            return {"status": "degraded: redis configured but unreachable", "latency_ms": None}
+        t0 = time.perf_counter()
+        client.ping()
+        lat = round((time.perf_counter() - t0) * 1000, 2)
+        return {"status": "ok", "latency_ms": lat}
+    except Exception as exc:
+        return {"status": f"degraded: {exc}", "latency_ms": None}
+
+
 def _key(content: str) -> str:
     return _PREFIX + hashlib.sha256(content.encode()).hexdigest()
 

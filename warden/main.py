@@ -75,7 +75,6 @@ from warden import shadow_ban as _sban
 from warden.analytics import logger as event_logger
 from warden.api.docs_router import router as _docs_router
 from warden.api.masking import router as _masking_router
-from warden.api.system import _check_redis_health
 from warden.api.ws_events import broadcast_event as _ws_broadcast_event
 from warden.api.ws_events import subscriber_count as _ws_subscriber_count
 from warden.api_versioning import APIVersionMiddleware
@@ -93,7 +92,7 @@ from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
-from warden.cache import check_tenant_rate_limit, get_cached, set_cached
+from warden.cache import check_redis_health, check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.client_ip import get_client_ip
 from warden.config import settings
@@ -1712,13 +1711,13 @@ app.add_middleware(APIVersionMiddleware)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
-# _check_redis_health() + GET /health/pipeline extracted to warden/api/system.py
-# (P-2); _check_redis_health is re-imported above for the /health route below.
+# GET /health/pipeline extracted to warden/api/system.py (P-2). The Redis probe
+# moved to warden.cache.check_redis_health (the leaf it probes).
 
 
 @app.get("/health", tags=["ops"], summary="Liveness probe")
 async def health():
-    redis_health = _check_redis_health()
+    redis_health = await asyncio.to_thread(check_redis_health)
     overall = "ok" if redis_health["status"] in ("ok", "unavailable") else "degraded"
 
     # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)

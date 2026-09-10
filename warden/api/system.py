@@ -7,52 +7,27 @@ Operational / dashboard system endpoints.
   GET /health/pipeline   — per-stage pipeline / model / Turso / PQC / journal health
 
 Extracted from ``warden/main.py`` (P-2). Both endpoints only read the event
-journal (``warden.analytics.logger``) and probe optional subsystems lazily, so
-the module is imported directly rather than resolved through ``warden.runtime``.
-``_check_redis_health`` lives here too and is re-imported by main.py's remaining
-``/health`` liveness route. The inline ``/health`` and ``/api/config`` routes
-land here in later increments — those touch the resilience sliding windows and
-live-tunable knobs and need the runtime seam first.
+journal (``warden.analytics.logger``) and probe optional subsystems lazily. The
+Redis health probe lives in ``warden.cache`` (the leaf it probes) so this
+router's import can't defeat ``register_router_safe``'s isolation. The inline
+``/health`` and ``/api/config`` routes land here in later increments — those
+touch the resilience sliding windows and live-tunable knobs and need the runtime
+seam first.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter
 
 from warden.analytics import logger as event_logger
+from warden.cache import check_redis_health
 
 router = APIRouter(tags=["ops"])
 log = logging.getLogger("warden.gateway")
-
-
-def _check_redis_health() -> dict:
-    """Probe Redis and return degradation info.
-
-    ``cache._get_client()`` returns None both when Redis is intentionally
-    disabled (REDIS_URL unset or memory://) and when it's configured but
-    unreachable — a real outage. Those two cases must not collapse into the
-    same "unavailable" status, or a genuine outage gets reported "ok" by
-    /health (Redis is optional-by-design for the content-hash cache, so only
-    the disabled case should count as healthy).
-    """
-    from warden.cache import _REDIS_URL, _get_client
-    if not _REDIS_URL or _REDIS_URL == "memory://":
-        return {"status": "unavailable", "latency_ms": None}
-    try:
-        client = _get_client()
-        if client is None:
-            return {"status": "degraded: redis configured but unreachable", "latency_ms": None}
-        t0 = time.perf_counter()
-        client.ping()
-        lat = round((time.perf_counter() - t0) * 1000, 2)
-        return {"status": "ok", "latency_ms": lat}
-    except Exception as exc:
-        return {"status": f"degraded: {exc}", "latency_ms": None}
 
 
 @router.get("/api/stats", summary="Aggregated filter stats for dashboard")
@@ -168,8 +143,10 @@ async def health_pipeline(deep: bool = False) -> dict:
     _try_import("causal", "warden.causal_arbiter",  "arbitrate")
     _try_import("phish",  "warden.phishing_guard",  "analyse")
 
-    # ERS stage — backed by Redis
-    _redis_h = _check_redis_health()
+    # ERS stage — backed by Redis. The probe is synchronous and network-bound
+    # (up to an 8 s stall on a configured-but-unreachable Redis), so keep it off
+    # the event loop — the journal reads in this handler already are.
+    _redis_h = await asyncio.to_thread(check_redis_health)
     stages["ers"] = {
         "status": "ok" if _redis_h["status"] == "ok" else _redis_h["status"],
         "redis_latency_ms": _redis_h.get("latency_ms"),

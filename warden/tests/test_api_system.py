@@ -1,10 +1,11 @@
 """
 warden/tests/test_api_system.py
 ───────────────────────────────
-`GET /api/stats` — the dashboard stats aggregator extracted from main.py to
-`warden/api/system.py` (P-2). Exercised on a minimal app with just the router
-mounted, so no ML boot / lifespan is needed; `event_logger.load_entries` is
-patched to supply the journal.
+`GET /api/stats` + `GET /health/pipeline` — extracted from main.py to
+`warden/api/system.py` (P-2), plus `warden.cache.check_redis_health` (the Redis
+probe moved to the leaf it probes). Exercised on a minimal app with just the
+router mounted, so no ML boot / lifespan is needed; the journal reads and the
+Redis probe are patched.
 """
 from __future__ import annotations
 
@@ -80,6 +81,13 @@ def test_stats_aggregates_and_buckets(client: TestClient) -> None:
     assert sum(p["total"] for p in body["time_series"]) == 2
     assert sum(p["blocked"] for p in body["time_series"]) == 1
     assert [r["request_id"] for r in body["recent"]] == ["c", "b", "a"]
+    # GDPR: the recent feed is metadata only — never content or decoded payloads.
+    # A new field slipping into event_logger.build_entry must not flow through here.
+    assert all(
+        set(r) <= {"ts", "request_id", "allowed", "risk_level",
+                   "flags", "elapsed_ms", "payload_len"}
+        for r in body["recent"]
+    )
 
 
 def test_stats_tolerates_unparseable_timestamps(client: TestClient) -> None:
@@ -90,20 +98,20 @@ def test_stats_tolerates_unparseable_timestamps(client: TestClient) -> None:
     assert resp.json()["total"] == 1
 
 
-# ── _check_redis_health ───────────────────────────────────────────────────────
+# ── check_redis_health (warden.cache) ─────────────────────────────────────────
 
 
 def test_redis_health_disabled_reports_unavailable(monkeypatch) -> None:
     import warden.cache as cache
     monkeypatch.setattr(cache, "_REDIS_URL", "memory://", raising=False)
-    assert system_mod._check_redis_health() == {"status": "unavailable", "latency_ms": None}
+    assert cache.check_redis_health() == {"status": "unavailable", "latency_ms": None}
 
 
 def test_redis_health_configured_but_unreachable(monkeypatch) -> None:
     import warden.cache as cache
     monkeypatch.setattr(cache, "_REDIS_URL", "redis://x:6379", raising=False)
     monkeypatch.setattr(cache, "_get_client", lambda: None, raising=False)
-    out = system_mod._check_redis_health()
+    out = cache.check_redis_health()
     assert out["status"].startswith("degraded")
     assert out["latency_ms"] is None
 
@@ -117,7 +125,7 @@ def test_redis_health_ok(monkeypatch) -> None:
 
     monkeypatch.setattr(cache, "_REDIS_URL", "redis://x:6379", raising=False)
     monkeypatch.setattr(cache, "_get_client", lambda: _FakeClient(), raising=False)
-    out = system_mod._check_redis_health()
+    out = cache.check_redis_health()
     assert out["status"] == "ok"
     assert isinstance(out["latency_ms"], float)
 
@@ -126,7 +134,7 @@ def test_redis_health_ok(monkeypatch) -> None:
 
 
 def test_pipeline_health_shape(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(system_mod, "_check_redis_health",
+    monkeypatch.setattr(system_mod, "check_redis_health",
                         lambda: {"status": "unavailable", "latency_ms": None})
     with patch("warden.api.system.event_logger.journal_stats", return_value={"bounded": True}):
         resp = client.get("/health/pipeline")
@@ -141,7 +149,7 @@ def test_pipeline_health_shape(client: TestClient, monkeypatch) -> None:
 
 
 def test_pipeline_health_deep_runs_canary(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(system_mod, "_check_redis_health",
+    monkeypatch.setattr(system_mod, "check_redis_health",
                         lambda: {"status": "ok", "latency_ms": 1.0})
 
     async def _fake_canary() -> dict:
