@@ -52,10 +52,13 @@ class GatewayState:
     filter_window: deque[float] = field(default_factory=deque)   # all /filter requests (denominator)
 
     def set_uncertainty_lower(self, value: float) -> float:
-        """Clamp to [0.0, 0.99], persist to the env var, return the applied value.
+        """Clamp to [0.0, 0.99], mirror into the env var, return the applied value.
 
-        ``POST /api/config`` is the only writer. The env-var write keeps a
-        fresh worker (or a restart) picking up the tuned value.
+        ``POST /api/config`` is the only writer. Both effects are **process-local**
+        — the value is not shared across uvicorn workers and a container restart
+        reloads the deployment ``.env``. This carries over the exact behaviour of
+        the old main.py handler; a cross-worker durable config store is out of
+        scope for the P-2 extraction.
         """
         self.uncertainty_lower = max(0.0, min(0.99, value))
         os.environ["UNCERTAINTY_LOWER_THRESHOLD"] = str(self.uncertainty_lower)

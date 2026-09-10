@@ -169,14 +169,26 @@ def test_pipeline_health_deep_runs_canary(client: TestClient, monkeypatch) -> No
 # ── /api/config ───────────────────────────────────────────────────────────────
 
 
+_CONFIG_ENV = ("SEMANTIC_THRESHOLD", "STRICT_MODE", "UNCERTAINTY_LOWER_THRESHOLD")
+
+
 @pytest.fixture(autouse=True)
 def _restore_state():
-    """Config tests mutate the process-wide gateway_state + runtime singletons —
-    snapshot and restore so a full-suite run isn't affected."""
-    saved = dict(system_mod.runtime._slots)
+    """Config tests mutate process-wide state — gateway_state, the runtime
+    singleton slots, and the env vars POST /api/config writes. Snapshot and
+    restore all three so a full-suite run isn't affected."""
+    import os
+
+    saved_slots = dict(system_mod.runtime._slots)
+    saved_env = {k: os.environ.get(k) for k in _CONFIG_ENV}
     yield
     gateway_state.reset()
-    system_mod.runtime._slots.update(saved)
+    system_mod.runtime._slots.update(saved_slots)
+    for k, v in saved_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
 
 
 def test_config_get_reports_live_knobs(client: TestClient) -> None:
