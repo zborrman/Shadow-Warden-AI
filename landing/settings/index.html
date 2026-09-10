@@ -74,7 +74,7 @@ ENTERPRISE
 </span> </div> <p class="text-[11px]" style="color:#475569" data-astro-cid-swhfej32>
 Hybrid X25519+ML-KEM-768 KEM for session key exchange. Shared secret derived via HKDF-SHA256(X25519 XOR ML-KEM-768).
 </p> </div> <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Requires Enterprise tier" data-astro-cid-swhfej32> <label class="toggle-label" data-astro-cid-swhfej32> <input type="checkbox" class="sr-only toggle-input" id="toggle-mlkem" data-astro-cid-swhfej32> <span class="toggle-track" data-astro-cid-swhfej32><span class="toggle-thumb" data-astro-cid-swhfej32></span></span> </label> </div> </div> <!-- Causal Transfer Guard threshold --> <label class="flex items-center justify-between p-4 rounded-xl cursor-pointer" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)" data-astro-cid-swhfej32> <div data-astro-cid-swhfej32> <p class="text-[13px] font-semibold" style="color:#f1f5f9" data-astro-cid-swhfej32>Causal Transfer Guard</p> <p class="text-[11px] mt-0.5" style="color:#475569" data-astro-cid-swhfej32>
-Blocks trades where P(exfiltration) ≥ 0.70 (env: <code class="font-mono text-[10px]" style="color:#94a3b8" data-astro-cid-swhfej32>TRANSFER_RISK_THRESHOLD</code>). Runs in &lt;20ms via Bayesian DAG.
+Blocks trades where P(exfiltration) ≥ 0.70 (env: <code class="font-mono text-[10px]" style="color:#94a3b8" data-astro-cid-swhfej32>TRANSFER_RISK_THRESHOLD</code>). Evaluated via Bayesian DAG before the transfer proceeds.
 </p> </div> <input type="checkbox" checked class="sr-only toggle-input" id="toggle-ctg" data-astro-cid-swhfej32> <span class="toggle-track" data-astro-cid-swhfej32><span class="toggle-thumb" data-astro-cid-swhfej32></span></span> </label> </div> </div> <div class="settings-card mt-4" data-astro-cid-swhfej32> <h3 class="card-title mb-3" data-astro-cid-swhfej32>Upgrade to unlock PQC</h3> <p class="text-[12px] mb-4" style="color:#64748b" data-astro-cid-swhfej32>
 Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768) is available on Enterprise tier.
               Classical Ed25519/X25519 remain active on all tiers.
@@ -156,4 +156,4 @@ const requireText = "Shadow Warden AI";
 
   window[`open_${id}`] = open;
 })();
-})();</script>  <script type="module" src="/_astro/settings.astro_astro_type_script_index_0_lang.D5L48aKD.js"></script>
+})();</script>  <script type="module" src="/_astro/settings.astro_astro_type_script_index_0_lang.B8Lgzp2i.js"></script>

@@ -4,7 +4,7 @@
     "category": "Cyber Security",
     "subcategory": "Security Pipeline",
     "feature": "Topological Gatekeeper",
-    "description": "n-gram point cloud → Betti numbers β₀/β₁. Detects structural anomalies invisible to regex. Runs in <2ms.",
+    "description": "n-gram point cloud → Betti numbers β₀/β₁. Detects structural anomalies invisible to regex.",
     "version": "v1.0",
     "tier": "All",
     "status": "shipped"
@@ -1147,7 +1147,7 @@
     "category": "Settings",
     "subcategory": "General",
     "feature": "Live Config API",
-    "description": "Tune thresholds, timeouts, and resilience strategy without container restarts. Changes take effect in <100ms.",
+    "description": "Tune thresholds, timeouts, and resilience strategy without container restarts. Changes take effect without a restart.",
     "version": "v4.0",
     "tier": "All",
     "status": "shipped"
@@ -1587,7 +1587,7 @@
     "category": "Settings",
     "subcategory": "SOVA & Agent Config",
     "feature": "Agent Thresholds",
-    "description": "Tune HIGH/BLOCK risk thresholds, SOVA iteration cap, scan interval. Changes hot-reload in <100ms via env-var injection.",
+    "description": "Tune HIGH/BLOCK risk thresholds, SOVA iteration cap, scan interval. Changes hot-reload via env-var injection.",
     "version": "v4.31",
     "tier": "Individual+",
     "status": "shipped"

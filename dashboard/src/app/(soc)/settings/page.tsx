@@ -366,7 +366,7 @@ function FilterPipelinePanel({
         }}>Pipeline stages</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
           {([
-            ["topologyGuard",     "Topology Guard",      "β₀/β₁ Betti numbers, <2ms"],
+            ["topologyGuard",     "Topology Guard",      "β₀/β₁ Betti numbers"],
             ["obfuscationDecode", "Obfuscation Decoder", "base64/hex/ROT13/homoglyphs"],
             ["secretRedaction",   "Secret Redaction",    "15 patterns + entropy scan"],
             ["semanticBrain",     "SemanticBrain ML",    "MiniLM + Poincaré, ~15ms"],

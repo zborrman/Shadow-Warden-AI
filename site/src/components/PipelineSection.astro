@@ -1,7 +1,7 @@
 ---
 const stages = [
   {
-    num: '01', icon: '🌀', color: '#FF2D55', ms: '<2ms',
+    num: '01', icon: '🌀', color: '#FF2D55',
     title: 'Topological Gatekeeper',
     module: 'topology_guard.py',
     tech: 'TDA · Ripser · Betti β₀/β₁',
@@ -9,7 +9,7 @@ const stages = [
     stats: [['Betti numbers', 'β₀ + β₁'], ['Point cloud', 'n-gram'], ['Library', 'Ripser']],
   },
   {
-    num: '02', icon: '🔓', color: '#FF9F0A', ms: '<1ms',
+    num: '02', icon: '🔓', color: '#FF9F0A',
     title: 'Obfuscation Decoder',
     module: 'obfuscation.py',
     tech: 'Base64 · Hex · ROT13 · Homoglyphs',
@@ -17,7 +17,7 @@ const stages = [
     stats: [['Max depth', '3 layers'], ['Encodings', '7 types'], ['Unicode', 'Homoglyphs']],
   },
   {
-    num: '03', icon: '🔑', color: '#FFD60A', ms: '<1ms',
+    num: '03', icon: '🔑', color: '#FFD60A',
     title: 'PII & Secret Vault',
     module: 'secret_redactor.py + masking/engine.py',
     tech: '15 Patterns · Shannon Entropy · Fernet',
@@ -25,7 +25,7 @@ const stages = [
     stats: [['Patterns', '15 regex'], ['Entropy scan', 'Shannon'], ['Vault', 'Fernet AES']],
   },
   {
-    num: '04', icon: '📏', color: '#30D158', ms: '<3ms',
+    num: '04', icon: '📏', color: '#30D158',
     title: 'Semantic Rule Engine',
     module: 'semantic_guard.py',
     tech: '420 Rules · Compound Escalation',
@@ -33,7 +33,7 @@ const stages = [
     stats: [['Rules', '420'], ['Escalation', '3× MEDIUM'], ['Mode', 'Compound']],
   },
   {
-    num: '05', icon: '🧠', color: '#0A84FF', ms: '<8ms',
+    num: '05', icon: '🧠', color: '#0A84FF',
     title: 'Hyperbolic Brain',
     module: 'brain/semantic.py + brain/hyperbolic.py',
     tech: 'MiniLM · ONNX · Poincaré Ball',
@@ -41,7 +41,7 @@ const stages = [
     stats: [['Model', 'MiniLM L6'], ['Blend', '70/30'], ['Runtime', 'ONNX CPU']],
   },
   {
-    num: '06', icon: '🔗', color: '#BF5AF2', ms: '<3ms',
+    num: '06', icon: '🔗', color: '#BF5AF2',
     title: 'Causal Arbiter',
     module: 'causal_arbiter.py',
     tech: 'Bayesian DAG · Pearl Do-Calculus',
@@ -49,7 +49,7 @@ const stages = [
     stats: [['Nodes', '5-node DAG'], ['Method', 'Do-calculus'], ['Gray-zone', 'P(HIGH|e)']],
   },
   {
-    num: '07', icon: '🎣', color: '#FF2D55', ms: '<2ms',
+    num: '07', icon: '🎣', color: '#FF2D55',
     title: 'PhishGuard + SE-Arbiter',
     module: 'phishing_guard.py',
     tech: 'URL Analysis · Social Engineering',
@@ -57,7 +57,7 @@ const stages = [
     stats: [['Layers', '2 parallel'], ['URL check', 'Pattern DB'], ['SE', 'Semantic']],
   },
   {
-    num: '08', icon: '📊', color: '#FF9F0A', ms: '<1ms',
+    num: '08', icon: '📊', color: '#FF9F0A',
     title: 'Entity Risk Scoring',
     module: 'shadow_ban.py + entity_risk.py',
     tech: 'Redis · Sliding Window · Shadow Ban',
@@ -65,7 +65,7 @@ const stages = [
     stats: [['Threshold', '0.75 score'], ['Backend', 'Redis'], ['Strategies', '3 modes']],
   },
   {
-    num: '09', icon: '🛡️', color: '#30D158', ms: '<1ms',
+    num: '09', icon: '🛡️', color: '#30D158',
     title: 'Output Guard',
     module: 'output_guard.py + output_sanitizer.py',
     tech: 'LLM02 · Insecure Output Handling',
@@ -73,7 +73,7 @@ const stages = [
     stats: [['OWASP', 'LLM02'], ['Scan', 'Post-model'], ['Mode', 'Bidirectional']],
   },
   {
-    num: '10', icon: '🔒', color: '#5AC8FA', ms: '<1ms',
+    num: '10', icon: '🔒', color: '#5AC8FA',
     title: 'Prompt Shield',
     module: 'prompt_shield.py',
     tech: 'System Prompt Protection',
@@ -81,7 +81,7 @@ const stages = [
     stats: [['Target', 'System role'], ['Attack', 'Extraction'], ['Mode', 'Guard']],
   },
   {
-    num: '11', icon: '🤖', color: '#BF5AF2', ms: '<2ms',
+    num: '11', icon: '🤖', color: '#BF5AF2',
     title: 'Agent Monitor',
     module: 'agent_monitor.py + tool_guard.py',
     tech: 'INJECTION_CHAIN · Tool Control',
@@ -89,7 +89,7 @@ const stages = [
     stats: [['Patterns', '7+ types'], ['Attestation', 'SHA-256'], ['Tool', 'Call guard']],
   },
   {
-    num: '12', icon: '🌊', color: '#FF2D55', ms: '<1ms',
+    num: '12', icon: '🌊', color: '#FF2D55',
     title: 'Worm Guard',
     module: 'worm_guard.py',
     tech: 'Self-Propagating Attack Detection',
@@ -97,7 +97,7 @@ const stages = [
     stats: [['Type', 'Worm detect'], ['Scope', 'Multi-turn'], ['Mode', 'Pattern']],
   },
   {
-    num: '13', icon: '🖼️', color: '#FF9F0A', ms: '<5ms',
+    num: '13', icon: '🖼️', color: '#FF9F0A',
     title: 'Multimodal Shield',
     module: 'image_guard.py + audio_guard.py',
     tech: 'Vision · Audio · Cross-modal',
@@ -105,7 +105,7 @@ const stages = [
     stats: [['Modalities', 'Text+Image+Audio'], ['Vision', 'Guard'], ['Audio', 'Guard']],
   },
   {
-    num: '14', icon: '🐝', color: '#30D158', ms: '<1ms',
+    num: '14', icon: '🐝', color: '#30D158',
     title: 'Honeypot & Taint',
     module: 'honey.py + taint_tracker.py + session_guard.py',
     tech: 'Honeypot Tokens · Taint Tracking',
@@ -131,7 +131,7 @@ const stages = [
           <span style="background:linear-gradient(135deg,#FF2D55,#FF9F0A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
             One request.
           </span>
-          Under 20ms.
+          One verdict.
         </h2>
         <p class="text-[16px] text-[#8E8E9E] max-w-lg leading-relaxed">
           Every AI request passes through all 14+ detection stages in a synchronous pipeline.
@@ -139,8 +139,8 @@ const stages = [
         </p>
       </div>
       <div class="flex-shrink-0 rounded-2xl border border-white/[0.07] bg-[#080D1E] p-5 text-right">
-        <div class="text-[36px] font-black text-[#FF2D55] leading-none mb-1">&lt;20ms</div>
-        <div class="text-[12px] text-[#8E8E9E]">Total pipeline P99</div>
+        <div class="text-[36px] font-black text-[#FF2D55] leading-none mb-1">Sync</div>
+        <div class="text-[12px] text-[#8E8E9E]">No async gaps</div>
         <div class="mt-3 text-[36px] font-black text-[#30D158] leading-none mb-1">18</div>
         <div class="text-[12px] text-[#8E8E9E]">Detection modules</div>
       </div>
@@ -169,8 +169,6 @@ const stages = [
                 <div class="text-[13px] font-bold leading-tight">{s.title}</div>
               </div>
             </div>
-            <div class="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex-shrink-0"
-                 style={`color:${s.color};background:${s.color}18`}>{s.ms}</div>
           </div>
 
           <p class="text-[12px] text-[#8E8E9E] leading-[1.65] mb-4">{s.desc}</p>

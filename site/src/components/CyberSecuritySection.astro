@@ -12,7 +12,7 @@ const pipeline = [
 ];
 
 const cards = [
-  { icon: '📐', title: 'Topological Gatekeeper',   desc: 'TDA n-gram point cloud → Betti numbers (β₀/β₁). Structural anomalies invisible to regex detected in <strong>&lt;2ms</strong>.',                    tier: 'All' },
+  { icon: '📐', title: 'Topological Gatekeeper',   desc: 'TDA n-gram point cloud → Betti numbers (β₀/β₁). Structural anomalies invisible to regex.',                    tier: 'All' },
   { icon: '🔄', title: 'Obfuscation Decoder',       desc: 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, Unicode homoglyphs. Nested attacks unwrapped automatically.',       tier: 'All' },
   { icon: '🔑', title: 'Secret Redaction',           desc: '15 regex patterns (AWS, JWT, Stripe, GitHub, SSH) + Shannon entropy scan for unknown secrets. Zero plaintext in memory or logs.',               tier: 'All' },
   { icon: '🧠', title: 'ML Jailbreak Detection',     desc: 'MiniLM embeddings projected into Poincaré ball. 70% cosine + 30% hyperbolic distance blend. Adversarial suffix stripping built-in.',           tier: 'Individual+' },
@@ -76,7 +76,7 @@ const tierBg:    Record<string, string> = { 'All': 'rgba(100,116,139,.12)', 'Ind
       <div class="text-center mt-4">
         <span class="text-[11px] font-bold px-3 py-1 rounded-full"
               style="color:var(--sw-red);background:var(--sw-tint-red);border:1px solid rgba(248,113,113,.2)">
-          Total pipeline latency &lt; 2ms
+          Synchronous single-pass pipeline
         </span>
       </div>
     </div>

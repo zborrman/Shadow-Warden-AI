@@ -880,7 +880,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                 <div>
                   <p class="text-[13px] font-semibold" style="color:#f1f5f9">Causal Transfer Guard</p>
                   <p class="text-[11px] mt-0.5" style="color:#475569">
-                    Blocks trades where P(exfiltration) ≥ 0.70 (env: <code class="font-mono text-[10px]" style="color:#94a3b8">TRANSFER_RISK_THRESHOLD</code>). Runs in &lt;20ms via Bayesian DAG.
+                    Blocks trades where P(exfiltration) ≥ 0.70 (env: <code class="font-mono text-[10px]" style="color:#94a3b8">TRANSFER_RISK_THRESHOLD</code>). Evaluated via Bayesian DAG before the transfer proceeds.
                   </p>
                 </div>
                 <input type="checkbox" checked class="sr-only toggle-input" id="toggle-ctg" />
@@ -1623,7 +1623,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
       return;
     }
     const ts = document.querySelector<HTMLElement>('#agent-save-footer .save-timestamp');
-    if (ts) ts.textContent = 'Saved — changes active in <100ms';
+    if (ts) ts.textContent = 'Saved — changes active immediately';
   };
 
   // ── Billing ──────────────────────────────────────────────────

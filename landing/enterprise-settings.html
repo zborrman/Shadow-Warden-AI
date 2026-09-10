@@ -325,10 +325,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
     <div class="panel active" id="p-pipeline" data-color="red">
       <div class="panel-header">
         <h2>Pipeline Defense</h2>
-        <p>Configure the 14-layer threat detection pipeline. Each stage runs in sequence — topology → obfuscation → secrets → semantic → brain → causal → phishing → ERS → output. Total P99 target: &lt;20ms.</p>
+        <p>Configure the 14-layer threat detection pipeline. Each stage runs in sequence — topology → obfuscation → secrets → semantic → brain → causal → phishing → ERS → output.</p>
         <div class="ph-tags">
           <span class="tag pill-red">14 Layers</span>
-          <span class="tag pill-green">P99 &lt;20ms</span>
+          <span class="tag pill-green">9 stages</span>
           <span class="tag pill-blue">Real-Time</span>
         </div>
       </div>
@@ -343,7 +343,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
       <div class="scard">
         <div class="scard-head"><h3>Topological Gatekeeper</h3><span class="sh-note">topology_guard.py</span></div>
         <div class="scard-body">
-          <div class="srow"><div class="srow-left"><div class="srow-key">TOPOLOGY_ENABLED</div><div class="srow-desc">TDA n-gram point cloud — Betti numbers β₀/β₁ pre-filter (&lt;2ms)</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
+          <div class="srow"><div class="srow-left"><div class="srow-key">TOPOLOGY_ENABLED</div><div class="srow-desc">TDA n-gram point cloud — Betti numbers β₀/β₁ pre-filter</div></div><div class="srow-right"><label class="toggle"><input type="checkbox" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div></div>
           <div class="srow"><div class="srow-left"><div class="srow-key">BETTI_THRESHOLD_B0</div><div class="srow-desc">β₀ connected components threshold. Higher = stricter topology check.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="1" max="20" value="8" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">8</span></div></div></div>
           <div class="srow"><div class="srow-left"><div class="srow-key">BETTI_THRESHOLD_B1</div><div class="srow-desc">β₁ loop count threshold. Detects obfuscation topological signatures.</div></div><div class="srow-right"><div class="s-slider-wrap"><input class="s-slider" type="range" min="0" max="10" value="3" oninput="this.nextElementSibling.textContent=this.value"><span class="s-slider-val">3</span></div></div></div>
           <div class="srow"><div class="srow-left"><div class="srow-key">NGRAM_WINDOW</div><div class="srow-desc">N-gram tokenization window size for point cloud construction.</div></div><div class="srow-right"><input class="s-input narrow" value="3"></div></div>
@@ -477,10 +477,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
     <div class="panel" id="p-fraud" data-color="red">
       <div class="panel-header">
         <h2>FraudScore Sovereign</h2>
-        <p>6-dimensional composite fraud scoring engine — Behavioral, Semantic, Identity, Exfiltration, Injection, Sovereign Violation. Computed in &lt;3ms with Bayesian causal explainability.</p>
+        <p>6-dimensional composite fraud scoring engine — Behavioral, Semantic, Identity, Exfiltration, Injection, Sovereign Violation. Computed with Bayesian causal explainability.</p>
         <div class="ph-tags">
           <span class="tag pill-red">v4.0 Elite</span>
-          <span class="tag pill-blue">&lt;3ms</span>
+          <span class="tag pill-blue">6 signals</span>
           <span class="tag pill-purple">6 Dimensions</span>
         </div>
       </div>

@@ -911,8 +911,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     // Seed tunnel messages for COMM-1024
     const msgs = [
       {id:'msg001',sender:'USR-0014',senderName:'Elena Wójcik',ts:now-4.9*3600000,text:'Pushed the new `OBFUSCATION_DECODE` rule to staging. Catches 87% of base64-wrapped jailbreaks in the eval set.',nonce:'f3a91c'},
-      {id:'msg002',sender:'USR-0018',senderName:'Devon Rojas', ts:now-3*3600000,  text:'Nice. p99 latency budget still `< 25ms`? Want to make sure we don\'t regress on the streaming endpoint.',nonce:'b81cf4'},
-      {id:'msg003',sender:'USR-0001',senderName:'Zach Borrman',ts:now-30*60000,   text:'Confirmed — 22ms p99 on staging. Approving promotion to prod after 24h soak. Activity log entry on the way.',nonce:'de2701'},
+      {id:'msg002',sender:'USR-0018',senderName:'Devon Rojas', ts:now-3*3600000,  text:'Nice. Did the streaming-endpoint p99 hold after that change? Want to make sure we don\'t regress.',nonce:'b81cf4'},
+      {id:'msg003',sender:'USR-0001',senderName:'Zach Borrman',ts:now-30*60000,   text:'Confirmed — p99 held on staging. Approving promotion to prod after 24h soak. Activity log entry on the way.',nonce:'de2701'},
     ];
     saveMsgs('COMM-1024', msgs);
     if (!localStorage.getItem(USER_KEY)) localStorage.setItem(USER_KEY,'USR-0001');

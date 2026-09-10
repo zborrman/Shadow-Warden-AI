@@ -96,7 +96,7 @@ export default function AgentsPage() {
             </div>
             <div>
               <h2 className="font-semibold text-white">Risk Thresholds</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Tune the pipeline's HIGH/BLOCK decision boundaries. Changes hot-reload in &lt;100ms.</p>
+              <p className="text-sm text-slate-400 mt-0.5">Tune the pipeline's HIGH/BLOCK decision boundaries. Changes hot-reload without a restart.</p>
             </div>
           </div>
 
