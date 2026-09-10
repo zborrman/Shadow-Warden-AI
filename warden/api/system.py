@@ -3,28 +3,37 @@ warden/api/system.py
 ────────────────────
 Operational / dashboard system endpoints.
 
-  GET /api/stats        — aggregated filter stats for the dashboard
-  GET /health/pipeline   — per-stage pipeline / model / Turso / PQC / journal health
+  GET  /api/stats        — aggregated filter stats for the dashboard
+  GET  /health/pipeline   — per-stage pipeline / model / Turso / PQC / journal health
+  GET  /api/config        — current live configuration (auth)
+  POST /api/config        — update live-tunable settings (auth)
 
-Extracted from ``warden/main.py`` (P-2). Both endpoints only read the event
-journal (``warden.analytics.logger``) and probe optional subsystems lazily. The
-Redis health probe lives in ``warden.cache`` (the leaf it probes) so this
-router's import can't defeat ``register_router_safe``'s isolation. The inline
-``/health`` and ``/api/config`` routes land here in later increments — those
-touch the resilience sliding windows and live-tunable knobs and need the runtime
-seam first.
+Extracted from ``warden/main.py`` (P-2). The journal reads go through
+``warden.analytics.logger``; the Redis probe lives in ``warden.cache`` (the leaf
+it probes); the live-tunable knobs live in ``warden.gateway_state`` — all leaves,
+so this router's import can't defeat ``register_router_safe``'s isolation. The
+shared singletons the config route needs (``evolve`` / ``brain_guard`` /
+``guard``) are read from ``warden.runtime``, ``None`` until main.py's lifespan
+publishes them. The inline ``/health`` liveness route lands here in a later
+increment (it also needs the circuit breaker + tenant-guard registry).
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from warden.analytics import logger as event_logger
+from warden.auth_guard import AuthResult, require_api_key, set_default_rate_limit
 from warden.cache import check_redis_health
+from warden.config import settings
+from warden.gateway_state import gateway_state
+from warden.runtime import runtime
 
 router = APIRouter(tags=["ops"])
 log = logging.getLogger("warden.gateway")
@@ -215,3 +224,62 @@ async def health_pipeline(deep: bool = False) -> dict:
     if canary is not None:
         result["canary"] = canary
     return result
+
+
+# ── Live configuration ───────────────────────────────────────────────────────
+
+
+class _ConfigUpdate(BaseModel):
+    semantic_threshold: float | None = None
+    strict_mode: bool | None = None
+    rate_limit_per_minute: int | None = None
+    uncertainty_lower_threshold: float | None = None
+
+
+# Live-tunable settings are ADMIN surface: this endpoint writes SEMANTIC_THRESHOLD,
+# STRICT_MODE, the default rate limit and the uncertainty band straight into the
+# running gateway. It had NO authentication, and `POST /api/config {}` returned
+# {"ok":true} to an anonymous caller in production on 2026-07-29 — a remote kill
+# switch on the product's own protection. `require_api_key` closed it (PR #244);
+# keep the dependency on both verbs.
+@router.get("/api/config", summary="Current live configuration",
+            dependencies=[Depends(require_api_key)])
+async def api_config(auth: AuthResult = Depends(require_api_key)):
+    return {
+        "semantic_threshold":   settings.semantic_threshold,
+        "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
+        "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
+        "evolution_enabled":    runtime.evolve is not None,
+        "log_retention_days":   int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30")),
+        "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
+        "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
+        "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
+        "model_cache_dir":          settings.model_cache_dir,
+        # Enterprise resilience
+        "fail_strategy":            gateway_state.fail_strategy,
+        "pipeline_timeout_ms":      gateway_state.pipeline_timeout_ms,
+        "uncertainty_lower_threshold": gateway_state.uncertainty_lower,
+        "nvidia_api_key_set":       bool(os.getenv("NVIDIA_API_KEY")),
+        "prompt_shield_enabled":    settings.prompt_shield_enabled,
+        "audit_trail_enabled":      os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
+    }
+
+
+@router.post("/api/config", summary="Update live-tunable settings",
+             dependencies=[Depends(require_api_key)])
+async def update_config(update: _ConfigUpdate,
+                        auth: AuthResult = Depends(require_api_key)):
+    if update.semantic_threshold is not None:
+        val = max(0.1, min(1.0, update.semantic_threshold))
+        os.environ["SEMANTIC_THRESHOLD"] = str(val)
+        if runtime.brain_guard is not None:
+            runtime.brain_guard.threshold = val
+    if update.strict_mode is not None:
+        os.environ["STRICT_MODE"] = str(update.strict_mode).lower()
+        if runtime.guard is not None:
+            runtime.guard.strict = update.strict_mode
+    if update.rate_limit_per_minute is not None:
+        set_default_rate_limit(update.rate_limit_per_minute)
+    if update.uncertainty_lower_threshold is not None:
+        gateway_state.set_uncertainty_lower(update.uncertainty_lower_threshold)
+    return {"ok": True}

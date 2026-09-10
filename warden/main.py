@@ -44,7 +44,6 @@ import os
 import re
 import time
 import uuid
-from collections import deque
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -84,7 +83,6 @@ from warden.auth_guard import (
     AuthResult,
     require_api_key,
     require_ext_auth,
-    set_default_rate_limit,
 )
 from warden.background import spawn
 from warden.billing import BILLING_AGG_INTERVAL, BillingStore
@@ -97,6 +95,7 @@ from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.data_policy import DataPolicyEngine
+from warden.gateway_state import gateway_state
 from warden.masking.engine import get_engine as _get_masking_engine
 from warden.metrics import (
     FILTER_BYPASSES_TOTAL,
@@ -1723,12 +1722,12 @@ async def health():
     # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)
     now = time.perf_counter()
     cutoff = now - 60.0
-    while _bypass_window and _bypass_window[0] < cutoff:
-        _bypass_window.popleft()
-    while _filter_window and _filter_window[0] < cutoff:
-        _filter_window.popleft()
-    bypasses_1m  = len(_bypass_window)
-    filter_1m    = len(_filter_window)
+    while gateway_state.bypass_window and gateway_state.bypass_window[0] < cutoff:
+        gateway_state.bypass_window.popleft()
+    while gateway_state.filter_window and gateway_state.filter_window[0] < cutoff:
+        gateway_state.filter_window.popleft()
+    bypasses_1m  = len(gateway_state.bypass_window)
+    filter_1m    = len(gateway_state.filter_window)
     bypass_rate  = round(bypasses_1m / filter_1m, 4) if filter_1m else 0.0
 
     cb_state = _cb.get_state(_get_redis())
@@ -1745,7 +1744,7 @@ async def health():
         "evolution_engine": _evolve.active_engine if _evolve is not None else None,
         "tenants":          list(_tenant_guards.keys()),
         "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
-        "fail_strategy":    _FAIL_STRATEGY,
+        "fail_strategy":    gateway_state.fail_strategy,
         "cache":            redis_health,
         "ws_clients":       _ws_subscriber_count(),
         "bypass_rate_1m":   bypass_rate,
@@ -1756,66 +1755,8 @@ async def health():
     }
 
 
-# ── Pipeline health + dashboard stats API ─────────────────────────────────────
-# GET /health/pipeline and GET /api/stats extracted to warden/api/system.py (P-2).
-
-
-class _ConfigUpdate(BaseModel):
-    semantic_threshold: float | None = None
-    strict_mode: bool | None = None
-    rate_limit_per_minute: int | None = None
-    uncertainty_lower_threshold: float | None = None
-
-
-# Live-tunable settings are ADMIN surface: this endpoint writes
-# SEMANTIC_THRESHOLD, STRICT_MODE, the default rate limit and the uncertainty
-# band straight into the running gateway. It had NO authentication, and
-# `POST /api/config {}` returned {"ok":true} to an anonymous caller in
-# production on 2026-07-29. An attacker could raise semantic_threshold toward
-# 1.0 so the ML jailbreak detector stops flagging, switch strict_mode off, and
-# lift the rate limit — a remote kill switch on the product's own protection.
-# No client calls it (grep of dashboard/, portal/, site/ finds nothing).
-@app.get("/api/config", tags=["ops"], summary="Current live configuration")
-async def api_config(auth: AuthResult = Depends(require_api_key)):
-    return {
-        "semantic_threshold":   settings.semantic_threshold,
-        "strict_mode":          os.getenv("STRICT_MODE", "false").lower() == "true",
-        "rate_limit_per_minute": int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),  # live value via set_default_rate_limit()
-        "evolution_enabled":    _evolve is not None,
-        "log_retention_days":   int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30")),
-        "browser_enabled":      os.getenv("BROWSER_ENABLED", "false").lower() == "true",
-        "mtls_enabled":         os.getenv("MTLS_ENABLED", "false").lower() == "true",
-        "otel_enabled":         os.getenv("OTEL_ENABLED", "false").lower() == "true",
-        "model_cache_dir":          settings.model_cache_dir,
-        # Enterprise resilience
-        "fail_strategy":            _FAIL_STRATEGY,
-        "pipeline_timeout_ms":      _PIPELINE_TIMEOUT_MS,
-        "uncertainty_lower_threshold": _UNCERTAINTY_LOWER,
-        "nvidia_api_key_set":       bool(os.getenv("NVIDIA_API_KEY")),
-        "prompt_shield_enabled":    settings.prompt_shield_enabled,
-        "audit_trail_enabled":      os.getenv("AUDIT_TRAIL_ENABLED", "false").lower() == "true",
-    }
-
-
-@app.post("/api/config", tags=["ops"], summary="Update live-tunable settings")
-async def update_config(update: _ConfigUpdate,
-                        auth: AuthResult = Depends(require_api_key)):
-    if update.semantic_threshold is not None:
-        val = max(0.1, min(1.0, update.semantic_threshold))
-        os.environ["SEMANTIC_THRESHOLD"] = str(val)
-        if _brain_guard is not None:
-            _brain_guard.threshold = val
-    if update.strict_mode is not None:
-        os.environ["STRICT_MODE"] = str(update.strict_mode).lower()
-        if _guard is not None:
-            _guard.strict = update.strict_mode
-    if update.rate_limit_per_minute is not None:
-        set_default_rate_limit(update.rate_limit_per_minute)
-    if update.uncertainty_lower_threshold is not None:
-        global _UNCERTAINTY_LOWER
-        _UNCERTAINTY_LOWER = max(0.0, min(0.99, update.uncertainty_lower_threshold))
-        os.environ["UNCERTAINTY_LOWER_THRESHOLD"] = str(_UNCERTAINTY_LOWER)
-    return {"ok": True}
+# ── Ops endpoints extracted to warden/api/system.py (P-2) ─────────────────────
+# GET /api/stats · GET /health/pipeline · GET+POST /api/config
 
 
 # ── SIEM bypass helper ────────────────────────────────────────────────────────
@@ -1929,7 +1870,7 @@ async def _run_filter_pipeline(
     nobody asked.
     """
     start = time.perf_counter()
-    _filter_window.append(start)   # record for bypass_rate_1m
+    gateway_state.filter_window.append(start)   # record for bypass_rate_1m
     timings: dict[str, float] = {}
 
     # ── Circuit breaker — short-circuit immediately if open ───────────
@@ -1939,7 +1880,7 @@ async def _run_filter_pipeline(
             auth.tenant_id if auth.tenant_id != "default" else payload.tenant_id
         )
         FILTER_BYPASSES_TOTAL.labels(tenant_id=tenant_id).inc()
-        _bypass_window.append(start)
+        gateway_state.bypass_window.append(start)
         _cb_entry = {
             "ts":         datetime.now(UTC).isoformat(),
             "request_id": rid,
@@ -2313,16 +2254,16 @@ async def _run_filter_pipeline(
     # ── Stage 2b-ii: ML uncertainty escalation ────────────────────────
     # Flag requests whose ML score falls in the gray zone [UNCERTAINTY_LOWER, threshold).
     if (
-        _UNCERTAINTY_LOWER > 0
+        gateway_state.uncertainty_lower > 0
         and not brain_result.is_jailbreak
-        and brain_result.score >= _UNCERTAINTY_LOWER
+        and brain_result.score >= gateway_state.uncertainty_lower
     ):
         guard_result.flags.append(SemanticFlag(
             flag=FlagType.ML_UNCERTAIN,
             score=round(brain_result.score, 4),
             detail=(
                 f"ML score {brain_result.score:.3f} in uncertainty zone "
-                f"[{_UNCERTAINTY_LOWER:.2f}, {brain_result.threshold:.2f}) — suspicious but below block threshold"
+                f"[{gateway_state.uncertainty_lower:.2f}, {brain_result.threshold:.2f}) — suspicious but below block threshold"
             ),
         ))
         guard_result.risk_level = _max_risk(guard_result.risk_level, RiskLevel.MEDIUM)
@@ -2331,7 +2272,7 @@ async def _run_filter_pipeline(
                 "event":      "ml_uncertain",
                 "request_id": rid,
                 "score":      brain_result.score,
-                "lower":      _UNCERTAINTY_LOWER,
+                "lower":      gateway_state.uncertainty_lower,
                 "threshold":  brain_result.threshold,
                 "tenant_id":  tenant_id,
             })
@@ -2346,9 +2287,9 @@ async def _run_filter_pipeline(
     # verdict (the supervised label) is known further down the pipeline.
     _causal_online: dict | None = None
     if (
-        _UNCERTAINTY_LOWER > 0
+        gateway_state.uncertainty_lower > 0
         and not brain_result.is_jailbreak
-        and brain_result.score >= _UNCERTAINTY_LOWER
+        and brain_result.score >= gateway_state.uncertainty_lower
     ):
         with _trace_stage("causal_arbiter", {"request_id": rid, "tenant_id": tenant_id}) as _sp:
             t0 = time.perf_counter()
@@ -3171,19 +3112,19 @@ async def filter_content(
     # layer no longer calls the main-private orchestrator directly.
     from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
     coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
-    if _PIPELINE_TIMEOUT_MS > 0:
+    if gateway_state.pipeline_timeout_ms > 0:
         try:
-            return await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
+            return await asyncio.wait_for(coro, timeout=gateway_state.pipeline_timeout_ms / 1000)
         except TimeoutError as _to_exc:
             log.warning(
                 json.dumps({
                     "event":      "pipeline_timeout",
                     "request_id": rid,
-                    "strategy":   _FAIL_STRATEGY,
-                    "timeout_ms": _PIPELINE_TIMEOUT_MS,
+                    "strategy":   gateway_state.fail_strategy,
+                    "timeout_ms": gateway_state.pipeline_timeout_ms,
                 })
             )
-            if _FAIL_STRATEGY == "closed":
+            if gateway_state.fail_strategy == "closed":
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail="Filter pipeline timeout — request blocked (WARDEN_FAIL_STRATEGY=closed).",
@@ -3195,10 +3136,10 @@ async def filter_content(
             record_failopen("pipeline", Reason.TIMEOUT, _to_exc)
             _tid = getattr(payload, "tenant_id", None) or "default"
             FILTER_BYPASSES_TOTAL.labels(tenant_id=_tid).inc()
-            _bypass_window.append(time.perf_counter())
+            gateway_state.bypass_window.append(time.perf_counter())
             _r2 = _get_redis()
             _cb.record_bypass(_r2)
-            _cb.check_and_trip(_r2, len(_filter_window))
+            _cb.check_and_trip(_r2, len(gateway_state.filter_window))
             _to_entry: dict = {
                 "ts":         datetime.now(UTC).isoformat(),
                 "request_id": rid,
@@ -3208,7 +3149,7 @@ async def filter_content(
                 "flags":      [],
                 "reason":     "emergency_bypass:timeout",
                 "payload_len": len(payload.content) if payload.content else 0,
-                "elapsed_ms": _PIPELINE_TIMEOUT_MS,
+                "elapsed_ms": gateway_state.pipeline_timeout_ms,
             }
             _spawn_task(_ship_bypass(background_tasks, _to_entry))
             if _webhook_store is not None:
@@ -3216,7 +3157,7 @@ async def filter_content(
                     tenant_id     = _tid,
                     reason        = "emergency_bypass:timeout",
                     content       = payload.content or "",
-                    processing_ms = float(_PIPELINE_TIMEOUT_MS),
+                    processing_ms = float(gateway_state.pipeline_timeout_ms),
                     store         = _webhook_store,
                 ))
             return FilterResponse(
@@ -3226,7 +3167,7 @@ async def filter_content(
                 secrets_found    = [],
                 semantic_flags   = [],
                 reason           = "emergency_bypass:timeout",
-                processing_ms    = {"total": _PIPELINE_TIMEOUT_MS, "timeout": 1},
+                processing_ms    = {"total": gateway_state.pipeline_timeout_ms, "timeout": 1},
             )
     return await coro
 
@@ -3291,9 +3232,9 @@ async def ext_filter_content(
     # layer no longer calls the main-private orchestrator directly.
     from warden.services.pipeline import FilterPipeline  # noqa: PLC0415
     coro = FilterPipeline().run(payload, rid, auth, background_tasks, client_ip)
-    if _PIPELINE_TIMEOUT_MS > 0:
+    if gateway_state.pipeline_timeout_ms > 0:
         try:
-            result = await asyncio.wait_for(coro, timeout=_PIPELINE_TIMEOUT_MS / 1000)
+            result = await asyncio.wait_for(coro, timeout=gateway_state.pipeline_timeout_ms / 1000)
         except TimeoutError:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -3391,23 +3332,10 @@ async def ext_health() -> dict:
 
 _MAX_BATCH_SIZE = int(os.getenv("MAX_BATCH_SIZE", "50"))
 
-# ── Fail strategy & pipeline timeout ──────────────────────────────────────────
-# WARDEN_FAIL_STRATEGY=open  → pass request through on timeout (business priority)
-# WARDEN_FAIL_STRATEGY=closed → block request on timeout   (security priority)
-_FAIL_STRATEGY       = os.getenv("WARDEN_FAIL_STRATEGY", "open").lower()   # "open" | "closed"
-_PIPELINE_TIMEOUT_MS = int(os.getenv("PIPELINE_TIMEOUT_MS", "0"))          # 0 = disabled
-
-# ── ML uncertainty escalation ─────────────────────────────────────────────────
-# Requests with ML score in [UNCERTAINTY_LOWER, threshold) are flagged as ML_UNCERTAIN
-# and escalated to MEDIUM risk even though they didn't cross the block threshold.
-# Set to 0 to disable.
-_UNCERTAINTY_LOWER = float(os.getenv("UNCERTAINTY_LOWER_THRESHOLD", "0.55"))
-
-# ── Resilience sliding window ──────────────────────────────────────────────────
-# Lightweight deques (timestamps in seconds) for the /health bypass_rate_1m field.
-# Pruned to the last 60 s on every /health read — no background task required.
-_bypass_window:    deque[float] = deque()   # fail-open bypass events
-_filter_window:    deque[float] = deque()   # all /filter requests (denominator)
+# ── Gateway tunables & resilience windows ─────────────────────────────────────
+# `gateway_state.fail_strategy` / `gateway_state.pipeline_timeout_ms` / `gateway_state.uncertainty_lower` and the
+# `gateway_state.bypass_window` / `gateway_state.filter_window` deques moved to `warden.gateway_state`
+# (P-2) — the shared leaf that /health, /api/config and the pipeline all touch.
 
 
 class _BatchRequest(BaseModel):
