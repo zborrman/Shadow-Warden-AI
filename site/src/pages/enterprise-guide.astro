@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout
-  title="Enterprise Integration &amp; Deployment Guide v7.2 — Shadow Warden AI"
-  description="Complete enterprise deployment guide for Shadow Warden AI v7.2. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
+  title="Enterprise Integration &amp; Deployment Guide v7.9 — Shadow Warden AI"
+  description="Complete enterprise deployment guide for Shadow Warden AI v7.9. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
@@ -23,7 +23,7 @@ import Layout from '../layouts/Layout.astro';
         <span class="text-[12px] font-bold">Enterprise Guide</span>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.2</span>
+        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.9</span>
         <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
         <button onclick="window.print()" class="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-[#8E8E9E] hover:text-white hover:border-white/20 transition-colors">Save PDF</button>
       </div>
@@ -45,14 +45,12 @@ import Layout from '../layouts/Layout.astro';
         Enterprise Integration &amp;<br/>Deployment Guide
       </h1>
       <div class="flex items-center gap-4 mb-6">
-        <span class="text-[13px] font-semibold text-[#FF2D55]">Version 5.2</span>
+        <span class="text-[13px] font-semibold text-[#FF2D55]">Version 7.9</span>
         <span class="text-[#48485A]">·</span>
-        <span class="text-[13px] text-[#64748b]">June 2026</span>
-        <span class="text-[#48485A]">·</span>
-        <span class="text-[13px] text-[#64748b]">Confidential</span>
+        <span class="text-[13px] text-[#64748b]">Proprietary &amp; Confidential</span>
       </div>
       <p class="text-[15px] leading-relaxed max-w-[680px]" style="color:#94a3b8">
-        Complete deployment playbook covering the 15-layer filter pipeline, Agentic SOC (SOVA + MasterAgent),
+        Complete deployment playbook covering the nine-stage filter pipeline, Agentic SOC (SOVA + MasterAgent),
         Post-Quantum Cryptography, Shadow AI Governance, Explainable AI 2.0, Sovereign Cloud routing,
         SEP Communities, Semantic Layer (Headless BI), Settings Hub, API integration, compliance, and high-availability configuration.
       </p>
@@ -62,7 +60,7 @@ import Layout from '../layouts/Layout.astro';
         {[
           ['36.2%', 'Measured catch rate'],
           ['0 / 35', 'Benign false positives'],
-          ['15 Layers', 'Defense Depth'],
+          ['9 stages', 'Filter pipeline'],
           ['GDPR', 'Content never logged'],
         ].map(([val, label]) => (
           <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
@@ -80,7 +78,7 @@ import Layout from '../layouts/Layout.astro';
         <div class="grid sm:grid-cols-2 p-6 gap-x-12 gap-y-2">
           {[
             ['1', 'Executive Summary & Business Case'],
-            ['2', '15-Layer Defense Architecture'],
+            ['2', 'Filter Pipeline Architecture'],
             ['3', 'Client Segment Playbooks'],
             ['4', 'Integration Patterns'],
             ['5', 'Deployment Architecture'],
@@ -124,7 +122,7 @@ import Layout from '../layouts/Layout.astro';
         ))}
       </div>
       <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
-        <div class="text-[13px] font-semibold mb-4 text-white">v7.2 Key Additions</div>
+        <div class="text-[13px] font-semibold mb-4 text-white">Recent Additions</div>
         <div class="grid sm:grid-cols-2 gap-3">
           {[
             ['🏭', 'Application Factory', 'RouterSpec + register_router_safe() catches all exceptions (not just ImportError), isolating each sub-router so a broken staff agent init can never crash the security pipeline'],
@@ -148,7 +146,7 @@ import Layout from '../layouts/Layout.astro';
     <section id="s2" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
         <span class="text-[11px] font-mono text-[#FF2D55]">02</span>
-        <h2 class="text-[24px] font-bold">15-Layer Defense Architecture</h2>
+        <h2 class="text-[24px] font-bold">Filter Pipeline Architecture</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
         Every request passes through a deterministic, ordered pipeline. Each layer fails open on non-fatal errors
@@ -636,10 +634,10 @@ curl http://localhost:8001/health
       <div class="mt-16 pt-8 border-t border-white/[0.07] flex items-center justify-between flex-wrap gap-4">
         <div>
           <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Enterprise Integration &amp; Deployment Guide</div>
-          <div class="text-[11px] text-[#64748b]">Version 7.2 · June 2026 · Proprietary &amp; Confidential</div>
+          <div class="text-[11px] text-[#64748b]">Version 7.9 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.2</span>
+          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">v7.9</span>
           <a href="/" class="text-[12px] text-[#64748b] hover:text-white transition-colors">shadow-warden-ai.com</a>
         </div>
       </div>
