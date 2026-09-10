@@ -983,14 +983,16 @@ async def lifespan(app: FastAPI):
         log.warning("HoneyEngine failed to initialise: %s", _honey_err)
 
     # ── Multi-Modal Guard pre-warm (CLIP + Whisper + Haar cascade) ───
+    _mm_ready = False
     try:
         from warden import audio_guard as _ag
         from warden import image_guard as _ig  # noqa: PLC0415
         from warden import image_redactor as _ir  # noqa: PLC0415
-        _ig.prewarm()
+        _mm_ready = bool(_ig.prewarm())
         _ag.prewarm()
         _ir.prewarm()
     except Exception as _mm_err:
+        _mm_ready = False
         log.warning("MultiModal guard pre-warm failed (non-fatal): %s", _mm_err)
 
     # ── GSAM rollup sink (SAC observations → gsam_agent_stats + drift) ─
@@ -1023,7 +1025,7 @@ async def lifespan(app: FastAPI):
 
     _print_motd(
         evolution     = _evolve is not None,
-        multimodal    = True,  # pre-warm attempted; fails-open on missing HF token
+        multimodal    = _mm_ready,  # True only if the CLIP model actually loaded
         audit_ok      = _audit_trail is not None,
         agent_monitor = _agent_monitor is not None,
         vault_sigs    = _threat_vault.stats()["total"] if _threat_vault else 0,
