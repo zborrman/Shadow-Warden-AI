@@ -37,7 +37,7 @@ jobs:
         working-directory: site
 
       - name: Upload dist as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-dist
           path: site/dist/
@@ -195,7 +195,7 @@ jobs:
           MODEL_CACHE_DIR: "/tmp/ci_models"
 
       - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docs-dist
           path: site/dist/docs/
@@ -387,7 +387,7 @@ jobs:
 
       - name: Upload dependency snapshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pip-freeze-${{ matrix.python-version }}
           path: pip-freeze-${{ matrix.python-version }}.txt
@@ -569,7 +569,7 @@ jobs:
           MARKETPLACE_CONTRACT_ADDRESS: ""
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: integration-test-results
@@ -628,7 +628,7 @@ jobs:
           fi
 
       - name: Upload pip-audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-report
@@ -744,13 +744,13 @@ jobs:
       # runs.  A requirements.txt or Dockerfile change busts only the affected
       # layers, keeping cold-start time reasonable.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           driver: docker   # built-in daemon driver; no moby/buildkit pull from Docker Hub
 
       # ── Build warden image ────────────────────────────────────────────────────
       - name: Build warden image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: warden/
           push: false
@@ -760,7 +760,7 @@ jobs:
 
       # ── Build analytics image ─────────────────────────────────────────────────
       - name: Build analytics image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: analytics/
           push: false
@@ -917,7 +917,7 @@ jobs:
           df -h /
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
@@ -928,7 +928,7 @@ jobs:
 
       - name: Build and push warden image to GHCR
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: warden/
           push: true
@@ -1634,7 +1634,7 @@ jobs:
 
       - name: Upload k6 results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: k6-smoke-results-${{ github.sha }}
           path: |
