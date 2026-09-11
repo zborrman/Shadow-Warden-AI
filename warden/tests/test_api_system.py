@@ -10,6 +10,7 @@ probe and the runtime singletons are patched.
 """
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
@@ -130,6 +131,76 @@ def test_redis_health_ok(monkeypatch) -> None:
     out = cache.check_redis_health()
     assert out["status"] == "ok"
     assert isinstance(out["latency_ms"], float)
+
+
+# ── /health ───────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _reset_gateway_state_windows():
+    yield
+    gateway_state.reset()
+    gateway_state.tenant_guards.clear()
+
+
+def test_health_ok_shape(client: TestClient) -> None:
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "unavailable", "latency_ms": None}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "closed"}), \
+         patch("warden.api.system.is_offline", return_value=False):
+        resp = client.get("/health")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["service"] == "warden-gateway"
+    for key in ("evolution", "evolution_engine", "tenants", "strict", "fail_strategy",
+                "cache", "ws_clients", "bypass_rate_1m", "bypasses_1m",
+                "filter_rps_1m", "circuit_breaker", "offline_mode"):
+        assert key in body
+    assert body["evolution"] is False
+    assert body["evolution_engine"] is None
+
+
+def test_health_degraded_when_circuit_open(client: TestClient) -> None:
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "ok", "latency_ms": 1.0}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "open"}):
+        resp = client.get("/health")
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["circuit_breaker"]["status"] == "open"
+
+
+def test_health_bypass_rate_from_windows(client: TestClient) -> None:
+    # The prune loop only drops from the front, so entries must be oldest-first
+    # (exactly how the pipeline appends them — chronologically).
+    now = time.perf_counter()
+    gateway_state.filter_window.extend([now - 120, now - 5, now, now])  # oldest first
+    gateway_state.bypass_window.append(now)                              # 1 bypass
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "unavailable", "latency_ms": None}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "closed"}):
+        resp = client.get("/health")
+    body = resp.json()
+    assert body["filter_rps_1m"] == round(3 / 60, 2)
+    assert body["bypasses_1m"] == 1
+    assert body["bypass_rate_1m"] == round(1 / 3, 4)
+
+
+def test_health_reports_tenants_and_evolution(client: TestClient) -> None:
+    class _FakeEvolve:
+        active_engine = "opus"
+
+    gateway_state.tenant_guards["acme"] = object()
+    system_mod.runtime.publish(evolve=_FakeEvolve())
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "unavailable", "latency_ms": None}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "closed"}):
+        resp = client.get("/health")
+    body = resp.json()
+    assert body["tenants"] == ["acme"]
+    assert body["evolution"] is True
+    assert body["evolution_engine"] == "opus"
 
 
 # ── /health/pipeline ──────────────────────────────────────────────────────────

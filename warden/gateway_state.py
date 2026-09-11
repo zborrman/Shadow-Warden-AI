@@ -9,6 +9,10 @@ touches:
     ``uncertainty_lower``)
   • the resilience sliding windows appended by the pipeline and read/pruned by
     ``GET /health`` (``bypass_window`` / ``filter_window``)
+  • the multi-tenant SemanticGuard registry (``tenant_guards``) — main.py's
+    ``_get_tenant_guard()`` still owns *constructing* a guard (it imports the
+    heavy ``BrainSemanticGuard`` class); this module only owns the dict, kept
+    untyped (``Any``) so this leaf never imports the ML stack
 
 Historically these were module globals in ``warden/main.py``; extracting the ops
 routes out of main.py (P-2) needs a shared, dependency-free leaf that both the
@@ -22,6 +26,7 @@ from __future__ import annotations
 import os
 from collections import deque
 from dataclasses import dataclass, field
+from typing import Any
 
 
 def _env_fail_strategy() -> str:
@@ -50,6 +55,9 @@ class GatewayState:
     # /health read — no background task.
     bypass_window: deque[float] = field(default_factory=deque)   # fail-open bypass events
     filter_window: deque[float] = field(default_factory=deque)   # all /filter requests (denominator)
+
+    # tenant_id -> BrainSemanticGuard (kept as Any — see module docstring)
+    tenant_guards: dict[str, Any] = field(default_factory=dict)
 
     def set_uncertainty_lower(self, value: float) -> float:
         """Clamp to [0.0, 0.99], mirror into the env var, return the applied value.

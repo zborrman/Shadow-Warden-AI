@@ -67,3 +67,19 @@ def test_windows_are_independent_instances() -> None:
     a, b = GatewayState(), GatewayState()
     a.bypass_window.append(1.0)
     assert len(b.bypass_window) == 0  # no shared mutable default
+
+
+def test_tenant_guards_starts_empty_and_independent() -> None:
+    a, b = GatewayState(), GatewayState()
+    a.tenant_guards["acme"] = object()
+    assert b.tenant_guards == {}
+
+
+def test_reset_does_not_clear_tenant_guards() -> None:
+    # tenant_guards are long-lived ML guard instances tied to app lifecycle, not
+    # a per-request resilience window — reset() must not evict them.
+    gs = GatewayState()
+    sentinel = object()
+    gs.tenant_guards["acme"] = sentinel
+    gs.reset()
+    assert gs.tenant_guards == {"acme": sentinel}

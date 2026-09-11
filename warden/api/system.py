@@ -3,6 +3,7 @@ warden/api/system.py
 ────────────────────
 Operational / dashboard system endpoints.
 
+  GET  /health            — liveness probe
   GET  /api/stats        — aggregated filter stats for the dashboard
   GET  /health/pipeline   — per-stage pipeline / model / Turso / PQC / journal health
   GET  /api/config        — current live configuration (auth)
@@ -10,33 +11,79 @@ Operational / dashboard system endpoints.
 
 Extracted from ``warden/main.py`` (P-2). The journal reads go through
 ``warden.analytics.logger``; the Redis probe lives in ``warden.cache`` (the leaf
-it probes); the live-tunable knobs live in ``warden.gateway_state`` — all leaves,
-so this router's import can't defeat ``register_router_safe``'s isolation. The
-shared singletons the config route needs (``evolve`` / ``brain_guard`` /
-``guard``) are read from ``warden.runtime``, ``None`` until main.py's lifespan
-publishes them. The inline ``/health`` liveness route lands here in a later
-increment (it also needs the circuit breaker + tenant-guard registry).
+it probes); the live-tunable knobs + resilience windows + multi-tenant guard
+registry live in ``warden.gateway_state`` — all leaves, so this router's import
+can't defeat ``register_router_safe``'s isolation. The shared singletons
+(``evolve`` / ``brain_guard`` / ``guard``) are read from ``warden.runtime``,
+``None`` until main.py's lifespan publishes them.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
+import time
 from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+import warden.circuit_breaker as circuit_breaker
 from warden.analytics import logger as event_logger
+from warden.api.ws_events import subscriber_count as ws_subscriber_count
 from warden.auth_guard import AuthResult, require_api_key, set_default_rate_limit
+from warden.cache import _get_client as get_redis_client
 from warden.cache import check_redis_health
 from warden.config import settings
 from warden.gateway_state import gateway_state
+from warden.offline import is_offline
 from warden.runtime import runtime
 
 router = APIRouter(tags=["ops"])
 log = logging.getLogger("warden.gateway")
+
+
+@router.get("/health", summary="Liveness probe")
+async def health():
+    redis_health = await asyncio.to_thread(check_redis_health)
+    overall = "ok" if redis_health["status"] in ("ok", "unavailable") else "degraded"
+
+    # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)
+    now = time.perf_counter()
+    cutoff = now - 60.0
+    while gateway_state.bypass_window and gateway_state.bypass_window[0] < cutoff:
+        gateway_state.bypass_window.popleft()
+    while gateway_state.filter_window and gateway_state.filter_window[0] < cutoff:
+        gateway_state.filter_window.popleft()
+    bypasses_1m  = len(gateway_state.bypass_window)
+    filter_1m    = len(gateway_state.filter_window)
+    bypass_rate  = round(bypasses_1m / filter_1m, 4) if filter_1m else 0.0
+
+    # Synchronous Redis read, same reasoning as check_redis_health — off the loop.
+    cb_state = await asyncio.to_thread(circuit_breaker.get_state, get_redis_client())
+    if cb_state.get("status") == "open":
+        overall = "degraded"
+
+    return {
+        "status":           overall,
+        "service":          "warden-gateway",
+        "evolution":        runtime.evolve is not None,
+        # The backend actually serving calls. Differs from the configured
+        # choice after an auto-mode demotion, which is the only place an
+        # operator can see that the selected engine stopped answering.
+        "evolution_engine": runtime.evolve.active_engine if runtime.evolve is not None else None,
+        "tenants":          list(gateway_state.tenant_guards.keys()),
+        "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
+        "fail_strategy":    gateway_state.fail_strategy,
+        "cache":            redis_health,
+        "ws_clients":       ws_subscriber_count(),
+        "bypass_rate_1m":   bypass_rate,
+        "bypasses_1m":      bypasses_1m,
+        "filter_rps_1m":    round(filter_1m / 60, 2),
+        "circuit_breaker":  cb_state,
+        "offline_mode":     is_offline(),
+    }
 
 
 @router.get("/api/stats", summary="Aggregated filter stats for dashboard")
