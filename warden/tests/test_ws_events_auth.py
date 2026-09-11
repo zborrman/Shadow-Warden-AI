@@ -175,14 +175,17 @@ async def test_broadcast_reaches_a_subscriber():
 
 def test_health_reports_live_subscriber_count():
     """`ws_clients` must count the real listeners, not a dead bus that is
-    structurally always zero."""
+    structurally always zero.
+
+    GET /health moved to warden/api/system.py (P-2); the source lives there now,
+    not in warden.main.
+    """
     import inspect
 
-    import warden.main as m
+    import warden.api.system as sysmod
 
-    src = inspect.getsource(m)
-    assert '"ws_clients":       _ws_subscriber_count()' in src or \
-           "_ws_subscriber_count()" in src, "GET /health must report the router's count"
+    src = inspect.getsource(sysmod)
+    assert "ws_subscriber_count()" in src, "GET /health must report the router's count"
 
 
 # ── app-wide shadowing ratchet ───────────────────────────────────────────────
