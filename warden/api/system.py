@@ -60,8 +60,12 @@ async def health():
     filter_1m    = len(gateway_state.filter_window)
     bypass_rate  = round(bypasses_1m / filter_1m, 4) if filter_1m else 0.0
 
-    # Synchronous Redis read, same reasoning as check_redis_health — off the loop.
-    cb_state = await asyncio.to_thread(circuit_breaker.get_state, get_redis_client())
+    # Both the client resolution (a blocking connect+ping on first use, per
+    # cache._get_client) and get_state()'s own Redis read are synchronous — the
+    # whole expression has to run in the thread, not just get_state(), or an
+    # unreachable Redis still stalls the loop on every call that finds no client
+    # cached yet.
+    cb_state = await asyncio.to_thread(lambda: circuit_breaker.get_state(get_redis_client()))
     if cb_state.get("status") == "open":
         overall = "degraded"
 

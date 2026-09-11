@@ -171,6 +171,18 @@ def test_health_degraded_when_circuit_open(client: TestClient) -> None:
     assert body["circuit_breaker"]["status"] == "open"
 
 
+def test_health_degraded_when_redis_configured_but_unreachable(client: TestClient) -> None:
+    """A real outage (Redis configured but not answering) must not read as 'ok' —
+    only the intentionally-disabled case (`unavailable`) is benign."""
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "degraded: redis unavailable", "latency_ms": None}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "closed"}):
+        resp = client.get("/health")
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["cache"]["status"] == "degraded: redis unavailable"
+
+
 def test_health_bypass_rate_from_windows(client: TestClient) -> None:
     # The prune loop only drops from the front, so entries must be oldest-first
     # (exactly how the pipeline appends them — chronologically).
