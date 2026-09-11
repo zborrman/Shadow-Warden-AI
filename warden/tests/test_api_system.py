@@ -1,11 +1,12 @@
 """
 warden/tests/test_api_system.py
 ───────────────────────────────
-`GET /api/stats` + `GET /health/pipeline` — extracted from main.py to
-`warden/api/system.py` (P-2), plus `warden.cache.check_redis_health` (the Redis
-probe moved to the leaf it probes). Exercised on a minimal app with just the
-router mounted, so no ML boot / lifespan is needed; the journal reads and the
-Redis probe are patched.
+`GET /api/stats` + `GET /health/pipeline` + `GET`/`POST /api/config` — extracted
+from main.py to `warden/api/system.py` (P-2), plus
+`warden.cache.check_redis_health` (Redis probe → the leaf it probes) and the
+live-tunable knobs in `warden.gateway_state`. Exercised on a minimal app with
+just the router mounted — no ML boot / lifespan; the journal reads, the Redis
+probe and the runtime singletons are patched.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from warden.api import system as system_mod
 from warden.api.system import router
+from warden.gateway_state import gateway_state
 
 
 @pytest.fixture
@@ -162,3 +164,76 @@ def test_pipeline_health_deep_runs_canary(client: TestClient, monkeypatch) -> No
     assert body["canary"] == {"available": True, "healthy": False}
     assert "canary" in body["degraded_stages"]
     assert body["status"] == "degraded"
+
+
+# ── /api/config ───────────────────────────────────────────────────────────────
+
+
+_CONFIG_ENV = ("SEMANTIC_THRESHOLD", "STRICT_MODE", "UNCERTAINTY_LOWER_THRESHOLD")
+
+
+@pytest.fixture(autouse=True)
+def _restore_state():
+    """Config tests mutate process-wide state — gateway_state, the runtime
+    singleton slots, and the env vars POST /api/config writes. Snapshot and
+    restore all three so a full-suite run isn't affected."""
+    import os
+
+    saved_slots = dict(system_mod.runtime._slots)
+    saved_env = {k: os.environ.get(k) for k in _CONFIG_ENV}
+    yield
+    gateway_state.reset()
+    system_mod.runtime._slots.update(saved_slots)
+    for k, v in saved_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
+def test_config_get_reports_live_knobs(client: TestClient) -> None:
+    system_mod.runtime.publish(evolve=object())
+    gateway_state.fail_strategy = "closed"
+    gateway_state.set_uncertainty_lower(0.61)
+    resp = client.get("/api/config")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["evolution_enabled"] is True
+    assert body["fail_strategy"] == "closed"
+    assert body["uncertainty_lower_threshold"] == 0.61
+    assert "semantic_threshold" in body and "model_cache_dir" in body
+
+
+def test_config_post_updates_uncertainty_and_rate_limit(client: TestClient) -> None:
+    calls: list[int] = []
+    with patch("warden.api.system.set_default_rate_limit", calls.append):
+        resp = client.post("/api/config", json={
+            "uncertainty_lower_threshold": 5.0,   # clamps to 0.99
+            "rate_limit_per_minute": 120,
+        })
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert gateway_state.uncertainty_lower == 0.99
+    assert calls == [120]
+
+
+def test_config_post_sets_guard_attributes_when_published(client: TestClient) -> None:
+    class _Brain:
+        threshold = 0.0
+
+    class _Guard:
+        strict = False
+
+    brain, guard = _Brain(), _Guard()
+    system_mod.runtime.publish(brain_guard=brain, guard=guard)
+    resp = client.post("/api/config", json={"semantic_threshold": 2.0, "strict_mode": True})
+    assert resp.status_code == 200
+    assert brain.threshold == 1.0   # clamped to [0.1, 1.0]
+    assert guard.strict is True
+
+
+def test_config_post_empty_body_is_noop(client: TestClient) -> None:
+    before = gateway_state.uncertainty_lower
+    resp = client.post("/api/config", json={})
+    assert resp.status_code == 200
+    assert gateway_state.uncertainty_lower == before
