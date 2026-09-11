@@ -320,6 +320,16 @@ jobs:
         run: npx tsc --noEmit
         working-directory: dashboard
 
+      # plan-85 M-1: the dashboard had zero test tooling. No coverage floor
+      # yet — one file (the fail-closed Warden proxy) is well covered and the
+      # rest of the app is untested, so a repo-wide percentage would either be
+      # trivially low or block on files nobody has gotten to. Gate on tests
+      # passing first; add the ratcheting floor once portal is bootstrapped
+      # too and there is a real baseline to defend.
+      - name: Dashboard unit tests
+        run: npm run test:coverage
+        working-directory: dashboard
+
       # OB-F21: the Python guard for these links matches source text, so it
       # passes even if the validation starts returning true for everything.
       # This one calls the function. It lives here because this is the job that
