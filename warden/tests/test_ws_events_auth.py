@@ -175,14 +175,35 @@ async def test_broadcast_reaches_a_subscriber():
 
 def test_health_reports_live_subscriber_count():
     """`ws_clients` must count the real listeners, not a dead bus that is
-    structurally always zero."""
-    import inspect
+    structurally always zero — asserted through the real `/health` response,
+    not by inspecting source (which passes even if the route were miswired).
 
-    import warden.main as m
+    GET /health moved to warden/api/system.py (P-2).
+    """
+    from unittest.mock import patch
 
-    src = inspect.getsource(m)
-    assert '"ws_clients":       _ws_subscriber_count()' in src or \
-           "_ws_subscriber_count()" in src, "GET /health must report the router's count"
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from warden.api.system import router
+    from warden.api.ws_events import _register, _unregister
+
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    with patch("warden.api.system.check_redis_health",
+               return_value={"status": "unavailable", "latency_ms": None}), \
+         patch("warden.circuit_breaker.get_state", return_value={"status": "closed"}):
+        assert client.get("/health").json()["ws_clients"] == 0
+
+        q = _register()
+        try:
+            assert client.get("/health").json()["ws_clients"] == 1
+        finally:
+            _unregister(q)
+
+        assert client.get("/health").json()["ws_clients"] == 0
 
 
 # ── app-wide shadowing ratchet ───────────────────────────────────────────────

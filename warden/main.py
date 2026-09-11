@@ -75,7 +75,6 @@ from warden.analytics import logger as event_logger
 from warden.api.docs_router import router as _docs_router
 from warden.api.masking import router as _masking_router
 from warden.api.ws_events import broadcast_event as _ws_broadcast_event
-from warden.api.ws_events import subscriber_count as _ws_subscriber_count
 from warden.api_versioning import APIVersionMiddleware
 from warden.auth.saml_provider import SAMLProvider
 from warden.auth.saml_provider import get_provider as _get_saml_provider
@@ -90,7 +89,7 @@ from warden.brain.evolve import EvolutionEngine, build_evolution_engine
 from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.business_threat_neutralizer import analyze as _neutralizer_analyze
 from warden.cache import _get_client as _get_redis
-from warden.cache import check_redis_health, check_tenant_rate_limit, get_cached, set_cached
+from warden.cache import check_tenant_rate_limit, get_cached, set_cached
 from warden.causal_arbiter import arbitrate as _causal_arbitrate
 from warden.client_ip import get_client_ip
 from warden.config import settings
@@ -338,16 +337,17 @@ _dynamic_regex_rules: list[_DynamicRegexRule] = []
 
 
 # ── Multi-tenant SemanticGuard registry ──────────────────────────────────────
-
-_tenant_guards: dict[str, BrainSemanticGuard] = {}
+# The dict itself lives in warden.gateway_state (P-2) — a leaf both this module
+# and warden/api/system.py's /health route can read; construction (importing
+# the heavy BrainSemanticGuard class) stays here.
 
 
 def _get_tenant_guard(tenant_id: str) -> BrainSemanticGuard:
     """Return (or create) the BrainSemanticGuard for *tenant_id*."""
-    if tenant_id not in _tenant_guards:
+    if tenant_id not in gateway_state.tenant_guards:
         log.info("Creating new ML brain corpus for tenant=%r", tenant_id)
-        _tenant_guards[tenant_id] = BrainSemanticGuard()
-    return _tenant_guards[tenant_id]
+        gateway_state.tenant_guards[tenant_id] = BrainSemanticGuard()
+    return gateway_state.tenant_guards[tenant_id]
 
 
 # ── Singletons (one per process) ─────────────────────────────────────────────
@@ -638,7 +638,7 @@ async def lifespan(app: FastAPI):
     # ── ML Brain Guard ────────────────────────────────────────────────
     log.info("Loading ML semantic brain (all-MiniLM-L6-v2) …")
     _brain_guard = BrainSemanticGuard()
-    _tenant_guards["default"] = _brain_guard
+    gateway_state.tenant_guards["default"] = _brain_guard
     log.info("ML brain corpus ready.")
 
     # ── Restore evolved corpus ────────────────────────────────────────
@@ -1636,7 +1636,7 @@ register_router_safe(app, _RouterSpec("warden.protocols.a2a.api", label="A2A v1.
 
 register_router_safe(app, _RouterSpec("warden.api.deploy_health", label="Deploy health endpoint mounted at /deploy/status"))
 
-register_router_safe(app, _RouterSpec("warden.api.system", label="System/dashboard ops endpoints mounted at /api/stats (P-2)"))
+register_router_safe(app, _RouterSpec("warden.api.system", label="System/dashboard ops endpoints mounted at /health, /api/stats, /api/config (P-2)"))
 
 register_router_safe(app, _RouterSpec("warden.api.action_whitelist", label="Agent Action Whitelist mounted at /admin/agents"))
 
@@ -1712,49 +1712,7 @@ app.add_middleware(APIVersionMiddleware)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
-# GET /health/pipeline extracted to warden/api/system.py (P-2). The Redis probe
-# moved to warden.cache.check_redis_health (the leaf it probes).
-
-
-@app.get("/health", tags=["ops"], summary="Liveness probe")
-async def health():
-    redis_health = await asyncio.to_thread(check_redis_health)
-    overall = "ok" if redis_health["status"] in ("ok", "unavailable") else "degraded"
-
-    # Compute bypass_rate_1m from sliding windows (prune entries older than 60 s)
-    now = time.perf_counter()
-    cutoff = now - 60.0
-    while gateway_state.bypass_window and gateway_state.bypass_window[0] < cutoff:
-        gateway_state.bypass_window.popleft()
-    while gateway_state.filter_window and gateway_state.filter_window[0] < cutoff:
-        gateway_state.filter_window.popleft()
-    bypasses_1m  = len(gateway_state.bypass_window)
-    filter_1m    = len(gateway_state.filter_window)
-    bypass_rate  = round(bypasses_1m / filter_1m, 4) if filter_1m else 0.0
-
-    cb_state = _cb.get_state(_get_redis())
-    if cb_state.get("status") == "open":
-        overall = "degraded"
-
-    return {
-        "status":           overall,
-        "service":          "warden-gateway",
-        "evolution":        _evolve is not None,
-        # The backend actually serving calls. Differs from the configured
-        # choice after an auto-mode demotion, which is the only place an
-        # operator can see that the selected engine stopped answering.
-        "evolution_engine": _evolve.active_engine if _evolve is not None else None,
-        "tenants":          list(_tenant_guards.keys()),
-        "strict":           os.getenv("STRICT_MODE", "false").lower() == "true",
-        "fail_strategy":    gateway_state.fail_strategy,
-        "cache":            redis_health,
-        "ws_clients":       _ws_subscriber_count(),
-        "bypass_rate_1m":   bypass_rate,
-        "bypasses_1m":      bypasses_1m,
-        "filter_rps_1m":    round(filter_1m / 60, 2),
-        "circuit_breaker":  cb_state,
-        "offline_mode":     _is_offline(),
-    }
+# GET /health, GET /health/pipeline extracted to warden/api/system.py (P-2).
 
 
 # ── Ops endpoints extracted to warden/api/system.py (P-2) ─────────────────────
@@ -3507,7 +3465,7 @@ async def filter_multimodal(
         text_flags = list(text_resp.semantic_flags)
 
     # ── Tenant brain guard for audio transcript ───────────────────────
-    tenant_guard = _tenant_guards.get(payload.tenant_id, _brain_guard)
+    tenant_guard = gateway_state.tenant_guards.get(payload.tenant_id, _brain_guard)
 
     # ── Multimodal pipeline ───────────────────────────────────────────
     mm_result = await run_multimodal(
