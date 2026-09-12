@@ -1,4 +1,5 @@
 ﻿---
+import { PRODUCT } from '../data/product';
 const cols = [
   {
     title: 'Security',
@@ -37,7 +38,7 @@ const badges = ['SOC 2 Type II', 'GDPR Native', 'FIPS 203/204', 'EU AI Act Ready
                style="box-shadow:0 0 24px rgba(255,45,85,0.4)">🛡️</div>
           <div>
             <div class="text-[15px] font-black tracking-tight">Shadow Warden AI</div>
-            <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">v6.8 · 190 modules</div>
+            <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">{PRODUCT.display} · {PRODUCT.services} services</div>
           </div>
         </a>
 
@@ -83,20 +84,20 @@ const badges = ['SOC 2 Type II', 'GDPR Native', 'FIPS 203/204', 'EU AI Act Ready
     <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] px-5 py-4 mb-8 font-mono text-[11px]">
       <span class="text-[#30D158]">$</span>
       <span class="text-[#F5F5F7] ml-2">docker-compose up --build</span>
-      <span class="text-[#48485A] ml-4"># 11 services · 60 seconds · production-ready · v6.8.0</span>
+      <span class="text-[#48485A] ml-4"># {PRODUCT.services} services · {PRODUCT.version}</span>
     </div>
 
     <!-- Bottom bar -->
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4
                 pt-8 border-t border-white/[0.05]">
       <p class="text-[11px] text-[#48485A]">
-        © 2025 Shadow Warden AI. Proprietary license. All rights reserved.
+        © 2026 Shadow Warden AI. Proprietary license. All rights reserved.
       </p>
       <div class="flex items-center gap-6 text-[11px] text-[#48485A]">
         <a href="#" class="hover:text-[#8E8E9E] transition-colors">Privacy</a>
         <a href="#" class="hover:text-[#8E8E9E] transition-colors">Terms</a>
         <a href="#" class="hover:text-[#8E8E9E] transition-colors">Security</a>
-        <span class="text-[#30D158] font-bold">v6.8.0</span>
+        <span class="text-[#30D158] font-bold">{PRODUCT.version}</span>
       </div>
     </div>
   </div>

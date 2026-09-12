@@ -1,4 +1,5 @@
 ---
+import { PRODUCT } from '../data/product';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import roadmap from '../data/roadmap.json';
 import WhatsNew from '../components/WhatsNew.astro';
@@ -85,7 +86,7 @@ const softwareApplication = {
       <div>
         <div class="idx-live"><div class="idx-live-dot"></div>v{shipped} shipped · Live</div>
         <h1 class="idx-h1">The Secure Financial<br>Infrastructure for the<br><span class="idx-hl">Agentic Economy</span></h1>
-        <div class="idx-tag">// Shadow Warden AI · v7.9 · GDPR · SOC 2 · ISO 27001</div>
+        <div class="idx-tag">// Shadow Warden AI · {PRODUCT.display} · GDPR · SOC 2 · ISO 27001</div>
         <p class="idx-sub">
           AI agents discover, negotiate, and settle digital intelligence assets at machine speed — protected by a 9-layer cryptographic security pipeline.
         </p>
@@ -116,7 +117,7 @@ const softwareApplication = {
   <div class="idx-stat"><div class="idx-stat-n">1.5%</div><div class="idx-stat-l">Take Rate</div></div>
 </div>
 
-<script>
+<script define:vars={{ SW: PRODUCT.display }}>
 (function(){
   // Canvas particles
   const cvs = document.getElementById('idx-canvas');
@@ -138,7 +139,7 @@ const softwareApplication = {
   const term = document.getElementById('idx-term');
   if (!term) return;
   const SEQ = [
-    [0,   'dim', '$ shadow-warden gateway v7.9 starting…\n'],
+    [0,   'dim', `$ shadow-warden gateway ${SW} starting…\n`],
     [250, 'dim', '  9 stages loaded · Redis OK · model OK\n\n'],
     [550, 'hi',  'POST /filter\n'],
     [700, 'dim', '  tenant=demo · len=142 · session=a7f2\n\n'],
@@ -190,7 +191,7 @@ const softwareApplication = {
     setTimeout(runTerm,last+3200);
   }
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-    term.innerHTML='<span class="it-grn">Shadow Warden gateway online · v7.9</span>';
+    term.innerHTML='<span class="it-grn">Shadow Warden gateway online · '+SW+'</span>';
   } else { runTerm(); }
 })();
 </script>
@@ -822,7 +823,7 @@ const softwareApplication = {
     <div class="text-center mb-12">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded mb-4 text-[11px] font-semibold font-mono"
            style="color:#fbbf24;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.18)">
-        New in v5.0
+        Since v5.0
       </div>
       <h2 class="text-[24px] font-black leading-tight mb-3"
           style="color:#f0f4fc;letter-spacing:-0.025em">

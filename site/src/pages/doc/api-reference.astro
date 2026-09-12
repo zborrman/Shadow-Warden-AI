@@ -1,4 +1,5 @@
 ---
+import { PRODUCT } from '../../data/product';
 // Renders the Redoc API explorer inline — no redirect to docs.shadow-warden-ai.com needed.
 ---
 <!DOCTYPE html>
@@ -69,7 +70,7 @@
       Shadow Warden AI
     </a>
     <div class="topbar-right">
-      <span class="badge">v6.8</span>
+      <span class="badge">{PRODUCT.display}</span>
       <a href="/">Home</a>
       <a href="/doc">Docs</a>
       <a href="https://api.shadow-warden-ai.com/health" target="_blank" rel="noopener">Status</a>
