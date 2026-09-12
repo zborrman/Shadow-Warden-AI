@@ -120,8 +120,26 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
         try:
             con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
             con.commit()
-        except Exception:
-            pass  # column already exists
+        except Exception as exc:
+            # Only "that column is already there". A bare `pass` here hid every
+            # error equally, which was survivable while this ran on every
+            # connection — a transient failure retried on the next one. It is
+            # not survivable now that it runs once per process: a swallowed
+            # outage would mark the database backfilled for the life of the
+            # worker. Anything else propagates, so the memo is not set.
+            if "duplicate column" not in str(exc).lower():
+                raise
+
+
+# Databases whose ALTER-based column backfill has already run in this process.
+_columns_ensured: set[str] = set()
+_ensure_lock = threading.Lock()
+
+
+def reset_column_memo() -> None:
+    """Forget which databases have been backfilled (tests that recreate a file)."""
+    with _ensure_lock:
+        _columns_ensured.clear()
 
 
 @contextmanager
@@ -130,7 +148,16 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     with open_db(
         "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
-        _ensure_columns(con)
+        # Once per database, not once per connection. Each ALTER here is
+        # expected to fail on an existing column, and on Turso — where this
+        # database lives in production — a failing statement still costs a
+        # full HTTPS round trip, so this ran up ~1.4 s on every
+        # ``GET /marketplace/agents``. Fail-safe: the memo is only set after
+        # the backfill completes, so a raising call is retried next time.
+        with _ensure_lock:
+            if db_path not in _columns_ensured:
+                _ensure_columns(con)
+                _columns_ensured.add(db_path)
         yield con
 
 
