@@ -1,4 +1,5 @@
 ---
+import { PRODUCT } from '../data/product';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import '../styles/agentic.css';
 
@@ -548,7 +549,7 @@ const apiUrl           = API_URL;
 <!-- ── Chart.js + all interactive JS ───────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-<script is:inline>
+<script is:inline define:vars={{ SW: PRODUCT.display }}>
 (function(){
 'use strict';
 
@@ -610,7 +611,7 @@ if (cvs) {
 // ── Terminal animation ────────────────────────────────────────────────────
 const term = document.getElementById('mk-term');
 const SEQ = [
-  [0,   'dim', '$ marketplace gateway v7.9\n'],
+  [0,   'dim', `$ marketplace gateway ${SW}\n`],
   [300, 'dim', '  M2M protocol 1.1 · DPI active · KYA enabled\n\n'],
   [600, 'hi',  '→ Agent did:shadow:X8kR3mN2pQzA4vW7j SEARCH\n'],
   [800, 'dim', '  action_type="search" budget_usd=50.00\n\n'],

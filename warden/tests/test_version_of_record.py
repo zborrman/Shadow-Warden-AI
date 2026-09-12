@@ -124,3 +124,80 @@ def test_no_orphan_root_openapi_spec():
         "openapi.json is back at the repo root. It has no generator and drifts "
         "silently — the published spec lives at site/public/openapi.json."
     )
+
+
+# ── The published site ───────────────────────────────────────────────────────
+#
+# `_DECLARED_IN` above covers the root markdown documents, and stopped there.
+# The site was never in the guard's surface list, so on 2026-09-12 eleven
+# stamps across seven files still read `v6.8` while the product shipped 7.9.0 —
+# a full major version behind, on the pages a buyer reads first, with
+# `562 endpoints` and `11 services` beside them. The version was retyped in
+# roughly two dozen places, so bumping it was a find-and-replace nobody ran.
+#
+# `site/src/data/product.ts` is now the site's single copy. These two tests
+# hold it to the version of record and stop a second copy appearing.
+
+_SITE_PRODUCT_TS = "site/src/data/product.ts"
+
+# Files whose job is to name *past* versions. History is allowed to say `v6.8`.
+_SITE_HISTORY = {
+    "site/src/data/roadmap.json",          # per-feature "shipped in" version
+    "site/src/components/WhatsNew.astro",  # changelog cards
+    "site/src/pages/doc/changelog.astro",  # the changelog itself
+    "site/src/pages/roadmap.astro",        # roadmap rows carry a ship version
+}
+
+
+def test_site_product_file_matches_the_version_of_record():
+    truth = _source_of_truth()
+    path = _REPO / _SITE_PRODUCT_TS
+    if not path.exists():
+        pytest.skip(f"{_SITE_PRODUCT_TS} not present in this checkout")
+    text = path.read_text(encoding="utf-8")
+
+    m = re.search(r'version:\s*"([^"]+)"', text)
+    assert m, f"{_SITE_PRODUCT_TS} no longer declares `version`"
+    assert m.group(1) == truth, (
+        f"{_SITE_PRODUCT_TS} says {m.group(1)}, warden/__init__.py says {truth}. "
+        "Bumping the product means changing both."
+    )
+
+    d = re.search(r'display:\s*"([^"]+)"', text)
+    assert d, f"{_SITE_PRODUCT_TS} no longer declares `display`"
+    assert d.group(1) == "v" + _major_minor(truth), (
+        f"`display` is {d.group(1)}, expected v{_major_minor(truth)}"
+    )
+
+
+def test_no_second_copy_of_the_version_on_the_site():
+    """Every site surface reads the version from PRODUCT, never retypes it.
+
+    A hardcoded stamp is how the site fell a major version behind: it was
+    correct on the day it was typed and nothing ever revisited it. Import
+    `PRODUCT` from `src/data/product` instead — that is the one place a bump
+    has to touch.
+    """
+    truth = _source_of_truth()
+    site_src = _REPO / "site" / "src"
+    if not site_src.exists():
+        pytest.skip("site/src not present in this checkout")
+
+    needles = (f"v{_major_minor(truth)}", truth)
+    offenders: list[str] = []
+    for path in sorted(site_src.rglob("*")):
+        if not path.is_file() or path.suffix not in {".astro", ".ts", ".js", ".json", ".md"}:
+            continue
+        rel = path.relative_to(_REPO).as_posix()
+        if rel == _SITE_PRODUCT_TS or rel in _SITE_HISTORY:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for needle in needles:
+            if needle in text:
+                offenders.append(f"{rel} (contains {needle!r})")
+                break
+
+    assert not offenders, (
+        "These site files hardcode the current product version instead of "
+        "importing PRODUCT from src/data/product:\n  " + "\n  ".join(offenders)
+    )
