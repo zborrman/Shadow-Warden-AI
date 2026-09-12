@@ -124,13 +124,33 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
             pass  # column already exists
 
 
+# Databases whose ALTER-based column backfill has already run in this process.
+_columns_ensured: set[str] = set()
+_ensure_lock = threading.Lock()
+
+
+def reset_column_memo() -> None:
+    """Forget which databases have been backfilled (tests that recreate a file)."""
+    with _ensure_lock:
+        _columns_ensured.clear()
+
+
 @contextmanager
 def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
     db_path = db_path or _db_path()
     with open_db(
         "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
-        _ensure_columns(con)
+        # Once per database, not once per connection. Each ALTER here is
+        # expected to fail on an existing column, and on Turso — where this
+        # database lives in production — a failing statement still costs a
+        # full HTTPS round trip, so this ran up ~1.4 s on every
+        # ``GET /marketplace/agents``. Fail-safe: the memo is only set after
+        # the backfill completes, so a raising call is retried next time.
+        with _ensure_lock:
+            if db_path not in _columns_ensured:
+                _ensure_columns(con)
+                _columns_ensured.add(db_path)
         yield con
 
 

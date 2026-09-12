@@ -316,18 +316,56 @@ def upsert_mirrored_order(
         record_failopen("marketplace_mirror_order", Reason.BACKEND_ERROR, exc)
 
 
-@contextmanager
-def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
-    db_path = db_path or _db_path()
-    with open_db(
-        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
-    ) as con:
+# Databases whose per-connection migrations have already run in this process.
+_migrated: set[str] = set()
+_migrate_memo_lock = threading.Lock()
+
+
+def reset_migration_memo() -> None:
+    """Forget which databases have been migrated (tests that recreate a file)."""
+    with _migrate_memo_lock:
+        _migrated.clear()
+
+
+def _run_migrations_once(con: sqlite3.Connection, db_path: str) -> None:
+    """Apply the ad-hoc migrations below once per database, not once per connection.
+
+    These six helpers are schema work, not query work: they belong to the
+    database, so re-running them on every connection buys nothing. On local
+    SQLite that waste was invisible (microseconds). It is not invisible on
+    Turso, where the marketplace database actually lives in production and
+    every statement is a separate HTTPS request: nine ``ALTER TABLE ... ADD
+    COLUMN`` calls that are *expected to fail* (the column exists), plus the
+    index and ``PRAGMA`` statements, cost ~16 round trips — which is why
+    ``GET /marketplace/listings`` answered an empty result in 9.5 s while
+    ``/health`` answered in 10 ms.
+
+    Same shape as ``ddl_registry.ensure_schema``: lazy (first connection in
+    the process, so workers and tests without the FastAPI lifespan are still
+    covered), memoized per database, and fail-safe — if any migration raises,
+    the memo is not set and the next connection retries. The memo is keyed on
+    the database path; a test that deletes and recreates a file at the same
+    path within one process must call :func:`reset_migration_memo`.
+    """
+    with _migrate_memo_lock:
+        if db_path in _migrated:
+            return
         _migrate_chain_column(con)
         _migrate_sponsored_columns(con)
         _migrate_kya_column(con)
         _migrate_idempotency_column(con)
         _migrate_order_consolidation_columns(con)
         _migrate_relax_asset_id_nullable(con)
+        _migrated.add(db_path)
+
+
+@contextmanager
+def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, None]:
+    db_path = db_path or _db_path()
+    with open_db(
+        "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
+    ) as con:
+        _run_migrations_once(con, db_path)
         yield con
 
 

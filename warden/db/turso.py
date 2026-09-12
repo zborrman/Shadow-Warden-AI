@@ -135,6 +135,18 @@ class _TursoConnection:
         self._api_url = f"{base}/v2/pipeline"
         self._auth    = f"Bearer {auth_token}"
         self._lock    = threading.RLock()
+        # One pooled client for the life of this connection, NOT a fresh
+        # ``httpx.post()`` per statement. Every statement here is an HTTPS
+        # request, so a per-call client pays a full TCP + TLS handshake each
+        # time: measured against the production marketplace database,
+        # 0.46 s per statement unpooled vs 0.11 s pooled — a 4x tax on every
+        # query in every Turso-backed module. Marketplace reads issued ~16
+        # statements per request and answered in 9.5 s.
+        self._http = httpx.Client(
+            timeout=10,
+            headers={"Authorization": self._auth, "Content-Type": "application/json"},
+            limits=httpx.Limits(max_keepalive_connections=4, max_connections=8),
+        )
         self._last_insert_rowid: int | None = None
         self.row_factory = None   # unused; always returns _TursoRow
 
@@ -154,15 +166,7 @@ class _TursoConnection:
                 ]
             }
             try:
-                resp = httpx.post(
-                    self._api_url,
-                    json=payload,
-                    headers={
-                        "Authorization": self._auth,
-                        "Content-Type":  "application/json",
-                    },
-                    timeout=10,
-                )
+                resp = self._http.post(self._api_url, json=payload)
                 resp.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 raise sqlite3.OperationalError(
