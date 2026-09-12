@@ -137,3 +137,46 @@ def test_second_open_is_cheap_in_statements(market_db, monkeypatch):
         f"a warm connection issued {warm} statements; schema work has leaked "
         "back onto the per-connection path (see this module's docstring)"
     )
+
+
+def test_a_real_migration_failure_is_not_memoized(market_db, monkeypatch):
+    """A failure that is not "column already exists" must propagate and retry.
+
+    Before the memo, every connection re-ran the migrations, so a transient
+    failure repaired itself on the next open. With a memo, a swallowed failure
+    would mark the database migrated for the life of the process and leave a
+    half-applied schema nothing ever fixes. So the suppression is narrow and
+    the memo is only set on success.
+    """
+    calls = []
+    real = listing_mod._migrate_kya_column
+
+    def boom(con):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("turso unreachable")
+        return real(con)
+
+    monkeypatch.setattr(listing_mod, "_migrate_kya_column", boom)
+
+    with pytest.raises(RuntimeError, match="turso unreachable"), listing_mod._conn():
+        pass
+
+    # Not memoized: the next open retries rather than skipping a schema that
+    # was never applied.
+    with listing_mod._conn():
+        pass
+    assert len(calls) == 2
+
+
+def test_duplicate_column_is_still_ignored(market_db):
+    """The ordinary case — the column exists — must stay silent."""
+    with listing_mod._conn() as con, listing_mod._ignore_existing_column():
+        con.execute("ALTER TABLE marketplace_listings ADD COLUMN chain TEXT")
+
+    with (
+        pytest.raises(Exception, match="no such table"),
+        listing_mod._conn() as con,
+        listing_mod._ignore_existing_column(),
+    ):
+        con.execute("ALTER TABLE nope_not_here ADD COLUMN x TEXT")

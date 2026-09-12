@@ -220,7 +220,12 @@ class _TursoConnection:
         pass  # No transaction support in HTTP pipeline mode
 
     def close(self) -> None:
-        pass  # Connection is stateless HTTP; nothing to close
+        # Deliberately a no-op, and it must stay one. This object is cached in
+        # `_client_cache` and handed to every caller for that database, so the
+        # pooled `_http` client is shared: closing it here because one caller
+        # finished would break every later one. The pool is released when the
+        # process exits, which is the same lifetime the cache has.
+        pass
 
     def __enter__(self) -> _TursoConnection:
         return self

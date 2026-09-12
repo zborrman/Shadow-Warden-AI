@@ -16,7 +16,7 @@ import sqlite3
 import threading
 import uuid
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -106,10 +106,29 @@ _LISTING_DDL = """
 register("marketplace", "warden.marketplace.listing", _LISTING_DDL)
 
 
+@contextmanager
+def _ignore_existing_column() -> Generator[None, None, None]:
+    """Swallow only "that column is already there", never a real failure.
+
+    ``suppress(Exception)`` around an ``ALTER TABLE ... ADD COLUMN`` hid every
+    error equally. That was survivable while these helpers re-ran on every
+    connection: a transient failure simply retried on the next one. It is not
+    survivable now that they run once per process — a swallowed outage would
+    record the database as migrated and skip it for the life of the worker,
+    leaving a half-migrated schema nothing ever repairs. Anything that is not
+    a duplicate column propagates, so ``_run_migrations_once`` never sets its
+    memo on a migration that did not actually happen.
+    """
+    try:
+        yield
+    except Exception as exc:
+        if "duplicate column" not in str(exc).lower():
+            raise
+
+
 def _migrate_chain_column(con: sqlite3.Connection) -> None:
     """Add chain column to existing databases that predate cross-chain support."""
-    import contextlib
-    with contextlib.suppress(Exception):
+    with _ignore_existing_column():
         con.execute(
             "ALTER TABLE marketplace_listings ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
         )
@@ -117,12 +136,11 @@ def _migrate_chain_column(con: sqlite3.Connection) -> None:
 
 def _migrate_sponsored_columns(con: sqlite3.Connection) -> None:
     """Add sponsored columns to existing databases that predate sponsored-listing support."""
-    import contextlib
-    with contextlib.suppress(Exception):
+    with _ignore_existing_column():
         con.execute(
             "ALTER TABLE marketplace_listings ADD COLUMN is_sponsored INTEGER NOT NULL DEFAULT 0"
         )
-    with contextlib.suppress(Exception):
+    with _ignore_existing_column():
         con.execute(
             "ALTER TABLE marketplace_listings ADD COLUMN sponsored_until TEXT"
         )
@@ -130,8 +148,7 @@ def _migrate_sponsored_columns(con: sqlite3.Connection) -> None:
 
 def _migrate_kya_column(con: sqlite3.Connection) -> None:
     """Add kya_status column to existing databases that predate KYA support."""
-    import contextlib
-    with contextlib.suppress(Exception):
+    with _ignore_existing_column():
         con.execute(
             "ALTER TABLE marketplace_listings ADD COLUMN kya_status TEXT NOT NULL DEFAULT 'PENDING'"
         )
@@ -139,7 +156,7 @@ def _migrate_kya_column(con: sqlite3.Connection) -> None:
 
 def _migrate_idempotency_column(con: sqlite3.Connection) -> None:
     """Add idempotency_key column + unique index to databases that predate FT-3."""
-    with suppress(Exception):
+    with _ignore_existing_column():
         con.execute("ALTER TABLE marketplace_purchases ADD COLUMN idempotency_key TEXT")
     # Partial-unique-by-value: SQLite UNIQUE indexes allow unlimited NULLs, so
     # rows without a key (legacy/no-key callers) are unconstrained; rows WITH a
@@ -173,7 +190,7 @@ def _migrate_order_consolidation_columns(con: sqlite3.Connection) -> None:
         ("receipt_json", "TEXT"),
         ("metadata_json", "TEXT"),
     ):
-        with suppress(Exception):
+        with _ignore_existing_column():
             con.execute(f"ALTER TABLE marketplace_purchases ADD COLUMN {column} {ddl_type}")
     con.execute("CREATE INDEX IF NOT EXISTS idx_mp_domain ON marketplace_purchases(domain)")
     con.execute("CREATE INDEX IF NOT EXISTS idx_mp_tenant ON marketplace_purchases(tenant_id)")
@@ -356,6 +373,13 @@ def _run_migrations_once(con: sqlite3.Connection, db_path: str) -> None:
         _migrate_idempotency_column(con)
         _migrate_order_consolidation_columns(con)
         _migrate_relax_asset_id_nullable(con)
+        # Commit the schema before recording it as done. `open_db()` commits
+        # once, after the whole `_conn()` body returns — so if the *caller's*
+        # work raises, the connection closes uncommitted and SQLite rolls the
+        # migrations back with it. Re-running them every time hid that: the
+        # next connection repaired the damage. With a memo it would not, and
+        # the process would keep skipping a migration that no longer exists.
+        con.commit()
         _migrated.add(db_path)
 
 

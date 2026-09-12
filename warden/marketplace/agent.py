@@ -120,8 +120,15 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
         try:
             con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
             con.commit()
-        except Exception:
-            pass  # column already exists
+        except Exception as exc:
+            # Only "that column is already there". A bare `pass` here hid every
+            # error equally, which was survivable while this ran on every
+            # connection — a transient failure retried on the next one. It is
+            # not survivable now that it runs once per process: a swallowed
+            # outage would mark the database backfilled for the life of the
+            # worker. Anything else propagates, so the memo is not set.
+            if "duplicate column" not in str(exc).lower():
+                raise
 
 
 # Databases whose ALTER-based column backfill has already run in this process.
