@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.agent")
 
@@ -302,8 +303,9 @@ def register_agent(
             currency="USD",
             allowed_merchants=["marketplace"],
         )
-    except Exception:
-        log.warning("AP2Processor unavailable; agent registered without mandate")
+    except Exception as exc:
+        log.warning("AP2Processor unavailable; agent %s registered without mandate (%s)",
+                    agent_id, type(exc).__name__)
         return agent
 
     # Attach it. `attached` is only set after the `with` block — including the
@@ -321,7 +323,10 @@ def register_agent(
             rowcount = cur.rowcount
         attached = rowcount == 1
     except Exception as exc:
-        log.warning("register_agent: could not attach mandate to %s: %s", agent_id, exc)
+        # Type only: a SQLite or Fernet message is not metadata, and this repo
+        # logs metadata only.
+        log.warning("register_agent: could not attach mandate to %s (%s)",
+                    agent_id, type(exc).__name__)
 
     if not attached:
         # The agent IS registered — that INSERT already committed — so raising
@@ -331,7 +336,13 @@ def register_agent(
         try:
             AP2Processor().revoke_mandate(mandate.id, tenant_id)
         except Exception as exc:
-            log.warning("register_agent: could not revoke unattached mandate %s: %s", mandate.id, exc)
+            # Attach failed AND revoke failed: an ACTIVE mandate attached to no
+            # agent. Nothing can present its id, so it is inert — but it must not
+            # be silent. `record_failopen` is the alertable counter this repo
+            # uses for exactly that, rather than a new retry queue.
+            log.warning("register_agent: could not revoke unattached mandate %s (%s)",
+                        mandate.id, type(exc).__name__)
+            record_failopen("marketplace_mandate_revoke", Reason.BACKEND_ERROR, exc)
         return agent
 
     agent.mandate_id = mandate.id

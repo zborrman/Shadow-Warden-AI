@@ -485,3 +485,42 @@ def test_an_unattached_mandate_is_revoked_and_not_reported(tmp_path, monkeypatch
     assert returned.mandate_id == "", "response claimed a mandate that was never attached"
     assert agent_mod.get_agent(agent_id, db_path=db).mandate_id == "other"
     agent_mod.reset_column_memo()
+
+
+def test_a_failed_revocation_is_counted_not_silent(tmp_path, monkeypatch):
+    """Attach fails and revoke fails: the orphan must reach an alertable counter."""
+    from warden.business_community.agentic_commerce import ap2
+    from warden.marketplace import agent as agent_mod
+
+    db = str(tmp_path / "revoke.db")
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", db)
+    agent_mod.reset_column_memo()
+    _, pub = _keypair()
+    agent_id = agent_mod.pubkey_to_agent_id(pub)
+
+    class _M:
+        id = "mandate-stuck"
+
+    def create_and_steal_the_slot(self, **kw):
+        with agent_mod._conn(db) as con:
+            con.execute("UPDATE marketplace_agents SET mandate_id='other' WHERE agent_id=?",
+                        (agent_id,))
+            con.commit()
+        return _M()
+
+    def revoke_boom(self, mid, tid):
+        raise RuntimeError("secret-looking detail that must not be logged")
+
+    counted = []
+    monkeypatch.setattr(ap2.AP2Processor, "create_mandate", create_and_steal_the_slot)
+    monkeypatch.setattr(ap2.AP2Processor, "revoke_mandate", revoke_boom)
+    monkeypatch.setattr(agent_mod, "record_failopen",
+                        lambda stage, reason, exc=None: counted.append(stage))
+
+    returned = agent_mod.register_agent(
+        tenant_id="t1", community_id="C1", public_key_b64=pub,
+        capabilities=["marketplace_sell"], db_path=db,
+    )
+    assert returned.mandate_id == ""
+    assert counted == ["marketplace_mandate_revoke"]
+    agent_mod.reset_column_memo()
