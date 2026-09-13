@@ -113,7 +113,10 @@ def test_the_decoder_reads_the_hex_form_a_real_node_returns():
     import json
     from pathlib import Path
 
-    abi = json.loads(Path("warden/web3/abi/escrow.abi.json").read_text(encoding="utf-8"))
+    import warden.web3 as _web3_pkg
+
+    abi_path = Path(_web3_pkg.__file__).resolve().parent / "abi" / "escrow.abi.json"
+    abi = json.loads(abi_path.read_text(encoding="utf-8"))
     abi = abi.get("abi", abi) if isinstance(abi, dict) else abi
 
     class ContractCustomError(Exception):
@@ -303,7 +306,10 @@ def _escrow_abi():
     import json
     from pathlib import Path
 
-    abi = json.loads(Path("warden/web3/abi/escrow.abi.json").read_text(encoding="utf-8"))
+    import warden.web3 as _web3_pkg
+
+    abi_path = Path(_web3_pkg.__file__).resolve().parent / "abi" / "escrow.abi.json"
+    abi = json.loads(abi_path.read_text(encoding="utf-8"))
     return abi.get("abi", abi) if isinstance(abi, dict) else abi
 
 

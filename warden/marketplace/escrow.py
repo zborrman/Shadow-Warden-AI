@@ -403,7 +403,10 @@ class EscrowService:
         # the token and its on-chain decimals, and the integer amount. What
         # settles must be what was verified, and an operator reconciling a trade
         # needs the figure the chain saw — not a float re-derived later.
-        with _conn(db_path) as con:
+        # Under `_db_lock` like every other escrow write. Deliberately not wrapped:
+        # if the snapshot cannot be stored, nothing is sent and the escrow stays
+        # in `pending_deposit`.
+        with _db_lock, _conn(db_path) as con:
             con.execute(
                 "UPDATE marketplace_escrow SET trade_id=?, token_address=?, token_decimals=?, "
                 "amount_minor=? WHERE escrow_id=?",
@@ -791,7 +794,7 @@ class EscrowService:
             sql = f"UPDATE marketplace_escrow SET {column}=? WHERE escrow_id=? AND {column}=''"
             args = (prefix + tx_hash, escrow_id)
         try:
-            with _conn(db_path) as con:
+            with _db_lock, _conn(db_path) as con:
                 con.execute(sql, args)
                 con.commit()
         except Exception as exc:
