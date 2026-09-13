@@ -754,22 +754,45 @@ class EscrowService:
         "cancelDeposit":  "settle_tx",
     }
 
-    def _record_tx(self, escrow_id: str, fn_name: str, tx_hash: str, db_path: str | None) -> None:
+    # Prefix on a hash whose transaction was broadcast but not confirmed.
+    PENDING_TX_PREFIX = "pending:"
+
+    def _record_tx(
+        self,
+        escrow_id: str,
+        fn_name: str,
+        tx_hash: str,
+        db_path: str | None,
+        *,
+        confirmed: bool = True,
+    ) -> None:
         """Store a transition's transaction hash. Never undoes the transition.
 
-        The chain has already moved when this runs, so a failure here costs the
-        audit trail, not the trade — it is counted, not raised. `AND col=''` so a
-        later call can never overwrite the hash of the transaction that did it.
+        A **confirmed** hash is written once and never overwritten. An
+        **unconfirmed** one — broadcast, receipt not seen — is stored as
+        `pending:0x…`, so an operator can look it up and a retry can ask the
+        chain, and a later confirmed hash replaces it. Writing unconfirmed hashes
+        plainly under the same write-once rule would have let a reverted
+        attempt permanently occupy the column ahead of the transaction that
+        actually settled.
+
+        The chain has already moved (or may have) when this runs, so a failure
+        here costs the audit trail, not the trade — counted, not raised.
         """
         column = self._TX_COLUMN.get(fn_name)
         if not column:
             return
+        prefix = self.PENDING_TX_PREFIX
+        if confirmed:
+            sql = (f"UPDATE marketplace_escrow SET {column}=? "
+                   f"WHERE escrow_id=? AND ({column}='' OR {column} LIKE ?)")
+            args: tuple = (tx_hash, escrow_id, prefix + "%")
+        else:
+            sql = f"UPDATE marketplace_escrow SET {column}=? WHERE escrow_id=? AND {column}=''"
+            args = (prefix + tx_hash, escrow_id)
         try:
             with _conn(db_path) as con:
-                con.execute(
-                    f"UPDATE marketplace_escrow SET {column}=? WHERE escrow_id=? AND {column}=''",
-                    (tx_hash, escrow_id),
-                )
+                con.execute(sql, args)
                 con.commit()
         except Exception as exc:
             log.error("escrow %s: could not record %s (%s)", escrow_id, column, type(exc).__name__)
@@ -820,8 +843,13 @@ class EscrowService:
             )
             addr, chain = strip_chain_suffix(contract_address)
             result = call_escrow_result(addr, fn_name, params, chain)
-            if result.ok and result.tx_hash and escrow_id:
-                self._record_tx(escrow_id, fn_name, result.tx_hash, db_path)
+            if result.tx_hash and escrow_id:
+                # Recorded whether or not it confirmed: a broadcast transaction
+                # whose receipt timed out is exactly the one a retry must ask
+                # the chain about. The return value is unchanged — an
+                # unconfirmed transition still does not advance the escrow.
+                self._record_tx(escrow_id, fn_name, result.tx_hash, db_path,
+                                confirmed=result.ok)
             return bool(result.ok)
         except Exception as exc:
             log.debug("call_escrow (web3) failed: %s", exc)

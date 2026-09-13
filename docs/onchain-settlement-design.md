@@ -93,8 +93,10 @@ entity, as the retail on-ramp. It is not the first implementation.
 
 ## 3. Schema
 
-All additive, via the existing `_ensure_columns` suppress-per-connect pattern —
-`ALTER TABLE … ADD COLUMN` is not idempotent and cannot live in registered DDL.
+All additive. Declared in the registered DDL for fresh databases, and backfilled by
+`ensure_escrow_columns`, which reads `PRAGMA table_info` once, issues an `ALTER`
+only for a column that is actually missing, and tolerates only a duplicate-column
+error (two processes racing to add the same one).
 
 ### `marketplace_agents`
 

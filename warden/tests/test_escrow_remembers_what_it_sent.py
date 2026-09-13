@@ -294,3 +294,85 @@ def test_a_real_migration_failure_propagates(tmp_path, monkeypatch):
     # No marketplace_escrow table at all: PRAGMA returns nothing, ALTER fails.
     with pytest.raises(sqlite3.OperationalError, match="no such table"):
         ensure_escrow_columns(con)
+
+
+# ── review round 1: selector at offset zero, pending hashes ────────────────
+
+
+def _escrow_abi():
+    import json
+    from pathlib import Path
+
+    abi = json.loads(Path("warden/web3/abi/escrow.abi.json").read_text(encoding="utf-8"))
+    return abi.get("abi", abi) if isinstance(abi, dict) else abi
+
+
+_TRADE_EXISTS = bytes.fromhex("822b55c5")
+_OTHER_SELECTOR = bytes.fromhex("deadbeef")
+
+
+@pytest.mark.parametrize("encoding", ["raw_bytes", "hex_data", "bytes_repr"])
+def test_trade_exists_bytes_inside_arguments_are_not_trade_exists(encoding):
+    """The money-safety bug a substring match had: a token's own error whose
+    ARGUMENTS happen to contain 82 2b 55 c5 must not read as an already-funded
+    deposit. Only the selector at offset zero names the error."""
+    payload = _OTHER_SELECTOR + b"\x00" * 28 + _TRADE_EXISTS + b"\x00" * 28
+
+    class RevertError(Exception):
+        pass
+
+    if encoding == "raw_bytes":
+        exc = RevertError(payload)
+    elif encoding == "hex_data":
+        exc = RevertError("reverted")
+        exc.data = "0x" + payload.hex()
+    else:
+        exc = RevertError(f"execution reverted: {payload!r}")
+
+    result = classify_call_failure("deposit", exc, _escrow_abi())
+    assert result.ok is False
+    assert result.already_funded is False
+
+
+@pytest.mark.parametrize("encoding", ["raw_bytes", "hex_data", "bytes_repr"])
+def test_trade_exists_at_offset_zero_is_recognised_in_every_encoding(encoding):
+    class RevertError(Exception):
+        pass
+
+    if encoding == "raw_bytes":
+        exc = RevertError(_TRADE_EXISTS)
+    elif encoding == "hex_data":
+        exc = RevertError("reverted")
+        exc.data = "0x" + _TRADE_EXISTS.hex()
+    else:
+        exc = RevertError(f"execution reverted: {_TRADE_EXISTS!r}")
+
+    assert classify_call_failure("deposit", exc, _escrow_abi()).already_funded is True
+
+
+def test_an_unconfirmed_transaction_is_recorded_as_pending_and_does_not_advance(escrow, monkeypatch):
+    svc, esc, db = escrow
+    monkeypatch.setattr(
+        "warden.web3.smart_contract.call_escrow_result",
+        lambda *a, **kw: EscrowCallResult(ok=False, tx_hash="0x" + "aa" * 32, error="TimeExhausted"),
+    )
+    monkeypatch.setattr(
+        "warden.web3.settlement.settlement_preflight",
+        lambda **kw: Preflight(ok=True, configured=True, trade_id=trade_id_for(kw["escrow_id"]),
+                               amount_minor=1_000_000, token_address=_USDC, token_decimals=6),
+    )
+    assert svc.fund_escrow(esc.escrow_id, db_path=db) is False
+    stored = svc._get(esc.escrow_id, db)
+    assert stored.status == "pending_deposit"
+    assert stored.fund_tx == "pending:0x" + "aa" * 32
+
+
+def test_a_confirmed_hash_replaces_a_pending_one_but_nothing_replaces_a_confirmed_one(escrow):
+    svc, esc, db = escrow
+    svc._record_tx(esc.escrow_id, "deposit", "0x" + "aa" * 32, db, confirmed=False)
+    svc._record_tx(esc.escrow_id, "deposit", "0x" + "bb" * 32, db, confirmed=True)
+    assert svc._get(esc.escrow_id, db).fund_tx == "0x" + "bb" * 32
+
+    svc._record_tx(esc.escrow_id, "deposit", "0x" + "cc" * 32, db, confirmed=True)
+    svc._record_tx(esc.escrow_id, "deposit", "0x" + "dd" * 32, db, confirmed=False)
+    assert svc._get(esc.escrow_id, db).fund_tx == "0x" + "bb" * 32

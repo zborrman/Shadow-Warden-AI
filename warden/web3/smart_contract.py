@@ -188,43 +188,56 @@ def _error_selectors(abi: list | None) -> dict[bytes, str]:
     return out
 
 
+def _revert_payloads(exc: BaseException) -> list[bytes]:
+    """Every revert payload *exc* carries, each as the full bytes starting at offset 0.
+
+    The revert data reaches here in more than one encoding. Against a real node,
+    web3 raises `ContractCustomError` with the data as hex (`0x822b55c5…`). The
+    local EVM this is tested on raises `TransactionFailed` with it as a Python
+    bytes-repr inside a message (`execution reverted: b'\x82+U\xc5'`). The
+    first decoder recognised only hex and returned "" for a genuine `TradeExists`
+    revert from the compiled contract — found by running it against one.
+    """
+    import ast
+    import re
+
+    payloads: list[bytes] = []
+    for part in (getattr(exc, "data", None), *getattr(exc, "args", ())):
+        if isinstance(part, (bytes, bytearray)):
+            payloads.append(bytes(part))
+            continue
+        if part is None:
+            continue
+        text = str(part)
+        for hex_blob in re.findall(r"0x([0-9a-fA-F]{8,})", text):
+            if len(hex_blob) % 2 == 0:
+                payloads.append(bytes.fromhex(hex_blob))
+        for literal in re.findall(r"b'((?:[^'\\]|\\.)*)'", text):
+            try:
+                value = ast.literal_eval("b'" + literal + "'")
+            except (ValueError, SyntaxError):
+                continue
+            if isinstance(value, bytes):
+                payloads.append(value)
+    return payloads
+
+
 def _decode_custom_error(exc: BaseException, abi: list | None) -> str:
     """Name the contract's custom error behind *exc*, or "" if it is not one.
 
-    Matched against the ABI's own error entries rather than a hand-kept table —
-    a second copy of a contract's vocabulary is how this codebase once shipped an
-    enum written out twice that disagreed with itself.
-
-    The revert data reaches here in more than one encoding, and the first
-    version of this function knew only one of them. Against a real node, web3
-    raises `ContractCustomError` with the selector as hex (`0x822b55c5`). The
-    local EVM this is tested on raises `TransactionFailed` with the selector as a
-    Python bytes-repr inside a message (`execution reverted: b'\x82+U\xc5'`).
-    A decoder that recognised only hex returned "" for a genuine `TradeExists`
-    revert from the compiled contract — found by running it against one, not by
-    reading it. All three forms are checked: hex, raw bytes, and bytes-repr.
+    **A selector counts only at offset zero of a revert payload.** The first
+    version searched for the selector's bytes anywhere, which is not decoding: a
+    `deposit` reverting with a token's own error whose *arguments* happened to
+    contain `82 2b 55 c5` would have been read as `TradeExists` — a deposit that
+    moved nothing, recorded as funded. Matched against the ABI's own error
+    entries rather than a hand-kept table.
     """
     selectors = _error_selectors(abi)
     if not selectors:
         return ""
-
-    blobs: list[bytes] = []
-    texts: list[str] = []
-    for part in (getattr(exc, "data", None), *getattr(exc, "args", ()), str(exc)):
-        if isinstance(part, (bytes, bytearray)):
-            blobs.append(bytes(part))
-        elif part is not None:
-            texts.append(str(part))
-    lowered = [t.lower() for t in texts]
-
-    for selector, name in selectors.items():
-        hex_form = "0x" + selector.hex()
-        repr_form = repr(selector)[2:-1]          # b'+UÅ' → +UÅ
-        if any(selector in b for b in blobs):
-            return name
-        if any(hex_form in t for t in lowered):
-            return name
-        if any(repr_form in t for t in texts):
+    for payload in _revert_payloads(exc):
+        name = selectors.get(payload[:4])
+        if name:
             return name
     return ""
 
@@ -281,7 +294,17 @@ def call_escrow_result(
         signed = account.sign_transaction(tx)
         sent = w3.eth.send_raw_transaction(signed.raw_transaction)
         tx_hash = "0x" + sent.hex().removeprefix("0x")
-        receipt = w3.eth.wait_for_transaction_receipt(sent, timeout=_TX_TIMEOUT_S)
+        try:
+            receipt = w3.eth.wait_for_transaction_receipt(sent, timeout=_TX_TIMEOUT_S)
+        except Exception as exc:
+            # The transaction was broadcast; only its confirmation is unknown.
+            # Keep the hash — it is exactly what lets a retry, or an operator,
+            # ask the chain what happened instead of sending again. Still a
+            # failure: an unconfirmed transition must not advance the escrow.
+            log.error("call_escrow %s on %s tx=%s: receipt not confirmed (%s)",
+                      fn_name, chain, tx_hash, type(exc).__name__)
+            record_failopen("escrow_call", Reason.BACKEND_ERROR, exc)
+            return EscrowCallResult(ok=False, tx_hash=tx_hash, error=type(exc).__name__)
 
         ok = int(receipt.get("status", 0)) == 1
         log.info(
