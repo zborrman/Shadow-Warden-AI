@@ -399,3 +399,51 @@ def test_the_ordering_check_and_the_write_are_one_statement(agents, monkeypatch)
     with pytest.raises(PayoutAddressError, match="roll back"):
         _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
     assert _stored(agents, "seller") == _ADDR_B
+
+
+def test_a_refused_registration_creates_no_mandate(agents, monkeypatch):
+    """Only the registration whose INSERT wins may create an AP2 mandate.
+
+    Check-then-create-then-insert let two concurrent registrations of one key
+    both pass the check and both create a mandate, orphaning the loser's. The
+    row is now reserved first, so a refused caller never reaches the mandate.
+    Counted on the real processor, not a stub of register_agent.
+    """
+    from warden.business_community.agentic_commerce import ap2
+
+    created = []
+    real_create = ap2.AP2Processor.create_mandate
+
+    def counting_create(self, *args, **kwargs):
+        created.append(kwargs.get("tenant_id"))
+        return real_create(self, *args, **kwargs)
+
+    monkeypatch.setattr(ap2.AP2Processor, "create_mandate", counting_create)
+
+    with pytest.raises(ValueError, match="already registered"):
+        _reregister_as_attacker(agents, "seller")
+    assert created == [], f"a refused registration created mandates for {created}"
+
+
+def test_the_winning_registration_still_gets_its_mandate(tmp_path, monkeypatch):
+    """Reordering must not cost the legitimate registrant its mandate."""
+    from warden.business_community.agentic_commerce import ap2
+    from warden.marketplace import agent as agent_mod
+
+    db = str(tmp_path / "fresh.db")
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", db)
+    agent_mod.reset_column_memo()
+
+    class _M:
+        id = "mandate-123"
+
+    monkeypatch.setattr(ap2.AP2Processor, "create_mandate", lambda self, **kw: _M())
+    _, pub = _keypair()
+    returned = agent_mod.register_agent(
+        tenant_id="t1", community_id="C1", public_key_b64=pub,
+        capabilities=["marketplace_sell"], db_path=db,
+    )
+    stored = agent_mod.get_agent(returned.agent_id, db_path=db)
+    assert returned.mandate_id == "mandate-123"
+    assert stored.mandate_id == "mandate-123"
+    agent_mod.reset_column_memo()

@@ -241,27 +241,14 @@ def register_agent(
     # executes as delete-then-insert: a stranger's call replaced the victim's
     # row wholesale — new tenant_id, a lifted suspension, and a wiped
     # `payout_address_signed_at` that silently disabled the payout rollback
-    # guard. Checked before the mandate so a refused call does not orphan one;
-    # the plain INSERT below is the atomic backstop for a concurrent pair.
-    if get_agent(agent_id, db_path=db_path) is not None:
-        raise AgentAlreadyRegisteredError(
-            f"Agent {agent_id!r} is already registered; registration does not update an agent."
-        )
-
-    # Create AP2 mandate (fail-open: if commerce module unavailable, mandate_id stays "")
-    mandate_id = ""
-    try:
-        from warden.business_community.agentic_commerce.ap2 import AP2Processor
-        mandate = AP2Processor().create_mandate(
-            tenant_id=tenant_id,
-            max_amount=_DEFAULT_MANDATE_USD,
-            currency="USD",
-            allowed_merchants=["marketplace"],
-        )
-        mandate_id = mandate.id
-    except Exception:
-        log.warning("AP2Processor unavailable; agent registered without mandate")
-
+    # guard.
+    #
+    # The row is reserved FIRST, with no mandate, and only the registration
+    # whose INSERT succeeds goes on to create one. A check-then-create-then-
+    # insert order let two concurrent registrations of one key both pass the
+    # check and both create an AP2 mandate, leaving the loser's orphaned. The
+    # INSERT is the single arbiter: the primary key refuses the second caller
+    # before it has done anything worth undoing.
     now = datetime.now(UTC).isoformat()
     agent = MarketplaceAgent(
         agent_id=agent_id,
@@ -270,7 +257,7 @@ def register_agent(
         public_key=public_key_b64,
         capabilities=sorted(valid),
         status="active",
-        mandate_id=mandate_id,
+        mandate_id="",
         created_at=now,
     )
 
@@ -295,16 +282,38 @@ def register_agent(
                 ),
             )
         except sqlite3.Error as exc:
-            # A concurrent registration of the same key won the race between
-            # the existence check above and this insert. Local SQLite raises
-            # IntegrityError; the Turso adapter surfaces the same constraint as
-            # OperationalError, so match on the message rather than the type.
+            # Local SQLite raises IntegrityError; the Turso adapter surfaces the
+            # same constraint as OperationalError, so match on the message too.
             if isinstance(exc, sqlite3.IntegrityError) or "UNIQUE constraint" in str(exc):
                 raise AgentAlreadyRegisteredError(
                     f"Agent {agent_id!r} is already registered; "
                     "registration does not update an agent."
                 ) from exc
             raise
+
+    # Only the winning registration reaches here. Fail-open as before: if the
+    # commerce module is unavailable the agent stays registered with no mandate,
+    # which was already a valid state.
+    try:
+        from warden.business_community.agentic_commerce.ap2 import AP2Processor
+        mandate = AP2Processor().create_mandate(
+            tenant_id=tenant_id,
+            max_amount=_DEFAULT_MANDATE_USD,
+            currency="USD",
+            allowed_merchants=["marketplace"],
+        )
+    except Exception:
+        log.warning("AP2Processor unavailable; agent registered without mandate")
+        return agent
+
+    with _db_lock, _conn(db_path) as con:
+        # `AND mandate_id=''` so this can only ever fill the slot it reserved.
+        con.execute(
+            "UPDATE marketplace_agents SET mandate_id=? WHERE agent_id=? AND mandate_id=''",
+            (mandate.id, agent_id),
+        )
+        con.commit()
+    agent.mandate_id = mandate.id
     return agent
 
 

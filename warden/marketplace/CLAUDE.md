@@ -209,10 +209,11 @@ Three access tiers for marketplace participation:
    caller, a suspension or deactivation lifted, capabilities chosen by the caller, and
    `payout_address_signed_at` wiped, which silently disabled rule #28's rollback guard.
    Proven end to end through the real route before the fix: HTTP 201 and the victim's
-   record read back as `tenant_id: t-attacker`. Now first registration wins: an
-   existence check refuses before a mandate is created, and a plain `INSERT` is the
-   atomic backstop (verified: with the pre-check disabled the primary key still
-   refuses). The route answers **409**. It also no longer bumps
+   record read back as `tenant_id: t-attacker`. Now first registration wins: the row is
+   **reserved first** with `mandate_id=''`, and only the registration whose plain `INSERT`
+   succeeds goes on to create an AP2 mandate. The primary key is the single arbiter — a
+   check-then-create-then-insert order let two concurrent registrations both create a
+   mandate and orphan the loser's. The route answers **409**. It also no longer bumps
    `MARKETPLACE_AGENTS_ACTIVE` — every re-registration used to count as a new agent.
    **Never reintroduce `INSERT OR REPLACE` on a table whose rows carry state another
    route set** — REPLACE silently resets every column the statement does not list.
