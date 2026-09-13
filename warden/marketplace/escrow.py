@@ -41,6 +41,7 @@ from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
 from warden.marketplace.agent import get_agent
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.escrow")
 
@@ -95,6 +96,13 @@ _ESCROW_DDL = """
         memo             TEXT NOT NULL DEFAULT '',
         buyer_address    TEXT NOT NULL DEFAULT '',
         seller_address   TEXT NOT NULL DEFAULT '',
+        trade_id         TEXT NOT NULL DEFAULT '',
+        token_address    TEXT NOT NULL DEFAULT '',
+        token_decimals   INTEGER NOT NULL DEFAULT 0,
+        amount_minor     TEXT NOT NULL DEFAULT '',
+        fund_tx          TEXT NOT NULL DEFAULT '',
+        deliver_tx       TEXT NOT NULL DEFAULT '',
+        settle_tx        TEXT NOT NULL DEFAULT '',
         created_at       TEXT NOT NULL,
         funded_at        TEXT,
         delivered_at     TEXT,
@@ -109,34 +117,71 @@ _ESCROW_DDL = """
 register("marketplace", "warden.marketplace.escrow", _ESCROW_DDL)
 
 
-def ensure_escrow_columns(con: sqlite3.Connection) -> None:
-    """Add columns that post-date the original escrow table.
-
-    ``ALTER TABLE … ADD COLUMN`` is not idempotent, so it cannot live in the
-    registered DDL (which is replayed whenever its checksum changes) — same
-    suppress-per-connect pattern as ``staff/economics.py``.
-
-    ``memo`` carries the SHA-256 audit hash that
-    ``data_lifecycle._anonymise_escrow()`` writes when it redacts an escrow
-    for GDPR erasure: the record is retained, its identifying fields are not.
-    """
-    import contextlib
-    with contextlib.suppress(Exception):
-        con.execute(
-            "ALTER TABLE marketplace_escrow ADD COLUMN chain TEXT NOT NULL DEFAULT 'sepolia'"
-        )
-    with contextlib.suppress(Exception):
-        con.execute(
-            "ALTER TABLE marketplace_escrow ADD COLUMN memo TEXT NOT NULL DEFAULT ''"
-        )
+# Every column added after the original table, with its definition. Declared in
+# `_ESCROW_DDL` too, so a fresh database gets them from registered DDL; this list
+# is the backfill for databases that predate them.
+_ADDED_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("chain",          "TEXT NOT NULL DEFAULT 'sepolia'"),
+    # SHA-256 audit hash `data_lifecycle._anonymise_escrow()` writes on GDPR
+    # erasure: the record is retained, its identifying fields are not.
+    ("memo",           "TEXT NOT NULL DEFAULT ''"),
     # Snapshotted at creation, never looked up at send time: a seller who
     # changes their payout address mid-trade must not be able to redirect a
     # deposit that is already funded.
-    for _col in ("buyer_address", "seller_address"):
-        with contextlib.suppress(Exception):
-            con.execute(
-                f"ALTER TABLE marketplace_escrow ADD COLUMN {_col} TEXT NOT NULL DEFAULT ''"
-            )
+    ("buyer_address",  "TEXT NOT NULL DEFAULT ''"),
+    ("seller_address", "TEXT NOT NULL DEFAULT ''"),
+    # docs/onchain-settlement-design.md §3. Snapshotted when preflight passes,
+    # so what settles is what was checked. `amount_minor` is TEXT holding an
+    # integer: uint256 does not fit a float, and REAL is how `amount_usd` became
+    # one.
+    ("trade_id",       "TEXT NOT NULL DEFAULT ''"),
+    ("token_address",  "TEXT NOT NULL DEFAULT ''"),
+    ("token_decimals", "INTEGER NOT NULL DEFAULT 0"),
+    ("amount_minor",   "TEXT NOT NULL DEFAULT ''"),
+    # Hash of the transaction behind each transition. Lets an operator verify
+    # one on a block explorer, and lets a retry ask the chain what happened
+    # instead of sending again.
+    ("fund_tx",        "TEXT NOT NULL DEFAULT ''"),
+    ("deliver_tx",     "TEXT NOT NULL DEFAULT ''"),
+    ("settle_tx",      "TEXT NOT NULL DEFAULT ''"),
+)
+
+
+def ensure_escrow_columns(con: sqlite3.Connection) -> None:
+    """Add the columns that post-date the original escrow table — only the missing ones.
+
+    One ``PRAGMA table_info`` read, then an ``ALTER`` per column that is actually
+    absent. This used to issue every ``ALTER`` unconditionally under
+    ``suppress(Exception)`` and let the existing ones fail. Free on local SQLite;
+    on Turso, where the marketplace database lives in production, every failing
+    statement is a full HTTPS round trip, so each escrow read paid for four of
+    them (~0.44 s measured) — and each column added here would have added
+    another. It also swallowed every error equally, so a genuine failure looked
+    exactly like "column already exists".
+
+    Only a duplicate-column error is tolerated now: two processes can both see a
+    column missing and race to add it. Anything else propagates.
+    """
+    existing = {row[1] for row in con.execute("PRAGMA table_info(marketplace_escrow)").fetchall()}
+    for column, definition in _ADDED_COLUMNS:
+        if column in existing:
+            continue
+        try:
+            con.execute(f"ALTER TABLE marketplace_escrow ADD COLUMN {column} {definition}")
+        except Exception as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
+
+
+# Databases whose escrow columns have been checked in this process.
+_columns_checked: set[str] = set()
+_columns_lock = threading.Lock()
+
+
+def reset_escrow_column_memo() -> None:
+    """Forget which databases were checked (tests that recreate a file)."""
+    with _columns_lock:
+        _columns_checked.clear()
 
 
 @contextmanager
@@ -145,7 +190,13 @@ def _conn(db_path: str | None = None) -> Generator[sqlite3.Connection, None, Non
     with open_db(
         "marketplace", db_path, turso_name="marketplace", module_default_path=db_path
     ) as con:
-        ensure_escrow_columns(con)
+        # Once per database per process on the read path (warden/marketplace/
+        # CLAUDE.md rule 27). `insert_escrow` still checks every time: it is handed
+        # a connection with no path to key on, and it is the rare write path.
+        with _columns_lock:
+            if db_path not in _columns_checked:
+                ensure_escrow_columns(con)
+                _columns_checked.add(db_path)
         yield con
 
 
@@ -171,6 +222,13 @@ class Escrow:
     delivered_at:     str | None
     confirmed_at:     str | None
     expires_at:       str
+    trade_id:         str = ""
+    token_address:    str = ""
+    token_decimals:   int = 0
+    amount_minor:     str = ""
+    fund_tx:          str = ""
+    deliver_tx:       str = ""
+    settle_tx:        str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -204,6 +262,13 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
         delivered_at=row["delivered_at"],
         confirmed_at=row["confirmed_at"],
         expires_at=row["expires_at"],
+        trade_id=row["trade_id"] if "trade_id" in keys else "",
+        token_address=row["token_address"] if "token_address" in keys else "",
+        token_decimals=int(row["token_decimals"] or 0) if "token_decimals" in keys else 0,
+        amount_minor=row["amount_minor"] if "amount_minor" in keys else "",
+        fund_tx=row["fund_tx"] if "fund_tx" in keys else "",
+        deliver_tx=row["deliver_tx"] if "deliver_tx" in keys else "",
+        settle_tx=row["settle_tx"] if "settle_tx" in keys else "",
     )
 
 
@@ -289,7 +354,7 @@ class EscrowService:
             seller_address=self._payout_address(seller_agent_id),
         )
 
-    def _deposit_params(self, esc: Escrow) -> dict | None:
+    def _deposit_params(self, esc: Escrow, db_path: str | None = None) -> dict | None:
         """The arguments `deposit` has always wanted, or None to refuse.
 
         Three outcomes, and the middle one is the whole point of Phase 1:
@@ -327,13 +392,26 @@ class EscrowService:
             )
             return None
         try:
-            return deposit_params(
+            params = deposit_params(
                 pre, esc.buyer_address, esc.seller_address,
                 _DELIVERY_TIMEOUT_HOURS * 3600,
             )
         except SettlementRefused as exc:
             log.error("escrow %s: %s", esc.escrow_id, exc)
             return None
+        # Snapshot what preflight checked, before anything is sent: the trade id,
+        # the token and its on-chain decimals, and the integer amount. What
+        # settles must be what was verified, and an operator reconciling a trade
+        # needs the figure the chain saw — not a float re-derived later.
+        with _conn(db_path) as con:
+            con.execute(
+                "UPDATE marketplace_escrow SET trade_id=?, token_address=?, token_decimals=?, "
+                "amount_minor=? WHERE escrow_id=?",
+                (pre.trade_id, pre.token_address, int(pre.token_decimals),
+                 str(int(pre.amount_minor)), esc.escrow_id),
+            )
+            con.commit()
+        return params
 
     @staticmethod
     def _payout_address(agent_id: str) -> str:
@@ -389,11 +467,11 @@ class EscrowService:
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "pending_deposit":
             return False
-        params = self._deposit_params(esc)
+        params = self._deposit_params(esc, db_path=db_path)
         if params is None:
             # Preflight refused and said why. The escrow stays where it is.
             return False
-        if not self._call_contract(esc.contract_address, "deposit", params, escrow_id):
+        if not self._call_contract(esc.contract_address, "deposit", params, escrow_id, db_path=db_path):
             log.error("escrow %s: on-chain deposit failed; not marking funded", escrow_id)
             return False
         self._update_status(escrow_id, "funded", {"funded_at": datetime.now(UTC).isoformat()}, db_path)
@@ -410,7 +488,7 @@ class EscrowService:
         if esc is None or esc.status != "funded":
             return False
         if not self._call_contract(esc.contract_address, "deliverAsset",
-                                   {"assetHash": asset_hash}, escrow_id):
+                                   {"assetHash": asset_hash}, escrow_id, db_path=db_path):
             log.error("escrow %s: on-chain deliverAsset failed; state unchanged", escrow_id)
             return False
         self._update_status(
@@ -432,7 +510,7 @@ class EscrowService:
             return False
         # The release. A confirmation the chain refused must not finalise the
         # purchase, or the seller is recorded as paid without being paid.
-        if not self._call_contract(esc.contract_address, "confirmReceipt", {}, escrow_id):
+        if not self._call_contract(esc.contract_address, "confirmReceipt", {}, escrow_id, db_path=db_path):
             log.error("escrow %s: on-chain release failed; not confirming", escrow_id)
             return False
         now = datetime.now(UTC).isoformat()
@@ -457,7 +535,7 @@ class EscrowService:
         if esc is None or esc.status not in ("funded", "delivered"):
             return False
         if not self._call_contract(esc.contract_address, "raiseDispute", {"reason": reason},
-                                   escrow_id):
+                                   escrow_id, db_path=db_path):
             log.error("escrow %s: on-chain dispute failed; state unchanged", escrow_id)
             return False
         with _db_lock, _conn(db_path) as con:
@@ -515,7 +593,7 @@ class EscrowService:
         verdict = "resolved_buyer" if release_to_buyer else "resolved_seller"
         if not self._call_contract(
             esc.contract_address, "resolveDispute",
-            {"releaseToBuyer": release_to_buyer}, escrow_id,
+            {"releaseToBuyer": release_to_buyer}, escrow_id, db_path=db_path,
         ):
             log.error("escrow %s: on-chain dispute resolution failed; verdict not "
                       "recorded", escrow_id)
@@ -532,7 +610,7 @@ class EscrowService:
             return False
         if not esc.is_expired():
             return False
-        if not self._call_contract(esc.contract_address, "cancelDeposit", {}, escrow_id):
+        if not self._call_contract(esc.contract_address, "cancelDeposit", {}, escrow_id, db_path=db_path):
             log.error("escrow %s: on-chain refund failed; not marking cancelled", escrow_id)
             return False
         self._update_status(escrow_id, "cancelled", {}, db_path)
@@ -665,12 +743,45 @@ class EscrowService:
         raw = f"{buyer}:{seller}:{listing_id}:{nonce}:{chain}".encode()
         return "0x" + hashlib.sha256(raw).hexdigest()[:40] + f":{chain}"
 
+    # Which column records the transaction behind each on-chain transition.
+    # `raiseDispute` has none in the design (§3); a dispute is resolved by
+    # `resolveDispute`, whose hash is the settlement.
+    _TX_COLUMN = {
+        "deposit":        "fund_tx",
+        "deliverAsset":   "deliver_tx",
+        "confirmReceipt": "settle_tx",
+        "resolveDispute": "settle_tx",
+        "cancelDeposit":  "settle_tx",
+    }
+
+    def _record_tx(self, escrow_id: str, fn_name: str, tx_hash: str, db_path: str | None) -> None:
+        """Store a transition's transaction hash. Never undoes the transition.
+
+        The chain has already moved when this runs, so a failure here costs the
+        audit trail, not the trade — it is counted, not raised. `AND col=''` so a
+        later call can never overwrite the hash of the transaction that did it.
+        """
+        column = self._TX_COLUMN.get(fn_name)
+        if not column:
+            return
+        try:
+            with _conn(db_path) as con:
+                con.execute(
+                    f"UPDATE marketplace_escrow SET {column}=? WHERE escrow_id=? AND {column}=''",
+                    (tx_hash, escrow_id),
+                )
+                con.commit()
+        except Exception as exc:
+            log.error("escrow %s: could not record %s (%s)", escrow_id, column, type(exc).__name__)
+            record_failopen("escrow_tx_hash", Reason.BACKEND_ERROR, exc)
+
     def _call_contract(
         self,
         contract_address: str,
         fn_name: str,
         params: dict,
         escrow_id: str = "",
+        db_path: str | None = None,
     ) -> bool:
         """Attempt the on-chain call. Returns whether value actually moved.
 
@@ -703,9 +814,15 @@ class EscrowService:
                 log.error("escrow %s: cannot derive tradeId: %s", escrow_id, exc)
                 return False
         try:
-            from warden.web3.smart_contract import call_escrow, strip_chain_suffix  # noqa: PLC0415
+            from warden.web3.smart_contract import (
+                call_escrow_result,
+                strip_chain_suffix,
+            )
             addr, chain = strip_chain_suffix(contract_address)
-            return bool(call_escrow(addr, fn_name, params, chain))
+            result = call_escrow_result(addr, fn_name, params, chain)
+            if result.ok and result.tx_hash and escrow_id:
+                self._record_tx(escrow_id, fn_name, result.tx_hash, db_path)
+            return bool(result.ok)
         except Exception as exc:
             log.debug("call_escrow (web3) failed: %s", exc)
         try:

@@ -25,9 +25,10 @@ from warden.marketplace.escrow import EscrowService
 @pytest.fixture()
 def refusing_chain(monkeypatch):
     """A configured chain that rejects every transaction."""
+    from warden.web3.smart_contract import EscrowCallResult
     monkeypatch.setattr(
-        "warden.web3.smart_contract.call_escrow",
-        lambda *a, **kw: False,
+        "warden.web3.smart_contract.call_escrow_result",
+        lambda *a, **kw: EscrowCallResult(ok=False, error="reverted"),
     )
     # The second path in _call_contract must not rescue it either.
     monkeypatch.setattr(
@@ -62,11 +63,13 @@ class TestARefusedChainDoesNotAdvanceTheDatabase:
         mgr, eid, db = escrow
         calls: list[str] = []
 
+        from warden.web3.smart_contract import EscrowCallResult
+
         def _selective(_addr, fn, _params, _chain):
             calls.append(fn)
-            return fn != "confirmReceipt"
+            return EscrowCallResult(ok=fn != "confirmReceipt")
 
-        monkeypatch.setattr("warden.web3.smart_contract.call_escrow", _selective)
+        monkeypatch.setattr("warden.web3.smart_contract.call_escrow_result", _selective)
 
         assert mgr.fund_escrow(eid, db_path=db) is True
         assert mgr.deliver_asset(eid, "0x" + "ab" * 32, db_path=db) is True
@@ -99,4 +102,6 @@ class TestTheHelperReturnsAnAnswerAtAll:
         assert sig.return_annotation in (bool, "bool"), (
             "the signature must promise an answer"
         )
-        assert "return bool(call_escrow" in inspect.getsource(EscrowService._call_contract)
+        # The transport now reports a result object (it carries the tx hash);
+        # what matters is still that its verdict is returned, not dropped.
+        assert "return bool(result.ok)" in inspect.getsource(EscrowService._call_contract)

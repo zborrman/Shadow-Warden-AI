@@ -16,6 +16,13 @@ honest word into a false one.
 
 ---
 
+> **Status (2026-09-13).** §3–§5 and the §8 test obligations are implemented:
+> `deposit_params`, `trade_id_for`, `to_minor_units` and `settlement_preflight`
+> landed in #403 (the `deposit({})` call in the table below no longer exists), and
+> R1-b added the §3 snapshot and `*_tx` columns plus §4's `TradeExists()`-as-success.
+> The table below is kept as the record of what was missing when this was written.
+> §7's rollout — preflight-only, then one real trade — has not started.
+
 ## 1. What is actually missing
 
 Six facts, each verified against the tree at `24589bbb`.
