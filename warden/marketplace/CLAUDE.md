@@ -201,6 +201,24 @@ Three access tiers for marketplace participation:
    addresses and no seller could ever be paid. Never reintroduce an unsigned writer;
    `test_no_unsigned_writer_of_payout_address_exists` greps for one.
 
+29. **Registration never mutates an existing agent.** `POST /agents/register` is
+   deliberately unauthenticated (Stage 1 first contact, D-5) and `GET /agents/{id}`
+   publishes the public key — so anyone can submit an existing agent's key. It used to
+   write with `INSERT OR REPLACE`, which SQLite runs as **delete-then-insert**: a
+   stranger's call replaced the victim's row wholesale — `tenant_id` reassigned to the
+   caller, a suspension or deactivation lifted, capabilities chosen by the caller, and
+   `payout_address_signed_at` wiped, which silently disabled rule #28's rollback guard.
+   Proven end to end through the real route before the fix: HTTP 201 and the victim's
+   record read back as `tenant_id: t-attacker`. Now first registration wins: an
+   existence check refuses before a mandate is created, and a plain `INSERT` is the
+   atomic backstop (verified: with the pre-check disabled the primary key still
+   refuses). The route answers **409**. It also no longer bumps
+   `MARKETPLACE_AGENTS_ACTIVE` — every re-registration used to count as a new agent.
+   **Never reintroduce `INSERT OR REPLACE` on a table whose rows carry state another
+   route set** — REPLACE silently resets every column the statement does not list.
+   `test_api_agents.py` had passed for months by re-registering one module-scoped key
+   under a fresh tenant per test: the takeover, exercised as a feature.
+
 24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
 25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 

@@ -234,6 +234,20 @@ def register_agent(
 
     agent_id = pubkey_to_agent_id(public_key_b64)
 
+    # First registration wins; re-registration never mutates. Registration is
+    # deliberately unauthenticated (Stage 1 first contact, owner decision D-5)
+    # and `GET /agents/{id}` publishes the public key, so anyone can submit an
+    # existing agent's key. This used to be `INSERT OR REPLACE`, which SQLite
+    # executes as delete-then-insert: a stranger's call replaced the victim's
+    # row wholesale — new tenant_id, a lifted suspension, and a wiped
+    # `payout_address_signed_at` that silently disabled the payout rollback
+    # guard. Checked before the mandate so a refused call does not orphan one;
+    # the plain INSERT below is the atomic backstop for a concurrent pair.
+    if get_agent(agent_id, db_path=db_path) is not None:
+        raise AgentAlreadyRegisteredError(
+            f"Agent {agent_id!r} is already registered; registration does not update an agent."
+        )
+
     # Create AP2 mandate (fail-open: if commerce module unavailable, mandate_id stays "")
     mandate_id = ""
     try:
@@ -261,25 +275,41 @@ def register_agent(
     )
 
     with _db_lock, _conn(db_path) as con:
-        con.execute(
-            """
-            INSERT OR REPLACE INTO marketplace_agents
-                (agent_id, community_id, tenant_id, public_key,
-                 capabilities, status, mandate_id, created_at)
-            VALUES (?,?,?,?,?,?,?,?)
-            """,
-            (
-                agent.agent_id,
-                agent.community_id,
-                agent.tenant_id,
-                agent.public_key,
-                json.dumps(agent.capabilities),
-                agent.status,
-                agent.mandate_id,
-                agent.created_at,
-            ),
-        )
+        try:
+            con.execute(
+                """
+                INSERT INTO marketplace_agents
+                    (agent_id, community_id, tenant_id, public_key,
+                     capabilities, status, mandate_id, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                (
+                    agent.agent_id,
+                    agent.community_id,
+                    agent.tenant_id,
+                    agent.public_key,
+                    json.dumps(agent.capabilities),
+                    agent.status,
+                    agent.mandate_id,
+                    agent.created_at,
+                ),
+            )
+        except sqlite3.Error as exc:
+            # A concurrent registration of the same key won the race between
+            # the existence check above and this insert. Local SQLite raises
+            # IntegrityError; the Turso adapter surfaces the same constraint as
+            # OperationalError, so match on the message rather than the type.
+            if isinstance(exc, sqlite3.IntegrityError) or "UNIQUE constraint" in str(exc):
+                raise AgentAlreadyRegisteredError(
+                    f"Agent {agent_id!r} is already registered; "
+                    "registration does not update an agent."
+                ) from exc
+            raise
     return agent
+
+
+class AgentAlreadyRegisteredError(ValueError):
+    """Registration was refused because the agent already exists."""
 
 
 class PayoutAddressError(ValueError):
@@ -359,10 +389,7 @@ def bind_payout_address(
     """
     # Lazy: negotiation imports this module inside functions, so a module-level
     # import here would be the first half of a cycle.
-    from warden.marketplace.negotiation import (
-        _timestamp_within_skew,
-        _verify_offer_signature,
-    )
+    from warden.marketplace.negotiation import _timestamp_within_skew
 
     normalised = _normalise_address(address)
 
@@ -374,6 +401,7 @@ def bind_payout_address(
         raise PayoutAddressError(
             f"Timestamp {timestamp!r} is outside the acceptance window."
         )
+    ordering_key = _ordering_key(timestamp)
 
     agent = get_agent(agent_id, db_path=db_path)
     if agent is None:
@@ -384,42 +412,55 @@ def bind_payout_address(
     canonical = build_payout_address_canonical(
         agent_id=agent_id, address=normalised, timestamp=timestamp
     )
-    if not _verify_offer_signature(canonical, signature, agent.public_key):
+    if not _verify_payout_signature(canonical, signature, agent.public_key):
         raise PayoutAddressError(
             "Signature does not verify against the agent's registered public key."
         )
 
+    # The ordering check and the write are ONE statement. Read-check-write let
+    # two concurrent binds both pass the check against the same stored value,
+    # and whichever wrote last won — so an older binding could land after a
+    # newer one, which is the rollback this guard exists to refuse.
+    #
+    # Ordering compares `_ordering_key` strings: fixed-width UTC, so string
+    # order is chronological order in SQL. `''` sorts before every key, which
+    # is what lets the first binding through.
     with _conn(db_path) as con:
-        row = con.execute(
-            "SELECT payout_address_signed_at FROM marketplace_agents WHERE agent_id=?",
-            (agent_id,),
-        ).fetchone()
-        previous = (row[0] if row else "") or ""
-        if previous and not _is_later(timestamp, previous):
+        cur = con.execute(
+            "UPDATE marketplace_agents SET payout_address=?, payout_address_signed_at=? "
+            "WHERE agent_id=? AND payout_address_signed_at < ?",
+            (normalised, ordering_key, agent_id, ordering_key),
+        )
+        con.commit()
+        if cur.rowcount == 0:
             raise PayoutAddressError(
                 "A newer payout-address binding already exists; refusing to roll back."
             )
-        con.execute(
-            "UPDATE marketplace_agents SET payout_address=?, payout_address_signed_at=? "
-            "WHERE agent_id=?",
-            (normalised, timestamp, agent_id),
-        )
-        con.commit()
     return normalised
 
 
-def _is_later(candidate: str, previous: str) -> bool:
-    """True when ISO-8601 *candidate* is strictly after *previous*."""
-    try:
-        a = datetime.fromisoformat(candidate)
-        b = datetime.fromisoformat(previous)
-    except ValueError:
-        return False
-    if a.tzinfo is None:
-        a = a.replace(tzinfo=UTC)
-    if b.tzinfo is None:
-        b = b.replace(tzinfo=UTC)
-    return a > b
+def _verify_payout_signature(canonical: bytes, signature_b64: str, public_key_b64: str) -> bool:
+    """Ed25519 verify over the payout envelope. False on any error.
+
+    A named seam over the offer verifier — the primitive is identical, and one
+    implementation of Ed25519 verification is what keeps the two from drifting.
+    """
+    from warden.marketplace.negotiation import _verify_offer_signature
+
+    return _verify_offer_signature(canonical, signature_b64, public_key_b64)
+
+
+def _ordering_key(timestamp: str) -> str:
+    """Fixed-width UTC rendering of an ISO-8601 instant, so string order is time order.
+
+    Stored in `payout_address_signed_at` and compared in SQL. The signature is
+    still verified over the client's original string; only the ordering uses
+    this form. Assumes `_timestamp_within_skew` has already accepted the input.
+    """
+    parsed = datetime.fromisoformat(timestamp)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
 
 
 def get_agent(agent_id: str, db_path: str | None = None) -> MarketplaceAgent | None:

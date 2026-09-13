@@ -279,3 +279,123 @@ def test_route_accepts_a_signed_body(agents):
     )
     assert r.status_code == 200, r.text
     assert r.json() == {"agent_id": agent_id, "payout_address": _ADDR_A}
+
+
+# ── re-registration must never mutate an existing agent ─────────────────────
+#
+# Found by CodeRabbit on this PR, and pre-existing in production: registration
+# is deliberately unauthenticated (Stage 1 first contact, owner decision D-5),
+# `GET /agents/{id}` publishes the public key, and `register_agent` wrote with
+# `INSERT OR REPLACE` and no existence check. SQLite's REPLACE deletes the row
+# and inserts a fresh one, so anyone could re-submit a victim's public key and
+# replace the victim's record wholesale. The attacker cannot sign as the victim,
+# but the replacement alone was enough to: reassign the agent to another tenant,
+# lift a suspension or deactivation, and wipe `payout_address_signed_at` — which
+# silently disabled the rollback guard above.
+
+
+def _reregister_as_attacker(agents, who):
+    from warden.marketplace.agent import get_agent, register_agent
+
+    victim = get_agent(agents[who][1], db_path=agents["db"])
+    return register_agent(
+        tenant_id="t-attacker", community_id="C-attacker",
+        public_key_b64=victim.public_key,
+        capabilities=["marketplace_buy", "marketplace_sell", "marketplace_negotiate"],
+        db_path=agents["db"],
+    )
+
+
+def test_reregistering_a_public_key_cannot_take_over_the_agent(agents):
+    from warden.marketplace.agent import get_agent
+
+    _, agent_id = agents["seller"]
+    with pytest.raises(ValueError, match="already registered"):
+        _reregister_as_attacker(agents, "seller")
+
+    after = get_agent(agent_id, db_path=agents["db"])
+    assert after.tenant_id == "t-seller"
+    assert after.community_id == "C1"
+    assert after.capabilities == ["marketplace_sell"]
+
+
+def test_reregistering_cannot_wipe_the_payout_binding_or_its_rollback_guard(agents):
+    from warden.marketplace.agent import PayoutAddressError
+
+    priv, agent_id = agents["seller"]
+    t_old, t_new = _now(-30), _now(-10)
+    old_sig = _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=t_old)
+    _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
+    _bind(agents, "seller", _ADDR_B, timestamp=t_new)
+
+    with pytest.raises(ValueError, match="already registered"):
+        _reregister_as_attacker(agents, "seller")
+
+    assert _stored(agents, "seller") == _ADDR_B
+    # The guard still holds: the captured older binding is still refused.
+    with pytest.raises(PayoutAddressError, match="roll back"):
+        _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
+
+
+def test_reregistering_cannot_lift_a_suspension(agents):
+    from warden.marketplace.agent import get_agent, suspend_agent
+
+    _, agent_id = agents["seller"]
+    assert suspend_agent(agent_id, "t-seller", db_path=agents["db"])
+
+    with pytest.raises(ValueError, match="already registered"):
+        _reregister_as_attacker(agents, "seller")
+    assert get_agent(agent_id, db_path=agents["db"]).status == "suspended"
+
+
+def test_the_register_route_answers_409_for_an_existing_agent(agents):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from warden.marketplace.agent import get_agent
+    from warden.marketplace.api_agents import router
+
+    app = FastAPI()
+    app.include_router(router, prefix="/marketplace")
+    client = TestClient(app)
+
+    victim = get_agent(agents["seller"][1], db_path=agents["db"])
+    r = client.post(
+        "/marketplace/agents/register",
+        json={"tenant_id": "t-attacker", "community_id": "C-attacker",
+              "public_key": victim.public_key, "capabilities": ["marketplace_sell"]},
+    )
+    assert r.status_code == 409, r.text
+    assert get_agent(victim.agent_id, db_path=agents["db"]).tenant_id == "t-seller"
+
+
+# ── concurrent binds must not interleave into a rollback ────────────────────
+
+
+def test_the_ordering_check_and_the_write_are_one_statement(agents, monkeypatch):
+    """Read-check-write let two concurrent binds both pass, older one landing last.
+
+    Simulated deterministically: the newer binding lands between the older
+    request's ordering check and its write. The older write must then refuse.
+    """
+    from warden.marketplace import agent as agent_mod
+    from warden.marketplace.agent import PayoutAddressError
+
+    priv, agent_id = agents["seller"]
+    t_base, t_old, t_new = _now(-40), _now(-30), _now(-10)
+    _bind(agents, "seller", _ADDR_A, timestamp=t_base)
+
+    old_sig = _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=t_old)
+    real_verify = agent_mod._verify_payout_signature
+
+    def verify_then_race(*args, **kwargs):
+        ok = real_verify(*args, **kwargs)
+        # The newer, legitimate binding commits while the older one is in flight.
+        monkeypatch.setattr(agent_mod, "_verify_payout_signature", real_verify)
+        _bind(agents, "seller", _ADDR_B, timestamp=t_new)
+        return ok
+
+    monkeypatch.setattr(agent_mod, "_verify_payout_signature", verify_then_race)
+    with pytest.raises(PayoutAddressError, match="roll back"):
+        _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
+    assert _stored(agents, "seller") == _ADDR_B

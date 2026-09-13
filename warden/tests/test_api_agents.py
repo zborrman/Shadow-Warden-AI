@@ -31,8 +31,14 @@ def _cid() -> str:
     return f"comm-{uuid.uuid4().hex[:8]}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def keypair():
+    # Function-scoped: one key per test. This was module-scoped, so every test
+    # registered the SAME public key into one shared database under a fresh
+    # random tenant — which only worked because `register_agent` wrote with
+    # `INSERT OR REPLACE`, the delete-then-insert that let anyone take over an
+    # agent by re-submitting its public key. These tests were exercising that
+    # takeover as a feature. See test_marketplace_payout_address_binding.py.
     from warden.communities.keypair import generate_community_keypair
     return generate_community_keypair("agents-test-comm", kid="v1")
 

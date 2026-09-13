@@ -67,7 +67,7 @@ async def list_agents(
 
 @router.post("/agents/register", status_code=201)
 async def register_agent(body: AgentRegisterRequest) -> dict:
-    from warden.marketplace.agent import pubkey_to_agent_id
+    from warden.marketplace.agent import AgentAlreadyRegisteredError, pubkey_to_agent_id
     from warden.marketplace.agent import register_agent as _register
 
     # Federation deny list — check if the agent DID is flagged across peered communities
@@ -102,6 +102,11 @@ async def register_agent(body: AgentRegisterRequest) -> dict:
         with contextlib.suppress(Exception):
             MARKETPLACE_AGENTS_ACTIVE.inc()
         return agent.to_dict()
+    except AgentAlreadyRegisteredError as exc:
+        # 409, not 400: the request was well-formed, the agent exists. It also
+        # no longer bumps MARKETPLACE_AGENTS_ACTIVE — every re-registration used
+        # to count as a new active agent.
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
