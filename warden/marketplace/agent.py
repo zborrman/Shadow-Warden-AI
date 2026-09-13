@@ -96,7 +96,11 @@ _AGENTS_DDL = """
         capabilities TEXT NOT NULL DEFAULT '[]',
         status       TEXT NOT NULL DEFAULT 'active',
         mandate_id   TEXT NOT NULL DEFAULT '',
-        created_at   TEXT NOT NULL
+        created_at   TEXT NOT NULL,
+        -- Declared here so a fresh database gets them from registered DDL;
+        -- `_ensure_columns` still backfills databases that predate them.
+        payout_address           TEXT NOT NULL DEFAULT '',
+        payout_address_signed_at TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_mkt_agents_community
         ON marketplace_agents(community_id);
