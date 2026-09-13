@@ -447,3 +447,41 @@ def test_the_winning_registration_still_gets_its_mandate(tmp_path, monkeypatch):
     assert returned.mandate_id == "mandate-123"
     assert stored.mandate_id == "mandate-123"
     agent_mod.reset_column_memo()
+
+
+def test_an_unattached_mandate_is_revoked_and_not_reported(tmp_path, monkeypatch):
+    """If attaching the mandate touches no row, it is revoked, and the response
+    does not claim a mandate that is not stored."""
+    from warden.business_community.agentic_commerce import ap2
+    from warden.marketplace import agent as agent_mod
+
+    db = str(tmp_path / "attach.db")
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", db)
+    agent_mod.reset_column_memo()
+    _, pub = _keypair()
+    agent_id = agent_mod.pubkey_to_agent_id(pub)
+
+    class _M:
+        id = "mandate-orphan"
+
+    def create_and_steal_the_slot(self, **kw):
+        # Something else fills the reserved slot before our attach runs.
+        with agent_mod._conn(db) as con:
+            con.execute("UPDATE marketplace_agents SET mandate_id='other' WHERE agent_id=?",
+                        (agent_id,))
+            con.commit()
+        return _M()
+
+    revoked = []
+    monkeypatch.setattr(ap2.AP2Processor, "create_mandate", create_and_steal_the_slot)
+    monkeypatch.setattr(ap2.AP2Processor, "revoke_mandate",
+                        lambda self, mid, tid: revoked.append((mid, tid)) or True)
+
+    returned = agent_mod.register_agent(
+        tenant_id="t1", community_id="C1", public_key_b64=pub,
+        capabilities=["marketplace_sell"], db_path=db,
+    )
+    assert revoked == [("mandate-orphan", "t1")]
+    assert returned.mandate_id == "", "response claimed a mandate that was never attached"
+    assert agent_mod.get_agent(agent_id, db_path=db).mandate_id == "other"
+    agent_mod.reset_column_memo()

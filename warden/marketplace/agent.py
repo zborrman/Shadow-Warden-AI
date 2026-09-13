@@ -306,13 +306,34 @@ def register_agent(
         log.warning("AP2Processor unavailable; agent registered without mandate")
         return agent
 
-    with _db_lock, _conn(db_path) as con:
-        # `AND mandate_id=''` so this can only ever fill the slot it reserved.
-        con.execute(
-            "UPDATE marketplace_agents SET mandate_id=? WHERE agent_id=? AND mandate_id=''",
-            (mandate.id, agent_id),
-        )
-        con.commit()
+    # Attach it. `attached` is only set after the `with` block — including the
+    # commit `open_db()` performs on exit — completes, so a failed commit can
+    # never be reported as an attached mandate.
+    attached = False
+    try:
+        with _db_lock, _conn(db_path) as con:
+            # `AND mandate_id=''` so this can only ever fill the slot it reserved.
+            cur = con.execute(
+                "UPDATE marketplace_agents SET mandate_id=? WHERE agent_id=? AND mandate_id=''",
+                (mandate.id, agent_id),
+            )
+            con.commit()
+            rowcount = cur.rowcount
+        attached = rowcount == 1
+    except Exception as exc:
+        log.warning("register_agent: could not attach mandate to %s: %s", agent_id, exc)
+
+    if not attached:
+        # The agent IS registered — that INSERT already committed — so raising
+        # here would answer 500 for an agent that exists, and the client's retry
+        # would then get 409. Keep the documented outcome (registered with no
+        # mandate) and do not leave the mandate just created lying unattached.
+        try:
+            AP2Processor().revoke_mandate(mandate.id, tenant_id)
+        except Exception as exc:
+            log.warning("register_agent: could not revoke unattached mandate %s: %s", mandate.id, exc)
+        return agent
+
     agent.mandate_id = mandate.id
     return agent
 
