@@ -181,6 +181,26 @@ Three access tiers for marketplace participation:
    counts statements rather than asserting results — a results-only test cannot
    see this defect at all.
 
+28. **A payout address is written only by the agent's own signature.** An agent is
+   identified by an **Ed25519** key; a trade settles to a **secp256k1** address, and
+   nothing derives one from the other — so whoever can write `payout_address` decides
+   where a seller is paid. That is a theft primitive, not a settings field. The only
+   writer is `agent.py::bind_payout_address()`, reached via
+   `PUT /marketplace/agents/{agent_id}/payout-address`: the agent signs
+   `build_payout_address_canonical({purpose, agent_id, address, timestamp})` with the
+   key its DID is derived from. **Fail-CLOSED with no enforcement flag** — offers got
+   `MARKETPLACE_REQUIRE_SIGNED_OFFERS` because unsigned clients existed; this route had
+   none, and a bake-in mode would ship the primitive it closes. Three properties are
+   pinned, each verified by disabling it and watching its test fail: another agent's
+   key cannot redirect a payout; a signature cannot be moved to a different address;
+   an older signed binding cannot roll back a newer one (`payout_address_signed_at`
+   must strictly increase). The envelope carries `purpose:
+   shadow-warden:payout-address:v1` so an offer signature from the same key cannot be
+   presented as a binding. The unsigned `set_payout_address()` it replaced had **zero
+   callers** — no route could set an address at all, so every escrow snapshotted empty
+   addresses and no seller could ever be paid. Never reintroduce an unsigned writer;
+   `test_no_unsigned_writer_of_payout_address_exists` greps for one.
+
 24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
 25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 

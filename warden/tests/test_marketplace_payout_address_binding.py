@@ -1,0 +1,281 @@
+"""
+warden/tests/test_marketplace_payout_address_binding.py — R1.
+
+An agent is identified by an Ed25519 key; a trade settles to a secp256k1
+Ethereum address. Nothing derives one from the other, so whoever can write
+``payout_address`` decides where a seller is paid. Until R1 the only writer,
+``set_payout_address()``, took no proof at all — and was wired to no route, so
+no agent could ever be paid and every escrow snapshotted empty addresses.
+
+These tests pin the binding: the agent signs ``{purpose, agent_id, address,
+timestamp}`` with the key its DID is derived from, verified fail-CLOSED.
+"""
+from __future__ import annotations
+
+import base64
+from datetime import UTC, datetime, timedelta
+
+import pytest
+
+_ADDR_A = "0x52908400098527886E0F7030069857D2E4169EE7"
+_ADDR_B = "0x8617E340B3D01FA5F11F306F4090FD50E238070D"
+
+
+def _keypair():
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    priv = Ed25519PrivateKey.generate()
+    raw = priv.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+    )
+    return priv, base64.b64encode(raw).decode()
+
+
+def _now(offset_s: int = 0) -> str:
+    return (datetime.now(UTC) + timedelta(seconds=offset_s)).isoformat()
+
+
+def _sign(priv, *, agent_id: str, address: str, timestamp: str) -> str:
+    from warden.marketplace.agent import build_payout_address_canonical
+
+    canonical = build_payout_address_canonical(
+        agent_id=agent_id, address=address, timestamp=timestamp
+    )
+    return base64.b64encode(priv.sign(canonical)).decode()
+
+
+@pytest.fixture
+def agents(tmp_path, monkeypatch):
+    """Two registered agents on an isolated DB."""
+    db = str(tmp_path / "mkt.db")
+    monkeypatch.setenv("MARKETPLACE_DB_PATH", db)
+
+    from warden.marketplace import agent as agent_mod
+    from warden.marketplace import listing as listing_mod
+
+    agent_mod.reset_column_memo()
+    listing_mod.reset_migration_memo()
+
+    out = {}
+    for name, tenant in (("seller", "t-seller"), ("other", "t-other")):
+        priv, pub = _keypair()
+        agent_mod.register_agent(
+            tenant_id=tenant, community_id="C1", public_key_b64=pub,
+            capabilities=["marketplace_sell"], db_path=db,
+        )
+        out[name] = (priv, agent_mod.pubkey_to_agent_id(pub))
+    out["db"] = db
+    yield out
+    agent_mod.reset_column_memo()
+    listing_mod.reset_migration_memo()
+
+
+def _bind(agents, who, address, *, signer=None, timestamp=None, signature=None):
+    from warden.marketplace.agent import bind_payout_address
+
+    priv, agent_id = agents[who]
+    ts = timestamp or _now()
+    sig = signature
+    if sig is None:
+        signing_priv = agents[signer][0] if signer else priv
+        sig = _sign(signing_priv, agent_id=agent_id, address=address, timestamp=ts)
+    return bind_payout_address(
+        agent_id, address, signature=sig, timestamp=ts, db_path=agents["db"]
+    )
+
+
+def _stored(agents, who):
+    from warden.marketplace.agent import get_agent
+
+    return get_agent(agents[who][1], db_path=agents["db"]).payout_address
+
+
+# ── the happy path ──────────────────────────────────────────────────────────
+
+
+def test_a_signed_binding_is_stored_checksummed(agents):
+    stored = _bind(agents, "seller", _ADDR_A)
+    assert stored == _ADDR_A
+    assert _stored(agents, "seller") == _ADDR_A
+
+
+def test_lowercase_input_must_be_signed_in_checksummed_form(agents):
+    """The server normalises before verifying, so the client signs EIP-55."""
+    from warden.marketplace.agent import PayoutAddressError, bind_payout_address
+
+    priv, agent_id = agents["seller"]
+    ts = _now()
+    lower = _ADDR_A.lower()
+
+    # Signed over the lowercase string: refused, the envelope does not match.
+    bad = _sign(priv, agent_id=agent_id, address=lower, timestamp=ts)
+    with pytest.raises(PayoutAddressError, match="does not verify"):
+        bind_payout_address(agent_id, lower, signature=bad, timestamp=ts, db_path=agents["db"])
+
+    # Signed over the checksummed form: accepted even though input was lowercase.
+    good = _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=ts)
+    assert bind_payout_address(
+        agent_id, lower, signature=good, timestamp=ts, db_path=agents["db"]
+    ) == _ADDR_A
+
+
+def test_clearing_the_address_also_requires_a_signature(agents):
+    _bind(agents, "seller", _ADDR_A, timestamp=_now(-5))
+    assert _bind(agents, "seller", "") == ""
+    assert _stored(agents, "seller") == ""
+
+
+# ── the theft primitive this closes ─────────────────────────────────────────
+
+
+def test_another_agents_key_cannot_redirect_a_payout(agents):
+    """The whole point: a signature must come from the agent it is attributed to."""
+    from warden.marketplace.agent import PayoutAddressError
+
+    with pytest.raises(PayoutAddressError, match="does not verify"):
+        _bind(agents, "seller", _ADDR_B, signer="other")
+    assert _stored(agents, "seller") == ""
+
+
+def test_a_signature_cannot_be_moved_to_a_different_address(agents):
+    from warden.marketplace.agent import PayoutAddressError
+
+    priv, agent_id = agents["seller"]
+    ts = _now()
+    sig_for_a = _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=ts)
+    with pytest.raises(PayoutAddressError, match="does not verify"):
+        _bind(agents, "seller", _ADDR_B, timestamp=ts, signature=sig_for_a)
+
+
+def test_unsigned_is_refused_with_no_flag_to_disable_it(agents, monkeypatch):
+    """Offers have a bake-in flag; this does not, and must not honour that one."""
+    from warden.marketplace.agent import PayoutAddressError
+
+    monkeypatch.setenv("MARKETPLACE_REQUIRE_SIGNED_OFFERS", "false")
+    with pytest.raises(PayoutAddressError, match="must be signed"):
+        _bind(agents, "seller", _ADDR_A, signature="")
+
+
+def test_a_stale_timestamp_is_refused(agents):
+    from warden.marketplace.agent import PayoutAddressError
+
+    with pytest.raises(PayoutAddressError, match="acceptance window"):
+        _bind(agents, "seller", _ADDR_A, timestamp=_now(-3600))
+
+
+def test_a_captured_older_binding_cannot_roll_back_a_newer_one(agents):
+    """Replay inside the skew window: sign A, then B; re-presenting A must fail."""
+    from warden.marketplace.agent import PayoutAddressError
+
+    priv, agent_id = agents["seller"]
+    t_old, t_new = _now(-30), _now(-10)
+    old_sig = _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=t_old)
+
+    _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
+    _bind(agents, "seller", _ADDR_B, timestamp=t_new)
+    assert _stored(agents, "seller") == _ADDR_B
+
+    with pytest.raises(PayoutAddressError, match="roll back"):
+        _bind(agents, "seller", _ADDR_A, timestamp=t_old, signature=old_sig)
+    assert _stored(agents, "seller") == _ADDR_B
+
+
+def test_an_offer_signature_cannot_be_presented_as_a_binding(agents):
+    """Domain separation: the same Ed25519 key signs offers too."""
+    from warden.marketplace.agent import PayoutAddressError
+    from warden.marketplace.negotiation import build_offer_canonical
+
+    priv, agent_id = agents["seller"]
+    ts = _now()
+    offer_bytes = build_offer_canonical(
+        offer_type="offer", price=1.0, asset_ueciid=_ADDR_A, round_=1,
+        agent_id=agent_id, timestamp=ts, negotiation_id="n",
+    )
+    offer_sig = base64.b64encode(priv.sign(offer_bytes)).decode()
+    with pytest.raises(PayoutAddressError, match="does not verify"):
+        _bind(agents, "seller", _ADDR_A, timestamp=ts, signature=offer_sig)
+
+
+def test_unknown_agent_and_malformed_address_are_refused(agents):
+    from warden.marketplace.agent import PayoutAddressError, bind_payout_address
+
+    priv, _ = agents["seller"]
+    ts = _now()
+    ghost = "did:shadow:doesnotexist"
+    sig = _sign(priv, agent_id=ghost, address=_ADDR_A, timestamp=ts)
+    with pytest.raises(PayoutAddressError, match="not registered"):
+        bind_payout_address(ghost, _ADDR_A, signature=sig, timestamp=ts, db_path=agents["db"])
+
+    with pytest.raises(PayoutAddressError, match="not an Ethereum address"):
+        _bind(agents, "seller", "0xnope")
+
+
+# ── structural guards ───────────────────────────────────────────────────────
+
+
+def test_no_unsigned_writer_of_payout_address_exists():
+    """The unsigned setter is gone; nothing may bring back a write that skips proof.
+
+    Any module other than agent.py that writes the column would be a second,
+    unverified path to redirect a payout.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    writer = re.compile(r"SET\s+[^;\"']*\bpayout_address\s*=", re.I)
+    offenders = []
+    for path in root.rglob("*.py"):
+        if "tests" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if writer.search(text) and path.name != "agent.py":
+            offenders.append(str(path.relative_to(root)))
+        if "def set_payout_address" in text:
+            offenders.append(f"{path.relative_to(root)} (unsigned setter is back)")
+    assert not offenders, f"unverified payout_address writers: {offenders}"
+
+
+def test_route_rejects_an_unsigned_body(agents, monkeypatch):
+    """End to end through the real router: 400, and nothing is written."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from warden.marketplace.api_agents import router
+
+    app = FastAPI()
+    app.include_router(router, prefix="/marketplace")
+    client = TestClient(app)
+
+    _, agent_id = agents["seller"]
+    r = client.put(
+        f"/marketplace/agents/{agent_id}/payout-address",
+        json={"address": _ADDR_A, "signature": "", "timestamp": _now()},
+    )
+    assert r.status_code == 400, r.text
+    assert _stored(agents, "seller") == ""
+
+
+def test_route_accepts_a_signed_body(agents):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from warden.marketplace.api_agents import router
+
+    app = FastAPI()
+    app.include_router(router, prefix="/marketplace")
+    client = TestClient(app)
+
+    priv, agent_id = agents["seller"]
+    ts = _now()
+    r = client.put(
+        f"/marketplace/agents/{agent_id}/payout-address",
+        json={
+            "address": _ADDR_A,
+            "signature": _sign(priv, agent_id=agent_id, address=_ADDR_A, timestamp=ts),
+            "timestamp": ts,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json() == {"agent_id": agent_id, "payout_address": _ADDR_A}

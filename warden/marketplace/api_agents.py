@@ -44,6 +44,17 @@ class AgentPatchRequest(BaseModel):
     budget_limit: float | None = None
 
 
+class PayoutAddressRequest(BaseModel):
+    # EIP-55 checksummed Ethereum address, or "" to stop accepting on-chain
+    # settlement. Sign the checksummed form: the server normalises first.
+    address:   str
+    # base64 Ed25519 signature over build_payout_address_canonical(...)
+    signature: str
+    # ISO-8601 instant; must be inside the skew window and later than the
+    # agent's current binding.
+    timestamp: str
+
+
 @router.get("/agents")
 async def list_agents(
     tenant_id:    str | None = Query(default=None),
@@ -162,6 +173,34 @@ async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
     if not updated:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found.")
     return {"updated": True, "agent_id": agent_id}
+
+
+@router.put("/agents/{agent_id}/payout-address", status_code=200, dependencies=_WRITE)
+async def put_payout_address(agent_id: str, body: PayoutAddressRequest) -> dict:
+    """Bind where this agent is paid when a trade settles on-chain.
+
+    An API key identifies a *tenant*; it does not prove which agent chose the
+    address (marketplace rule #25). Redirecting a seller's payout is theft, so
+    the body must carry the agent's own Ed25519 signature over
+    ``build_payout_address_canonical`` — verified fail-CLOSED, with no flag to
+    turn it off. Every escrow snapshots this address at creation, so changing
+    it never redirects a trade that is already funded.
+    """
+    from warden.marketplace.agent import (
+        PayoutAddressError,
+        bind_payout_address,
+    )
+    try:
+        stored = bind_payout_address(
+            agent_id,
+            body.address,
+            signature=body.signature,
+            timestamp=body.timestamp,
+        )
+    except PayoutAddressError as exc:
+        status = 404 if "is not registered" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    return {"agent_id": agent_id, "payout_address": stored}
 
 
 @router.delete("/agents/{agent_id}", status_code=200, dependencies=_WRITE)

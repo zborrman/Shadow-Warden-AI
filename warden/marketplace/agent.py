@@ -116,6 +116,10 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
         # signing identity, not an account: no Ethereum address can be derived
         # from `public_key`, so a seller that wants settlement has to say where.
         ("payout_address", "TEXT NOT NULL DEFAULT ''"),
+        # Timestamp of the signed envelope that set `payout_address`. A newer
+        # binding must carry a strictly later timestamp, so a captured signature
+        # for an address the agent has since replaced cannot roll it back.
+        ("payout_address_signed_at", "TEXT NOT NULL DEFAULT ''"),
     ]:
         try:
             con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
@@ -274,35 +278,144 @@ def register_agent(
     return agent
 
 
-def set_payout_address(
-    agent_id: str, address: str, db_path: str | None = None
-) -> bool:
-    """Record where this agent is paid when a trade settles on-chain.
+class PayoutAddressError(ValueError):
+    """A payout-address binding was refused. Always fail-CLOSED."""
 
-    Validated here rather than at send time. A malformed address is a
-    configuration error, and discovering it from a failed transaction costs gas
-    and tells the operator only that something reverted.
 
-    An empty string is accepted and clears the address — an agent that no longer
-    wants on-chain settlement should be able to say so without deleting itself.
+# Domain tag for the envelope. An agent's Ed25519 key also signs offers
+# (`negotiation._canonical_offer`); without a distinct purpose, a signature
+# produced for one protocol message could be presented as the other.
+_PAYOUT_ADDRESS_PURPOSE = "shadow-warden:payout-address:v1"
+
+
+def build_payout_address_canonical(*, agent_id: str, address: str, timestamp: str) -> bytes:
+    """The exact bytes an agent signs to bind a settlement address to itself.
+
+    Exported so an agent SDK and the tests derive the envelope from the same
+    code the server verifies against — a hand-rolled client copy is how
+    signature schemes quietly stop matching (see ``build_offer_canonical``).
+
+    ``address`` is the EIP-55 checksummed form, or ``""`` to clear it. The
+    server normalises before verifying, so a client must sign the checksummed
+    string, not whatever casing it happened to hold.
     """
+    envelope = {
+        "purpose":   _PAYOUT_ADDRESS_PURPOSE,
+        "agent_id":  agent_id,
+        "address":   address,
+        "timestamp": timestamp,
+    }
+    return json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _normalise_address(address: str) -> str:
     address = (address or "").strip()
-    if address:
-        try:
-            from web3 import Web3  # noqa: PLC0415
-        except Exception as exc:  # pragma: no cover - web3 is a hard dependency
-            raise ValueError(f"cannot validate an address without web3: {exc}") from exc
-        if not Web3.is_address(address):
-            raise ValueError(f"{address!r} is not an Ethereum address")
-        address = Web3.to_checksum_address(address)
+    if not address:
+        return ""
+    try:
+        from web3 import Web3  # noqa: PLC0415
+    except Exception as exc:  # pragma: no cover - web3 is a hard dependency
+        raise PayoutAddressError(f"cannot validate an address without web3: {exc}") from exc
+    if not Web3.is_address(address):
+        raise PayoutAddressError(f"{address!r} is not an Ethereum address")
+    return str(Web3.to_checksum_address(address))
+
+
+def bind_payout_address(
+    agent_id: str,
+    address: str,
+    *,
+    signature: str,
+    timestamp: str,
+    db_path: str | None = None,
+) -> str:
+    """Bind a settlement address to an agent, proven by the agent's own key.
+
+    Why this exists: an agent is identified by an **Ed25519** key
+    (``did:shadow:{base62(sha256(pubkey))}``), but a trade settles to a
+    **secp256k1** Ethereum address. Nothing can derive one from the other, so
+    without a binding the reputation an agent earns and the wallet that gets
+    paid are two unrelated facts — and whoever can write ``payout_address``
+    decides where a seller's money goes. That is a theft primitive, not a
+    configuration field.
+
+    The binding is the agent signing ``{purpose, agent_id, address, timestamp}``
+    with the key it registered. ``agent_id`` is *derived from* that key, so a
+    signature that verifies against ``marketplace_agents.public_key`` is proof
+    the address was chosen by the agent it is attributed to — the same
+    argument ``negotiation._assert_actor`` makes for offers.
+
+    **Always fail-CLOSED, with no enforcement flag.** Offers got a bake-in flag
+    because unsigned clients existed; this route has none to break, and an
+    unenforced mode would ship the theft primitive it closes. Unknown agent,
+    missing key, missing or invalid signature, a timestamp outside the skew
+    window, or one not newer than the current binding all refuse.
+
+    Returns the stored (checksummed) address.
+    """
+    # Lazy: negotiation imports this module inside functions, so a module-level
+    # import here would be the first half of a cycle.
+    from warden.marketplace.negotiation import (
+        _timestamp_within_skew,
+        _verify_offer_signature,
+    )
+
+    normalised = _normalise_address(address)
+
+    if not signature:
+        raise PayoutAddressError(
+            "A payout address must be signed with the agent's registered Ed25519 key."
+        )
+    if not _timestamp_within_skew(timestamp):
+        raise PayoutAddressError(
+            f"Timestamp {timestamp!r} is outside the acceptance window."
+        )
+
+    agent = get_agent(agent_id, db_path=db_path)
+    if agent is None:
+        raise PayoutAddressError(f"Agent {agent_id!r} is not registered.")
+    if not agent.public_key:
+        raise PayoutAddressError(f"Agent {agent_id!r} has no registered public key.")
+
+    canonical = build_payout_address_canonical(
+        agent_id=agent_id, address=normalised, timestamp=timestamp
+    )
+    if not _verify_offer_signature(canonical, signature, agent.public_key):
+        raise PayoutAddressError(
+            "Signature does not verify against the agent's registered public key."
+        )
 
     with _conn(db_path) as con:
-        cur = con.execute(
-            "UPDATE marketplace_agents SET payout_address=? WHERE agent_id=?",
-            (address, agent_id),
+        row = con.execute(
+            "SELECT payout_address_signed_at FROM marketplace_agents WHERE agent_id=?",
+            (agent_id,),
+        ).fetchone()
+        previous = (row[0] if row else "") or ""
+        if previous and not _is_later(timestamp, previous):
+            raise PayoutAddressError(
+                "A newer payout-address binding already exists; refusing to roll back."
+            )
+        con.execute(
+            "UPDATE marketplace_agents SET payout_address=?, payout_address_signed_at=? "
+            "WHERE agent_id=?",
+            (normalised, timestamp, agent_id),
         )
         con.commit()
-        return cur.rowcount > 0
+    return normalised
+
+
+def _is_later(candidate: str, previous: str) -> bool:
+    """True when ISO-8601 *candidate* is strictly after *previous*."""
+    try:
+        a = datetime.fromisoformat(candidate)
+        b = datetime.fromisoformat(previous)
+    except ValueError:
+        return False
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=UTC)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=UTC)
+    return a > b
 
 
 def get_agent(agent_id: str, db_path: str | None = None) -> MarketplaceAgent | None:
