@@ -549,6 +549,13 @@
     "GET /supplier-risk/report/{community_id}",
     "POST /supplier-risk/assess"
   ],
+  "warden.api.system": [
+    "GET /api/config",
+    "GET /api/stats",
+    "GET /health",
+    "GET /health/pipeline",
+    "POST /api/config"
+  ],
   "warden.api.tenant_impact": [
     "GET /tenant/impact"
   ],
@@ -765,12 +772,7 @@
   ],
   "warden.main": [
     "GET /.well-known/acp.json",
-    "GET /api/config",
-    "GET /api/stats",
     "GET /ext/health",
-    "GET /health",
-    "GET /health/pipeline",
-    "POST /api/config",
     "POST /demo/filter",
     "POST /ext/filter",
     "POST /ext/unmask",
@@ -822,7 +824,8 @@
     "GET /marketplace/agents/{agent_id}/trust",
     "PATCH /marketplace/agents/{agent_id}",
     "POST /marketplace/agents/register",
-    "PUT /marketplace/agents/{agent_id}/capabilities"
+    "PUT /marketplace/agents/{agent_id}/capabilities",
+    "PUT /marketplace/agents/{agent_id}/payout-address"
   ],
   "warden.marketplace.api_assets": [
     "GET /marketplace/assets",

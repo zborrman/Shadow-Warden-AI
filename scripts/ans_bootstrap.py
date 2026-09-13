@@ -44,13 +44,19 @@ def generate_dns_records(
     TXT _agent.<domain>  — capability advertisement + DID
     SRV _agent._tcp.<domain> — service discovery for M2M agents
     """
-    txt_value = " ".join([
+    fields = [
         f'did="{agent_id}"',
         f'adp="{adp_url}"',
         f'filter="{filter_url}"',
         'capabilities="marketplace,filter,kya,x402"',
-        f'pubkey="{pubkey}"',
-    ])
+    ]
+    # Only advertise a key that exists. The default used to be the literal
+    # placeholder REPLACE_WITH_PLATFORM_ED25519_PUBKEY_BASE58, so running this
+    # script as documented printed a DNS record asserting a fake public key —
+    # the same placeholder that sat in the published did.json for months.
+    if pubkey:
+        fields.append(f'pubkey="{pubkey}"')
+    txt_value = " ".join(fields)
 
     return {
         "TXT": [
@@ -106,8 +112,8 @@ def print_records(records: dict, domain: str, agent_id: str) -> None:
     print("  1. Add the TXT record to your DNS provider (Cloudflare, Route53, GoDaddy, etc.)")
     print("  2. Add the SRV record so M2M agents can resolve the marketplace endpoint")
     print("  3. Verify: dig TXT _agent." + domain)
-    print("  4. Replace REPLACE_WITH_PLATFORM_ED25519_PUBKEY_BASE58 in")
-    print("     site/public/.well-known/did.json with your actual platform pubkey")
+    print("  4. did.json publishes no verification method until a platform key exists;")
+    print("     add one only together with the private half and something that verifies it")
     print("     (read from warden/marketplace/agent.py generate_platform_keypair())\n")
 
 
@@ -115,7 +121,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate ANS DNS records for Shadow Warden AI")
     parser.add_argument("--domain",   default="shadow-warden-ai.com")
     parser.add_argument("--agent-id", default=None, help="Platform DID (auto-detected from DB if omitted)")
-    parser.add_argument("--pubkey",   default="REPLACE_WITH_PLATFORM_ED25519_PUBKEY_BASE58")
+    parser.add_argument("--pubkey",   default="",
+                        help="base58 Ed25519 platform public key; omitted from the record when empty")
     parser.add_argument("--json",     action="store_true", help="Output as JSON")
     args = parser.parse_args()
 

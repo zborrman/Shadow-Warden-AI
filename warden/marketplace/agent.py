@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.observability import Reason, record_failopen
 
 log = logging.getLogger("warden.marketplace.agent")
 
@@ -96,7 +97,11 @@ _AGENTS_DDL = """
         capabilities TEXT NOT NULL DEFAULT '[]',
         status       TEXT NOT NULL DEFAULT 'active',
         mandate_id   TEXT NOT NULL DEFAULT '',
-        created_at   TEXT NOT NULL
+        created_at   TEXT NOT NULL,
+        -- Declared here so a fresh database gets them from registered DDL;
+        -- `_ensure_columns` still backfills databases that predate them.
+        payout_address           TEXT NOT NULL DEFAULT '',
+        payout_address_signed_at TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_mkt_agents_community
         ON marketplace_agents(community_id);
@@ -116,6 +121,10 @@ def _ensure_columns(con: sqlite3.Connection) -> None:
         # signing identity, not an account: no Ethereum address can be derived
         # from `public_key`, so a seller that wants settlement has to say where.
         ("payout_address", "TEXT NOT NULL DEFAULT ''"),
+        # Timestamp of the signed envelope that set `payout_address`. A newer
+        # binding must carry a strictly later timestamp, so a captured signature
+        # for an address the agent has since replaced cannot roll it back.
+        ("payout_address_signed_at", "TEXT NOT NULL DEFAULT ''"),
     ]:
         try:
             con.execute(f"ALTER TABLE marketplace_agents ADD COLUMN {col} {defn}")
@@ -226,20 +235,21 @@ def register_agent(
 
     agent_id = pubkey_to_agent_id(public_key_b64)
 
-    # Create AP2 mandate (fail-open: if commerce module unavailable, mandate_id stays "")
-    mandate_id = ""
-    try:
-        from warden.business_community.agentic_commerce.ap2 import AP2Processor
-        mandate = AP2Processor().create_mandate(
-            tenant_id=tenant_id,
-            max_amount=_DEFAULT_MANDATE_USD,
-            currency="USD",
-            allowed_merchants=["marketplace"],
-        )
-        mandate_id = mandate.id
-    except Exception:
-        log.warning("AP2Processor unavailable; agent registered without mandate")
-
+    # First registration wins; re-registration never mutates. Registration is
+    # deliberately unauthenticated (Stage 1 first contact, owner decision D-5)
+    # and `GET /agents/{id}` publishes the public key, so anyone can submit an
+    # existing agent's key. This used to be `INSERT OR REPLACE`, which SQLite
+    # executes as delete-then-insert: a stranger's call replaced the victim's
+    # row wholesale — new tenant_id, a lifted suspension, and a wiped
+    # `payout_address_signed_at` that silently disabled the payout rollback
+    # guard.
+    #
+    # The row is reserved FIRST, with no mandate, and only the registration
+    # whose INSERT succeeds goes on to create one. A check-then-create-then-
+    # insert order let two concurrent registrations of one key both pass the
+    # check and both create an AP2 mandate, leaving the loser's orphaned. The
+    # INSERT is the single arbiter: the primary key refuses the second caller
+    # before it has done anything worth undoing.
     now = datetime.now(UTC).isoformat()
     agent = MarketplaceAgent(
         agent_id=agent_id,
@@ -248,61 +258,250 @@ def register_agent(
         public_key=public_key_b64,
         capabilities=sorted(valid),
         status="active",
-        mandate_id=mandate_id,
+        mandate_id="",
         created_at=now,
     )
 
     with _db_lock, _conn(db_path) as con:
-        con.execute(
-            """
-            INSERT OR REPLACE INTO marketplace_agents
-                (agent_id, community_id, tenant_id, public_key,
-                 capabilities, status, mandate_id, created_at)
-            VALUES (?,?,?,?,?,?,?,?)
-            """,
-            (
-                agent.agent_id,
-                agent.community_id,
-                agent.tenant_id,
-                agent.public_key,
-                json.dumps(agent.capabilities),
-                agent.status,
-                agent.mandate_id,
-                agent.created_at,
-            ),
+        try:
+            con.execute(
+                """
+                INSERT INTO marketplace_agents
+                    (agent_id, community_id, tenant_id, public_key,
+                     capabilities, status, mandate_id, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                (
+                    agent.agent_id,
+                    agent.community_id,
+                    agent.tenant_id,
+                    agent.public_key,
+                    json.dumps(agent.capabilities),
+                    agent.status,
+                    agent.mandate_id,
+                    agent.created_at,
+                ),
+            )
+        except sqlite3.Error as exc:
+            # Local SQLite raises IntegrityError; the Turso adapter surfaces the
+            # same constraint as OperationalError, so match on the message too.
+            if isinstance(exc, sqlite3.IntegrityError) or "UNIQUE constraint" in str(exc):
+                raise AgentAlreadyRegisteredError(
+                    f"Agent {agent_id!r} is already registered; "
+                    "registration does not update an agent."
+                ) from exc
+            raise
+
+    # Only the winning registration reaches here. Fail-open as before: if the
+    # commerce module is unavailable the agent stays registered with no mandate,
+    # which was already a valid state.
+    try:
+        from warden.business_community.agentic_commerce.ap2 import AP2Processor
+        mandate = AP2Processor().create_mandate(
+            tenant_id=tenant_id,
+            max_amount=_DEFAULT_MANDATE_USD,
+            currency="USD",
+            allowed_merchants=["marketplace"],
         )
+    except Exception as exc:
+        log.warning("AP2Processor unavailable; agent %s registered without mandate (%s)",
+                    agent_id, type(exc).__name__)
+        return agent
+
+    # Attach it. `attached` is only set after the `with` block — including the
+    # commit `open_db()` performs on exit — completes, so a failed commit can
+    # never be reported as an attached mandate.
+    attached = False
+    try:
+        with _db_lock, _conn(db_path) as con:
+            # `AND mandate_id=''` so this can only ever fill the slot it reserved.
+            cur = con.execute(
+                "UPDATE marketplace_agents SET mandate_id=? WHERE agent_id=? AND mandate_id=''",
+                (mandate.id, agent_id),
+            )
+            con.commit()
+            rowcount = cur.rowcount
+        attached = rowcount == 1
+    except Exception as exc:
+        # Type only: a SQLite or Fernet message is not metadata, and this repo
+        # logs metadata only.
+        log.warning("register_agent: could not attach mandate to %s (%s)",
+                    agent_id, type(exc).__name__)
+
+    if not attached:
+        # The agent IS registered — that INSERT already committed — so raising
+        # here would answer 500 for an agent that exists, and the client's retry
+        # would then get 409. Keep the documented outcome (registered with no
+        # mandate) and do not leave the mandate just created lying unattached.
+        try:
+            AP2Processor().revoke_mandate(mandate.id, tenant_id)
+        except Exception as exc:
+            # Attach failed AND revoke failed: an ACTIVE mandate attached to no
+            # agent. Nothing can present its id, so it is inert — but it must not
+            # be silent. `record_failopen` is the alertable counter this repo
+            # uses for exactly that, rather than a new retry queue.
+            log.warning("register_agent: could not revoke unattached mandate %s (%s)",
+                        mandate.id, type(exc).__name__)
+            record_failopen("marketplace_mandate_revoke", Reason.BACKEND_ERROR, exc)
+        return agent
+
+    agent.mandate_id = mandate.id
     return agent
 
 
-def set_payout_address(
-    agent_id: str, address: str, db_path: str | None = None
-) -> bool:
-    """Record where this agent is paid when a trade settles on-chain.
+class AgentAlreadyRegisteredError(ValueError):
+    """Registration was refused because the agent already exists."""
 
-    Validated here rather than at send time. A malformed address is a
-    configuration error, and discovering it from a failed transaction costs gas
-    and tells the operator only that something reverted.
 
-    An empty string is accepted and clears the address — an agent that no longer
-    wants on-chain settlement should be able to say so without deleting itself.
+class PayoutAddressError(ValueError):
+    """A payout-address binding was refused. Always fail-CLOSED."""
+
+
+# Domain tag for the envelope. An agent's Ed25519 key also signs offers
+# (`negotiation._canonical_offer`); without a distinct purpose, a signature
+# produced for one protocol message could be presented as the other.
+_PAYOUT_ADDRESS_PURPOSE = "shadow-warden:payout-address:v1"
+
+
+def build_payout_address_canonical(*, agent_id: str, address: str, timestamp: str) -> bytes:
+    """The exact bytes an agent signs to bind a settlement address to itself.
+
+    Exported so an agent SDK and the tests derive the envelope from the same
+    code the server verifies against — a hand-rolled client copy is how
+    signature schemes quietly stop matching (see ``build_offer_canonical``).
+
+    ``address`` is the EIP-55 checksummed form, or ``""`` to clear it. The
+    server normalises before verifying, so a client must sign the checksummed
+    string, not whatever casing it happened to hold.
     """
-    address = (address or "").strip()
-    if address:
-        try:
-            from web3 import Web3  # noqa: PLC0415
-        except Exception as exc:  # pragma: no cover - web3 is a hard dependency
-            raise ValueError(f"cannot validate an address without web3: {exc}") from exc
-        if not Web3.is_address(address):
-            raise ValueError(f"{address!r} is not an Ethereum address")
-        address = Web3.to_checksum_address(address)
+    envelope = {
+        "purpose":   _PAYOUT_ADDRESS_PURPOSE,
+        "agent_id":  agent_id,
+        "address":   address,
+        "timestamp": timestamp,
+    }
+    return json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode()
 
+
+def _normalise_address(address: str) -> str:
+    address = (address or "").strip()
+    if not address:
+        return ""
+    try:
+        from web3 import Web3  # noqa: PLC0415
+    except Exception as exc:  # pragma: no cover - web3 is a hard dependency
+        raise PayoutAddressError(f"cannot validate an address without web3: {exc}") from exc
+    if not Web3.is_address(address):
+        raise PayoutAddressError(f"{address!r} is not an Ethereum address")
+    return str(Web3.to_checksum_address(address))
+
+
+def bind_payout_address(
+    agent_id: str,
+    address: str,
+    *,
+    signature: str,
+    timestamp: str,
+    db_path: str | None = None,
+) -> str:
+    """Bind a settlement address to an agent, proven by the agent's own key.
+
+    Why this exists: an agent is identified by an **Ed25519** key
+    (``did:shadow:{base62(sha256(pubkey))}``), but a trade settles to a
+    **secp256k1** Ethereum address. Nothing can derive one from the other, so
+    without a binding the reputation an agent earns and the wallet that gets
+    paid are two unrelated facts — and whoever can write ``payout_address``
+    decides where a seller's money goes. That is a theft primitive, not a
+    configuration field.
+
+    The binding is the agent signing ``{purpose, agent_id, address, timestamp}``
+    with the key it registered. ``agent_id`` is *derived from* that key, so a
+    signature that verifies against ``marketplace_agents.public_key`` is proof
+    the address was chosen by the agent it is attributed to — the same
+    argument ``negotiation._assert_actor`` makes for offers.
+
+    **Always fail-CLOSED, with no enforcement flag.** Offers got a bake-in flag
+    because unsigned clients existed; this route has none to break, and an
+    unenforced mode would ship the theft primitive it closes. Unknown agent,
+    missing key, missing or invalid signature, a timestamp outside the skew
+    window, or one not newer than the current binding all refuse.
+
+    Returns the stored (checksummed) address.
+    """
+    # Lazy: negotiation imports this module inside functions, so a module-level
+    # import here would be the first half of a cycle.
+    from warden.marketplace.negotiation import _timestamp_within_skew
+
+    normalised = _normalise_address(address)
+
+    if not signature:
+        raise PayoutAddressError(
+            "A payout address must be signed with the agent's registered Ed25519 key."
+        )
+    if not _timestamp_within_skew(timestamp):
+        raise PayoutAddressError(
+            f"Timestamp {timestamp!r} is outside the acceptance window."
+        )
+    ordering_key = _ordering_key(timestamp)
+
+    agent = get_agent(agent_id, db_path=db_path)
+    if agent is None:
+        raise PayoutAddressError(f"Agent {agent_id!r} is not registered.")
+    if not agent.public_key:
+        raise PayoutAddressError(f"Agent {agent_id!r} has no registered public key.")
+
+    canonical = build_payout_address_canonical(
+        agent_id=agent_id, address=normalised, timestamp=timestamp
+    )
+    if not _verify_payout_signature(canonical, signature, agent.public_key):
+        raise PayoutAddressError(
+            "Signature does not verify against the agent's registered public key."
+        )
+
+    # The ordering check and the write are ONE statement. Read-check-write let
+    # two concurrent binds both pass the check against the same stored value,
+    # and whichever wrote last won — so an older binding could land after a
+    # newer one, which is the rollback this guard exists to refuse.
+    #
+    # Ordering compares `_ordering_key` strings: fixed-width UTC, so string
+    # order is chronological order in SQL. `''` sorts before every key, which
+    # is what lets the first binding through.
     with _conn(db_path) as con:
         cur = con.execute(
-            "UPDATE marketplace_agents SET payout_address=? WHERE agent_id=?",
-            (address, agent_id),
+            "UPDATE marketplace_agents SET payout_address=?, payout_address_signed_at=? "
+            "WHERE agent_id=? AND payout_address_signed_at < ?",
+            (normalised, ordering_key, agent_id, ordering_key),
         )
         con.commit()
-        return cur.rowcount > 0
+        if cur.rowcount == 0:
+            raise PayoutAddressError(
+                "A newer payout-address binding already exists; refusing to roll back."
+            )
+    return normalised
+
+
+def _verify_payout_signature(canonical: bytes, signature_b64: str, public_key_b64: str) -> bool:
+    """Ed25519 verify over the payout envelope. False on any error.
+
+    A named seam over the offer verifier — the primitive is identical, and one
+    implementation of Ed25519 verification is what keeps the two from drifting.
+    """
+    from warden.marketplace.negotiation import _verify_offer_signature
+
+    return _verify_offer_signature(canonical, signature_b64, public_key_b64)
+
+
+def _ordering_key(timestamp: str) -> str:
+    """Fixed-width UTC rendering of an ISO-8601 instant, so string order is time order.
+
+    Stored in `payout_address_signed_at` and compared in SQL. The signature is
+    still verified over the client's original string; only the ordering uses
+    this form. Assumes `_timestamp_within_skew` has already accepted the input.
+    """
+    parsed = datetime.fromisoformat(timestamp)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")
 
 
 def get_agent(agent_id: str, db_path: str | None = None) -> MarketplaceAgent | None:
