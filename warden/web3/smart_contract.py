@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -148,39 +149,137 @@ def strip_chain_suffix(contract_address: str) -> tuple[str, str]:
     return contract_address, DEFAULT_CHAIN
 
 
-def call_escrow(
+@dataclass(frozen=True)
+class EscrowCallResult:
+    """What one escrow call did, not just whether it did.
+
+    `call_escrow` answered with a bool and kept the transaction hash to itself
+    (it logged the first 18 characters). An operator could not look a
+    transition up on a block explorer, and a retry had no way to ask the chain
+    what the previous attempt achieved — its only move was to send again.
+    """
+    ok: bool
+    #: Full 0x-prefixed hash; "" when simulated or when nothing was sent.
+    tx_hash: str = ""
+    #: Decoded custom-error name (e.g. "WrongState"), or the exception type.
+    error: str = ""
+    simulated: bool = False
+    #: A `deposit` refused with `TradeExists()`: the trade is already funded.
+    already_funded: bool = False
+
+
+# Custom errors whose selector means the call's goal state already holds.
+# Only `deposit` qualifies: `TradeExists()` is exactly "this trade id is
+# funded", and the trade id is keccak("shadow-warden:escrow:" + escrow_id), so
+# it can only be ours. Every other revert is a real refusal.
+_ALREADY_DONE = {("deposit", "TradeExists")}
+
+
+def _error_selectors(abi: list | None) -> dict[bytes, str]:
+    """Map 4-byte selector → custom error name, from the ABI itself."""
+    from web3 import Web3
+
+    out: dict[bytes, str] = {}
+    for entry in abi or []:
+        if entry.get("type") != "error":
+            continue
+        signature = f"{entry['name']}({','.join(i['type'] for i in entry.get('inputs', []))})"
+        out[bytes(Web3.keccak(text=signature)[:4])] = entry["name"]
+    return out
+
+
+def _revert_payloads(exc: BaseException) -> list[bytes]:
+    """Every revert payload *exc* carries, each as the full bytes starting at offset 0.
+
+    The revert data reaches here in more than one encoding. Against a real node,
+    web3 raises `ContractCustomError` with the data as hex (`0x822b55c5…`). The
+    local EVM this is tested on raises `TransactionFailed` with it as a Python
+    bytes-repr inside a message (`execution reverted: b'\x82+U\xc5'`). The
+    first decoder recognised only hex and returned "" for a genuine `TradeExists`
+    revert from the compiled contract — found by running it against one.
+    """
+    import ast
+    import re
+
+    payloads: list[bytes] = []
+    for part in (getattr(exc, "data", None), *getattr(exc, "args", ())):
+        if isinstance(part, (bytes, bytearray)):
+            payloads.append(bytes(part))
+            continue
+        if part is None:
+            continue
+        text = str(part)
+        for hex_blob in re.findall(r"0x([0-9a-fA-F]{8,})", text):
+            if len(hex_blob) % 2 == 0:
+                payloads.append(bytes.fromhex(hex_blob))
+        for literal in re.findall(r"b'((?:[^'\\]|\\.)*)'", text):
+            try:
+                value = ast.literal_eval("b'" + literal + "'")
+            except (ValueError, SyntaxError):
+                continue
+            if isinstance(value, bytes):
+                payloads.append(value)
+    return payloads
+
+
+def _decode_custom_error(exc: BaseException, abi: list | None) -> str:
+    """Name the contract's custom error behind *exc*, or "" if it is not one.
+
+    **A selector counts only at offset zero of a revert payload.** The first
+    version searched for the selector's bytes anywhere, which is not decoding: a
+    `deposit` reverting with a token's own error whose *arguments* happened to
+    contain `82 2b 55 c5` would have been read as `TradeExists` — a deposit that
+    moved nothing, recorded as funded. Matched against the ABI's own error
+    entries rather than a hand-kept table.
+    """
+    selectors = _error_selectors(abi)
+    if not selectors:
+        return ""
+    for payload in _revert_payloads(exc):
+        name = selectors.get(payload[:4])
+        if name:
+            return name
+    return ""
+
+
+def call_escrow_result(
     contract_address: str,
     fn_name: str,
     params: dict,
     chain: str = DEFAULT_CHAIN,
-) -> bool:
-    """Call a function on the escrow contract. Returns whether it took effect.
+) -> EscrowCallResult:
+    """Call a function on the escrow contract and report what happened.
 
     Two modes, and the difference is the whole point of this module:
 
-    * **Simulated** — settlement is not configured for this chain. Returns True
-      as it always has, because the caller's state machine is the only thing
-      running and refusing here would break a flow that never claimed to move
-      money. `settlement_capability()` is what tells anyone that.
+    * **Simulated** — settlement is not configured for this chain. Reports
+      success as it always has, because the caller's state machine is the only
+      thing running and refusing here would break a flow that never claimed to
+      move money. `settlement_capability()` is what tells anyone that.
     * **Real** — ABI, address and signer are present. The transaction is built,
-      signed and sent, and this returns whether the receipt says it succeeded.
-      **Fail-CLOSED**: a revert, a timeout or an unreachable node returns False.
-      The stub returned True on every error, which meant an escrow release that
-      never happened was indistinguishable from one that did — the failure mode
-      that turns a marketplace into a way to lose other people's money.
+      signed and sent, and the receipt decides. **Fail-CLOSED**: a revert, a
+      timeout or an unreachable node is a failure.
+
+    One revert is not a failure. `deposit` reverting `TradeExists()` means the
+    trade is already funded — typically because a previous attempt landed and
+    its receipt was lost to a timeout. Reading that as a failure turned one
+    network hiccup into a permanently stuck escrow: funds held by the contract,
+    the gateway record left in `pending_deposit`, and every retry refused
+    (docs/onchain-settlement-design.md §4).
     """
     cap = settlement_capability(chain)
     if not cap["can_settle"]:
         log.debug("call_escrow %s simulated on %s (%s)", fn_name, chain, cap["reason"])
-        return True
+        return EscrowCallResult(ok=True, simulated=True)
 
     address, _ = strip_chain_suffix(contract_address or _contract_address(chain))
+    abi = None
     try:
         from web3 import Web3  # noqa: PLC0415
         w3 = Web3(Web3.HTTPProvider(get_chain(chain)["rpc_url"]))
         if not w3.is_connected():
             log.error("call_escrow %s: %s RPC unreachable — treating as FAILED", fn_name, chain)
-            return False
+            return EscrowCallResult(ok=False, error="rpc_unreachable")
 
         abi = _load_abi(_abi_path())
         contract = w3.eth.contract(address=Web3.to_checksum_address(address), abi=abi)
@@ -193,18 +292,57 @@ def call_escrow(
             "chainId": get_chain(chain)["chain_id"],
         })
         signed = account.sign_transaction(tx)
-        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=_TX_TIMEOUT_S)
+        sent = w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash = "0x" + sent.hex().removeprefix("0x")
+        try:
+            receipt = w3.eth.wait_for_transaction_receipt(sent, timeout=_TX_TIMEOUT_S)
+        except Exception as exc:
+            # The transaction was broadcast; only its confirmation is unknown.
+            # Keep the hash — it is exactly what lets a retry, or an operator,
+            # ask the chain what happened instead of sending again. Still a
+            # failure: an unconfirmed transition must not advance the escrow.
+            log.error("call_escrow %s on %s tx=%s: receipt not confirmed (%s)",
+                      fn_name, chain, tx_hash, type(exc).__name__)
+            record_failopen("escrow_call", Reason.BACKEND_ERROR, exc)
+            return EscrowCallResult(ok=False, tx_hash=tx_hash, error=type(exc).__name__)
 
         ok = int(receipt.get("status", 0)) == 1
         log.info(
             "call_escrow %s on %s tx=%s status=%s",
-            fn_name, chain, tx_hash.hex()[:18], "success" if ok else "REVERTED",
+            fn_name, chain, tx_hash, "success" if ok else "REVERTED",
         )
-        return ok
+        return EscrowCallResult(ok=ok, tx_hash=tx_hash, error="" if ok else "reverted")
     except Exception as exc:
+        result = classify_call_failure(fn_name, exc, abi)
+        if result.ok:
+            log.info("call_escrow %s on %s: %s — trade already funded, treating as done",
+                     fn_name, chain, result.error)
+            return result
         # Fail-CLOSED on the real path. The caller must be able to tell "the
         # chain accepted this" from "something went wrong on the way there".
-        log.error("call_escrow %s on %s FAILED: %s", fn_name, chain, exc)
+        log.error("call_escrow %s on %s FAILED: %s", fn_name, chain, result.error)
         record_failopen("escrow_call", Reason.BACKEND_ERROR, exc)
-        return False
+        return result
+
+
+def classify_call_failure(fn_name: str, exc: BaseException, abi: list | None) -> EscrowCallResult:
+    """Decide what an exception from an escrow call means. Pure: no chain access.
+
+    Split out so the decision can be tested against a genuine revert produced by
+    the compiled contract, rather than against a hand-built exception that only
+    agrees with whoever wrote it.
+    """
+    name = _decode_custom_error(exc, abi)
+    if (fn_name, name) in _ALREADY_DONE:
+        return EscrowCallResult(ok=True, error=name, already_funded=True)
+    return EscrowCallResult(ok=False, error=name or type(exc).__name__)
+
+
+def call_escrow(
+    contract_address: str,
+    fn_name: str,
+    params: dict,
+    chain: str = DEFAULT_CHAIN,
+) -> bool:
+    """Whether an escrow call took effect. See :func:`call_escrow_result`."""
+    return call_escrow_result(contract_address, fn_name, params, chain).ok

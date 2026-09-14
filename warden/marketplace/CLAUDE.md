@@ -220,6 +220,23 @@ Three access tiers for marketplace participation:
    `test_api_agents.py` had passed for months by re-registering one module-scoped key
    under a fresh tenant per test: the takeover, exercised as a feature.
 
+30. **A `deposit` refused with `TradeExists()` is a funded trade, and every transition
+   keeps its transaction hash.** The trade id is `keccak("shadow-warden:escrow:" +
+   escrow_id)`, so a `TradeExists()` revert on `deposit` can only mean *our* trade is
+   already funded — typically a previous attempt landed and its receipt was lost to a
+   timeout. It used to be read as a failure: funds held by the contract, the gateway
+   record stuck in `pending_deposit`, every retry refused. `smart_contract.
+   classify_call_failure()` is the one place that decision lives, and only
+   `("deposit", "TradeExists")` qualifies — every other revert, including a transfer
+   that failed, stays a failure (tested against the compiled contract in both
+   directions). **The decoder must read all three encodings** of revert data: hex from
+   a real node, raw bytes, and the bytes-repr eth-tester produces — the first version
+   knew only hex and returned `""` for a genuine revert. `call_escrow_result()` returns
+   the full tx hash; `fund_tx`/`deliver_tx`/`settle_tx` are written once (`AND col=''`)
+   and never overwritten, and preflight's `trade_id`/`token_address`/`token_decimals`/
+   `amount_minor` are snapshotted before anything is sent. `ensure_escrow_columns`
+   diffs `PRAGMA table_info` and ALTERs only what is missing (rule 27).
+
 24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
 25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 

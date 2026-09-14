@@ -60,11 +60,13 @@ def wire(monkeypatch):
     """A configured, ready chain that records every call instead of sending it."""
     calls: list[tuple[str, dict]] = []
 
+    from warden.web3.smart_contract import EscrowCallResult
+
     def _record(_addr, fn_name, params, _chain):
         calls.append((fn_name, dict(params)))
-        return True
+        return EscrowCallResult(ok=True, tx_hash="0x" + f"{len(calls):064x}")
 
-    monkeypatch.setattr("warden.web3.smart_contract.call_escrow", _record)
+    monkeypatch.setattr("warden.web3.smart_contract.call_escrow_result", _record)
     monkeypatch.setattr(
         "warden.web3.smart_contract.settlement_capability",
         lambda chain="base_sepolia": {
