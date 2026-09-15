@@ -13,6 +13,14 @@ updates:
       # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
       # Upgrading requires re-enabling MCR base image + playwright install chromium.
       - dependency-name: "playwright"
+      # scipy >= 1.18 requires Python >= 3.12, and this project's floor is 3.11:
+      # pyproject `requires-python = ">=3.11"`, warden/Dockerfile `python:3.11-slim`,
+      # and the CI matrix tests 3.11. PR #468 (scipy 1.18.1) could not install on
+      # 3.11 at all — ResolutionImpossible, which failed the 3.11 tests, pip-audit
+      # and the Docker build. Lift this together with the move to Python 3.12, not
+      # before. Patch releases on 1.17.x are still offered.
+      - dependency-name: "scipy"
+        versions: [">=1.18"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
