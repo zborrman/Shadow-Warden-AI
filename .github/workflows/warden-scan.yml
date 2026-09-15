@@ -81,7 +81,7 @@ jobs:
       # ── 4b. Upload SARIF to the Code Scanning tab (always) ────────────────────
       - name: Upload SARIF to GitHub Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: warden_scan.sarif
           category:   warden-scan
