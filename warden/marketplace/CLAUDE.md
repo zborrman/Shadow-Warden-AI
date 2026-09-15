@@ -237,6 +237,18 @@ Three access tiers for marketplace participation:
    `amount_minor` are snapshotted before anything is sent. `ensure_escrow_columns`
    diffs `PRAGMA table_info` and ALTERs only what is missing (rule 27).
 
+31. **Nothing is sent on a chain that is not in `ESCROW_SETTLE_CHAINS`.** Settlement
+   rollout is §7 of `docs/onchain-settlement-design.md`; empty (the default) is Phase 1.
+   The gate is in `EscrowService._call_contract`, so it covers all six contract
+   functions — gating only `deposit` would let a `confirmReceipt` go out for a trade
+   whose deposit never did, revert, and strand the escrow fail-CLOSED. It is a list,
+   never a boolean: a boolean turns settlement on everywhere at once, including chains
+   with no token. Every preflight verdict is stored whole on the escrow
+   (`preflight_verdict`, `preflight_at`), passing or failing, configured or not — an
+   unconfigured preflight still runs the local checks (payout addresses, token) so the
+   record says what would block the first real trade, not just "not configured".
+   `ESCROW_SETTLE_CHAINS` has an explicit compose passthrough (warden has no `env_file`).
+
 24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
 25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 

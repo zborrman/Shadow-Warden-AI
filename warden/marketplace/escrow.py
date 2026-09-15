@@ -27,6 +27,7 @@ Table: marketplace_escrow (shared MARKETPLACE_DB_PATH)
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
@@ -36,6 +37,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from warden.config import data_path
 from warden.db.connect import open_db
@@ -103,6 +105,8 @@ _ESCROW_DDL = """
         fund_tx          TEXT NOT NULL DEFAULT '',
         deliver_tx       TEXT NOT NULL DEFAULT '',
         settle_tx        TEXT NOT NULL DEFAULT '',
+        preflight_verdict TEXT NOT NULL DEFAULT '',
+        preflight_at     TEXT NOT NULL DEFAULT '',
         created_at       TEXT NOT NULL,
         funded_at        TEXT,
         delivered_at     TEXT,
@@ -144,6 +148,10 @@ _ADDED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("fund_tx",        "TEXT NOT NULL DEFAULT ''"),
     ("deliver_tx",     "TEXT NOT NULL DEFAULT ''"),
     ("settle_tx",      "TEXT NOT NULL DEFAULT ''"),
+    # §7 Phase 1: the last preflight verdict, whole (every check, not one reason),
+    # and when it ran — so an operator can compare it with a manual deposit.
+    ("preflight_verdict", "TEXT NOT NULL DEFAULT ''"),
+    ("preflight_at",   "TEXT NOT NULL DEFAULT ''"),
 )
 
 
@@ -229,6 +237,8 @@ class Escrow:
     fund_tx:          str = ""
     deliver_tx:       str = ""
     settle_tx:        str = ""
+    preflight_verdict: str = ""
+    preflight_at:     str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -269,6 +279,8 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
         fund_tx=row["fund_tx"] if "fund_tx" in keys else "",
         deliver_tx=row["deliver_tx"] if "deliver_tx" in keys else "",
         settle_tx=row["settle_tx"] if "settle_tx" in keys else "",
+        preflight_verdict=row["preflight_verdict"] if "preflight_verdict" in keys else "",
+        preflight_at=row["preflight_at"] if "preflight_at" in keys else "",
     )
 
 
@@ -354,6 +366,26 @@ class EscrowService:
             seller_address=self._payout_address(seller_agent_id),
         )
 
+    def _record_preflight(self, escrow_id: str, pre: Any, db_path: str | None) -> None:
+        """Store the whole preflight verdict on the escrow. Never blocks the trade.
+
+        Every check, not one reason: "cannot settle" with no cause is how someone
+        ends up believing it was a network blip. Stored whether it passed or not,
+        configured or not — Phase 1's exit is comparing these with manual deposits.
+        """
+        try:
+            with _db_lock, _conn(db_path) as con:
+                con.execute(
+                    "UPDATE marketplace_escrow SET preflight_verdict=?, preflight_at=? "
+                    "WHERE escrow_id=?",
+                    (json.dumps(pre.to_dict(), sort_keys=True),
+                     datetime.now(UTC).isoformat(), escrow_id),
+                )
+                con.commit()
+        except Exception as exc:
+            log.error("escrow %s: could not record preflight (%s)", escrow_id, type(exc).__name__)
+            record_failopen("escrow_preflight_record", Reason.BACKEND_ERROR, exc)
+
     def _deposit_params(self, esc: Escrow, db_path: str | None = None) -> dict | None:
         """The arguments `deposit` has always wanted, or None to refuse.
 
@@ -373,6 +405,7 @@ class EscrowService:
         from warden.web3.settlement import (  # noqa: PLC0415
             SettlementRefused,
             deposit_params,
+            sending_enabled,
             settlement_preflight,
         )
 
@@ -383,7 +416,17 @@ class EscrowService:
             seller_address=esc.seller_address,
             chain=esc.chain,
         )
+        self._record_preflight(esc.escrow_id, pre, db_path)
         if not pre.configured:
+            return {}
+        if pre.ok and not sending_enabled(esc.chain):
+            # §7 Phase 1. Preflight passed — this trade *would* settle — but the
+            # chain is not in ESCROW_SETTLE_CHAINS, so nothing is sent. The
+            # verdict above is the whole output of this phase: an operator
+            # reproduces it by hand before any chain is enabled. No snapshot is
+            # written either; what settles is only recorded when something does.
+            log.info("escrow %s: preflight passed on %s; sending disabled (phase 1)",
+                     esc.escrow_id, esc.chain)
             return {}
         if not pre.ok:
             log.error(
@@ -734,8 +777,6 @@ class EscrowService:
             log.debug("deploy_escrow failed, using legacy sim: %s", exc)
         # Legacy fallback — ChainConnector without chain awareness
         try:
-            from typing import Any  # noqa: PLC0415
-
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():
@@ -840,11 +881,20 @@ class EscrowService:
                 log.error("escrow %s: cannot derive tradeId: %s", escrow_id, exc)
                 return False
         try:
+            from warden.web3.settlement import sending_enabled
             from warden.web3.smart_contract import (
                 call_escrow_result,
                 strip_chain_suffix,
             )
             addr, chain = strip_chain_suffix(contract_address)
+            if not sending_enabled(chain):
+                # §7 Phase 1 applies to every function, not just `deposit`: a
+                # `confirmReceipt` sent for a trade whose deposit never went out
+                # would revert, and fail-CLOSED would strand the escrow. Nothing
+                # is sent; the state machine runs as it does in simulation.
+                log.debug("escrow %s: %s not sent — %s not in ESCROW_SETTLE_CHAINS",
+                          escrow_id, fn_name, chain)
+                return True
             result = call_escrow_result(addr, fn_name, params, chain)
             if result.tx_hash and escrow_id:
                 # Recorded whether or not it confirmed: a broadcast transaction
@@ -857,8 +907,6 @@ class EscrowService:
         except Exception as exc:
             log.debug("call_escrow (web3) failed: %s", exc)
         try:
-            from typing import Any  # noqa: PLC0415
-
             from warden.blockchain.chain_connector import ChainConnector  # noqa: PLC0415
             cc: Any = ChainConnector()
             if cc.is_connected():

@@ -1813,6 +1813,15 @@ class Settings:
     arbitrum_sepolia_rpc_url: str = field(
         default_factory=lambda: _env("ARBITRUM_SEPOLIA_RPC_URL", "")
     )
+    # docs/onchain-settlement-design.md §7. Chains on which the gateway may SEND
+    # escrow transactions. Empty — the default — is Phase 1: preflight runs and
+    # its verdict is recorded on every escrow, and nothing is sent, even where a
+    # signer, ABI and contract address are all configured. A comma list, not a
+    # boolean: a boolean turns settlement on everywhere at once, including chains
+    # with no token configured (Phase 2 names one chain at a time).
+    escrow_settle_chains: str = field(
+        default_factory=lambda: _env("ESCROW_SETTLE_CHAINS", "")
+    )
     # P1a. Both default to Base's public endpoints: they answer without an
     # account and were verified reachable from the production host, so a
     # deployment needs no RPC provider signup to settle. Override to point at

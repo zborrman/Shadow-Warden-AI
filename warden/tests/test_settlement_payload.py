@@ -55,6 +55,19 @@ _USDC_BASE_SEPOLIA = get_chain("base_sepolia")["usdc_address"]
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def _sending_enabled(monkeypatch):
+    """This file tests the path that SENDS, so the chains it uses are enabled.
+
+    Since §7 Phase 1 nothing is sent on a chain absent from
+    ESCROW_SETTLE_CHAINS, which is the default. Without this every call here
+    would be simulated and the assertions about what reached the chain would be
+    about nothing.
+    """
+    from warden.config import settings
+    monkeypatch.setattr(settings, "escrow_settle_chains", "sepolia,base_sepolia")
+
+
 @pytest.fixture()
 def wire(monkeypatch):
     """A configured, ready chain that records every call instead of sending it."""
