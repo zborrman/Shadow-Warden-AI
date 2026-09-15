@@ -17,7 +17,7 @@ slowapi>=0.1.9
 
 # ── Redis client ──────────────────────────────────────────────────────────────
 # Used by: content-hash cache (warden/cache.py) + slowapi rate-limit store.
-redis>=5.0.0
+redis>=8.1.0
 
 # ── ARQ (async job queue + cron, backed by Redis) ─────────────────────────────
 # Used by: warden/workers/ — weekly ROI email reports, geo-webhooks.
