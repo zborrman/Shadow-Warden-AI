@@ -33,7 +33,7 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-python@v5.6.0
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
