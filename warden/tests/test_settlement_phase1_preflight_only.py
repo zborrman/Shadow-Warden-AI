@@ -160,3 +160,25 @@ def test_an_unconfigured_deployment_still_reports_what_would_block(tmp_path, mon
     assert names.get("no_seller_address") is False, names
     assert names.get("buyer_address_valid") is True, names
     assert names.get("token_configured") is False, "sepolia has no USDC configured"
+
+
+# ── review round 1 ──────────────────────────────────────────────────────────
+
+
+def test_an_unrecorded_passing_verdict_is_never_sent(tmp_path, monkeypatch, settle_chains, configured_chain):
+    """On an enabled chain, money must not move without its verdict on record."""
+    settle_chains("base_sepolia")
+    svc, esc, db = _escrow(tmp_path, monkeypatch)
+    monkeypatch.setattr(EscrowService, "_record_preflight", lambda self, *a, **k: False)
+
+    assert svc.fund_escrow(esc.escrow_id, db_path=db) is False
+    assert configured_chain == []
+    assert svc._get(esc.escrow_id, db).status == "pending_deposit"
+
+
+def test_an_unknown_chain_is_a_verdict_not_an_exception():
+    from warden.web3.settlement import settlement_preflight
+
+    pre = settlement_preflight(escrow_id="ESC-X", amount_usd=1.0, buyer_address=_BUYER,
+                               seller_address=_SELLER, chain="no_such_chain")
+    assert pre.ok is False and pre.configured is False and pre.reason == "unknown_chain"

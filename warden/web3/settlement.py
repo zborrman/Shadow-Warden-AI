@@ -213,7 +213,16 @@ def settlement_preflight(
     # 1 — is settlement configured for this chain at all. Local: environment and
     #     a packaged file, no network, so an unconfigured deployment pays nothing
     #     for asking.
-    cap = settlement_capability(chain)
+    try:
+        cap = settlement_capability(chain)
+    except ValueError as exc:
+        # An unknown chain name. This function promises never to raise — its
+        # callers leave the escrow where it is on a failed verdict — so it
+        # becomes one, carrying the local checks like any other unconfigured case.
+        checks.append(Check("unknown_chain", False, f"{chain!r}: {type(exc).__name__}"))
+        checks.extend(_local_checks(buyer_address, seller_address, chain))
+        return Preflight(ok=False, configured=False, reason="unknown_chain",
+                         detail=f"{chain!r} is not a configured chain", checks=checks)
     if not cap["can_settle"]:
         # Unconfigured is every deployment today, and the verdict used to stop
         # here — so it never said that the seller had no payout address or that

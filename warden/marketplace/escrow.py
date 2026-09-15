@@ -366,7 +366,7 @@ class EscrowService:
             seller_address=self._payout_address(seller_agent_id),
         )
 
-    def _record_preflight(self, escrow_id: str, pre: Any, db_path: str | None) -> None:
+    def _record_preflight(self, escrow_id: str, pre: Any, db_path: str | None) -> bool:
         """Store the whole preflight verdict on the escrow. Never blocks the trade.
 
         Every check, not one reason: "cannot settle" with no cause is how someone
@@ -382,9 +382,11 @@ class EscrowService:
                      datetime.now(UTC).isoformat(), escrow_id),
                 )
                 con.commit()
+            return True
         except Exception as exc:
             log.error("escrow %s: could not record preflight (%s)", escrow_id, type(exc).__name__)
             record_failopen("escrow_preflight_record", Reason.BACKEND_ERROR, exc)
+            return False
 
     def _deposit_params(self, esc: Escrow, db_path: str | None = None) -> dict | None:
         """The arguments `deposit` has always wanted, or None to refuse.
@@ -416,7 +418,7 @@ class EscrowService:
             seller_address=esc.seller_address,
             chain=esc.chain,
         )
-        self._record_preflight(esc.escrow_id, pre, db_path)
+        recorded = self._record_preflight(esc.escrow_id, pre, db_path)
         if not pre.configured:
             return {}
         if pre.ok and not sending_enabled(esc.chain):
@@ -428,6 +430,14 @@ class EscrowService:
             log.info("escrow %s: preflight passed on %s; sending disabled (phase 1)",
                      esc.escrow_id, esc.chain)
             return {}
+        if pre.ok and not recorded:
+            # Value would move, and the verdict that justifies it is not on the
+            # record. §7 rests on that record, so refuse and stay put rather than
+            # send unaudited. Disabled and unconfigured chains returned above:
+            # nothing moves there, so a lost record costs nothing but the log.
+            log.error("escrow %s: preflight passed but was not recorded; not sending",
+                      esc.escrow_id)
+            return None
         if not pre.ok:
             log.error(
                 "escrow %s: settlement preflight refused (%s): %s",
