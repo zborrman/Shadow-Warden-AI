@@ -135,6 +135,9 @@ services:
       # warden has no env_file, so without this passthrough the .env value never
       # reaches the container and the flip is a silent no-op.
       - MARKETPLACE_REQUIRE_SIGNED_OFFERS=${MARKETPLACE_REQUIRE_SIGNED_OFFERS:-false}
+      # §7 settlement rollout. Empty = Phase 1 (preflight recorded, nothing sent).
+      # warden has no env_file: without this line a Phase 2 flip in .env is a silent no-op.
+      - ESCROW_SETTLE_CHAINS=${ESCROW_SETTLE_CHAINS:-}
       # ── Posture flags (money + compliance enforcement) ──────────────────
       # Every one of these is documented as "opt in via .env", and none of them
       # reached the container: warden has no `env_file`, so a flag that is not
@@ -414,6 +417,9 @@ services:
       # money crons run in THIS container, so a flag set only on warden
       # leaves the scheduled path on its default.
       - MARKETPLACE_REQUIRE_SIGNED_OFFERS=${MARKETPLACE_REQUIRE_SIGNED_OFFERS:-false}
+      # §7 settlement rollout. Empty = Phase 1 (preflight recorded, nothing sent).
+      # warden has no env_file: without this line a Phase 2 flip in .env is a silent no-op.
+      - ESCROW_SETTLE_CHAINS=${ESCROW_SETTLE_CHAINS:-}
       - LEDGER_DUAL_WRITE=${LEDGER_DUAL_WRITE:-false}
       - AUTHORIZE_PAYMENT_ENFORCED=${AUTHORIZE_PAYMENT_ENFORCED:-false}
       - OVERAGE_CHARGE_ENFORCED=${OVERAGE_CHARGE_ENFORCED:-false}

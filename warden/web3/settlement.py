@@ -98,6 +98,19 @@ def to_minor_units(amount_usd: float | str | Decimal, decimals: int) -> int:
 
 # ── preflight ─────────────────────────────────────────────────────────────────
 
+def sending_enabled(chain: str) -> bool:
+    """Whether the gateway may send escrow transactions on *chain* (§7).
+
+    Read per call from `settings.escrow_settle_chains`, never snapshotted, so an
+    operator's change takes effect without reasoning about import order. Empty
+    means Phase 1: preflight only, nothing sent anywhere.
+    """
+    from warden.config import settings
+
+    enabled = {c.strip() for c in (settings.escrow_settle_chains or "").split(",") if c.strip()}
+    return chain in enabled
+
+
 @dataclass
 class Check:
     name: str
@@ -146,6 +159,31 @@ def _erc20_uint(w3: Any, token: str, selector: str, *addresses: str) -> int:
     return int.from_bytes(w3.eth.call({"to": token, "data": data}), "big")
 
 
+def _local_checks(buyer_address: str, seller_address: str, chain: str) -> list[Check]:
+    """The preflight checks that need no chain access, each reported, none short-circuiting."""
+    out: list[Check] = []
+    try:
+        from web3 import Web3
+    except Exception as exc:  # pragma: no cover - web3 is a hard dependency
+        return [Check("web3_not_installed", False, type(exc).__name__)]
+    for label, addr in (("buyer", buyer_address), ("seller", seller_address)):
+        if not addr:
+            out.append(Check(f"no_{label}_address", False,
+                             f"the {label} has no payout address recorded"))
+        elif not Web3.is_address(addr):
+            out.append(Check(f"bad_{label}_address", False, f"{addr!r} is not an address"))
+        else:
+            out.append(Check(f"{label}_address_valid", True, Web3.to_checksum_address(addr)[:10] + "…"))
+    try:
+        token = get_chain(chain).get("usdc_address") or ""
+    except Exception as exc:  # an unknown chain name is itself the finding
+        out.append(Check("unknown_chain", False, f"{chain!r}: {type(exc).__name__}"))
+        return out
+    out.append(Check("token_configured", bool(token),
+                     token or f"no USDC address is configured for {chain!r}"))
+    return out
+
+
 def settlement_preflight(
     *,
     escrow_id: str,
@@ -175,9 +213,27 @@ def settlement_preflight(
     # 1 — is settlement configured for this chain at all. Local: environment and
     #     a packaged file, no network, so an unconfigured deployment pays nothing
     #     for asking.
-    cap = settlement_capability(chain)
+    try:
+        cap = settlement_capability(chain)
+    except ValueError as exc:
+        # An unknown chain name. This function promises never to raise — its
+        # callers leave the escrow where it is on a failed verdict — so it
+        # becomes one, carrying the local checks like any other unconfigured case.
+        checks.append(Check("unknown_chain", False, f"{chain!r}: {type(exc).__name__}"))
+        checks.extend(_local_checks(buyer_address, seller_address, chain))
+        return Preflight(ok=False, configured=False, reason="unknown_chain",
+                         detail=f"{chain!r} is not a configured chain", checks=checks)
     if not cap["can_settle"]:
-        return _fail(cap["reason"], cap["detail"], configured=False)
+        # Unconfigured is every deployment today, and the verdict used to stop
+        # here — so it never said that the seller had no payout address or that
+        # this chain has no token, which are what would block the first real
+        # trade. Phase 1 needs those visible before anything is configured, so
+        # the local checks still run and are recorded. No network is touched,
+        # the reason stays the capability's, and the verdict stays not-ok.
+        checks.append(Check(cap["reason"], False, cap["detail"]))
+        checks.extend(_local_checks(buyer_address, seller_address, chain))
+        return Preflight(ok=False, configured=False, reason=cap["reason"],
+                         detail=cap["detail"], checks=checks)
     checks.append(Check("settlement_configured", True, chain))
 
     # 2 — addresses well-formed. A malformed address is a configuration error,

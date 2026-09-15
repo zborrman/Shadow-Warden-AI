@@ -21,7 +21,10 @@ honest word into a false one.
 > landed in #403 (the `deposit({})` call in the table below no longer exists), and
 > R1-b added the §3 snapshot and `*_tx` columns plus §4's `TradeExists()`-as-success.
 > The table below is kept as the record of what was missing when this was written.
-> §7's rollout — preflight-only, then one real trade — has not started.
+> §7 Phase 1 is implemented: `ESCROW_SETTLE_CHAINS` (empty by default) gates every
+> send, and each escrow records its whole preflight verdict (`preflight_verdict`,
+> `preflight_at`), including the local checks on an unconfigured deployment. Phase
+> 1's exit — five verdicts reproduced by manual deposits — is an operator step.
 
 ## 1. What is actually missing
 
