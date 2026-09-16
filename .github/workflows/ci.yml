@@ -830,7 +830,7 @@ jobs:
       # Results are uploaded as SARIF to GitHub Security → Code scanning alerts.
       # This SARIF step is report-only; the actionable-CVE gate is the step below.
       - name: Trivy — container CVE scan (SARIF report)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: warden-ci:${{ github.sha }}
           format: sarif
@@ -853,7 +853,7 @@ jobs:
       # never block. docker-build is NOT in the deploy job's `needs`, so a red here
       # blocks PR merges without ever stalling a hotfix autodeploy from main.
       - name: Trivy — gate on actionable CVEs (HIGH/CRITICAL with a fix)
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: warden-ci:${{ github.sha }}
           format: table
