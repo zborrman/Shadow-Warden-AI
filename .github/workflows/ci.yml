@@ -18,7 +18,7 @@ jobs:
       contents: write   # required to push the [skip ci] sync commit
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -111,7 +111,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -156,7 +156,7 @@ jobs:
     name: Docs Build (MkDocs)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -264,7 +264,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -293,7 +293,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -351,7 +351,7 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -531,7 +531,7 @@ jobs:
     needs: [test]
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -592,7 +592,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -651,7 +651,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v7
         with:
@@ -677,7 +677,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0          # gitleaks needs full history to scan past commits
 
@@ -747,7 +747,7 @@ jobs:
       security-events: write   # required for Trivy SARIF upload
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       # ── Docker layer cache ────────────────────────────────────────────────────
       # Buildx + GHA cache re-uses unchanged layers (pip install, apt) across
@@ -912,7 +912,7 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
 
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       # ── Reclaim runner disk space ─────────────────────────────────────────────
       # This job builds+pushes the Playwright/torch warden image, then Syft
@@ -1580,7 +1580,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - name: Deploy preflight worker
         env:
@@ -1610,7 +1610,7 @@ jobs:
     needs: deploy
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v7
 
       - name: Install k6
         run: |
