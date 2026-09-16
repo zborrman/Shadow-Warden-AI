@@ -51,7 +51,7 @@ alabaster==1.0.0
 alembic==1.18.5
 altair==6.2.2
 annotated-doc==0.0.4
-annotated-types==0.7.0
+annotated-types==0.8.0
 anthropic==0.116.0
 anyio==4.14.1
 arq==0.28.0
