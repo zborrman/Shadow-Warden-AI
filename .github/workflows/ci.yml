@@ -465,7 +465,7 @@ jobs:
           IMAGE_GUARD_ENABLED: "false"   # CLIP model not cached in CI — skip to avoid HF 429
 
       - name: Publish test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v3
         if: always()
         with:
           name: Tests (Python ${{ matrix.python-version }})
