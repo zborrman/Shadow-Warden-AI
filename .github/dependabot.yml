@@ -21,6 +21,17 @@ updates:
       # before. Patch releases on 1.17.x are still offered.
       - dependency-name: "scipy"
         versions: [">=1.18"]
+      # redis >= 6 cannot install: arq 0.28.0 (the ARQ worker behind every
+      # scheduled job) declares `redis<6`. PR #471 (redis 5.3.1 -> 8.1.0) hit
+      # ResolutionImpossible on 3.11 and 3.12, pip-audit and the Docker build.
+      # Lift when arq releases support for redis 6+.
+      - dependency-name: "redis"
+        versions: [">=6"]
+      # magika >= 0.7 cannot install: markitdown 0.1.6 (Document Intelligence)
+      # declares `magika~=0.6.1`. PR #472 (magika 0.6.3 -> 1.0.3) hit the same
+      # ResolutionImpossible. Lift when markitdown widens its pin.
+      - dependency-name: "magika"
+        versions: [">=0.7"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
