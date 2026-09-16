@@ -32,6 +32,17 @@ updates:
       # ResolutionImpossible. Lift when markitdown widens its pin.
       - dependency-name: "magika"
         versions: [">=0.7"]
+      # eth-keyfile >= 0.9 and eth-account >= 0.14 belong to the web3 8.x line:
+      # web3 8.0.0 requires eth-account>=0.14 and hexbytes>=2, while this stack
+      # is web3 7.16.0 with hexbytes 1.3.1 and eth-rlp 2.2.0. PR #483 bumped
+      # eth-keyfile alone (eth-account 0.13.7 declares eth-keyfile<0.9) and PR
+      # #493 tried the pair, which then demanded eth-rlp>=3, hexbytes>=2 and
+      # eth-utils>=6 — the cascade is a web3 7 -> 8 migration touching the
+      # settlement path, not a dependency bump. Lift both with that migration.
+      - dependency-name: "eth-keyfile"
+        versions: [">=0.9"]
+      - dependency-name: "eth-account"
+        versions: [">=0.14"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
