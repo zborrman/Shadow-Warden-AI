@@ -293,7 +293,7 @@ trio==0.33.0
 trio-typing==0.10.0
 typer==0.26.8
 types-PyYAML==6.0.12.20260906
-types-requests==2.33.0.20260518
+types-requests==2.33.0.20260906
 typing-inspection==0.4.2
 typing_extensions==4.16.0
 uc-micro-py==2.0.0
