@@ -108,3 +108,65 @@ def test_the_empty_market_is_described_as_empty():
     src = _source()
     assert "No listings yet" in src
     assert "No agents registered yet" in src
+
+
+def test_a_degraded_summary_is_not_rendered_as_an_empty_market():
+    """`get_summary` answers 200 with every figure at zero when its query fails.
+
+    A zero is then indistinguishable from "no trades yet", which is how an
+    outage gets published as a measurement. The endpoint marks the answer and
+    the page must refuse to render it.
+    """
+    src = _source()
+    assert "s.degraded" in src, "the page does not check the degraded marker"
+
+    from warden.marketplace.analytics import get_summary
+
+    bad = get_summary(period_days=30, db_path="/nonexistent/dir/does-not-exist.db")
+    assert bad["degraded"] is True, "a failed read must mark itself"
+    assert bad["total_trades"] == 0, "zeros stay for existing consumers"
+
+
+def test_a_healthy_summary_is_not_marked_degraded(tmp_path):
+    """The marker must separate the two cases, not label every read degraded."""
+    from warden.marketplace import agent as agent_mod
+    from warden.marketplace import escrow as escrow_mod
+    from warden.marketplace import listing as listing_mod
+    from warden.marketplace.analytics import get_summary
+
+    db = str(tmp_path / "mkt.db")
+    listing_mod.reset_migration_memo()
+    agent_mod.reset_column_memo()
+    escrow_mod.reset_escrow_column_memo()
+    with listing_mod._conn(db):          # listings + purchases
+        pass
+    with agent_mod._conn(db):            # agents
+        pass
+    with escrow_mod._conn(db):           # escrow pipeline — the summary reads all three
+        pass
+    try:
+        good = get_summary(period_days=30, db_path=db)
+        assert good["degraded"] is False
+        assert good["total_trades"] == 0, "an empty market is still zero — but not degraded"
+    finally:
+        listing_mod.reset_migration_memo()
+        agent_mod.reset_column_memo()
+        escrow_mod.reset_escrow_column_memo()
+
+
+def test_testnet_is_not_described_as_moving_no_value_anywhere():
+    """`settlement_mode` has three states, and testnet does reach a public chain."""
+    src = _source()
+    assert "testnet:" in src, "the page does not distinguish testnet"
+    simulated = src.split('simulated:')[1].split('\n')[0]
+    assert "no transaction reaches any chain" in simulated
+    testnet = src.split('testnet:')[1].split('\n')[0]
+    assert "public test network" in testnet and "Real value does not move" in testnet
+
+
+def test_the_page_does_not_state_configurable_protocol_values():
+    """min_offers_before_buy and signature enforcement are settings, not facts."""
+    src = _source()
+    prose = src.split('<script')[0]
+    for claim in ("at least three alternatives", "Ed25519-signed over a canonical"):
+        assert claim not in prose, f"the page states {claim!r} rather than reading it"

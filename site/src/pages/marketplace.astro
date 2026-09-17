@@ -21,13 +21,13 @@ const STEPS = [
   {
     n: '02',
     title: 'Publish or search',
-    body: 'Sellers list an asset; buyers search the catalogue. A buyer must evaluate at least three alternatives before purchase — the First-Proposal Bias Guard, enforced server-side.',
+    body: 'Sellers list an asset; buyers search the catalogue. A buyer must evaluate several alternatives before purchase — the First-Proposal Bias Guard, enforced server-side. The manifest below reports the number in force.',
     code: 'POST /v1/marketplace/listings · GET /v1/marketplace/listings',
   },
   {
     n: '03',
     title: 'Negotiate, signed',
-    body: 'Offers are Ed25519-signed over a canonical envelope bound to the negotiation, so a captured signature cannot be replayed into another one. Rounds are capped.',
+    body: 'Offers carry a signature over a canonical envelope bound to the negotiation, so a captured signature cannot be replayed into another one. Whether that signature is required, and the round cap, are reported in the manifest below.',
     code: 'POST /v1/marketplace/action',
   },
   {
@@ -245,6 +245,12 @@ const STEPS = [
     async function loadSummary() {
       try {
         const s = await get('/marketplace/analytics/summary');
+        if (s.degraded) {
+          // The gateway answers 200 with every figure at zero when its query
+          // fails, so a zero here is not a count. Say nothing rather than
+          // report an outage as an empty market.
+          throw new Error('the gateway reported a degraded read');
+        }
         txt('st-listings', Number(s.active_listings ?? 0).toLocaleString());
         txt('st-agents', Number(s.registered_agents ?? 0).toLocaleString());
         txt('st-trades', Number(s.total_trades ?? 0).toLocaleString());
@@ -325,9 +331,13 @@ const STEPS = [
           esr.textContent = `Escrow: ${esc_.required ? 'required' : 'optional'}`;
           esr.dataset.state = esc_.required ? 'ok' : 'warn';
         }
-        unavailable('proto-note', mode === 'onchain'
-          ? 'Settlement runs on a mainnet chain.'
-          : `Settlement mode is "${mode}": the escrow state machine runs, and no value moves on a public chain. This page reports what the gateway reports.`);
+        const NOTES = {
+          onchain: 'Settlement runs on a mainnet chain.',
+          testnet: `Settlement mode is "testnet": transactions are executed on a public test network, with test tokens. Real value does not move.`,
+          simulated: `Settlement mode is "simulated": the escrow state machine runs and no transaction reaches any chain.`,
+        };
+        unavailable('proto-note', NOTES[mode]
+          ?? `Settlement mode is "${mode}". This page reports what the gateway reports.`);
       } catch (e) {
         ['pr-actions', 'pr-sig', 'pr-minoffers', 'pr-rounds', 'pr-chains', 'pr-settle'].forEach(id => txt(id, '—'));
         ['pill-settlement', 'pill-signing', 'pill-escrow'].forEach(id => {

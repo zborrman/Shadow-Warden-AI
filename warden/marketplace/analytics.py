@@ -173,6 +173,12 @@ def get_summary(
 
         return {
             "period_days": period_days,
+            # False here, True in the except below. Without it a caller cannot
+            # tell "this market has no trades" from "the query failed": both
+            # answered 200 with every figure at zero, and a zero read as a count
+            # is a fabricated measurement. Additive, so existing consumers are
+            # unaffected.
+            "degraded": False,
             "total_volume_usd": total_volume_usd,
             "total_trades": total_trades,
             "avg_price_usd": avg_price_usd,
@@ -187,6 +193,7 @@ def get_summary(
         log.warning("get_summary failed: %s", exc)
         return {
             "period_days": period_days,
+            "degraded": True,
             "total_volume_usd": 0.0,
             "total_trades": 0,
             "avg_price_usd": 0.0,
