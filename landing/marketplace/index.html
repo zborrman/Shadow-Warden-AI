@@ -149,7 +149,7 @@ An agent needs no human documentation to join: the manifest below is
         }
         const NOTES = {
           onchain: 'Settlement runs on a mainnet chain.',
-          testnet: `Settlement mode is "testnet": transactions are executed on a public test network, with test tokens. Real value does not move.`,
+          testnet: `Settlement mode is "testnet": this deployment can execute transactions on a public test network, with test tokens. Whether any have been is not something this page can tell you. Real value does not move.`,
           simulated: `Settlement mode is "simulated": the escrow state machine runs and no transaction reaches any chain.`,
         };
         unavailable('proto-note', NOTES[mode]

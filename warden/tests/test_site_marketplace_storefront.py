@@ -161,7 +161,11 @@ def test_testnet_is_not_described_as_moving_no_value_anywhere():
     simulated = src.split('simulated:')[1].split('\n')[0]
     assert "no transaction reaches any chain" in simulated
     testnet = src.split('testnet:')[1].split('\n')[0]
-    assert "public test network" in testnet and "Real value does not move" in testnet
+    assert "Real value does not move" in testnet
+    # Capability, not history: "transactions are executed" asserted that trades
+    # had already happened on that network, which this page cannot know.
+    assert "can execute transactions on a public test network" in testnet
+    assert "transactions are executed on" not in testnet
 
 
 def test_the_page_does_not_state_configurable_protocol_values():
