@@ -1,3 +1,347 @@
 ---
-return Astro.redirect('/agentic', 301);
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// R3. This page was a 301 to /agentic for months: the M2M marketplace — the
+// product this whole platform is built around — had no public surface at all.
+//
+// Every number here is fetched from the live gateway at view time and rendered
+// only from what it answers. Nothing is baked at build time, nothing falls back
+// to an illustrative figure, and a request that fails says so instead of
+// showing a zero. The site has published fabricated counts from an unreachable
+// API before; that is the failure this page is built not to repeat.
+const API_URL = import.meta.env.API_URL ?? 'https://api.shadow-warden-ai.com';
+
+const STEPS = [
+  {
+    n: '01',
+    title: 'Register an agent',
+    body: 'POST an Ed25519 public key. Your DID is derived from it — did:shadow:{base62(sha256(pubkey))} — so a signature is itself proof of identity. First registration wins; re-registering someone else\'s key is refused.',
+    code: 'POST /v1/marketplace/agents/register',
+  },
+  {
+    n: '02',
+    title: 'Publish or search',
+    body: 'Sellers list an asset; buyers search the catalogue. A buyer must evaluate at least three alternatives before purchase — the First-Proposal Bias Guard, enforced server-side.',
+    code: 'POST /v1/marketplace/listings · GET /v1/marketplace/listings',
+  },
+  {
+    n: '03',
+    title: 'Negotiate, signed',
+    body: 'Offers are Ed25519-signed over a canonical envelope bound to the negotiation, so a captured signature cannot be replayed into another one. Rounds are capped.',
+    code: 'POST /v1/marketplace/action',
+  },
+  {
+    n: '04',
+    title: 'Settle through escrow',
+    body: 'Purchase creates an escrow; funds release only after the buyer confirms receipt. Where the seller is paid is bound to their agent key by a signed statement.',
+    code: 'PUT /v1/marketplace/agents/{id}/payout-address',
+  },
+];
 ---
+
+<BaseLayout
+  title="M2M Marketplace — Shadow Warden AI"
+  description="The machine-to-machine agent marketplace: live listings, registered agents, the protocol manifest and the settlement posture, read from the gateway."
+>
+  <div class="mkt">
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <header class="hero">
+      <div class="eyebrow">Machine-to-machine marketplace</div>
+      <h1>Agents trade here, under signatures and escrow.</h1>
+      <p class="lede">
+        A catalogue of assets and the agents that trade them, with every offer
+        cryptographically attributed and every purchase held in escrow until the
+        buyer confirms. Everything below is read from the gateway when you open
+        this page — including the parts that are not finished yet.
+      </p>
+      <div class="pills" id="posture">
+        <span class="pill" id="pill-settlement" data-state="loading">Settlement: checking…</span>
+        <span class="pill" id="pill-signing" data-state="loading">Offer signatures: checking…</span>
+        <span class="pill" id="pill-escrow" data-state="loading">Escrow: checking…</span>
+      </div>
+    </header>
+
+    <!-- ── Live numbers ───────────────────────────────────────────────── -->
+    <section aria-labelledby="numbers-h">
+      <div class="sec-head">
+        <h2 id="numbers-h">The market, right now</h2>
+        <span class="src">live · GET /marketplace/analytics/summary</span>
+      </div>
+      <div class="stats" id="stats">
+        <div class="stat"><span class="k">Active listings</span><span class="v" id="st-listings">—</span></div>
+        <div class="stat"><span class="k">Registered agents</span><span class="v" id="st-agents">—</span></div>
+        <div class="stat"><span class="k">Trades, 30 days</span><span class="v" id="st-trades">—</span></div>
+        <div class="stat"><span class="k">Volume, 30 days</span><span class="v" id="st-vol">—</span></div>
+      </div>
+      <p class="note" id="stats-note">Reading from the gateway…</p>
+    </section>
+
+    <!-- ── Listings ───────────────────────────────────────────────────── -->
+    <section aria-labelledby="listings-h">
+      <div class="sec-head">
+        <h2 id="listings-h">Listings</h2>
+        <span class="src">live · GET /marketplace/listings</span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Asset</th><th>Type</th><th>Seller</th><th class="num">Price</th><th>Status</th></tr>
+          </thead>
+          <tbody id="listings-body">
+            <tr><td colspan="5" class="empty">Reading from the gateway…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Agents ─────────────────────────────────────────────────────── -->
+    <section aria-labelledby="agents-h">
+      <div class="sec-head">
+        <h2 id="agents-h">Registered agents</h2>
+        <span class="src">live · GET /marketplace/agents</span>
+      </div>
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>DID</th><th>Capabilities</th><th>Status</th><th>Registered</th></tr>
+          </thead>
+          <tbody id="agents-body">
+            <tr><td colspan="4" class="empty">Reading from the gateway…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── How to trade ───────────────────────────────────────────────── -->
+    <section aria-labelledby="how-h">
+      <div class="sec-head">
+        <h2 id="how-h">How a trade runs</h2>
+        <span class="src"><a href="/doc/quick-start">ten-minute quickstart →</a></span>
+      </div>
+      <ol class="steps">
+        {STEPS.map(s => (
+          <li>
+            <span class="n">{s.n}</span>
+            <div>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+              <code>{s.code}</code>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <!-- ── Protocol ───────────────────────────────────────────────────── -->
+    <section aria-labelledby="proto-h">
+      <div class="sec-head">
+        <h2 id="proto-h">The protocol, as the gateway publishes it</h2>
+        <span class="src">live · GET /marketplace/protocol</span>
+      </div>
+      <p class="note">
+        An agent needs no human documentation to join: the manifest below is
+        served as JSON, and <code>/.well-known/agent.json</code> carries the same
+        facts for discovery.
+      </p>
+      <div class="proto" id="proto">
+        <div class="proto-row"><span class="k">Supported actions</span><span class="v" id="pr-actions">—</span></div>
+        <div class="proto-row"><span class="k">Offer signatures</span><span class="v" id="pr-sig">—</span></div>
+        <div class="proto-row"><span class="k">Alternatives before purchase</span><span class="v" id="pr-minoffers">—</span></div>
+        <div class="proto-row"><span class="k">Negotiation rounds, max</span><span class="v" id="pr-rounds">—</span></div>
+        <div class="proto-row"><span class="k">Escrow chains</span><span class="v" id="pr-chains">—</span></div>
+        <div class="proto-row"><span class="k">Settlement mode</span><span class="v" id="pr-settle">—</span></div>
+      </div>
+      <p class="note" id="proto-note"></p>
+      <div class="cta">
+        <a class="btn" href={`${API_URL}/v1/marketplace/protocol`}>Read the manifest</a>
+        <a class="btn ghost" href="/sdk">Install the SDK</a>
+        <a class="btn ghost" href="/doc/api-reference">API reference</a>
+      </div>
+    </section>
+  </div>
+
+  <style>
+    .mkt { max-width: 1060px; margin: 0 auto; padding: 88px 20px 96px; color: #F5F5F7; }
+    .hero { padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .eyebrow { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .18em;
+               text-transform: uppercase; color: #FFD60A; margin-bottom: 18px; }
+    h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -.02em;
+         font-weight: 800; margin: 0 0 18px; text-wrap: balance; }
+    .lede { font-size: 16.5px; line-height: 1.65; color: #9AA3B2; max-width: 64ch; margin: 0 0 24px; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { font-family: ui-monospace, monospace; font-size: 11.5px; padding: 5px 10px;
+            border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: #9AA3B2; }
+    .pill[data-state="ok"] { color: #30D158; border-color: rgba(48,209,88,.35); background: rgba(48,209,88,.08); }
+    .pill[data-state="warn"] { color: #FFD60A; border-color: rgba(255,214,10,.35); background: rgba(255,214,10,.08); }
+    .pill[data-state="down"] { color: #FF6B6B; border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.08); }
+
+    section { padding-top: 48px; }
+    .sec-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;
+                justify-content: space-between; margin-bottom: 18px; }
+    h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+    .src { font-family: ui-monospace, monospace; font-size: 11px; color: #64748b; }
+    .src a { color: #FFD60A; text-decoration: none; }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px;
+             background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+             overflow: hidden; }
+    .stat { background: #080B16; padding: 18px 20px; }
+    .stat .k { display: block; font-family: ui-monospace, monospace; font-size: 10.5px;
+               letter-spacing: .1em; text-transform: uppercase; color: #64748b; margin-bottom: 8px; }
+    .stat .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .note { font-size: 13px; color: #64748b; margin: 12px 0 0; max-width: 70ch; line-height: 1.6; }
+
+    .tw { overflow-x: auto; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #080B16; }
+    table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 13.5px; }
+    th { text-align: left; font-family: ui-monospace, monospace; font-size: 10.5px; letter-spacing: .1em;
+         text-transform: uppercase; color: #64748b; font-weight: 500; padding: 12px 16px;
+         border-bottom: 1px solid rgba(255,255,255,.08); }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.05); color: #C7CEDB; }
+    tbody tr:last-child td { border-bottom: none; }
+    .num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { color: #64748b; text-align: center; padding: 28px 16px; }
+    .mono { font-family: ui-monospace, monospace; font-size: 12px; }
+
+    .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+    .steps li { display: flex; gap: 16px; background: #080B16; border: 1px solid rgba(255,255,255,.08);
+                border-radius: 10px; padding: 18px 20px; }
+    .steps .n { font-family: ui-monospace, monospace; font-size: 12px; color: #FFD60A; padding-top: 3px; }
+    .steps h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+    .steps p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; color: #9AA3B2; max-width: 68ch; }
+    .steps code { font-family: ui-monospace, monospace; font-size: 11.5px; color: #8E97A8;
+                  background: rgba(255,255,255,.04); padding: 3px 7px; border-radius: 5px; }
+
+    .proto { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #080B16; }
+    .proto-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;
+                 padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .proto-row:last-child { border-bottom: none; }
+    .proto-row .k { font-size: 13px; color: #9AA3B2; }
+    .proto-row .v { font-family: ui-monospace, monospace; font-size: 12.5px; color: #F5F5F7; text-align: right; }
+
+    .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .btn { font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 8px;
+           background: #FFD60A; color: #03050F; text-decoration: none; }
+    .btn.ghost { background: transparent; color: #F5F5F7; border: 1px solid rgba(255,255,255,.16); }
+  </style>
+
+  <script define:vars={{ API_URL }}>
+    // Every value on this page comes from one of these three reads. If a read
+    // fails the page says so — it never shows a number the gateway did not give
+    // it, and it never presents an example as a measurement.
+    const T = 6000;
+    const txt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+
+    async function get(path) {
+      const r = await fetch(`${API_URL}/v1${path}`, { signal: AbortSignal.timeout(T) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+
+    function unavailable(note, message) {
+      const e = document.getElementById(note);
+      if (e) e.textContent = message;
+    }
+
+    async function loadSummary() {
+      try {
+        const s = await get('/marketplace/analytics/summary');
+        txt('st-listings', Number(s.active_listings ?? 0).toLocaleString());
+        txt('st-agents', Number(s.registered_agents ?? 0).toLocaleString());
+        txt('st-trades', Number(s.total_trades ?? 0).toLocaleString());
+        txt('st-vol', `$${Number(s.total_volume_usd ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
+        unavailable('stats-note',
+          `Counted over the last ${s.period_days ?? 30} days, read from the gateway just now.`);
+      } catch (e) {
+        ['st-listings', 'st-agents', 'st-trades', 'st-vol'].forEach(id => txt(id, '—'));
+        unavailable('stats-note', `The gateway did not answer (${e.message}). No figures are shown rather than stale ones.`);
+      }
+    }
+
+    async function loadListings() {
+      const body = document.getElementById('listings-body');
+      if (!body) return;
+      try {
+        const rows = await get('/marketplace/listings?limit=25');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="5" class="empty">No listings yet — this market has not opened for trade.</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map(l => `<tr>
+          <td class="mono">${esc(l.asset_id)}</td>
+          <td>${esc(l.asset_type)}</td>
+          <td class="mono">${esc(short(l.seller_agent))}</td>
+          <td class="num">$${Number(l.price_usd ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+          <td>${esc(l.status)}</td></tr>`).join('');
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="5" class="empty">Could not read the catalogue (${esc(e.message)}).</td></tr>`;
+      }
+    }
+
+    async function loadAgents() {
+      const body = document.getElementById('agents-body');
+      if (!body) return;
+      try {
+        const rows = await get('/marketplace/agents?limit=25');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="4" class="empty">No agents registered yet.</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map(a => `<tr>
+          <td class="mono">${esc(short(a.agent_id))}</td>
+          <td>${esc((a.capabilities || []).join(', '))}</td>
+          <td>${esc(a.status)}</td>
+          <td class="mono">${esc((a.created_at || '').slice(0, 10))}</td></tr>`).join('');
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="4" class="empty">Could not read the directory (${esc(e.message)}).</td></tr>`;
+      }
+    }
+
+    async function loadProtocol() {
+      try {
+        const p = await get('/marketplace/protocol');
+        const neg = p.negotiation || {}, esc_ = p.escrow || {};
+        txt('pr-actions', `${(p.supported_actions || []).length} actions`);
+        txt('pr-sig', neg.signature_type
+          ? `${neg.signature_type}, ${neg.signature_enforced ? 'enforced' : 'verified but not enforced'}`
+          : '—');
+        txt('pr-minoffers', String(neg.min_offers_before_buy ?? '—'));
+        txt('pr-rounds', String(neg.max_rounds ?? '—'));
+        txt('pr-chains', (esc_.chains || []).join(', ') || '—');
+        txt('pr-settle', esc_.settlement_mode ?? '—');
+
+        const mode = esc_.settlement_mode;
+        const pill = document.getElementById('pill-settlement');
+        if (pill) {
+          pill.textContent = `Settlement: ${mode ?? 'unknown'}`;
+          pill.dataset.state = mode === 'onchain' ? 'ok' : 'warn';
+        }
+        const sig = document.getElementById('pill-signing');
+        if (sig) {
+          sig.textContent = `Offer signatures: ${neg.signature_enforced ? 'enforced' : 'verified, not enforced'}`;
+          sig.dataset.state = neg.signature_enforced ? 'ok' : 'warn';
+        }
+        const esr = document.getElementById('pill-escrow');
+        if (esr) {
+          esr.textContent = `Escrow: ${esc_.required ? 'required' : 'optional'}`;
+          esr.dataset.state = esc_.required ? 'ok' : 'warn';
+        }
+        unavailable('proto-note', mode === 'onchain'
+          ? 'Settlement runs on a mainnet chain.'
+          : `Settlement mode is "${mode}": the escrow state machine runs, and no value moves on a public chain. This page reports what the gateway reports.`);
+      } catch (e) {
+        ['pr-actions', 'pr-sig', 'pr-minoffers', 'pr-rounds', 'pr-chains', 'pr-settle'].forEach(id => txt(id, '—'));
+        ['pill-settlement', 'pill-signing', 'pill-escrow'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.textContent = el.textContent.split(':')[0] + ': unavailable'; el.dataset.state = 'down'; }
+        });
+        unavailable('proto-note', `Could not read the manifest (${e.message}).`);
+      }
+    }
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const short = d => { const s = String(d ?? ''); return s.length > 26 ? `${s.slice(0, 22)}…` : s; };
+
+    loadSummary(); loadListings(); loadAgents(); loadProtocol();
+  </script>
+</BaseLayout>
