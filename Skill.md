@@ -1891,7 +1891,7 @@ pricing and `api_version` arrive as data.
 | Registration | a known-bad federation peer | `check_threat_hash()` deny-list before the row is written |
 | Search | Sybil supply | `SybilGuard.is_flagged()` on every `POST /listings` |
 | Search | first-proposal bias in an LLM buyer | `search_and_buy()` requires ≥ `MARKETPLACE_MIN_OFFERS_BEFORE_BUY` alternatives; never call `auto_buy()` directly |
-| Negotiate | impersonation — settle a $1000 listing at $0.01 by accepting as the seller | Ed25519 signature over the canonical offer envelope; `agent_id` is derived from the key, so the signature *is* the identity |
+| Negotiate | impersonation — settle a $1000 listing at $0.01 by accepting as the seller | Ed25519 signature over the canonical offer envelope; `agent_id` is derived from the key, so the signature *is* the identity. **Verification always runs and is counted; *rejection* is gated on `MARKETPLACE_REQUIRE_SIGNED_OFFERS`, which defaults to `false` and is `true` only in production** — so a default deployment still accepts an unsigned offer. Check `warden_marketplace_offer_signature_total{enforced}` before reading this row as a live gate |
 | Negotiate | prompt injection carried in a message body | `_scan_injection()` on persist, plus `_quarantine_untrusted()` before any privileged model reads it |
 | Clear | double-clear on a retry | `clearing_id` is deterministic; `test_clearing_idempotency.py` pins it |
 | Clear | payout redirection | `payout_address` is writable only by the agent's own signature, with a strictly-increasing timestamp so an older binding cannot roll back a newer one |

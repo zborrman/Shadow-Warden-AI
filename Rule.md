@@ -1118,12 +1118,23 @@ Two corollaries that have each already cost a real defect:
 > The register route was **not** exercised against production, because proving
 > it would mean performing the takeover.
 >
-> **A merged fix is not a deployed fix.** No workflow runs `wrangler deploy` for
-> this worker — Workers Builds is connected only to `shadow-warden-installer` —
-> so the defects above are live on `marketplace.shadow-warden-ai.com` until
-> someone runs `npm run deploy` in `workers/shadow-warden-marketplace/`, and
-> `ADMIN_KEY` must be set with `wrangler secret put` first or `/stats` and
-> sponsor-grant begin answering 503.
+> **Deployed 2026-09-19**, version `1.0.1`, verified by reading rather than by
+> the deploy reporting success: `/health` answers `1.0.1`, and `/stats` answers
+> **401** both without a key and with a wrong one — 503 would have meant the
+> secret never landed, 200 that the old code was still serving. The 409 path was
+> deliberately *not* exercised against production: proving it would mean
+> registering an agent, which is the marketplace activity §29.6 forbids
+> manufacturing.
+>
+> **A merged fix is not a deployed fix**, and this one nearly proved it twice
+> over. No workflow runs `wrangler deploy` for this worker — Workers Builds is
+> connected only to `shadow-warden-installer` — so `npm run deploy` is a human
+> step, and the local checkout was **three commits behind `origin/main`** at the
+> time, which would have republished the vulnerable version from a directory
+> that looked current. Deploy from a tree you have verified by content, and set
+> `ADMIN_KEY` with `wrangler secret put` **before** the deploy, not after: it is
+> a distinct secret from the gateway's `ADMIN_KEY`, and between the two steps
+> the admin endpoints answer 503.
 >
 > **Still true, and the reason this block stays:** identity at registration is
 > the *only* thing #506 closed. `sendOffer`, `acceptOffer`, `rejectOffer` and
