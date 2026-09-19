@@ -238,6 +238,47 @@ def _get_tenant_id(request: Request) -> str:
     return request.headers.get("X-Tenant-ID", "unknown")
 
 
+#: `request.state` keys carrying the gate's outcome to whoever settles the call.
+_PAYER_ATTR   = "x402_verified_payer"
+_CREDITS_ATTR = "x402_settled_by_credits"
+
+
+def _remember_payer(request: Request, agent_id: str | None) -> None:
+    """Publish the *cryptographically proven* payer for the caller to charge.
+
+    `require_payment` proves identity and used to keep it to itself, returning
+    only allow/deny. The one production caller then charged whatever `agent_id`
+    the request *body* claimed — so the gate that exists to stop a forged payer
+    (vuln-0004) verified one identity and billed another. Setting it here is
+    what lets `deduct_payment` be given a payer nobody chose.
+    """
+    try:
+        setattr(request.state, _PAYER_ATTR, agent_id)
+    except Exception:  # a Request double without `.state`
+        log.debug("x402: could not record payer on request.state")
+
+
+def _mark_settled_by_credits(request: Request) -> None:
+    try:
+        setattr(request.state, _CREDITS_ATTR, True)
+    except Exception:
+        log.debug("x402: could not record credits settlement on request.state")
+
+
+def verified_payer(request: Request) -> str | None:
+    """The payer `require_payment` proved, or None if nothing was proven.
+
+    None means *do not charge anyone*. It must never fall back to a body or
+    header agent id: those are claims, and charging on a claim is the defect.
+    """
+    return getattr(getattr(request, "state", None), _PAYER_ATTR, None)
+
+
+def settled_by_credits(request: Request) -> bool:
+    """True when the credits fast-path already paid for this call."""
+    return bool(getattr(getattr(request, "state", None), _CREDITS_ATTR, False))
+
+
 async def require_payment(request: Request, resource: str) -> JSONResponse | None:
     """x402 gate — call before executing a paid resource.
 
@@ -258,6 +299,7 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
         # agent_id resolves to None and is never charged (vuln-0004 / CWE-345).
         agent_id    = _verify_payment_identity(sig_payload)
         tenant_id   = _get_tenant_id(request)
+        _remember_payer(request, agent_id)
 
         # Replay protection — only enforced when client sends nonce + issued_at
         if sig_payload and agent_id:
@@ -282,6 +324,10 @@ async def require_payment(request: Request, resource: str) -> JSONResponse | Non
             if get_balance(tenant_id) >= 1:
                 deduct_credits(tenant_id, 1)
                 log.debug("x402: credits deducted tenant=%s resource=%s", tenant_id, resource)
+                # Rule 16: credits take priority and the x402 rail is not reached.
+                # The caller must be told, or it queues a second deduction for the
+                # same call — one search, charged twice.
+                _mark_settled_by_credits(request)
                 return None   # access granted via credits — skip x402
         except Exception as exc:
             log.debug("x402: credits check error (fail-open): %s", exc)
