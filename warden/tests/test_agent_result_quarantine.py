@@ -323,3 +323,44 @@ async def test_a_nested_marker_name_is_still_their_text(filter_verdict):
     screened = sent[0]["body"]["content"]
     assert "ours" not in screened, "our own top-level marker stays exempt"
     assert _INJECTION in screened, "a nested one is not ours and must be screened"
+
+
+@pytest.mark.asyncio
+async def test_an_upstream_top_level_quarantined_key_is_screened(filter_verdict):
+    """The exemption set is "keys whose value we overwrite", not "names that
+    look internal".
+
+    `_tag_untrusted` writes `_untrusted` and `_note` over whatever the payload
+    had, so their values are ours. It does **not** write `_quarantined` —
+    `_quarantined()` builds a separate replacement dict that never passes
+    through this walk — so an upstream `_quarantined` key kept its
+    attacker-chosen value and was skipped anyway.
+    """
+    state, sent = filter_verdict
+    state["allowed"] = False
+
+    tagged = tools_mod._tag_untrusted(
+        "list_marketplace_listings", {"_quarantined": _INJECTION}
+    )
+    out = await tools_mod._quarantine_untrusted("list_marketplace_listings", tagged)
+
+    assert out.get("_quarantined") is True, "the injection must be caught"
+    assert out["reason"] == "filter_blocked"
+    assert _INJECTION in sent[0]["body"]["content"], "an upstream _quarantined value is theirs"
+
+
+@pytest.mark.asyncio
+async def test_the_markers_we_overwrite_are_still_exempt(filter_verdict):
+    """Our own `_untrusted`/`_note` values must not be screened — that is the
+    only reason the exemption exists, and it must survive narrowing the set."""
+    _state, sent = filter_verdict
+
+    tagged = tools_mod._tag_untrusted(
+        "list_marketplace_listings", {"_note": "theirs, overwritten", "title": "a listing"}
+    )
+    await tools_mod._quarantine_untrusted("list_marketplace_listings", tagged)
+
+    screened = sent[0]["body"]["content"]
+    assert tools_mod._UNTRUSTED_NOTE not in screened, "our own note is not screened"
+    assert "theirs, overwritten" not in screened, "their value for it no longer exists"
+    assert "a listing" in screened

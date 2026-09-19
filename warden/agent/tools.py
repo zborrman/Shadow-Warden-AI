@@ -201,14 +201,24 @@ _SCREEN_CHUNK_CHARS = 4000
 _SCREEN_MAX_CHUNKS = 5
 
 
-#: The only keys this module writes into a tool result, and therefore the only
-#: ones exempt from screening — by exact name, and only where we put them.
-#: A prefix rule (`k.startswith("_")`) was a hole: the payloads come from
-#: upstream services with no schema reserving that prefix, so a counterparty
-#: could name a key `_ignore_previous_instructions` and have it skipped — along
-#: with everything nested beneath it, since skipping the key skipped the walk
-#: into its value too.
-_OUR_MARKERS: frozenset[str] = frozenset({"_untrusted", "_quarantined", "_note"})
+#: Exempt from screening — and the set is defined by one test: **these are the
+#: keys whose value `_tag_untrusted` overwrites.** It spreads the upstream
+#: payload first (`{**result, "_untrusted": True, "_note": …}`), so for these
+#: two the value a counterparty sent is gone, replaced by ours, and screening
+#: what is left would be screening our own instruction to the model.
+#:
+#: Any other key is a hole, however much it looks like ours. `_quarantined` was
+#: in this set and is not written by `_tag_untrusted` — `_quarantined()` builds
+#: a fresh replacement dict that never passes through this walk — so an upstream
+#: `{"_quarantined": <injection>}` kept its value *and* was exempted.
+#:
+#: The prefix rule this replaced (`k.startswith("_")`) was the same mistake
+#: wider: nothing reserves that prefix in an upstream payload, and skipping a
+#: key skipped the walk into everything beneath it.
+#:
+#: So the rule is not "names that look internal". It is: **never exempt a key
+#: whose value we do not control.**
+_OUR_MARKERS: frozenset[str] = frozenset({"_untrusted", "_note"})
 
 
 def _foreign_strings(value: Any, out: list[str], depth: int = 12, top: bool = True) -> bool:
