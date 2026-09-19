@@ -292,3 +292,75 @@ async def test_a_result_within_the_depth_limit_is_screened_normally(filter_verdi
 
     assert out.get("_quarantined") is None
     assert "a normal listing" in sent[0]["body"]["content"]
+
+
+@pytest.mark.asyncio
+async def test_an_attacker_chosen_underscore_key_is_screened(filter_verdict):
+    """`_`-prefix was a blanket skip; the payloads have no schema reserving it.
+
+    Worse than an unscreened key: `continue` skipped the walk into the value
+    too, so everything nested under an attacker-named `_` key was invisible to
+    the screen.
+    """
+    state, sent = filter_verdict
+    state["allowed"] = False
+
+    out = await _quarantine({"items": [{"_ignore_previous_instructions": _INJECTION}]})
+
+    assert out.get("_quarantined") is True
+    screened = sent[0]["body"]["content"]
+    assert "_ignore_previous_instructions" in screened, "the key itself must be screened"
+    assert _INJECTION in screened, "and the value beneath it must not be skipped with it"
+
+
+@pytest.mark.asyncio
+async def test_a_nested_marker_name_is_still_their_text(filter_verdict):
+    """We write `_note` at the top level. One nested inside is a counterparty's."""
+    _state, sent = filter_verdict
+
+    await _quarantine({"_note": "ours", "items": [{"_note": _INJECTION}]})
+
+    screened = sent[0]["body"]["content"]
+    assert "ours" not in screened, "our own top-level marker stays exempt"
+    assert _INJECTION in screened, "a nested one is not ours and must be screened"
+
+
+@pytest.mark.asyncio
+async def test_an_upstream_top_level_quarantined_key_is_screened(filter_verdict):
+    """The exemption set is "keys whose value we overwrite", not "names that
+    look internal".
+
+    `_tag_untrusted` writes `_untrusted` and `_note` over whatever the payload
+    had, so their values are ours. It does **not** write `_quarantined` —
+    `_quarantined()` builds a separate replacement dict that never passes
+    through this walk — so an upstream `_quarantined` key kept its
+    attacker-chosen value and was skipped anyway.
+    """
+    state, sent = filter_verdict
+    state["allowed"] = False
+
+    tagged = tools_mod._tag_untrusted(
+        "list_marketplace_listings", {"_quarantined": _INJECTION}
+    )
+    out = await tools_mod._quarantine_untrusted("list_marketplace_listings", tagged)
+
+    assert out.get("_quarantined") is True, "the injection must be caught"
+    assert out["reason"] == "filter_blocked"
+    assert _INJECTION in sent[0]["body"]["content"], "an upstream _quarantined value is theirs"
+
+
+@pytest.mark.asyncio
+async def test_the_markers_we_overwrite_are_still_exempt(filter_verdict):
+    """Our own `_untrusted`/`_note` values must not be screened — that is the
+    only reason the exemption exists, and it must survive narrowing the set."""
+    _state, sent = filter_verdict
+
+    tagged = tools_mod._tag_untrusted(
+        "list_marketplace_listings", {"_note": "theirs, overwritten", "title": "a listing"}
+    )
+    await tools_mod._quarantine_untrusted("list_marketplace_listings", tagged)
+
+    screened = sent[0]["body"]["content"]
+    assert tools_mod._UNTRUSTED_NOTE not in screened, "our own note is not screened"
+    assert "theirs, overwritten" not in screened, "their value for it no longer exists"
+    assert "a listing" in screened

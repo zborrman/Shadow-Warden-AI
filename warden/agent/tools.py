@@ -201,7 +201,27 @@ _SCREEN_CHUNK_CHARS = 4000
 _SCREEN_MAX_CHUNKS = 5
 
 
-def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
+#: Exempt from screening — and the set is defined by one test: **these are the
+#: keys whose value `_tag_untrusted` overwrites.** It spreads the upstream
+#: payload first (`{**result, "_untrusted": True, "_note": …}`), so for these
+#: two the value a counterparty sent is gone, replaced by ours, and screening
+#: what is left would be screening our own instruction to the model.
+#:
+#: Any other key is a hole, however much it looks like ours. `_quarantined` was
+#: in this set and is not written by `_tag_untrusted` — `_quarantined()` builds
+#: a fresh replacement dict that never passes through this walk — so an upstream
+#: `{"_quarantined": <injection>}` kept its value *and* was exempted.
+#:
+#: The prefix rule this replaced (`k.startswith("_")`) was the same mistake
+#: wider: nothing reserves that prefix in an upstream payload, and skipping a
+#: key skipped the walk into everything beneath it.
+#:
+#: So the rule is not "names that look internal". It is: **never exempt a key
+#: whose value we do not control.**
+_OUR_MARKERS: frozenset[str] = frozenset({"_untrusted", "_note"})
+
+
+def _foreign_strings(value: Any, out: list[str], depth: int = 12, top: bool = True) -> bool:
     """Collect every free-text leaf of a tool result.
 
     Returns **True when the traversal was complete**. False means the depth
@@ -217,6 +237,10 @@ def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
     community feeds return upstream objects whose *keys* a counterparty
     chooses. `{"ignore all previous instructions": 1}` passed through a screen
     that reported it had looked at the result.
+
+    Only `_OUR_MARKERS`, and only at the top level where this module writes
+    them, are exempt. `top` distinguishes the result object we decorated from
+    everything nested inside it, which the counterparty wrote.
     """
     if depth <= 0:
         return False
@@ -226,14 +250,16 @@ def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
             out.append(value)
     elif isinstance(value, dict):
         for k, v in value.items():
-            if isinstance(k, str) and k.startswith("_"):   # our markers, not their text
+            # Ours, and only where we put them: screening `_note` would be
+            # circular, but a nested `_note` is the counterparty's text.
+            if top and isinstance(k, str) and k in _OUR_MARKERS:
                 continue
             if isinstance(k, str) and k:
                 out.append(k)
-            complete &= _foreign_strings(v, out, depth - 1)
+            complete &= _foreign_strings(v, out, depth - 1, top=False)
     elif isinstance(value, list):
         for v in value:
-            complete &= _foreign_strings(v, out, depth - 1)
+            complete &= _foreign_strings(v, out, depth - 1, top=False)
     return complete
 
 
