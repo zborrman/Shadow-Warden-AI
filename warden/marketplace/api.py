@@ -305,6 +305,34 @@ class RegisterRequest(BaseModel):
     capabilities: list[str] = ["marketplace_buy", "marketplace_sell", "marketplace_negotiate"]
 
 
+def _unforgeable_subject(request: Request) -> str:
+    """An identifier for rate limiting that the caller cannot choose.
+
+    The authenticated tenant when there is one, else the real client IP — never
+    a DID or tenant read out of the request, because those are exactly what a
+    caller would supply to spend someone else's budget.
+
+    `get_client_ip` and not `request.client.host`: warden's peer is always the
+    Caddy container, so the socket address is one constant for the whole
+    internet and would put every anonymous caller in a single bucket.
+    """
+    try:
+        from warden.auth_guard import resolve_tenant_id  # noqa: PLC0415
+
+        tenant = resolve_tenant_id(request.headers.get("X-API-Key"))
+        if tenant:
+            return f"tenant:{tenant}"
+    except Exception as exc:
+        log.debug("brand agent: tenant resolution failed: %s", exc)
+    try:
+        from warden.client_ip import get_client_ip  # noqa: PLC0415
+
+        return f"ip:{get_client_ip(request)}"
+    except Exception as exc:
+        log.debug("brand agent: client ip resolution failed: %s", exc)
+        return "unproven:anonymous"
+
+
 def _authenticated_owner(request: Request) -> str:
     """The tenant that *proved* it is calling, or "" — never the body's claim.
 
@@ -630,8 +658,17 @@ async def dispatch_action(
             try:
                 from warden.marketplace.brand_agent import BrandAgentFilter  # noqa: PLC0415
 
+                # `buyer_did` came out of the request payload, so it is a claim.
+                # Nothing here has verified a signature — the handlers do that
+                # later via `_assert_actor` — so the gate is told so explicitly
+                # and given a subject the caller cannot choose for the rate
+                # limit. Passing `did_proven=True` requires actually proving it.
                 verdict = await BrandAgentFilter().validate(
-                    buyer_did, body.action_type, body.payload
+                    buyer_did,
+                    body.action_type,
+                    body.payload,
+                    did_proven=False,
+                    rate_subject=_unforgeable_subject(request),
                 )
                 if not verdict.allowed:
                     log.info(
