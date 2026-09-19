@@ -1104,20 +1104,36 @@ Two corollaries that have each already cost a real defect:
 > surface: every ratchet in `Hook.md` §3 enumerates FastAPI routes, so **not one
 > of them has ever seen it**.
 >
-> Three defects follow, each the shape of one already closed on the Python side:
+> Three defects were found there on 2026-09-19 (by CodeRabbit on PR #504,
+> confirmed by reading `src/index.ts`), each the shape of one already closed on
+> the Python side. **All three are fixed in the repository by #506** — and that
+> is not the same as fixed in production; see below.
 >
-> | Worker behaviour | The rule it contradicts |
-> |---|---|
-> | `registerAgent()` re-registers an existing `did` by overwriting `name`, `capabilities` and **`pubkey`**, while preserving `registered_at`, `trust_score` and `is_sponsored`, then answers **200** — unauthenticated | Rule 29. Worse than the bug #463 fixed: rebinding a DID to an attacker's key with the victim's trust **inherited** is takeover *plus* reputation, where the SQLite version at least reset the row |
-> | `did` is taken from the request body and never derived from `pubkey` | §29.2 — on the Python side `agent_id` **is** `did:shadow:{base62(sha256(pubkey))}`, which is what makes a signature self-proving. A free-form `did` breaks that property at the root |
-> | `requireAdmin()` is `if (!env.ADMIN_KEY) return null; // no key configured → open` | §29.1's third anti-pattern, verbatim. If the secret was never set with `wrangler secret put`, sponsor-grant and clearing are open |
+> | Worker behaviour, as shipped | The rule it contradicted | Now |
+> |---|---|---|
+> | `registerAgent()` re-registered an existing `did`, overwriting `name`, `capabilities` and **`pubkey`** while preserving `registered_at`, `trust_score` and `is_sponsored`, answering **200** — unauthenticated | Rule 29. Worse than the bug #463 fixed: rebinding a DID to an attacker's key with the victim's trust **inherited** is takeover *plus* reputation, where the SQLite version at least reset the row | 409, writes nothing |
+> | `did` was taken from the request body and never derived from `pubkey` | On the Python side `agent_id` **is** `did:shadow:{base62(sha256(pubkey))}`, which is what makes a signature self-proving. A free-form `did` breaks that property at the root | derivation enforced; the stored key is exactly the validated one |
+> | `requireAdmin()` was `if (!env.ADMIN_KEY) return null; // no key configured → open` | §29.1's third anti-pattern, verbatim. If the secret was never set with `wrangler secret put`, sponsor-grant and clearing were open | 503 when unset; compare is constant-time in length as well as content |
 >
-> Until that is fixed, **no §29 rule may be cited as covering
+> The register route was **not** exercised against production, because proving
+> it would mean performing the takeover.
+>
+> **A merged fix is not a deployed fix.** No workflow runs `wrangler deploy` for
+> this worker — Workers Builds is connected only to `shadow-warden-installer` —
+> so the defects above are live on `marketplace.shadow-warden-ai.com` until
+> someone runs `npm run deploy` in `workers/shadow-warden-marketplace/`, and
+> `ADMIN_KEY` must be set with `wrangler secret put` first or `/stats` and
+> sponsor-grant begin answering 503.
+>
+> **Still true, and the reason this block stays:** identity at registration is
+> the *only* thing #506 closed. `sendOffer`, `acceptOffer`, `rejectOffer` and
+> `POST /clear` still act on a body-supplied DID with no signature, and `/clear`
+> is reachable by anyone — it computes a take rate but settles nothing, so it is
+> a state-mutation gap rather than a money one. Porting `_assert_actor()` there
+> is its own work. So: **no §29 rule may be cited as covering
 > `marketplace.shadow-warden-ai.com`**, and no document may describe the
 > marketplace's identity guarantees without naming which host it means. Tracked
-> in `Hook.md` §6 as H-8. Found 2026-09-19 by CodeRabbit on PR #504 and confirmed
-> by reading `src/index.ts`; the register route was **not** exercised against
-> production, because proving it would mean performing the takeover.
+> in `Hook.md` §6 as H-8.
 
 ### 29.3 Enforcement posture — what is actually on
 
@@ -1165,12 +1181,25 @@ own market.
   puts the free-text leaves of every `UNTRUSTED_TOOLS` result through the
   gateway's own `POST /filter` before a privileged model reads it — the Dual-LLM
   pattern, not a warning label.
+- **Keys are text.** The walk screens dictionary keys as well as values: these
+  payloads come from upstream services whose *keys* a counterparty chooses.
+- **An incomplete walk is not a screen.** A structure nested past the depth
+  limit is withheld whole, never screened in part and returned entire — the same
+  rule the chunk ceiling enforces for size.
 - **Withheld, never silently dropped.** A refusal that looked like an empty
   catalogue would be its own kind of lie.
-- Our own `_`-prefixed markers (`_note`) are not sent for screening; screening
-  our own instruction to the model is circular.
+- Only `_untrusted`, `_quarantined` and `_note` are exempt from screening, **by
+  exact name and only at the top level** where this module writes them.
+  Screening our own instruction to the model is circular; a *nested* `_note` is
+  the counterparty's text. A blanket `_`-prefix skip was a hole — nothing
+  reserves that prefix in an upstream payload, and skipping a key skipped the
+  walk into everything beneath it.
 - Fail-OPEN and counted (`record_failopen("agent_result_quarantine")`) — a filter
   outage must not brick every agent read, and the untrusted label still stands.
+- The screen has now been wrong in three distinct ways since it shipped (a field
+  the filter does not return, unscreened keys and silent depth truncation, an
+  attacker-choosable exemption). Each was found by review, none by the suite.
+  Treat a change here as security-critical and verify the test fails first.
 
 ### 29.6 What may be published about the marketplace
 
