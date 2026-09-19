@@ -283,9 +283,12 @@ detail, the evidence and the exit criteria live in that file and are not
 duplicated, because a second copy of a plan drifts exactly the way three copies
 of a price list did.
 
-Phases are genuinely sequential: each entry gate is the previous phase's exit
-evidence. No phase completes on effort spent, only on its exit criteria being
-demonstrably true **in production**.
+The **gated** phases are sequential: each entry gate is the previous phase's
+exit evidence. Two deliberate exceptions, both in the table below — **P2 has no
+entry gate and runs alongside P1a**, and **P1b is gated on a legal entity rather
+than on a phase**, so it lands whenever the company exists and blocks nothing.
+No phase completes on effort spent, only on its exit criteria being demonstrably
+true **in production**.
 
 | Phase | Subject | Entry gate | State |
 |---|---|---|---|
@@ -339,7 +342,7 @@ named by one, in the order their dependencies allow:
 |---|---|---|
 | 1 | Decide whether one market keeps two implementations | `workers/shadow-warden-marketplace/` is deployed at `marketplace.shadow-warden-ai.com` and re-implements register / listings / negotiate / clear. #506 closed the identity defects there and gave it its first ratchet; **it still has no actor proof anywhere else** — `sendOffer`, `acceptOffer`, `rejectOffer` and `POST /clear` act on a body-supplied DID with no signature. Either port `_assert_actor()` to it or retire it in favour of a proxy to the gateway. Running two implementations of one market means every guard must be written twice, and the one nobody remembers is the one that ships the defect. See `Rule.md` §29.2, `Hook.md` H-8 |
 | 1b | Deploy #506 | A merged fix is not a deployed fix: no workflow runs `wrangler deploy` for this worker. `wrangler secret put ADMIN_KEY`, then `npm run deploy` in `workers/shadow-warden-marketplace/` — without the secret, `/stats` and sponsor-grant answer 503 by design |
-| 2 | Implement `deposit()` against the design in `docs/onchain-settlement-design.md` | `fund_escrow()` calls `deposit({})`. This is the single thing standing between `SIMULATED` and a real trade — and it is a design task, so no amount of configuration substitutes |
+| 2 | Implement `deposit()` against the design in `docs/onchain-settlement-design.md` | `fund_escrow()` calls `deposit({})`. This is the **primary settlement blocker** — a design task, so no amount of configuration substitutes — but not the whole of P1a exit: items 3–6 below are prerequisites too |
 | 3 | Snapshot addresses and integer minor units onto the escrow | The escrow record stores agent DIDs and a USD float; there is nothing to build a real transaction from |
 | 4 | Stage `AUTHORIZE_PAYMENT_ENFORCED=true` | The KYA default-policy grant already made it a posture decision rather than a kill switch. Verify the `purchase` action string first; stage, do not flip |
 | 5 | Per-trade value cap for the first 90 days | Clearing once settled every trade at $0.00 with tests that agreed. Assume that bug class is still latent and reconcile by hand |

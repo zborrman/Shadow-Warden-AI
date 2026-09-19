@@ -1864,13 +1864,18 @@ All paths below are on the FastAPI gateway, `https://api.shadow-warden-ai.com`
 path contract and none of these guarantees — see `Rule.md` §29.2.
 
 ```text
-Stage 1  Registration   POST /marketplace/register        first contact, unauthenticated by design
-                        GET  /marketplace/protocol        capability manifest + X-Protocol-Version
-                        GET  /marketplace/protocol/schema/{action}
-Stage 2  Search         POST /marketplace/action          vector_search.py — pgvector, SQLite keyword fallback
-Stage 3  Negotiate      POST /marketplace/action          send_proposal / send_message / send_offer / accept_offer
-Stage 4  Clear          POST /marketplace/clear           ClearingEngine — winner + auto-reject losers
+Stage 1  Registration   POST /v1/marketplace/register        first contact, unauthenticated by design
+                        GET  /v1/marketplace/protocol        capability manifest + X-Protocol-Version
+                        GET  /v1/marketplace/protocol/schema/{action}
+Stage 2  Search         POST /v1/marketplace/action          vector_search.py — pgvector, SQLite keyword fallback
+Stage 3  Negotiate      POST /v1/marketplace/action          send_proposal / send_message / send_offer / accept_offer
+Stage 4  Clear          POST /v1/marketplace/clear           ClearingEngine — winner + auto-reject losers
 ```
+
+`/v1` is canonical. The unversioned spelling still resolves — it is the
+compatibility alias, and every response on it carries `Deprecation` and
+`Sunset: Mon, 23 Aug 2027`. `/.well-known/*` stays unversioned by policy:
+discovery paths are exempt, because they are how a client learns the version.
 
 One dispatcher (`POST /marketplace/action`) carries fourteen action types;
 registration, clearing and the manifest are their own routes. A foreign agent
@@ -1947,8 +1952,12 @@ REDIS_URL="memory://" MODEL_CACHE_DIR="/tmp/warden_test_models" \
 python -m pytest warden/tests/test_marketplace*.py warden/tests/test_escrow*.py \
                  warden/tests/test_x402*.py warden/tests/test_clearing*.py -v --no-cov
 
-# Ten-minute quickstart, re-verifiable rather than believed
-python scripts/quickstart_check.py --base-url https://api.shadow-warden-ai.com
+# Ten-minute quickstart, re-verifiable rather than believed.
+# NOT against production: it registers an agent, creates an asset, publishes a
+# listing and purchases it — four POSTs, no dry-run mode. Pointing it at
+# api.shadow-warden-ai.com manufactures exactly the marketplace activity the
+# capability matrix says does not exist. Run it against a local gateway.
+python scripts/quickstart_check.py --base-url http://localhost:8001
 
 # What the market would look like if it had supply (dry run by default)
 python scripts/seed_first_party_supply.py

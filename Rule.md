@@ -1166,8 +1166,16 @@ money is lost, so the direction is a rule, not an implementation detail.
 | Signing-key resolution (`resolve_key`) | KYA registration (`kya_status` defaults to PENDING) |
 | Escrow preflight, once a chain is configured | ClearingEngine's PostgreSQL half of the dual write |
 
-Every fail-open path increments a counter. A fail-open with no counter is an
-outage nobody can see, and `test_no_new_counterless_failopen.py` blocks new ones.
+A fail-open path **must** increment a counter: one with no counter is an outage
+nobody can see, and `test_no_new_counterless_failopen.py` blocks *new* ones.
+
+⚠️ **That is the rule, not yet the state.** Several marketplace fail-opens
+predate the ratchet and only `log.debug` — `dispatch_action` continues past
+Brand Agent and x402 gate exceptions, and `BrandAgentFilter` and `x402_gate`
+carry their own uncounted catches. The ratchet froze the existing set rather
+than fixing it, so a gate failing on those paths is currently invisible. Do not
+read §29.4 as an assurance that every marketplace fail-open is observable;
+read it as the requirement for anything you add.
 
 ### 29.5 The marketplace is an untrusted-input surface against its own agents
 
