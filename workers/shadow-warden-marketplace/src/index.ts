@@ -2,7 +2,9 @@
 // Agentic M2M Marketplace: agent registry, listings, negotiations, clearing, ADP
 // Patterns: same as shadow-warden-billing (KV state, CORS helper, X-Admin-Key, /health)
 
-const VERSION = "1.0.0";
+import { didMatchesPubkey } from "./did";
+
+const VERSION = "1.0.1";
 const TAKE_RATE = 0.015; // 1.5% platform fee — logged only, no on-chain settlement in v1
 const SPONSORED_BOOST = 0.15; // +15% similarity boost, applied in memory (not in KV sort)
 const MAX_LISTING_INDEX = 1000;
@@ -120,15 +122,64 @@ async function incrKV(kv: KVNamespace, key: string): Promise<number> {
   return n;
 }
 
+/**
+ * Fail-CLOSED. An unset secret used to return `null` — "no key configured →
+ * open" — which is the empty-secret anti-pattern named in `Rule.md` §29.1: the
+ * check silently allows everyone precisely when it was never configured, and a
+ * deployment that forgot `wrangler secret put ADMIN_KEY` looks identical to one
+ * that set it. Nothing is gained by guessing; an unresolvable key denies.
+ *
+ * Deploying this without the secret set makes `GET /stats` and
+ * `POST /listings/:id/sponsor` answer 503 until it is. That is the intended
+ * direction of failure for an admin gate.
+ */
 function requireAdmin(req: Request, env: Env): Response | null {
-  if (!env.ADMIN_KEY) return null; // no key configured → open
-  const key = req.headers.get("X-Admin-Key") ?? "";
-  if (key !== env.ADMIN_KEY) return json({ error: "unauthorized" }, 401);
+  if (!env.ADMIN_KEY) {
+    return json(
+      { error: "admin key not configured", detail: "set ADMIN_KEY with `wrangler secret put`" },
+      503,
+    );
+  }
+  const provided = req.headers.get("X-Admin-Key") ?? "";
+  if (!timingSafeEqual(provided, env.ADMIN_KEY)) return json({ error: "unauthorized" }, 401);
   return null;
+}
+
+/** Length-independent constant-time string compare — this one guards a secret. */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 // ── Agent handlers ─────────────────────────────────────────────────────────
 
+/**
+ * Stage 1 first contact. Unauthenticated by design — a foreign agent has no
+ * credential yet — which is exactly why it must never mutate an existing agent.
+ *
+ * Two properties, each closing a defect this handler shipped with:
+ *
+ *  1. **First registration wins.** It used to overwrite an existing `did`'s
+ *     `name`, `capabilities` and `pubkey` while preserving `trust_score`, and
+ *     answer 200. `GET /agents/{did}` publishes the record, so anyone could
+ *     rebind a known DID to their own key and inherit the victim's trust. That
+ *     is the takeover closed on the FastAPI side in #463, worse: `INSERT OR
+ *     REPLACE` at least reset the row.
+ *  2. **The DID must be the one the key derives.** `did` arrived in the request
+ *     body and was never checked against `pubkey`, so a caller could claim any
+ *     identifier — including one already registered on the gateway. On the
+ *     Python side `agent_id` *is* `did:shadow:{base62(sha256(pubkey))}`, which
+ *     is what makes a signature self-proving. Same function, see `did.ts`.
+ *
+ * KV has no atomic insert-if-absent, so two registrations of the same *new* DID
+ * racing within the propagation window can both see no existing record and both
+ * write. That is a duplicate create, not a takeover: the attack needs the
+ * victim's record to already be visible, and once it is, this returns 409.
+ * Stated rather than papered over — a Durable Object would close the race and
+ * is deliberately not used in this project.
+ */
 async function registerAgent(req: Request, env: Env): Promise<Response> {
   let body: { did?: string; name?: string; capabilities?: string[]; pubkey?: string };
   try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
@@ -136,26 +187,41 @@ async function registerAgent(req: Request, env: Env): Promise<Response> {
   if (!body.did || !body.pubkey) return json({ error: "did and pubkey required" }, 400);
   if (body.did.length > 128) return json({ error: "did too long" }, 400);
 
-  const now = new Date().toISOString();
-  const existing = (await env.MARKETPLACE_KV.get(`agent:${body.did}`, "json")) as AgentRecord | null;
+  if (!(await didMatchesPubkey(body.did, body.pubkey))) {
+    return json(
+      {
+        error: "did does not match pubkey",
+        detail: "did must be did:shadow:{base62(sha256(pubkey))[:32]} — derive it, do not choose it",
+      },
+      400,
+    );
+  }
 
+  const existing = (await env.MARKETPLACE_KV.get(`agent:${body.did}`, "json")) as AgentRecord | null;
+  if (existing) {
+    // First registration wins. Re-registration is not an update path: there is
+    // none, because nothing here can prove the caller is the incumbent.
+    return json({ error: "agent already registered", did: body.did }, 409);
+  }
+
+  const now = new Date().toISOString();
   const record: AgentRecord = {
     did: body.did,
     name: (body.name ?? "Unnamed Agent").slice(0, 128),
     capabilities: (body.capabilities ?? []).slice(0, 32),
     pubkey: body.pubkey.slice(0, 512),
-    registered_at: existing?.registered_at ?? now,
+    registered_at: now,
     updated_at: now,
-    trust_score: existing?.trust_score ?? 0.5,
-    is_sponsored: existing?.is_sponsored ?? false,
+    trust_score: 0.5,
+    is_sponsored: false,
   };
 
   await env.MARKETPLACE_KV.put(`agent:${body.did}`, JSON.stringify(record), {
     expirationTtl: 60 * 60 * 24 * 365, // 1 year
   });
-  if (!existing) await incrKV(env.MARKETPLACE_KV, "stats:agents_total");
+  await incrKV(env.MARKETPLACE_KV, "stats:agents_total");
 
-  return json({ ok: true, agent: record }, existing ? 200 : 201);
+  return json({ ok: true, agent: record }, 201);
 }
 
 async function getAgent(env: Env, did: string): Promise<Response> {
