@@ -223,3 +223,72 @@ async def test_the_untraced_dispatch_path_quarantines(dispatch_env, monkeypatch)
     out = await tools_mod.traced_dispatch("list_marketplace_listings", {}, "sova")
     assert out.get("_quarantined") is True
     assert _INJECTION not in str(out)
+
+
+# ── a key is text, and an incomplete walk is not a screen ───────────────────
+#
+# Follow-up to #505, raised by CodeRabbit on that PR and confirmed against the
+# merged code. `_foreign_strings` recursed into dict *values* only: the key was
+# read to skip our `_` markers and never screened. `acp_search_catalog` and the
+# community feeds return upstream objects whose keys a counterparty chooses.
+# Separately, the depth limit returned silently, so a structure deeper than the
+# limit was screened in part and returned whole — the exact shape the chunk
+# ceiling already refused.
+
+
+@pytest.mark.asyncio
+async def test_an_injection_in_a_dictionary_key_is_screened(filter_verdict):
+    state, sent = filter_verdict
+    state["allowed"] = False
+
+    out = await _quarantine({"items": [{_INJECTION: "1"}]})
+
+    assert out.get("_quarantined") is True, "an injection in a key must be caught"
+    assert out["reason"] == "filter_blocked"
+    assert _INJECTION in sent[0]["body"]["content"], "the key must reach the filter"
+
+
+@pytest.mark.asyncio
+async def test_our_own_markers_are_still_not_screened(filter_verdict):
+    """`_note` is our instruction to the model; screening it would be circular."""
+    _state, sent = filter_verdict
+
+    await _quarantine({"_untrusted": True, "_note": "our text", "title": "theirs"})
+
+    screened = sent[0]["body"]["content"]
+    assert "our text" not in screened
+    assert "_note" not in screened
+    assert "theirs" in screened
+    assert "title" in screened, "a non-marker key is the counterparty's text"
+
+
+@pytest.mark.asyncio
+async def test_a_result_too_deep_to_screen_is_withheld(filter_verdict):
+    """Deeper than the walk can go ⇒ withheld, not partly screened.
+
+    The injection is placed below the depth limit, where the old walk stopped
+    and returned nothing — so the screen saw only the shallow decoy and passed
+    the whole payload, injection included.
+    """
+    state, sent = filter_verdict
+    deep: dict = {"payload": _INJECTION}
+    for _ in range(20):
+        deep = {"nested": deep}
+    deep["decoy"] = "harmless"
+
+    out = await _quarantine(deep)
+
+    assert out.get("_quarantined") is True
+    assert out["reason"] == "too_deep_to_screen"
+    assert sent == [], "nothing is screened when the walk is known to be partial"
+
+
+@pytest.mark.asyncio
+async def test_a_result_within_the_depth_limit_is_screened_normally(filter_verdict):
+    """The guard must not quarantine ordinary nesting."""
+    _state, sent = filter_verdict
+
+    out = await _quarantine({"items": [{"title": "a normal listing"}]})
+
+    assert out.get("_quarantined") is None
+    assert "a normal listing" in sent[0]["body"]["content"]
