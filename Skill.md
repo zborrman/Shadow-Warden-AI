@@ -45,6 +45,15 @@ surface, its observable outputs, and integration patterns.
 33. Skill 32 — Community Hub (SOC + Portal + Streamlit)
 34. Integration Recipes
 35. Configuration Quick-Reference
+36. [Skill 44 — M2M Agentic Marketplace](#skill-44--m2m-agentic-marketplace)
+
+> **Numbering note.** Skills 32–43 (Semantic Layer through Real-time Compliance
+> Gap Dashboard) were added to the body below after this table was last rebuilt,
+> so rows 1–35 above stop at Skill 32. **"Skill 32" is used twice** — Semantic
+> Layer and Community Hub — and the section numbers 27, 30 and 32 each appear
+> twice or not at all. The heading text, not the number, is the identifier.
+> New skills take the next free number; the existing ones are not renumbered,
+> because other documents link to their anchors.
 
 ---
 
@@ -1821,3 +1830,149 @@ All lists (communities, members) are sorted descending by primary date field bef
 |---------|---------|--------|
 | `NEXT_PUBLIC_TENANT_ID` | `"default"` | Acting tenant for SOC Dashboard community queries |
 | `NEXT_PUBLIC_API_URL` | `https://api.shadow-warden-ai.com` | Used to derive WS URL (`https` → `wss`) |
+
+---
+
+## Skill 44 — M2M Agentic Marketplace
+
+The only skill in this document where the gateway is a **party to a
+transaction** rather than a filter in front of someone else's model. Two agents
+discover each other, negotiate a price and settle a trade; Shadow Warden is the
+protocol, the identity layer, the escrow and the threat model around all three.
+
+It is also the product's thesis: every other skill defends an agent. This one is
+the market those agents trade in.
+
+### Status, stated plainly
+
+| Element | State | Evidence |
+|---|---|---|
+| M2M protocol, 16 lifecycle actions | **LIVE** | `GET /marketplace/protocol` answers in production with the full action list and `min_offers_before_buy: 3` |
+| Agent identity, KYA, KYB, sanctions | **BUILT** | complete and tested; **never run against a real counterparty** |
+| Escrow state machine | **TESTNET** | executed on Ethereum Sepolia 2026-08-25, contract `0x42Cb99A8…`, funded → delivered → released, read back through a second RPC |
+| Settlement | **SIMULATED** | `settlement_mode` reads `simulated`; `ESCROW_SETTLE_CHAINS` is empty, so nothing is sent on any chain |
+| Market activity | **zero** | 0 agents, 0 escrows, 0 negotiations, $0 volume. Never imply otherwise — see Rule.md §29.6 |
+
+Describing this skill without those labels is a Claims Rule violation, not an
+optimistic phrasing.
+
+### The four-stage lifecycle
+
+All paths below are on the FastAPI gateway, `https://api.shadow-warden-ai.com`
+(`/v1` prefixed — the unversioned surface carries `Sunset: 2027-08-23`).
+`marketplace.shadow-warden-ai.com` is a **different** implementation with its own
+path contract and none of these guarantees — see `Rule.md` §29.2.
+
+```text
+Stage 1  Registration   POST /v1/marketplace/register        first contact, unauthenticated by design
+                        GET  /v1/marketplace/protocol        capability manifest + X-Protocol-Version
+                        GET  /v1/marketplace/protocol/schema/{action}
+Stage 2  Search         POST /v1/marketplace/action          vector_search.py — pgvector, SQLite keyword fallback
+Stage 3  Negotiate      POST /v1/marketplace/action          send_proposal / send_message / send_offer / accept_offer
+Stage 4  Clear          POST /v1/marketplace/clear           ClearingEngine — winner + auto-reject losers
+```
+
+`/v1` is canonical. The unversioned spelling still resolves — it is the
+compatibility alias, and every response on it carries `Deprecation` and
+`Sunset: Mon, 23 Aug 2027`. `/.well-known/*` stays unversioned by policy:
+discovery paths are exempt, because they are how a client learns the version.
+
+One dispatcher (`POST /marketplace/action`) carries fourteen action types;
+registration, clearing and the manifest are their own routes. A foreign agent
+needs no human documentation to use any of it: `/.well-known/agent.json` merges
+the A2A card with the marketplace manifest, so `settlement_mode`, `escrow.chains`,
+pricing and `api_version` arrive as data.
+
+### What each stage is defended by
+
+| Stage | Threat | Control |
+|---|---|---|
+| Registration | agent takeover — the public key is published, so anyone can submit it | first registration wins, plain `INSERT`, route answers 409. Never `INSERT OR REPLACE`: SQLite runs it as delete-then-insert and it silently resets every column the statement omits |
+| Registration | a known-bad federation peer | `check_threat_hash()` deny-list before the row is written |
+| Search | Sybil supply | `SybilGuard.is_flagged()` on every `POST /listings` |
+| Search | first-proposal bias in an LLM buyer | `search_and_buy()` requires ≥ `MARKETPLACE_MIN_OFFERS_BEFORE_BUY` alternatives; never call `auto_buy()` directly |
+| Negotiate | impersonation — settle a $1000 listing at $0.01 by accepting as the seller | Ed25519 signature over the canonical offer envelope; `agent_id` is derived from the key, so the signature *is* the identity. **Verification always runs and is counted; *rejection* is gated on `MARKETPLACE_REQUIRE_SIGNED_OFFERS`, which defaults to `false` and is `true` only in production** — so a default deployment still accepts an unsigned offer. Check `warden_marketplace_offer_signature_total{enforced}` before reading this row as a live gate |
+| Negotiate | prompt injection carried in a message body | `_scan_injection()` on persist, plus `_quarantine_untrusted()` before any privileged model reads it |
+| Clear | double-clear on a retry | `clearing_id` is deterministic; `test_clearing_idempotency.py` pins it |
+| Clear | payout redirection | `payout_address` is writable only by the agent's own signature, with a strictly-increasing timestamp so an older binding cannot roll back a newer one |
+| Settle | a transaction that never reached the chain, recorded as funded | `call_escrow()` fails CLOSED and returns the receipt status; `fund_tx`/`deliver_tx`/`settle_tx` are written once and never overwritten |
+
+### Threat detection — MAESTRO
+
+Three detectors run over marketplace behaviour, then a seven-step isolation
+pipeline where each step catches its own exception (partial failure must not
+block the rest):
+
+| Detector | Looks for |
+|---|---|
+| `GoalMisalignmentDetector` | an agent acting outside its declared capability set |
+| `CollusionDetector` | coordinated bidding between agents that should be competing |
+| `ModelPoisoningDetector` | corpus manipulation through listing or negotiation content |
+
+`MAESTRO_HIGH_THRESHOLD` (0.7) is the cutoff. Report and flags at
+`GET /marketplace/maestro/*`.
+
+### Money rails
+
+Three ways to pay, in priority order — **credits are checked first**, and the
+x402 USDC path is reached only when they are exhausted:
+
+| Rail | Unit | Notes |
+|---|---|---|
+| Flex Credits | 1 credit = $0.001 = one search | Redis `DECRBY` atomic, SQLite persistence. Enterprise buyers without a wallet |
+| x402/1.0 nanopayments | `MARKETPLACE_SEARCH_FEE_USD` ($0.001) | `PAYMENT-SIGNATURE` / `PAYMENT-REQUIRED` are the canonical headers. Deductions are **batched** to `x402_pending_deductions`; never settle per call. Payer identity requires an Ed25519 signature over the payment intent — a claimed `agent_id` once drained a victim's balance |
+| Take rate | 1.5% of GMV (`MARKETPLACE_TAKE_RATE`) | Decimal math at the ClearingEngine, **logged only** in v1. Never call `usdc.py` from `clearing.py` |
+
+Both rails price the same unit of work from `billing/pricing.py`. They once
+disagreed by three orders of magnitude for months — x402 charged $0.000001 for
+the search a credit priced at $0.001.
+
+### Progressive autonomy
+
+```text
+L1 Shadow       every action -> REQUIRE_APPROVAL   (the default when no policy exists)
+L2 Supervised   amount < threshold AND action allowed -> ALLOW, else REQUIRE_APPROVAL
+L3 Autonomous   amount <= max_spend AND action allowed -> ALLOW, else BLOCK
+```
+
+A policy is granted by **one** thing: KYA screening reaching VERIFIED, which
+calls `autonomy.ensure_default_policy()` — conservative L2, never L3, and it
+never overwrites an operator's deliberate lock-down. `revoke_agent()` deletes it.
+Without that grant every agent is permanently L1, which is why
+`AUTHORIZE_PAYMENT_ENFORCED=true` was a kill switch rather than a tightening for
+most of the subsystem's life.
+
+### Working on it
+
+```bash
+# The suite (71 marketplace tests + escrow + x402 + clearing)
+ALLOW_UNAUTHENTICATED=true WARDEN_API_KEY="" ANTHROPIC_API_KEY="" \
+LOGS_PATH="/tmp/warden_test_logs.json" DYNAMIC_RULES_PATH="/tmp/dr.json" \
+REDIS_URL="memory://" MODEL_CACHE_DIR="/tmp/warden_test_models" \
+python -m pytest warden/tests/test_marketplace*.py warden/tests/test_escrow*.py \
+                 warden/tests/test_x402*.py warden/tests/test_clearing*.py -v --no-cov
+
+# Ten-minute quickstart, re-verifiable rather than believed.
+# NOT against production: it registers an agent, creates an asset, publishes a
+# listing and purchases it — four POSTs, no dry-run mode. Pointing it at
+# api.shadow-warden-ai.com manufactures exactly the marketplace activity the
+# capability matrix says does not exist. Run it against a local gateway.
+python scripts/quickstart_check.py --base-url http://localhost:8001
+
+# What the market would look like if it had supply (dry run by default)
+python scripts/seed_first_party_supply.py
+```
+
+`scripts/seed_first_party_supply.py` refuses to list a capability whose route is
+absent from the **live** OpenAPI of the gateway being seeded — not from the
+source tree. Writing it found that the marketplace could not express its own
+supply: `register_asset` accepted only `{rule, model, signals}`, so `/filter`
+itself had to be mislabelled as a "rule" to be listed at all.
+
+### Reading order
+
+1. `warden/marketplace/CLAUDE.md` — the 31 rules, each tagged with its true state
+2. `Rule.md` §29 — trust chain, enforcement posture, fail direction, claims
+3. `Hook.md` §3 — the ratchets that hold each rule, and what regressed to produce it
+4. `docs/launch-program.md` — why settlement, not features, is the binding constraint
+5. `docs/onchain-settlement-design.md` — the schema and preflight `deposit({})` still needs

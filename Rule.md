@@ -37,6 +37,14 @@
 26. [GitHub Actions CI Scan Rules](#26-github-actions-ci-scan-rules-v53--in-15)
 27. [ISO 27001:2022 Annex A Control Mapping Rules](#27-iso-270012022-annex-a-control-mapping-rules-v53--cp-22)
 28. [Community Hub Rules](#28-community-hub-rules-v56--cm-53-cm-54)
+29. [M2M Agentic Marketplace Rules](#29-m2m-agentic-marketplace-rules)
+
+> **Numbering note.** §20–§23 each appear twice in the body of this document
+> (Secrets Governance / Semantic Layer, OTel / Settings Hub, Public API / AI
+> Analytics Hub, SLO Alerting / Commerce Budget Guardian). The duplicates are
+> historical and the anchors above resolve to the first of each pair.
+> New sections take the next free number; do not renumber the existing ones —
+> external documents link to these anchors.
 
 ---
 
@@ -969,7 +977,7 @@ Switch between these modes on request. Default to **collaborative vibe** when no
 | BG-03 | MTD spend is queried from `ai_spend` Semantic Layer model (SQLite fallback in dev, TimescaleDB in prod). |
 | BG-04 | `require_approval` flag propagates through the purchase workflow response so MCP bridge can trigger human-in-the-loop. |
 | BG-05 | Slack alert fires on budget exceeded via `send_alert()`. Alert never blocks payment decision. |
-| BG-06 | `get_spend_summary()` returns the generated Semantic Layer SQL in `semantic_layer_sql` field for transparency and audit.
+| BG-06 | `get_spend_summary()` returns the generated Semantic Layer SQL in `semantic_layer_sql` field for transparency and audit. |
 
 ---
 
@@ -1032,3 +1040,202 @@ The GitHub Actions scan gate (`scripts/warden_github_scan.py`) applies the follo
 | HUB-11 | `fmt_date()` in `22_Community_Hub.py` handles `Z`-suffix UTC strings via `.replace("Z", "+00:00")` before `datetime.fromisoformat()`. On parse failure it returns `iso[:10]` (not an empty string). |
 | HUB-12 | Member removal in the Streamlit Hub requires the "Enable member removal" toggle to be active. Removal buttons are not rendered when the toggle is off — no accidental removals from list rendering. |
 | HUB-13 | The SOC Dashboard `fmtDate` function guards against invalid ISO strings with a `try/catch` block returning `iso.slice(0, 10)` on failure — matches the Streamlit `fmt_date()` fallback behaviour. |
+
+---
+
+## 29. M2M Agentic Marketplace Rules
+
+The marketplace is where this gateway stops being a filter in front of someone
+else's model and becomes a party to a transaction between two agents. It is also
+the only subsystem in the product that can move money, so its rules are
+enforcement rules, not detection rules, and they fail in a different direction.
+
+**Canonical source: `warden/marketplace/CLAUDE.md`** — 31 numbered rules, each
+tagged with its true implementation state. This section does not restate them.
+Three copies of a price list once drifted a full tier apart; a second copy of a
+security rule drifts the same way. What follows is the part a security engineer,
+operator or compliance reviewer needs from *this* document: what proves identity,
+what is actually switched on, and what may be claimed.
+
+### 29.1 Read a marketplace rule before you rely on it
+
+A 2026-08-01 audit found **four rules in that file describing code that did not
+exist**. They were kept, each tagged with its true state and the item that closes
+it. The rule for reading them is the rule this whole project now runs on:
+
+> **Grep for a production caller. A rule with no caller is a plan, not a guarantee.**
+
+Three anti-patterns produced that drift, and none of them is authentication:
+
+| Anti-pattern | Why it is not auth |
+|---|---|
+| A rate limiter | `marketplace_rate_limit` throttles; it identifies nobody. A router carrying only that dependency is unauthenticated. |
+| A feature gate | `require_plan` / `require_feature` resolve a *tier* and 403 if it is too low. They never establish identity — so any `tenant_id` read from the body is unverified, and an entitlement change silently becomes an access change. |
+| An empty secret | `if secret and provided != secret:` allows everyone when the env var is unset. Resolve via `secret_keys.resolve_key(..., purpose=...)` and **deny** when unresolvable. |
+
+### 29.2 The trust chain — what proves what
+
+Each stage of the M2M lifecycle proves a different thing, and they do not
+substitute for one another. This is the single most misread part of the system.
+
+| Claim | Proved by | Never proved by |
+|---|---|---|
+| *Which tenant is calling* | `require_api_key` (`warden/auth_guard.py`) | a rate limit, a feature gate |
+| *Which agent an action belongs to* | an Ed25519 signature over the canonical envelope — `agent_id` is **derived from** the public key (`did:shadow:{base62(sha256(pubkey))}`), so a valid signature *is* the identity | an API key, or a body-supplied `from_agent_id` |
+| *Where a seller is paid* | a signature over `{purpose, agent_id, address, timestamp}` with `purpose: shadow-warden:payout-address:v1` — a different envelope, so an offer signature cannot be replayed as a binding | anything unsigned; there is no enforcement flag on this route and there must never be one |
+| *That an agent may spend* | `autonomy.check_action()` against a policy granted only by KYA screening at VERIFIED | KYA status alone — `check_action()` reads the policy, and a revoked agent's policy is deleted |
+| *That the owner is a real business* | KYB, opt-in, manual review only — there is no auto-verification path | KYA, which screens the agent's behaviour, not its owner |
+
+Two corollaries that have each already cost a real defect:
+
+- **No policy means REQUIRE_APPROVAL, and that must stay true.** Do not "fix" a
+  blocked agent by making no-policy resolve to ALLOW; that deletes the safe
+  default the entire autonomy model rests on.
+- **Registration is unauthenticated on purpose** (Stage 1 first contact) and the
+  public key is published by `GET /agents/{id}`. Therefore registration must
+  never mutate an existing row. First registration wins; the route answers 409.
+
+> ⚠️ **That last rule is true of the FastAPI gateway and false of the Worker.**
+> Everything in §29 describes `warden/marketplace/*` on `api.shadow-warden-ai.com`.
+> A **second, independent implementation** of register / listings / negotiate /
+> clear exists at `workers/shadow-warden-marketplace/` — TypeScript over
+> Cloudflare KV, deployed at `marketplace.shadow-warden-ai.com`, answering
+> `/health` 200. It shares no code, no database and no guard with the Python
+> surface: every ratchet in `Hook.md` §3 enumerates FastAPI routes, so **not one
+> of them has ever seen it**.
+>
+> Three defects were found there on 2026-09-19 (by CodeRabbit on PR #504,
+> confirmed by reading `src/index.ts`), each the shape of one already closed on
+> the Python side. **All three are fixed in the repository by #506** — and that
+> is not the same as fixed in production; see below.
+>
+> | Worker behaviour, as shipped | The rule it contradicted | Now |
+> |---|---|---|
+> | `registerAgent()` re-registered an existing `did`, overwriting `name`, `capabilities` and **`pubkey`** while preserving `registered_at`, `trust_score` and `is_sponsored`, answering **200** — unauthenticated | Rule 29. Worse than the bug #463 fixed: rebinding a DID to an attacker's key with the victim's trust **inherited** is takeover *plus* reputation, where the SQLite version at least reset the row | 409, writes nothing |
+> | `did` was taken from the request body and never derived from `pubkey` | On the Python side `agent_id` **is** `did:shadow:{base62(sha256(pubkey))}`, which is what makes a signature self-proving. A free-form `did` breaks that property at the root | derivation enforced; the stored key is exactly the validated one |
+> | `requireAdmin()` was `if (!env.ADMIN_KEY) return null; // no key configured → open` | §29.1's third anti-pattern, verbatim. If the secret was never set with `wrangler secret put`, sponsor-grant and clearing were open | 503 when unset; compare is constant-time in length as well as content |
+>
+> The register route was **not** exercised against production, because proving
+> it would mean performing the takeover.
+>
+> **Deployed 2026-09-19**, version `1.0.1`, verified by reading rather than by
+> the deploy reporting success: `/health` answers `1.0.1`, and `/stats` answers
+> **401** both without a key and with a wrong one — 503 would have meant the
+> secret never landed, 200 that the old code was still serving. The 409 path was
+> deliberately *not* exercised against production: proving it would mean
+> registering an agent, which is the marketplace activity §29.6 forbids
+> manufacturing.
+>
+> **A merged fix is not a deployed fix**, and this one nearly proved it twice
+> over. No workflow runs `wrangler deploy` for this worker — Workers Builds is
+> connected only to `shadow-warden-installer` — so `npm run deploy` is a human
+> step, and the local checkout was **three commits behind `origin/main`** at the
+> time, which would have republished the vulnerable version from a directory
+> that looked current. Deploy from a tree you have verified by content, and set
+> `ADMIN_KEY` with `wrangler secret put` **before** the deploy, not after: it is
+> a distinct secret from the gateway's `ADMIN_KEY`, and between the two steps
+> the admin endpoints answer 503.
+>
+> **Still true, and the reason this block stays:** identity at registration is
+> the *only* thing #506 closed. `sendOffer`, `acceptOffer`, `rejectOffer` and
+> `POST /clear` still act on a body-supplied DID with no signature, and `/clear`
+> is reachable by anyone — it computes a take rate but settles nothing, so it is
+> a state-mutation gap rather than a money one. Porting `_assert_actor()` there
+> is its own work. So: **no §29 rule may be cited as covering
+> `marketplace.shadow-warden-ai.com`**, and no document may describe the
+> marketplace's identity guarantees without naming which host it means. Tracked
+> in `Hook.md` §6 as H-8.
+
+### 29.3 Enforcement posture — what is actually on
+
+Every flag below defaults to **off**, and each is off in a default deployment.
+A code path that reads as gated is not evidence that anything is gated.
+
+| Flag | Default | What its being off means |
+|---|---|---|
+| `AUTHORIZE_PAYMENT_ENFORCED` | `false` | The FT-6 chokepoint evaluates nothing. Both marketplace call sites additionally fail soft to "proceed". Check the `enforced="false"` series of `warden_payment_authorization_total` before assuming a money path is protected. |
+| `MARKETPLACE_REQUIRE_SIGNED_OFFERS` | `false` (`true` in production) | Signatures are verified and counted either way; only *rejection* is gated. |
+| `KYB_ENFORCEMENT_ENABLED` | `false` | No agent is capped by its owner's KYB status. Once on, a lookup failure caps at REQUIRE_APPROVAL — never at ALLOW — but an unreadable flag must still mean "enforcement off". |
+| `SANCTIONS_SCREENING_ENABLED` | `false` | Screening is observational by design: a HIT opens a `COMPLIANCE` incident and never blocks, delays or reverses a clearing. |
+| `ESCROW_SETTLE_CHAINS` | empty | Nothing is sent on any chain. The gate sits in `_call_contract`, covering all six contract functions — gating only `deposit` would let a `confirmReceipt` go out for a trade whose deposit never did. It is a list and never a boolean. |
+| `X402_GATE_ENABLED` | `false` | Search is unmetered. |
+
+**A flag set is not a flag delivered.** `warden` has no `env_file` in
+`docker-compose.yml`, so each of these needs an explicit `${...}` passthrough.
+Seven of eight enforcement flags were once set in `.env` and read by nothing.
+
+### 29.4 Fail direction
+
+The marketplace mixes both directions deliberately. Getting one backwards is how
+money is lost, so the direction is a rule, not an implementation detail.
+
+| Fail-CLOSED (a fault denies) | Fail-OPEN (a fault allows, and is counted) |
+|---|---|
+| Offer signature verification | MAESTRO auto-isolation (7 independent steps) |
+| Payout-address binding | Brand Agent's 4 gates |
+| Real settlement transactions — the stub returned `True` on every error, so a release that never reached the chain looked like one that did | x402 gate errors in `require_payment()` |
+| Signing-key resolution (`resolve_key`) | KYA registration (`kya_status` defaults to PENDING) |
+| Escrow preflight, once a chain is configured | ClearingEngine's PostgreSQL half of the dual write |
+
+A fail-open path **must** increment a counter: one with no counter is an outage
+nobody can see, and `test_no_new_counterless_failopen.py` blocks *new* ones.
+
+⚠️ **That is the rule, not yet the state.** Several marketplace fail-opens
+predate the ratchet and only `log.debug` — `dispatch_action` continues past
+Brand Agent and x402 gate exceptions, and `BrandAgentFilter` and `x402_gate`
+carry their own uncounted catches. The ratchet froze the existing set rather
+than fixing it, so a gate failing on those paths is currently invisible. Do not
+read §29.4 as an assurance that every marketplace fail-open is observable;
+read it as the requirement for anything you add.
+
+### 29.5 The marketplace is an untrusted-input surface against its own agents
+
+A listing title, a negotiation message and an agent's self-declared capabilities
+are written by a counterparty. They return to SOVA and MasterAgent as tool
+results, and those agents hold tools that move money — which is the indirect
+prompt-injection path (LLM01) this product sells protection against, inside its
+own market.
+
+- Labelling that content untrusted is not screening it. `_quarantine_untrusted()`
+  puts the free-text leaves of every `UNTRUSTED_TOOLS` result through the
+  gateway's own `POST /filter` before a privileged model reads it — the Dual-LLM
+  pattern, not a warning label.
+- **Keys are text.** The walk screens dictionary keys as well as values: these
+  payloads come from upstream services whose *keys* a counterparty chooses.
+- **An incomplete walk is not a screen.** A structure nested past the depth
+  limit is withheld whole, never screened in part and returned entire — the same
+  rule the chunk ceiling enforces for size.
+- **Withheld, never silently dropped.** A refusal that looked like an empty
+  catalogue would be its own kind of lie.
+- Only `_untrusted`, `_quarantined` and `_note` are exempt from screening, **by
+  exact name and only at the top level** where this module writes them.
+  Screening our own instruction to the model is circular; a *nested* `_note` is
+  the counterparty's text. A blanket `_`-prefix skip was a hole — nothing
+  reserves that prefix in an upstream payload, and skipping a key skipped the
+  walk into everything beneath it.
+- Fail-OPEN and counted (`record_failopen("agent_result_quarantine")`) — a filter
+  outage must not brick every agent read, and the untrusted label still stands.
+- The screen has now been wrong in three distinct ways since it shipped (a field
+  the filter does not return, unscreened keys and silent depth truncation, an
+  attacker-choosable exemption). Each was found by review, none by the suite.
+  Treat a change here as security-critical and verify the test fails first.
+
+### 29.6 What may be published about the marketplace
+
+Governed by the Claims Rule and `docs/capability-matrix.md`; the rows that matter
+most, because they are the easiest to overstate:
+
+| Subject | Status | The wording that is allowed |
+|---|---|---|
+| M2M protocol, 16 lifecycle actions | `LIVE` | May be described fully. |
+| Escrow | `TESTNET` | Say "testnet". **Never "escrow-backed" unqualified** — the live exposure was selling high-security escrow over an escrow that settles nothing. |
+| `settlement_mode` | must read `simulated` today | It has been wrong in production twice, both by configuration: it once flipped to `onchain` on any RPC URL, and `BASE_RPC_URL` defaults to a public mainnet endpoint. `onchain` now requires a chain in `MAINNET_CHAINS` *and* a capability, not a configuration. |
+| "Every money-moving action passes an autonomy **and** budget check" | `OVERSTATED` | Say "autonomy, plus budget where a tenant has agentic commerce configured". `check_budget()` short-circuits to `agentic_commerce_not_enabled` for every production tenant. |
+| KYA / KYB / sanctions | `BUILT` | Safe to describe. **Never imply usage** — none has run against a real counterparty. |
+| Marketplace activity of any kind | `FABRICATED` if implied | Production: 0 agents, 0 escrows, 0 negotiations, $0 volume. Every marketplace database holds only the `_warden_ddl_applied` row. A storefront must show what the gateway said, or say it could not read it. |
+
+### 29.7 Enforcement
+
+`warden/marketplace/CLAUDE.md` is the canon; `Hook.md` §3 lists the pytest
+ratchets that hold each rule in place and what regressed to produce it. A rule
+added here without a guard there is a plan.

@@ -1,8 +1,19 @@
 # PLAN.md — Shadow Warden AI Product Roadmap
 
-**Version 7.9 · Last updated 2026-08-03**
+**Version 7.9 · Last updated 2026-09-19**
 
 Product roadmap, tier feature matrix, and sprint delivery status.
+
+> **What this file is, and what it is not.** Everything under *Delivery Blocks*
+> is a **shipped-feature ledger** — what was built, block by block, up to v7.9.
+> It is history, and it is closed: the feature freeze in `CLAUDE.md` has refused
+> new subsystems, routers and frontends since 2026-08-18.
+>
+> **The live plan is `docs/launch-program.md`**, summarised in §"Current
+> programme" below. The blocks answer "what exists"; the programme answers
+> "what is worth doing next", and since P0 those have been different questions.
+> The binding constraint is no longer capability — it is that **no transaction
+> has ever been exercised by a real counterparty**.
 
 ---
 
@@ -264,15 +275,78 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 
 ---
 
-## Next Sprint — Block Q (Planned)
+## Current programme — from security platform to working marketplace
 
-| ID | Feature | Priority |
-|----|---------|----------|
-| Q-01 | DNS A record `dash.shadow-warden-ai.com → 91.98.234.160` (Cloudflare) | P0 |
-| Q-02 | Analytics API live endpoints wired into dashboard (replace mock data) | P1 |
-| Q-03 | `TRUSTED_ENTRY +3` reputation cron — 30-day no-report entries auto-awarded | P2 |
-| Q-04 | `SEARCH_HIT +1` reputation — award on `search_community_feed` result match | P2 |
-| Q-05 | MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink | P3 |
+Canonical: **`docs/launch-program.md`** (opened 2026-08-18, baseline 54/100,
+target 82/100, six gated phases). Reproduced here only as an index — the phase
+detail, the evidence and the exit criteria live in that file and are not
+duplicated, because a second copy of a plan drifts exactly the way three copies
+of a price list did.
+
+The **gated** phases are sequential: each entry gate is the previous phase's
+exit evidence. Two deliberate exceptions, both in the table below — **P2 has no
+entry gate and runs alongside P1a**, and **P1b is gated on a legal entity rather
+than on a phase**, so it lands whenever the company exists and blocks nothing.
+No phase completes on effort spent, only on its exit criteria being demonstrably
+true **in production**.
+
+| Phase | Subject | Entry gate | State |
+|---|---|---|---|
+| **P0** | Truth and freeze | none — blocks everything | **Closed.** Capability matrix published and *enforced* by `test_public_claims_reconciled.py`; evidence bundle written to MinIO and offsite, downloaded, Fernet-decrypted and compared field-by-field; liquidity dashboard live in Grafana reporting honest zeros |
+| **P1a** | The crypto rail | P0 exit | **Open.** Escrow compiled, Slither-reviewed and executed on Ethereum Sepolia; settlement is still `SIMULATED` — `EscrowService.fund_escrow()` calls `deposit` with `{}`, which is a design task, not a configuration gap. Design accepted: `docs/onchain-settlement-design.md` |
+| **P1b** | The fiat rail | a registered legal entity | **Blocked on the company, not the calendar.** Code complete and idle; `FakeLemonSqueezy` drives the whole path. Blocks no other phase |
+| **P2** | Distribution and developer experience | none — runs alongside P1a | **Mostly closed.** SDKs 1.1.0 on PyPI and npm, both targeting `/v1`; `/v1` live with `Sunset: 2027-08-23`; quickstart re-verifiable via `scripts/quickstart_check.py`; agent-native discovery pinned by `test_agent_card_truth.py`. Open: a developer outside the project completing the quickstart unaided, timed |
+| **P3** | Seeding both sides of the market | P1a exit | **Not started.** `scripts/seed_first_party_supply.py` written, never run against production. FT-6 Phase C moved here — `phase_c_ready()` refuses on `orders_checked=0`, correctly |
+| **P4** | Service and trust operations | the first real counterparty | **Not started.** One half unblocked: `docs/sla.md` §8 now says service-credit issuance is manual rather than reading as an automatic entitlement |
+| **P5** | Enterprise and scale readiness | 3+ paying customers, or one signed pilot | **Not started.** Everything here is written and unshipped: Helm chart, money tables to Postgres, SOC 2 Type II, multi-region |
+
+**Ceiling:** ~82 with every phase; ~78 without P1b. The remaining gap is not
+engineering — it is an independent SOC 2 Type II opinion with a completed
+observation window, and a transaction history long enough that the trust,
+dispute and settlement machinery has been exercised by adversarial counterparties
+rather than by its own test suite.
+
+### Deliberately not doing
+
+Enforced by the feature freeze in `CLAUDE.md`, and refused by the autonomous loop
+as well as by humans: new subsystems, internationalisation, a fifth frontend,
+additional chains, chasing full mutation coverage, browser-sandbox revival. Each
+is defensible work that would consume the capacity the phases above need.
+
+---
+
+## R-series — marketplace launch remediation
+
+Ad-hoc numbered work against the marketplace and its surfaces, running under P1a
+and P2. Each item is a defect that shipped, not a feature; the commit message
+states what was wrong in the first line, which is why they read the way they do.
+
+| ID | Subject | State |
+|---|---|---|
+| R0 | Marketplace reads took 9.5 s to return an empty list — schema DDL ran on every Turso connection (#461); the site shipped v6.8 against a 7.9.0 product (#462) | ✅ merged |
+| R1 | No seller could ever be paid, and nothing proved who chose where — signed payout-address binding, and the `INSERT OR REPLACE` agent takeover (#463) | ✅ merged |
+| R1-b | A lost receipt no longer strands a funded trade; every transition keeps its tx hash (#464) | ✅ merged |
+| R2 | Settlement Phase 1 — preflight on every escrow, nothing sent on any chain (#481) | ✅ merged |
+| R3 | The marketplace has a storefront instead of a 301 to `/agentic` (#501) | ✅ merged |
+| R4 | Third-party tool results are screened before a privileged model sees them — the Dual-LLM pattern over `UNTRUSTED_TOOLS` (#502) | ✅ merged |
+
+Guards for each live in `Hook.md` §3; the rules they enforce are in
+`warden/marketplace/CLAUDE.md` and `Rule.md` §29.
+
+### Next — the shortest path to P1a exit
+
+Not a wish list. Each item is either an exit criterion of P1a or a prerequisite
+named by one, in the order their dependencies allow:
+
+| # | Item | Why it is next |
+|---|---|---|
+| 1 | Decide whether one market keeps two implementations | `workers/shadow-warden-marketplace/` is deployed at `marketplace.shadow-warden-ai.com` and re-implements register / listings / negotiate / clear. #506 closed the identity defects there and gave it its first ratchet; **it still has no actor proof anywhere else** — `sendOffer`, `acceptOffer`, `rejectOffer` and `POST /clear` act on a body-supplied DID with no signature. Either port `_assert_actor()` to it or retire it in favour of a proxy to the gateway. Running two implementations of one market means every guard must be written twice, and the one nobody remembers is the one that ships the defect. See `Rule.md` §29.2, `Hook.md` H-8 |
+| 1b | Deploy #506 | A merged fix is not a deployed fix: no workflow runs `wrangler deploy` for this worker. `wrangler secret put ADMIN_KEY`, then `npm run deploy` in `workers/shadow-warden-marketplace/` — without the secret, `/stats` and sponsor-grant answer 503 by design |
+| 2 | Implement `deposit()` against the design in `docs/onchain-settlement-design.md` | `fund_escrow()` calls `deposit({})`. This is the **primary settlement blocker** — a design task, so no amount of configuration substitutes — but not the whole of P1a exit: items 3–6 below are prerequisites too |
+| 3 | Snapshot addresses and integer minor units onto the escrow | The escrow record stores agent DIDs and a USD float; there is nothing to build a real transaction from |
+| 4 | Stage `AUTHORIZE_PAYMENT_ENFORCED=true` | The KYA default-policy grant already made it a posture decision rather than a kill switch. Verify the `purchase` action string first; stage, do not flip |
+| 5 | Per-trade value cap for the first 90 days | Clearing once settled every trade at $0.00 with tests that agreed. Assume that bug class is still latent and reconcile by hand |
+| 6 | Close `H-1` from `Hook.md` §6 — a guard that every posture flag has a compose passthrough | Seven of eight enforcement flags were once set in `.env` and read by nothing. Flipping a flag that never arrives is worse than not flipping it |
 
 ---
 
@@ -286,10 +360,26 @@ Product roadmap, tier feature matrix, and sprint delivery status.
 | Redoc Docs | `https://docs.shadow-warden-ai.com` | ✅ Live |
 | Community Dashboard | `https://shadow-warden-ai.com/community` | ✅ Live (Vercel) |
 | Public Incident Page | `https://shadow-warden-ai.com/incident` | ✅ Live (Vercel) |
-| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ⚠️ Needs DNS A record |
-| Grafana | `http://91.98.234.160:3000` | ✅ Live |
-| Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
+| Marketplace storefront | `https://shadow-warden-ai.com/marketplace` | ✅ Live — shows what the gateway said, or says it could not read it (R3) |
+| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ⚠️ Caddy vhost configured; DNS A record unverified from the repo |
+| Grafana | `127.0.0.1:3001` — **not published** | ✅ Live, loopback only |
+| Jaeger UI | `127.0.0.1:16686` — **not published** | ✅ Live, loopback only |
+| MinIO (S3 + console) | `127.0.0.1:9000` / `127.0.0.1:9091` — **not published** | ✅ Live, loopback only |
 | Server | Hetzner Ubuntu VPS — `91.98.234.160` | ✅ Live |
+
+> **The three loopback rows were published here as `http://91.98.234.160:3000`
+> and `:16686` until 2026-09-19.** Both were wrong in a way that matters: they
+> named a port compose has never published (Grafana is `127.0.0.1:3001:3000`),
+> and they told any reader that Jaeger — which has **no authentication at all** —
+> was reachable on the public IP. Cloudflare's WAF and rate limits are bypassed
+> entirely by a request sent straight to the origin, which is why these are bound
+> to loopback in `docker-compose.yml` and must stay there.
+>
+> Reach them over a tunnel:
+> ```bash
+> ssh -L 3001:127.0.0.1:3001  root@91.98.234.160   # Grafana
+> ssh -L 16686:127.0.0.1:16686 root@91.98.234.160  # Jaeger
+> ```
 
 ---
 
