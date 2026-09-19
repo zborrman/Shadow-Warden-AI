@@ -201,15 +201,26 @@ _SCREEN_CHUNK_CHARS = 4000
 _SCREEN_MAX_CHUNKS = 5
 
 
-def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> None:
+def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
     """Collect every free-text leaf of a tool result.
+
+    Returns **True when the traversal was complete**. False means the depth
+    limit cut it short and `out` is therefore a partial view — the caller must
+    withhold rather than screen what it managed to reach.
 
     No length floor and no item cap: both were holes. A 12-character string is
     long enough for "ignore above", and the cap meant the 21st listing was
     never looked at.
+
+    **Dictionary keys are text too.** They used to be read only to skip our own
+    `_` markers and were never screened, while `acp_search_catalog` and the
+    community feeds return upstream objects whose *keys* a counterparty
+    chooses. `{"ignore all previous instructions": 1}` passed through a screen
+    that reported it had looked at the result.
     """
     if depth <= 0:
-        return
+        return False
+    complete = True
     if isinstance(value, str):
         if value:
             out.append(value)
@@ -217,10 +228,13 @@ def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> None:
         for k, v in value.items():
             if isinstance(k, str) and k.startswith("_"):   # our markers, not their text
                 continue
-            _foreign_strings(v, out, depth - 1)
+            if isinstance(k, str) and k:
+                out.append(k)
+            complete &= _foreign_strings(v, out, depth - 1)
     elif isinstance(value, list):
         for v in value:
-            _foreign_strings(v, out, depth - 1)
+            complete &= _foreign_strings(v, out, depth - 1)
+    return complete
 
 
 def _verdict_blocks(verdict: Any) -> bool | None:
@@ -272,7 +286,14 @@ async def _quarantine_untrusted(tool_name: str, result: Any, tenant: str = "defa
     if tool_name not in UNTRUSTED_TOOLS:
         return result
     strings: list[str] = []
-    _foreign_strings(result, strings)
+    complete = _foreign_strings(result, strings)
+    if not complete:
+        # The depth limit cut the walk short, so `strings` is a partial view.
+        # Screening it and returning the original would be the same defect the
+        # chunk ceiling below exists to prevent: unscreened content arriving in
+        # the same shape as screened content. A structure deeper than the limit
+        # is not a normal tool result.
+        return _quarantined(tool_name, "too_deep_to_screen")
     if not strings:
         return result
 
