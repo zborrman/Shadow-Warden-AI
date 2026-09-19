@@ -32,10 +32,11 @@ follows:
 > file that implements the guard and the regression it would have caught. A
 > guard that is planned goes in §6 — "Not built" — and nowhere else.
 
-Ruff, mypy, Trivy, hadolint and the GDPR content-log check listed in the old §6
-ToDo table are not lost; they run, but as CI jobs or upstream pre-commit hooks,
-not as the local shell scripts that were described. They are recorded below where
-they actually live.
+Ruff, mypy and Trivy are not lost; they run, but as upstream pre-commit hooks and
+CI jobs, not as the local shell scripts that were described, and they are
+recorded below where they actually live. **`hadolint` and the GDPR content-log
+check are not implemented anywhere** — they are in §6 with the other guards that
+do not exist, which is the only honest place for them.
 
 ---
 
@@ -110,7 +111,7 @@ shipped — none is hypothetical.
 
 | Guard | Pins | The regression it exists for |
 |---|---|---|
-| `test_marketplace_route_auth.py` | rule 24 — every write route under `/marketplace/*` carries `require_api_key` | A may-only-shrink baseline of known-open routes. There is **no global auth middleware** in `main.py`, so a router that forgets the dependency is open to the internet. A flat assertion would have to be skipped (first-contact registration is open on purpose); a ratchet keeps the open set visible. |
+| `test_marketplace_route_auth.py` | rule 24 — every write route under `/marketplace/*` carries `require_api_key` | A `_KNOWN_OPEN` frozenset that may only **shrink**: a new unauthenticated write route fails, and a route that gets fixed must be deleted from the baseline so it cannot silently reopen (`test_known_open_baseline_has_not_gone_stale`). There is **no global auth middleware** in `main.py`, so a router that forgets the dependency is open to the internet. A flat assertion would have to be skipped — first-contact registration is open on purpose — and a skipped test protects nothing. Enumerates **FastAPI routes only**; see H-8. |
 | `test_marketplace_offer_signing.py` | rule 1 — every offer is Ed25519-signed | `_verify_offer_signature()` existed and was **called from nowhere**; every stored signature was `''`. With an unauthenticated router that let a $1000 listing settle at $0.01 by impersonating the seller on accept. |
 | `test_marketplace_payout_address_binding.py` | rule 28 — only the agent's own signature writes `payout_address` | An agent is an Ed25519 key; a trade settles to a secp256k1 address and nothing derives one from the other. Whoever writes that column decides where a seller is paid — a theft primitive. The unsigned writer it replaced had **zero callers**, so no seller could ever be paid at all. Fail-CLOSED, no enforcement flag. |
 | `test_x402_signed_identity.py` | x402 payer identity is proven, not claimed | Strix drained a victim's prepaid balance with `base64({"agent_id": victim})` in `PAYMENT-SIGNATURE`. The gate trusted the claimed id. |
@@ -205,7 +206,9 @@ is a real gap found while reconciling this file against the repo.
 | H-3 | **No CI mutation gate on the money modules.** `mutmut` is configured for 5 modules and commented out of `ci.yml`; `marketplace/x402_gate.py` carries 259 surviving mutants. | The suite's strength on the money path is unmeasured between manual sweeps. | Not a PR gate (too slow) — a weekly scheduled sweep whose survivor count is a ratchet. |
 | H-4 | **No guard on `settlement_mode` truth at the edge.** `test_escrow_settlement_wiring.py` pins the derivation; nothing checks what the *deployed* manifest answers. | It has been wrong in production twice, both times by configuration rather than by code. | Add the assertion to `scripts/capability_probe.py`'s production run, which already checks PQC and SDK resolution. |
 | H-5 | **`tenant-isolation` warns and never blocks**, and has no pytest twin. | Cross-tenant leakage has already shipped once in dashboard routes. | Give it a may-only-shrink baseline like the route-auth ratchet, then make it blocking. |
-| H-6 | **Trivy and hadolint** — promised in the old §6 ToDo, still open. Trivy runs in a workflow (`trivy-action`) but no Dockerfile linter does. | Base-image CVEs and Dockerfile drift. | `hadolint` as a pre-commit hook on `Dockerfile*`. |
+| H-6 | **`hadolint` is still unimplemented**, promised in the old §6 ToDo. Trivy does run (`trivy-action` in CI); no Dockerfile linter does. | Dockerfile drift — the base-image half is covered, the authoring half is not. | `hadolint` as a pre-commit hook on `Dockerfile*`. |
+| H-7 | **Nothing enforces the GDPR content-never-logged invariant.** `CLAUDE.md` names it a protected invariant and the old Hook.md described a `check-gdpr-content-log` guard for it; `test_gdpr_endpoints.py` and `test_gdpr_idor.py` cover the export/purge routes and IDOR, not logging statements. | Content reaching a log line is the single hardest requirement in the product to undo once shipped — logs ship to Loki, MinIO and a SIEM. | An AST hook in `warden/hooks/` over `log.*()` calls carrying `content`/`text`/`body`/`prompt`, with a may-only-shrink baseline and a pytest twin, since CI does not run pre-commit. |
+| H-8 | **The marketplace Worker has none of §3's guards.** `workers/shadow-warden-marketplace/` is deployed at `marketplace.shadow-warden-ai.com` (health answers 200) and re-implements register / listings / negotiate / clear over KV, in TypeScript. Every ratchet in §3 enumerates FastAPI routes, so not one of them sees this surface. | Rule 29 (first registration wins, 409) is true of the Python gateway and **false** here: `registerAgent()` overwrites an existing DID's `pubkey` while preserving its `trust_score`, unauthenticated, and answers 200. `requireAdmin()` is additionally the empty-secret anti-pattern Rule.md §29.1 names — `if (!env.ADMIN_KEY) return null; // no key configured → open`. | Out of scope for a ratchet; it needs the fix first. Tracked as its own work — see `Rule.md` §29.2. |
 
 ---
 

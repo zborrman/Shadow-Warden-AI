@@ -1095,6 +1095,30 @@ Two corollaries that have each already cost a real defect:
   public key is published by `GET /agents/{id}`. Therefore registration must
   never mutate an existing row. First registration wins; the route answers 409.
 
+> ⚠️ **That last rule is true of the FastAPI gateway and false of the Worker.**
+> Everything in §29 describes `warden/marketplace/*` on `api.shadow-warden-ai.com`.
+> A **second, independent implementation** of register / listings / negotiate /
+> clear exists at `workers/shadow-warden-marketplace/` — TypeScript over
+> Cloudflare KV, deployed at `marketplace.shadow-warden-ai.com`, answering
+> `/health` 200. It shares no code, no database and no guard with the Python
+> surface: every ratchet in `Hook.md` §3 enumerates FastAPI routes, so **not one
+> of them has ever seen it**.
+>
+> Three defects follow, each the shape of one already closed on the Python side:
+>
+> | Worker behaviour | The rule it contradicts |
+> |---|---|
+> | `registerAgent()` re-registers an existing `did` by overwriting `name`, `capabilities` and **`pubkey`**, while preserving `registered_at`, `trust_score` and `is_sponsored`, then answers **200** — unauthenticated | Rule 29. Worse than the bug #463 fixed: rebinding a DID to an attacker's key with the victim's trust **inherited** is takeover *plus* reputation, where the SQLite version at least reset the row |
+> | `did` is taken from the request body and never derived from `pubkey` | §29.2 — on the Python side `agent_id` **is** `did:shadow:{base62(sha256(pubkey))}`, which is what makes a signature self-proving. A free-form `did` breaks that property at the root |
+> | `requireAdmin()` is `if (!env.ADMIN_KEY) return null; // no key configured → open` | §29.1's third anti-pattern, verbatim. If the secret was never set with `wrangler secret put`, sponsor-grant and clearing are open |
+>
+> Until that is fixed, **no §29 rule may be cited as covering
+> `marketplace.shadow-warden-ai.com`**, and no document may describe the
+> marketplace's identity guarantees without naming which host it means. Tracked
+> in `Hook.md` §6 as H-8. Found 2026-09-19 by CodeRabbit on PR #504 and confirmed
+> by reading `src/index.ts`; the register route was **not** exercised against
+> production, because proving it would mean performing the takeover.
+
 ### 29.3 Enforcement posture — what is actually on
 
 Every flag below defaults to **off**, and each is off in a default deployment.

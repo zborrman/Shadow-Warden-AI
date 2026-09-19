@@ -1858,7 +1858,12 @@ optimistic phrasing.
 
 ### The four-stage lifecycle
 
-```
+All paths below are on the FastAPI gateway, `https://api.shadow-warden-ai.com`
+(`/v1` prefixed — the unversioned surface carries `Sunset: 2027-08-23`).
+`marketplace.shadow-warden-ai.com` is a **different** implementation with its own
+path contract and none of these guarantees — see `Rule.md` §29.2.
+
+```text
 Stage 1  Registration   POST /marketplace/register        first contact, unauthenticated by design
                         GET  /marketplace/protocol        capability manifest + X-Protocol-Version
                         GET  /marketplace/protocol/schema/{action}
@@ -1919,7 +1924,7 @@ the search a credit priced at $0.001.
 
 ### Progressive autonomy
 
-```
+```text
 L1 Shadow       every action -> REQUIRE_APPROVAL   (the default when no policy exists)
 L2 Supervised   amount < threshold AND action allowed -> ALLOW, else REQUIRE_APPROVAL
 L3 Autonomous   amount <= max_spend AND action allowed -> ALLOW, else BLOCK
