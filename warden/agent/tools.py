@@ -201,7 +201,17 @@ _SCREEN_CHUNK_CHARS = 4000
 _SCREEN_MAX_CHUNKS = 5
 
 
-def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
+#: The only keys this module writes into a tool result, and therefore the only
+#: ones exempt from screening — by exact name, and only where we put them.
+#: A prefix rule (`k.startswith("_")`) was a hole: the payloads come from
+#: upstream services with no schema reserving that prefix, so a counterparty
+#: could name a key `_ignore_previous_instructions` and have it skipped — along
+#: with everything nested beneath it, since skipping the key skipped the walk
+#: into its value too.
+_OUR_MARKERS: frozenset[str] = frozenset({"_untrusted", "_quarantined", "_note"})
+
+
+def _foreign_strings(value: Any, out: list[str], depth: int = 12, top: bool = True) -> bool:
     """Collect every free-text leaf of a tool result.
 
     Returns **True when the traversal was complete**. False means the depth
@@ -217,6 +227,10 @@ def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
     community feeds return upstream objects whose *keys* a counterparty
     chooses. `{"ignore all previous instructions": 1}` passed through a screen
     that reported it had looked at the result.
+
+    Only `_OUR_MARKERS`, and only at the top level where this module writes
+    them, are exempt. `top` distinguishes the result object we decorated from
+    everything nested inside it, which the counterparty wrote.
     """
     if depth <= 0:
         return False
@@ -226,14 +240,16 @@ def _foreign_strings(value: Any, out: list[str], depth: int = 12) -> bool:
             out.append(value)
     elif isinstance(value, dict):
         for k, v in value.items():
-            if isinstance(k, str) and k.startswith("_"):   # our markers, not their text
+            # Ours, and only where we put them: screening `_note` would be
+            # circular, but a nested `_note` is the counterparty's text.
+            if top and isinstance(k, str) and k in _OUR_MARKERS:
                 continue
             if isinstance(k, str) and k:
                 out.append(k)
-            complete &= _foreign_strings(v, out, depth - 1)
+            complete &= _foreign_strings(v, out, depth - 1, top=False)
     elif isinstance(value, list):
         for v in value:
-            complete &= _foreign_strings(v, out, depth - 1)
+            complete &= _foreign_strings(v, out, depth - 1, top=False)
     return complete
 
 

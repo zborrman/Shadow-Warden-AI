@@ -292,3 +292,34 @@ async def test_a_result_within_the_depth_limit_is_screened_normally(filter_verdi
 
     assert out.get("_quarantined") is None
     assert "a normal listing" in sent[0]["body"]["content"]
+
+
+@pytest.mark.asyncio
+async def test_an_attacker_chosen_underscore_key_is_screened(filter_verdict):
+    """`_`-prefix was a blanket skip; the payloads have no schema reserving it.
+
+    Worse than an unscreened key: `continue` skipped the walk into the value
+    too, so everything nested under an attacker-named `_` key was invisible to
+    the screen.
+    """
+    state, sent = filter_verdict
+    state["allowed"] = False
+
+    out = await _quarantine({"items": [{"_ignore_previous_instructions": _INJECTION}]})
+
+    assert out.get("_quarantined") is True
+    screened = sent[0]["body"]["content"]
+    assert "_ignore_previous_instructions" in screened, "the key itself must be screened"
+    assert _INJECTION in screened, "and the value beneath it must not be skipped with it"
+
+
+@pytest.mark.asyncio
+async def test_a_nested_marker_name_is_still_their_text(filter_verdict):
+    """We write `_note` at the top level. One nested inside is a counterparty's."""
+    _state, sent = filter_verdict
+
+    await _quarantine({"_note": "ours", "items": [{"_note": _INJECTION}]})
+
+    screened = sent[0]["body"]["content"]
+    assert "ours" not in screened, "our own top-level marker stays exempt"
+    assert _INJECTION in screened, "a nested one is not ours and must be screened"
