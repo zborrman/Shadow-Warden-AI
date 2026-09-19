@@ -705,13 +705,28 @@ async def dispatch_action(
 
         # Queue deduction after successful search (batch settlement in v2)
         if body.action_type == "search":
-            _agent_id = (
-                body.payload.get("agent_id")
-                or request.headers.get("X-Agent-ID", "anonymous")
-            )
+            # Charge the payer the gate *proved*, never the one the request
+            # claimed. This used to read `body.payload["agent_id"]` with an
+            # `X-Agent-ID` fallback, so anyone could spend another agent's
+            # balance by naming it — the same forged-payer hole vuln-0004 closed
+            # at the gate, reopened one step later at the till.
+            # `verified_payer()` is None when nothing was proven, and None means
+            # charge nobody: there is deliberately no fallback here.
             try:
-                from warden.marketplace.x402_gate import deduct_payment  # noqa: PLC0415
-                await deduct_payment(str(_agent_id), "marketplace/search")
+                from warden.marketplace.x402_gate import (  # noqa: PLC0415
+                    deduct_payment,
+                    settled_by_credits,
+                    verified_payer,
+                )
+                _payer = verified_payer(request)
+                if _payer and not settled_by_credits(request):
+                    await deduct_payment(_payer, "marketplace/search")
+                elif _payer:
+                    # Rule 16: the credits fast-path already paid for this call.
+                    # Queueing an x402 deduction too billed one search twice.
+                    log.debug("x402 deduct skipped — settled by credits")
+                else:
+                    log.debug("x402 deduct skipped — no verified payer")
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
             # LS metered billing — offloaded to BackgroundTasks (zero latency impact)
