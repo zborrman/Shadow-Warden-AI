@@ -69,11 +69,32 @@ class BrandAgentFilter:
         buyer_did: str,
         action_type: str,
         payload: dict,
+        *,
+        did_proven: bool = False,
+        rate_subject: str = "",
     ) -> FilterVerdict:
         """Run all gate checks in sequence.
 
         Short-circuits on first block.  Returns FilterVerdict(allowed=True) when
         buyer_did is empty or action is not seller-facing.
+
+        ``did_proven`` says whether the caller *proved* it controls ``buyer_did``
+        — an Ed25519 signature, the way ``negotiation._assert_actor`` does it —
+        rather than merely naming it. `dispatch_action` reads the DID out of the
+        request payload, so by default it is a claim, and a claim must never
+        **grant** anything here:
+
+        * **TrustRank is not borrowable.** An unproven DID scores 0 rather than
+          inheriting the reputation of whoever really owns it. With
+          ``BRAND_AGENT_MIN_TRUST`` set, that denies instead of admitting.
+        * **The rate limit is not someone else's to spend.** Keyed per DID, a
+          claimed identity both evades the caller's own budget and burns the
+          victim's. ``rate_subject`` carries an identifier the caller cannot
+          forge (authenticated tenant, else client IP) and is used whenever the
+          DID is unproven.
+
+        The deny-list still runs against the claimed DID: a claim can only make
+        that check stricter, never weaker.
         """
         if not buyer_did or action_type not in _SELLER_FACING_ACTIONS:
             return FilterVerdict(
@@ -96,7 +117,10 @@ class BrandAgentFilter:
             )
 
         # 2. TrustRank gate (only when threshold is set > 0)
-        trust_score = self._get_trust_score(buyer_did)
+        # An unproven DID scores 0: reputation belongs to whoever holds the key,
+        # and naming an identity must not lend you its standing.
+        trust_score = self._get_trust_score(buyer_did) if did_proven else 0.0
+        checks["did_proven"] = did_proven
         checks["trust_score"] = round(trust_score, 4)
         if _MIN_TRUST > 0 and trust_score < _MIN_TRUST:
             return FilterVerdict(
@@ -108,7 +132,12 @@ class BrandAgentFilter:
             )
 
         # 3. Rate limit (sliding window via Redis sorted set)
-        rate_ok = await self._check_rate(buyer_did)
+        # Charged to the DID only when the caller proved it. Otherwise it is
+        # charged to something the caller cannot choose — spending a victim's
+        # budget by naming them is as much an attack as evading your own.
+        rate_key = buyer_did if did_proven else (rate_subject or "unproven:anonymous")
+        checks["rate_subject"] = "did" if did_proven else "caller"
+        rate_ok = await self._check_rate(rate_key)
         checks["rate_limit"] = "pass" if rate_ok else "throttled"
         if not rate_ok:
             return FilterVerdict(
