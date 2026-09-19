@@ -29,7 +29,10 @@ fallback is what the defect was.
 from __future__ import annotations
 
 import pytest
+from fastapi import BackgroundTasks
+from starlette.requests import Request
 
+from warden.marketplace import api as api_mod
 from warden.marketplace import x402_gate as gate
 
 
@@ -87,41 +90,101 @@ def test_the_accessors_never_raise_on_a_request_without_state():
     gate._mark_settled_by_credits(_Bare())      # must not raise
 
 
-# ── the settlement decision the caller makes ─────────────────────────────────
+# ── the production path: who actually gets charged ───────────────────────────
 #
-# `dispatch_action` is a large handler behind auth, rate limiting and a
-# dispatcher; exercising it end to end here would test the router, not this
-# decision. The decision itself is three lines, so it is expressed directly —
-# and each case is one a reviewer can check against the source.
+# The first version of these tests asserted a local `_should_charge()` helper
+# that re-stated the condition from `dispatch_action`. That is the pattern this
+# repository has paid for twice — a fake agreeing with whoever wrote it, which
+# is how `FakeLemonSqueezy` passed and how a fixture returning `{"blocked": …}`
+# kept a screen green that could not fire. A copy of the rule cannot notice the
+# rule changing.
+#
+# So these call `dispatch_action` and capture the argument `deduct_payment`
+# actually receives.
 
 
-def _should_charge(req) -> str | None:
-    """The rule as implemented in `api.py::dispatch_action`."""
-    payer = gate.verified_payer(req)
-    if payer and not gate.settled_by_credits(req):
-        return payer
-    return None
+def _request(headers: dict | None = None) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/marketplace/action",
+            "query_string": b"",
+            "headers": [
+                (k.lower().encode(), v.encode()) for k, v in (headers or {}).items()
+            ],
+            "client": ("127.0.0.1", 1234),
+        }
+    )
 
 
-def test_the_proven_payer_is_charged():
-    req = _Req()
-    gate._remember_payer(req, "did:shadow:buyer")
-    assert _should_charge(req) == "did:shadow:buyer"
+@pytest.fixture()
+def dispatch(monkeypatch):
+    """Drive `dispatch_action` for a search, capturing every deduction.
+
+    Only the three seams are replaced: the gate's verdict, the search handler
+    (it would need a database and proves nothing here), and the deduction sink.
+    The settlement decision under test is the real one.
+    """
+    charged: list[tuple[str, str]] = []
+
+    async def fake_deduct(agent_id, resource, amount_usd=None):
+        charged.append((agent_id, resource))
+        return True
+
+    async def fake_search(**_kw):
+        return {"results": []}
+
+    monkeypatch.setattr(gate, "deduct_payment", fake_deduct)
+    monkeypatch.setattr(api_mod, "_action_search", fake_search)
+
+    async def run(*, payer: str | None, credits: bool = False, payload: dict | None = None):
+        async def fake_require(request, _resource):
+            gate._remember_payer(request, payer)
+            if credits:
+                gate._mark_settled_by_credits(request)
+            return None
+
+        monkeypatch.setattr(gate, "require_payment", fake_require)
+        body = api_mod.MarketAction(
+            action_type="search", payload=payload if payload is not None else {}
+        )
+        await api_mod.dispatch_action(body, _request(), BackgroundTasks())
+        return charged
+
+    return run
 
 
-def test_a_claimed_agent_id_is_never_charged():
-    """The victim's DID in the body must not become the payer."""
-    req = _Req(headers={"X-Agent-ID": "did:shadow:victim"})
-    gate._remember_payer(req, None)             # signature absent or forged
-    assert _should_charge(req) is None
+@pytest.mark.asyncio
+async def test_the_proven_payer_is_the_one_charged(dispatch):
+    charged = await dispatch(payer="did:shadow:buyer")
+    assert charged == [("did:shadow:buyer", "marketplace/search")]
 
 
-def test_credits_and_x402_never_both_charge_one_call():
-    req = _Req()
-    gate._remember_payer(req, "did:shadow:buyer")
-    gate._mark_settled_by_credits(req)
-    assert _should_charge(req) is None
+@pytest.mark.asyncio
+async def test_a_claimed_agent_id_in_the_body_is_never_charged(dispatch):
+    """The whole defect in one case: the victim is named in the payload and the
+    signature proves someone else. The victim must not pay."""
+    charged = await dispatch(
+        payer="did:shadow:buyer", payload={"agent_id": "did:shadow:victim"}
+    )
+    assert charged == [("did:shadow:buyer", "marketplace/search")]
+    assert all(a != "did:shadow:victim" for a, _ in charged)
 
+
+@pytest.mark.asyncio
+async def test_an_unverified_caller_charges_nobody(dispatch):
+    """No proof means no deduction — not a deduction against the claimed id."""
+    charged = await dispatch(payer=None, payload={"agent_id": "did:shadow:victim"})
+    assert charged == []
+
+
+@pytest.mark.asyncio
+async def test_credits_and_x402_never_both_charge_one_call(dispatch):
+    """Rule 16. The credits fast-path already paid; queueing an x402 deduction
+    on top billed one search twice."""
+    charged = await dispatch(payer="did:shadow:buyer", credits=True)
+    assert charged == []
 
 # ── the source itself: the fallback must not come back ───────────────────────
 
