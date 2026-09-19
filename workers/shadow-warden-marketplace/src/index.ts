@@ -8,6 +8,9 @@ const VERSION = "1.0.1";
 const TAKE_RATE = 0.015; // 1.5% platform fee — logged only, no on-chain settlement in v1
 const SPONSORED_BOOST = 0.15; // +15% similarity boost, applied in memory (not in KV sort)
 const MAX_LISTING_INDEX = 1000;
+//: Ed25519 is 44 base64 chars raw and ~60 as SPKI. This bound exists to reject,
+//: not to truncate: a stored key must always be the one its DID derives from.
+const MAX_PUBKEY_CHARS = 512;
 const MAX_NEGOTIATION_ROUNDS = 10;
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -133,7 +136,7 @@ async function incrKV(kv: KVNamespace, key: string): Promise<number> {
  * `POST /listings/:id/sponsor` answer 503 until it is. That is the intended
  * direction of failure for an admin gate.
  */
-function requireAdmin(req: Request, env: Env): Response | null {
+async function requireAdmin(req: Request, env: Env): Promise<Response | null> {
   if (!env.ADMIN_KEY) {
     return json(
       { error: "admin key not configured", detail: "set ADMIN_KEY with `wrangler secret put`" },
@@ -141,15 +144,31 @@ function requireAdmin(req: Request, env: Env): Response | null {
     );
   }
   const provided = req.headers.get("X-Admin-Key") ?? "";
-  if (!timingSafeEqual(provided, env.ADMIN_KEY)) return json({ error: "unauthorized" }, 401);
+  if (!(await secretEquals(provided, env.ADMIN_KEY))) return json({ error: "unauthorized" }, 401);
   return null;
 }
 
-/** Length-independent constant-time string compare — this one guards a secret. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+/**
+ * Constant-time secret compare that does not leak the secret's length.
+ *
+ * A plain byte-wise loop has to `return false` early when the lengths differ,
+ * which lets a caller measure the length of an undisclosed `ADMIN_KEY` by
+ * timing candidates. Hashing both sides first makes every comparison run over
+ * the same 32 bytes whatever the inputs were, so the only thing observable is
+ * equality. Narrow as side channels go — it reveals no key character — but the
+ * function is named for the property, and a compare that is constant-time in
+ * content and variable in length does not have it.
+ */
+async function secretEquals(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ha);
+  const vb = new Uint8Array(hb);
   let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
   return diff === 0;
 }
 
@@ -187,6 +206,16 @@ async function registerAgent(req: Request, env: Env): Promise<Response> {
   if (!body.did || !body.pubkey) return json({ error: "did and pubkey required" }, 400);
   if (body.did.length > 128) return json({ error: "did too long" }, 400);
 
+  // Bound the key BEFORE deriving, and store exactly what was validated. The
+  // first version derived the DID from the whole submitted key and then stored
+  // a 512-character truncation of it, so a longer value produced a record whose
+  // stored key no longer derives its own DID — the very invariant this handler
+  // exists to establish. An Ed25519 key is 44 base64 chars raw, ~60 as SPKI, so
+  // this bound rejects rather than truncates.
+  if (body.pubkey.length > MAX_PUBKEY_CHARS) {
+    return json({ error: "pubkey too long", max_chars: MAX_PUBKEY_CHARS }, 400);
+  }
+
   if (!(await didMatchesPubkey(body.did, body.pubkey))) {
     return json(
       {
@@ -209,7 +238,7 @@ async function registerAgent(req: Request, env: Env): Promise<Response> {
     did: body.did,
     name: (body.name ?? "Unnamed Agent").slice(0, 128),
     capabilities: (body.capabilities ?? []).slice(0, 32),
-    pubkey: body.pubkey.slice(0, 512),
+    pubkey: body.pubkey, // exactly the value the DID was derived from — never truncated
     registered_at: now,
     updated_at: now,
     trust_score: 0.5,
@@ -336,7 +365,7 @@ async function getListing(env: Env, id: string): Promise<Response> {
 }
 
 async function sponsorListing(req: Request, env: Env, id: string): Promise<Response> {
-  const denied = requireAdmin(req, env);
+  const denied = await requireAdmin(req, env);
   if (denied) return denied;
 
   let body: { days?: number };
@@ -513,7 +542,7 @@ async function clearNegotiation(req: Request, env: Env): Promise<Response> {
 // ── Stats handler ──────────────────────────────────────────────────────────
 
 async function getStats(req: Request, env: Env): Promise<Response> {
-  const denied = requireAdmin(req, env);
+  const denied = await requireAdmin(req, env);
   if (denied) return denied;
 
   const [agents, listings, negotiations, cleared] = await Promise.all([

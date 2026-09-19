@@ -170,6 +170,25 @@ def test_admin_gate_is_fail_closed(index_src: str):
     assert "admin key not configured" in index_src
 
 
-def test_admin_key_comparison_is_constant_time(index_src: str):
-    assert "timingSafeEqual" in index_src
+def test_admin_key_comparison_leaks_neither_content_nor_length(index_src: str):
+    """A byte-wise loop must return early when lengths differ, which times out
+    the secret's length. Hashing both sides first makes every comparison run
+    over the same 32 bytes, so only equality is observable."""
+    assert "secretEquals" in index_src
     assert 'key !== env.ADMIN_KEY' not in index_src
+    assert "a.length !== b.length" not in index_src, (
+        "An early length return is how the key's length leaks — hash both sides."
+    )
+    assert 'crypto.subtle.digest("SHA-256"' in index_src
+
+
+def test_the_stored_pubkey_is_the_one_the_did_was_derived_from(index_src: str):
+    """Deriving from the full key and storing a truncation produces a record
+    whose stored key does not derive its own DID — the invariant this handler
+    exists to establish, broken by a `.slice()`."""
+    assert "body.pubkey.slice(0, 512)" not in index_src, (
+        "Truncating after validation decouples the stored key from the DID. "
+        "Bound the length first and reject, then store exactly what was validated."
+    )
+    assert "MAX_PUBKEY_CHARS" in index_src
+    assert "pubkey too long" in index_src
