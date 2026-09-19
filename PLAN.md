@@ -325,7 +325,7 @@ states what was wrong in the first line, which is why they read the way they do.
 | R1-b | A lost receipt no longer strands a funded trade; every transition keeps its tx hash (#464) | ✅ merged |
 | R2 | Settlement Phase 1 — preflight on every escrow, nothing sent on any chain (#481) | ✅ merged |
 | R3 | The marketplace has a storefront instead of a 301 to `/agentic` (#501) | ✅ merged |
-| R4 | Third-party tool results are screened before a privileged model sees them — the Dual-LLM pattern over `UNTRUSTED_TOOLS` | ⏳ on `feat/r4-negotiation-quarantine`, not merged |
+| R4 | Third-party tool results are screened before a privileged model sees them — the Dual-LLM pattern over `UNTRUSTED_TOOLS` (#502) | ✅ merged |
 
 Guards for each live in `Hook.md` §3; the rules they enforce are in
 `warden/marketplace/CLAUDE.md` and `Rule.md` §29.
@@ -337,7 +337,7 @@ named by one, in the order their dependencies allow:
 
 | # | Item | Why it is next |
 |---|---|---|
-| 1 | Merge R4 | It is the last open marketplace defect with a written fix; leaving it on a branch is how `sova-hardening-pr1-5` went 943 commits stale |
+| 1 | Bring the marketplace Worker under the Python surface's guards, or retire it | `workers/shadow-warden-marketplace/` is deployed at `marketplace.shadow-warden-ai.com` and re-implements register / listings / negotiate / clear with **none** of `Hook.md` §3's ratchets over it. Its `registerAgent()` rebinds an existing DID's `pubkey` while keeping the victim's `trust_score`, unauthenticated — the takeover #463 closed on the Python side, still live on this one. Two implementations of one market is the real decision; the defect is what makes it urgent. See `Rule.md` §29.2, `Hook.md` H-8 |
 | 2 | Implement `deposit()` against the design in `docs/onchain-settlement-design.md` | `fund_escrow()` calls `deposit({})`. This is the single thing standing between `SIMULATED` and a real trade — and it is a design task, so no amount of configuration substitutes |
 | 3 | Snapshot addresses and integer minor units onto the escrow | The escrow record stores agent DIDs and a USD float; there is nothing to build a real transaction from |
 | 4 | Stage `AUTHORIZE_PAYMENT_ENFORCED=true` | The KYA default-policy grant already made it a posture decision rather than a kill switch. Verify the `purchase` action string first; stage, do not flip |
