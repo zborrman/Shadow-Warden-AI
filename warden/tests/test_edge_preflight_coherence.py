@@ -18,8 +18,12 @@ These tests are what keeps the two numbers married.
 """
 from __future__ import annotations
 
+import json
 import math
 import re
+import shutil
+import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -89,3 +93,113 @@ def test_the_two_caps_are_still_distinct():
     """A command body has no business being 70 MB; collapsing the two caps into
     one would pass the test above while removing the gate it exists to keep."""
     assert _constant("MAX_BODY_BYTES") < _constant("MAX_DOCUMENT_BYTES")
+
+
+# ── The gate, executed rather than read ──────────────────────────────────────
+#
+# The assertions above pin the constants. They do not pin the line that *uses*
+# them: reverting the size check to the flat `MAX_BODY_BYTES` leaves every
+# constant in place and passes all five. That mutation was found by running it,
+# which is why the rest of this file runs the Worker instead of reading it.
+
+
+def _node() -> str:
+    exe = shutil.which("node")
+    if not exe:  # pragma: no cover - environment-dependent
+        pytest.skip("node is not on PATH; cannot execute the preflight worker")
+    return exe
+
+
+def _preflight(cases: list[dict]) -> list[dict]:
+    """Run `index.js` under node against request descriptions, return verdicts.
+
+    Real `Request` objects, not stand-ins: the pass-through branch ends in
+    `new Request(request, { headers })`, which a plain object cannot satisfy —
+    it throws into the Worker's outermost catch and the request is allowed
+    through by the fail-open, not by the gate. `console.error` is captured for
+    exactly that reason, because otherwise a crashed gate and a working one are
+    the same observation. (node keeps a caller-set `content-length`, where a
+    browser would strip it as a forbidden header.)
+    """
+    script = textwrap.dedent(
+        f"""
+        import worker from {json.dumps(_WORKER.as_uri())};
+
+        let failedOpen = false;
+        console.error = () => {{ failedOpen = true; }};
+        globalThis.fetch = async () => new Response("origin", {{ status: 299 }});
+
+        const cases = {json.dumps(cases)};
+        const out = [];
+        for (const c of cases) {{
+          failedOpen = false;
+          const req = new Request(
+            "https://api.shadow-warden-ai.com" + c.path,
+            {{ method: c.method, headers: c.headers }},
+          );
+          const res = await worker.fetch(req, {{}}, {{}});
+          out.push({{ name: c.name, status: res.status, failed_open: failedOpen }});
+        }}
+        process.stdout.write(JSON.stringify(out));
+        """
+    ).strip()
+
+    proc = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        [_node(), "--input-type=module", "--eval", script],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if proc.returncode != 0:  # pragma: no cover - surfaces a real breakage
+        pytest.fail(f"node failed running the preflight worker:\n{proc.stderr}")
+    return json.loads(proc.stdout)
+
+
+_JSON = {"content-type": "application/json"}
+
+
+def test_the_size_gate_is_route_aware_when_it_runs():
+    """A 2 MB body: rejected as a command, accepted as a document.
+
+    This is the assertion the constant-pinning tests cannot make. It fails if
+    the check is reverted to the flat cap, which is how the gap was found.
+    """
+    two_mb = str(2 * 1024 * 1024)
+    verdicts = {
+        v["name"]: v
+        for v in _preflight(
+            [
+                {
+                    "name": "command",
+                    "path": "/agent/sova",
+                    "method": "POST",
+                    "headers": {**_JSON, "content-length": two_mb},
+                },
+                {
+                    "name": "document",
+                    "path": "/filter",
+                    "method": "POST",
+                    "headers": {**_JSON, "content-length": two_mb},
+                },
+                {
+                    "name": "document_far_over",
+                    "path": "/filter",
+                    "method": "POST",
+                    "headers": {**_JSON, "content-length": str(100 * 1024 * 1024)},
+                },
+            ]
+        )
+    }
+
+    assert verdicts["command"]["status"] == 413, "a 2 MB command body should not reach the origin"
+    assert verdicts["document"]["status"] != 413, (
+        "a 2 MB document was rejected at the edge — /filter accepts 50 MB of "
+        "base64 file at the gateway, so this 413 is one warden never issued"
+    )
+    assert not verdicts["document"]["failed_open"], (
+        "the document passed only because the Worker threw and fell open — "
+        "that is not the gate working"
+    )
+    assert verdicts["document_far_over"]["status"] == 413, (
+        "the document route must still be capped, just higher"
+    )
