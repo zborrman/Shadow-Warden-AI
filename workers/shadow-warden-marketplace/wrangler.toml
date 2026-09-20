@@ -6,13 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ALLOWED_ORIGIN = "https://shadow-warden-ai.com"
 
-[[kv_namespaces]]
-binding = "MARKETPLACE_KV"
-id = "557f79a322fc464e8b09f7685340474e"
+# KV binding removed in v2.0.0: this Worker is a proxy and owns no state.
+# The namespace still exists but is no longer served — see src/index.ts.
 
 # Secrets (set via wrangler secret put):
-#   ADMIN_KEY           — X-Admin-Key for privileged endpoints
-#   WARDEN_API_KEY      — forwarded to Hetzner VPS for complex ops
 #   WARDEN_BACKEND_URL  — https://api.shadow-warden-ai.com
 
 [[routes]]

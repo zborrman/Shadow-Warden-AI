@@ -1,85 +1,63 @@
-// shadow-warden-marketplace — Cloudflare Worker v1.0
-// Agentic M2M Marketplace: agent registry, listings, negotiations, clearing, ADP
-// Patterns: same as shadow-warden-billing (KV state, CORS helper, X-Admin-Key, /health)
+// shadow-warden-marketplace — edge proxy for marketplace.shadow-warden-ai.com
+//
+// This Worker used to be a *second implementation* of the marketplace: agents,
+// listings, negotiations and clearing, over Cloudflare KV, in TypeScript,
+// sharing no code, no database and no guard with `warden/marketplace/*`.
+//
+// That cost more than it earned. Every guard had to be written twice, and the
+// copy nobody remembered shipped the defect:
+//
+//   * `registerAgent()` rebound an existing DID's public key while keeping the
+//     victim's trust score, unauthenticated, answering 200 — the takeover the
+//     Python side closed in #463 (fixed here in #506).
+//   * `requireAdmin()` was `if (!env.ADMIN_KEY) return null` — the empty-secret
+//     anti-pattern, wide open when the secret was never set (also #506).
+//   * `GET /listings` served a demo listing — "Threat Intel Feed - APT-42",
+//     $0.05, `did:shadow:seller001` — to anyone who asked, on the public host
+//     agents discover. `docs/capability-matrix.md` says marketplace activity of
+//     any kind is `FABRICATED` if implied. It was implied, publicly, for
+//     months.
+//   * It published its own `/.well-known/agent.json`, a second discovery
+//     document competing with the gateway's, with a different capability list.
+//
+// None of that was a coding mistake so much as a consequence: two
+// implementations of one market disagree, and the disagreement is invisible
+// until someone reads both. So there is now one. This Worker keeps the edge —
+// TLS termination on the hostname, CORS, and Cloudflare in front — and forwards
+// every request to the gateway, which owns identity, signatures, KYA, autonomy
+// and escrow.
+//
+// The KV namespace is deliberately no longer bound. Its contents (the demo
+// listing among them) stop being served the moment this deploys.
 
-import { didMatchesPubkey } from "./did";
-
-const VERSION = "1.0.1";
-const TAKE_RATE = 0.015; // 1.5% platform fee — logged only, no on-chain settlement in v1
-const SPONSORED_BOOST = 0.15; // +15% similarity boost, applied in memory (not in KV sort)
-const MAX_LISTING_INDEX = 1000;
-//: Ed25519 is 44 base64 chars raw and ~60 as SPKI. This bound exists to reject,
-//: not to truncate: a stored key must always be the one its DID derives from.
-const MAX_PUBKEY_CHARS = 512;
-const MAX_NEGOTIATION_ROUNDS = 10;
-
-// ── Types ──────────────────────────────────────────────────────────────────
+const VERSION = "2.0.0";
 
 interface Env {
-  MARKETPLACE_KV: KVNamespace;
-  ADMIN_KEY?: string;
-  ALLOWED_ORIGIN?: string;
+  /** Gateway origin, e.g. https://api.shadow-warden-ai.com. No default. */
   WARDEN_BACKEND_URL?: string;
-  WARDEN_API_KEY?: string;
+  ALLOWED_ORIGIN?: string;
 }
 
-interface AgentRecord {
-  did: string;
-  name: string;
-  capabilities: string[];
-  pubkey: string;
-  registered_at: string;
-  updated_at: string;
-  trust_score: number;
-  is_sponsored: boolean;
-}
+/** Marketplace routes live under this prefix on the gateway. */
+const GATEWAY_PREFIX = "/v1/marketplace";
 
-interface ListingRecord {
-  id: string;
-  title: string;
-  description: string;
-  asset_type: string;
-  price_usd: number;
-  seller_did: string;
-  tags: string[];
-  is_sponsored: boolean;
-  sponsored_until: string | null;
-  sponsored_boost: number; // always SPONSORED_BOOST or 0 — never in SQL ORDER BY
-  created_at: string;
-  updated_at: string;
-}
+/** Forwarded as-is rather than under the marketplace prefix. */
+const PASSTHROUGH = new Set(["/.well-known/agent.json", "/.well-known/mcp.json"]);
 
-interface OfferRecord {
-  from_did: string;
-  amount_usd: number;
-  message: string;
-  timestamp: string;
-}
+/**
+ * Hop-by-hop and edge-owned headers that must not be copied to the origin.
+ * `host` especially: sending the edge hostname would make the gateway build
+ * self-referential URLs pointing back at this Worker.
+ */
+const STRIP_REQUEST = new Set([
+  "host", "connection", "keep-alive", "transfer-encoding", "upgrade",
+  "proxy-authorization", "proxy-authenticate", "te", "trailer",
+  "cf-connecting-ip", "cf-ray", "cf-visitor", "cf-ipcountry",
+]);
 
-interface NegotiationRecord {
-  id: string;
-  listing_id: string;
-  buyer_did: string;
-  seller_did: string;
-  status: "pending" | "offered" | "accepted" | "rejected" | "cleared";
-  offers: OfferRecord[];
-  created_at: string;
-  updated_at: string;
-}
-
-interface ClearingResult {
-  negotiation_id: string;
-  listing_id: string;
-  buyer_did: string;
-  seller_did: string;
-  agreed_price_usd: number;
-  platform_fee_usd: number; // TAKE_RATE × agreed_price — logged only in v1
-  seller_net_usd: number;
-  cleared_at: string;
-  settlement_status: "logged"; // always "logged" in v1; "settled" in v2 (Circle)
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
+const STRIP_RESPONSE = new Set([
+  "connection", "keep-alive", "transfer-encoding", "upgrade", "trailer",
+]);
 
 function json(data: unknown, status = 200, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data, null, 2), {
@@ -96,621 +74,101 @@ function corsHeaders(origin: string, allowed: string): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": o,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-Admin-Key, Authorization, X-Agent-DID",
+    "Access-Control-Allow-Headers": "Content-Type, X-API-Key, X-Admin-Key, Authorization, X-Agent-DID, X-Agent-ID, X-Tenant-ID, PAYMENT-SIGNATURE, Idempotency-Key",
     "Access-Control-Max-Age": "86400",
   };
 }
 
-function nanoid(len = 14): string {
-  const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  const buf = crypto.getRandomValues(new Uint8Array(len));
-  return Array.from(buf, (b) => alphabet[b % 62]).join("");
+/** The gateway path this request maps to, or null when the path is not proxied. */
+export function targetPath(path: string): string | null {
+  if (PASSTHROUGH.has(path)) return path;
+  if (path === "/" || path === "") return null;
+  if (path.startsWith("/.well-known/")) return null;   // not ours to answer or invent
+  return GATEWAY_PREFIX + path;
 }
-
-// Precise take-rate math without Decimal library: work in integer microdollars
-function computeFee(agreedUsd: number): { fee: number; net: number } {
-  const micro = Math.round(agreedUsd * 1_000_000);
-  const feeMicro = Math.round(micro * TAKE_RATE);
-  const netMicro = micro - feeMicro;
-  return {
-    fee: feeMicro / 1_000_000,
-    net: netMicro / 1_000_000,
-  };
-}
-
-async function incrKV(kv: KVNamespace, key: string): Promise<number> {
-  const val = await kv.get(key);
-  const n = (val ? parseInt(val, 10) : 0) + 1;
-  await kv.put(key, String(n));
-  return n;
-}
-
-/**
- * Fail-CLOSED. An unset secret used to return `null` — "no key configured →
- * open" — which is the empty-secret anti-pattern named in `Rule.md` §29.1: the
- * check silently allows everyone precisely when it was never configured, and a
- * deployment that forgot `wrangler secret put ADMIN_KEY` looks identical to one
- * that set it. Nothing is gained by guessing; an unresolvable key denies.
- *
- * Deploying this without the secret set makes `GET /stats` and
- * `POST /listings/:id/sponsor` answer 503 until it is. That is the intended
- * direction of failure for an admin gate.
- */
-async function requireAdmin(req: Request, env: Env): Promise<Response | null> {
-  if (!env.ADMIN_KEY) {
-    return json(
-      { error: "admin key not configured", detail: "set ADMIN_KEY with `wrangler secret put`" },
-      503,
-    );
-  }
-  const provided = req.headers.get("X-Admin-Key") ?? "";
-  if (!(await secretEquals(provided, env.ADMIN_KEY))) return json({ error: "unauthorized" }, 401);
-  return null;
-}
-
-/**
- * Constant-time secret compare that does not leak the secret's length.
- *
- * A plain byte-wise loop has to `return false` early when the lengths differ,
- * which lets a caller measure the length of an undisclosed `ADMIN_KEY` by
- * timing candidates. Hashing both sides first makes every comparison run over
- * the same 32 bytes whatever the inputs were, so the only thing observable is
- * equality. Narrow as side channels go — it reveals no key character — but the
- * function is named for the property, and a compare that is constant-time in
- * content and variable in length does not have it.
- */
-async function secretEquals(a: string, b: string): Promise<boolean> {
-  const enc = new TextEncoder();
-  const [ha, hb] = await Promise.all([
-    crypto.subtle.digest("SHA-256", enc.encode(a)),
-    crypto.subtle.digest("SHA-256", enc.encode(b)),
-  ]);
-  const va = new Uint8Array(ha);
-  const vb = new Uint8Array(hb);
-  let diff = 0;
-  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
-  return diff === 0;
-}
-
-// ── Agent handlers ─────────────────────────────────────────────────────────
-
-/**
- * Stage 1 first contact. Unauthenticated by design — a foreign agent has no
- * credential yet — which is exactly why it must never mutate an existing agent.
- *
- * Two properties, each closing a defect this handler shipped with:
- *
- *  1. **First registration wins.** It used to overwrite an existing `did`'s
- *     `name`, `capabilities` and `pubkey` while preserving `trust_score`, and
- *     answer 200. `GET /agents/{did}` publishes the record, so anyone could
- *     rebind a known DID to their own key and inherit the victim's trust. That
- *     is the takeover closed on the FastAPI side in #463, worse: `INSERT OR
- *     REPLACE` at least reset the row.
- *  2. **The DID must be the one the key derives.** `did` arrived in the request
- *     body and was never checked against `pubkey`, so a caller could claim any
- *     identifier — including one already registered on the gateway. On the
- *     Python side `agent_id` *is* `did:shadow:{base62(sha256(pubkey))}`, which
- *     is what makes a signature self-proving. Same function, see `did.ts`.
- *
- * KV has no atomic insert-if-absent, so two registrations of the same *new* DID
- * racing within the propagation window can both see no existing record and both
- * write. That is a duplicate create, not a takeover: the attack needs the
- * victim's record to already be visible, and once it is, this returns 409.
- * Stated rather than papered over — a Durable Object would close the race and
- * is deliberately not used in this project.
- */
-async function registerAgent(req: Request, env: Env): Promise<Response> {
-  let body: { did?: string; name?: string; capabilities?: string[]; pubkey?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
-
-  if (!body.did || !body.pubkey) return json({ error: "did and pubkey required" }, 400);
-  if (body.did.length > 128) return json({ error: "did too long" }, 400);
-
-  // Bound the key BEFORE deriving, and store exactly what was validated. The
-  // first version derived the DID from the whole submitted key and then stored
-  // a 512-character truncation of it, so a longer value produced a record whose
-  // stored key no longer derives its own DID — the very invariant this handler
-  // exists to establish. An Ed25519 key is 44 base64 chars raw, ~60 as SPKI, so
-  // this bound rejects rather than truncates.
-  if (body.pubkey.length > MAX_PUBKEY_CHARS) {
-    return json({ error: "pubkey too long", max_chars: MAX_PUBKEY_CHARS }, 400);
-  }
-
-  if (!(await didMatchesPubkey(body.did, body.pubkey))) {
-    return json(
-      {
-        error: "did does not match pubkey",
-        detail: "did must be did:shadow:{base62(sha256(pubkey))[:32]} — derive it, do not choose it",
-      },
-      400,
-    );
-  }
-
-  const existing = (await env.MARKETPLACE_KV.get(`agent:${body.did}`, "json")) as AgentRecord | null;
-  if (existing) {
-    // First registration wins. Re-registration is not an update path: there is
-    // none, because nothing here can prove the caller is the incumbent.
-    return json({ error: "agent already registered", did: body.did }, 409);
-  }
-
-  const now = new Date().toISOString();
-  const record: AgentRecord = {
-    did: body.did,
-    name: (body.name ?? "Unnamed Agent").slice(0, 128),
-    capabilities: (body.capabilities ?? []).slice(0, 32),
-    pubkey: body.pubkey, // exactly the value the DID was derived from — never truncated
-    registered_at: now,
-    updated_at: now,
-    trust_score: 0.5,
-    is_sponsored: false,
-  };
-
-  await env.MARKETPLACE_KV.put(`agent:${body.did}`, JSON.stringify(record), {
-    expirationTtl: 60 * 60 * 24 * 365, // 1 year
-  });
-  await incrKV(env.MARKETPLACE_KV, "stats:agents_total");
-
-  return json({ ok: true, agent: record }, 201);
-}
-
-async function getAgent(env: Env, did: string): Promise<Response> {
-  const agent = await env.MARKETPLACE_KV.get(`agent:${did}`, "json");
-  return agent ? json(agent) : json({ error: "not found" }, 404);
-}
-
-// ── Listing handlers ───────────────────────────────────────────────────────
-
-async function createListing(req: Request, env: Env): Promise<Response> {
-  let body: {
-    title?: string; description?: string; asset_type?: string;
-    price_usd?: number; seller_did?: string; tags?: string[];
-  };
-  try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
-
-  if (!body.title || !body.seller_did || body.price_usd == null) {
-    return json({ error: "title, seller_did, price_usd required" }, 400);
-  }
-  if (body.price_usd < 0) return json({ error: "price_usd must be >= 0" }, 400);
-
-  const seller = await env.MARKETPLACE_KV.get(`agent:${body.seller_did}`, "json");
-  if (!seller) return json({ error: "seller_did not registered — call POST /agents/register first" }, 403);
-
-  const id = nanoid(14);
-  const now = new Date().toISOString();
-
-  const listing: ListingRecord = {
-    id,
-    title: body.title.slice(0, 256),
-    description: (body.description ?? "").slice(0, 2048),
-    asset_type: (body.asset_type ?? "data").slice(0, 64),
-    price_usd: body.price_usd,
-    seller_did: body.seller_did,
-    tags: (body.tags ?? []).slice(0, 20).map((t) => t.slice(0, 64)),
-    is_sponsored: false,
-    sponsored_until: null,
-    sponsored_boost: 0,
-    created_at: now,
-    updated_at: now,
-  };
-
-  await env.MARKETPLACE_KV.put(`listing:${id}`, JSON.stringify(listing), {
-    expirationTtl: 60 * 60 * 24 * 90, // 90 days
-  });
-
-  // Prepend to index, cap at MAX_LISTING_INDEX
-  const raw = await env.MARKETPLACE_KV.get("listing:index");
-  const index: string[] = raw ? JSON.parse(raw) : [];
-  index.unshift(id);
-  if (index.length > MAX_LISTING_INDEX) index.splice(MAX_LISTING_INDEX);
-  await env.MARKETPLACE_KV.put("listing:index", JSON.stringify(index));
-
-  await incrKV(env.MARKETPLACE_KV, "stats:listings_total");
-
-  return json({ ok: true, listing }, 201);
-}
-
-async function searchListings(url: URL, env: Env): Promise<Response> {
-  const q = url.searchParams.get("q")?.toLowerCase() ?? "";
-  const typeFilter = url.searchParams.get("type") ?? "";
-  const sellerFilter = url.searchParams.get("seller_did") ?? "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "20", 10), 100);
-  const offset = parseInt(url.searchParams.get("offset") ?? "0", 10);
-
-  const raw = await env.MARKETPLACE_KV.get("listing:index");
-  const index: string[] = raw ? JSON.parse(raw) : [];
-
-  // Fetch candidates (max 200) in parallel
-  const candidates = (
-    await Promise.all(
-      index.slice(0, 200).map((id) =>
-        env.MARKETPLACE_KV.get(`listing:${id}`, "json") as Promise<ListingRecord | null>
-      )
-    )
-  ).filter((l): l is ListingRecord => l !== null);
-
-  // Filter
-  let results = candidates.filter((l) => {
-    if (q) {
-      const hay = `${l.title} ${l.description} ${l.tags.join(" ")}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (typeFilter && l.asset_type !== typeFilter) return false;
-    if (sellerFilter && l.seller_did !== sellerFilter) return false;
-    // Expire sponsored_until
-    if (l.is_sponsored && l.sponsored_until && new Date(l.sponsored_until) < new Date()) {
-      l.is_sponsored = false;
-      l.sponsored_boost = 0;
-    }
-    return true;
-  });
-
-  // Sponsored boost applied in memory — never in storage sort (keeps index neutral)
-  results.sort((a, b) => {
-    const scoreA = a.is_sponsored ? SPONSORED_BOOST : 0;
-    const scoreB = b.is_sponsored ? SPONSORED_BOOST : 0;
-    return scoreB - scoreA;
-  });
-
-  const page = results.slice(offset, offset + limit).map((l) => ({
-    ...l,
-    sponsored: l.is_sponsored, // explicit field for UI "Ad" label
-  }));
-
-  return json({ results: page, total: results.length, limit, offset });
-}
-
-async function getListing(env: Env, id: string): Promise<Response> {
-  const listing = await env.MARKETPLACE_KV.get(`listing:${id}`, "json");
-  return listing ? json(listing) : json({ error: "not found" }, 404);
-}
-
-async function sponsorListing(req: Request, env: Env, id: string): Promise<Response> {
-  const denied = await requireAdmin(req, env);
-  if (denied) return denied;
-
-  let body: { days?: number };
-  try { body = await req.json(); } catch { body = {}; }
-  const days = Math.min(body.days ?? 30, 365);
-
-  const listing = (await env.MARKETPLACE_KV.get(`listing:${id}`, "json")) as ListingRecord | null;
-  if (!listing) return json({ error: "listing not found" }, 404);
-
-  listing.is_sponsored = true;
-  listing.sponsored_until = new Date(Date.now() + days * 86_400_000).toISOString();
-  listing.sponsored_boost = SPONSORED_BOOST;
-  listing.updated_at = new Date().toISOString();
-
-  await env.MARKETPLACE_KV.put(`listing:${id}`, JSON.stringify(listing), {
-    expirationTtl: 60 * 60 * 24 * 90,
-  });
-
-  return json({ ok: true, listing });
-}
-
-// ── Negotiation handlers ───────────────────────────────────────────────────
-
-async function startNegotiation(req: Request, env: Env): Promise<Response> {
-  let body: { listing_id?: string; buyer_did?: string; initial_offer_usd?: number; message?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
-
-  if (!body.listing_id || !body.buyer_did || body.initial_offer_usd == null) {
-    return json({ error: "listing_id, buyer_did, initial_offer_usd required" }, 400);
-  }
-
-  const listing = (await env.MARKETPLACE_KV.get(`listing:${body.listing_id}`, "json")) as ListingRecord | null;
-  if (!listing) return json({ error: "listing not found" }, 404);
-
-  const id = nanoid(16);
-  const now = new Date().toISOString();
-
-  const neg: NegotiationRecord = {
-    id,
-    listing_id: body.listing_id,
-    buyer_did: body.buyer_did,
-    seller_did: listing.seller_did,
-    status: "offered",
-    offers: [
-      {
-        from_did: body.buyer_did,
-        amount_usd: body.initial_offer_usd,
-        message: (body.message ?? "").slice(0, 512),
-        timestamp: now,
-      },
-    ],
-    created_at: now,
-    updated_at: now,
-  };
-
-  await env.MARKETPLACE_KV.put(`neg:${id}`, JSON.stringify(neg), {
-    expirationTtl: 60 * 60 * 24 * 7, // 7 days
-  });
-  await incrKV(env.MARKETPLACE_KV, "stats:negotiations_total");
-
-  return json({ ok: true, negotiation: neg }, 201);
-}
-
-async function getNegotiation(env: Env, id: string): Promise<Response> {
-  const neg = await env.MARKETPLACE_KV.get(`neg:${id}`, "json");
-  return neg ? json(neg) : json({ error: "not found" }, 404);
-}
-
-async function sendOffer(req: Request, env: Env, negId: string): Promise<Response> {
-  let body: { from_did?: string; amount_usd?: number; message?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
-
-  const neg = (await env.MARKETPLACE_KV.get(`neg:${negId}`, "json")) as NegotiationRecord | null;
-  if (!neg) return json({ error: "negotiation not found" }, 404);
-  if (neg.status === "accepted" || neg.status === "cleared") {
-    return json({ error: `negotiation already ${neg.status}` }, 409);
-  }
-  if (neg.status === "rejected") return json({ error: "negotiation rejected" }, 409);
-  if (neg.offers.length >= MAX_NEGOTIATION_ROUNDS) {
-    return json({ error: `max ${MAX_NEGOTIATION_ROUNDS} rounds reached` }, 422);
-  }
-
-  neg.offers.push({
-    from_did: body.from_did ?? "unknown",
-    amount_usd: body.amount_usd ?? 0,
-    message: (body.message ?? "").slice(0, 512),
-    timestamp: new Date().toISOString(),
-  });
-  neg.status = "offered";
-  neg.updated_at = new Date().toISOString();
-
-  await env.MARKETPLACE_KV.put(`neg:${negId}`, JSON.stringify(neg), {
-    expirationTtl: 60 * 60 * 24 * 7,
-  });
-
-  return json({ ok: true, negotiation: neg });
-}
-
-async function acceptOffer(_req: Request, env: Env, negId: string): Promise<Response> {
-  const neg = (await env.MARKETPLACE_KV.get(`neg:${negId}`, "json")) as NegotiationRecord | null;
-  if (!neg) return json({ error: "negotiation not found" }, 404);
-  if (neg.status !== "offered") return json({ error: `cannot accept — status is '${neg.status}'` }, 409);
-
-  neg.status = "accepted";
-  neg.updated_at = new Date().toISOString();
-
-  await env.MARKETPLACE_KV.put(`neg:${negId}`, JSON.stringify(neg), {
-    expirationTtl: 60 * 60 * 24 * 7,
-  });
-
-  return json({ ok: true, negotiation: neg });
-}
-
-async function rejectOffer(_req: Request, env: Env, negId: string): Promise<Response> {
-  const neg = (await env.MARKETPLACE_KV.get(`neg:${negId}`, "json")) as NegotiationRecord | null;
-  if (!neg) return json({ error: "negotiation not found" }, 404);
-  if (neg.status === "cleared") return json({ error: "cannot reject a cleared negotiation" }, 409);
-
-  neg.status = "rejected";
-  neg.updated_at = new Date().toISOString();
-
-  await env.MARKETPLACE_KV.put(`neg:${negId}`, JSON.stringify(neg), {
-    expirationTtl: 60 * 60 * 24 * 7,
-  });
-
-  return json({ ok: true, negotiation: neg });
-}
-
-// ── Clearing handler ───────────────────────────────────────────────────────
-
-async function clearNegotiation(req: Request, env: Env): Promise<Response> {
-  let body: { negotiation_id?: string };
-  try { body = await req.json(); } catch { return json({ error: "invalid JSON" }, 400); }
-  if (!body.negotiation_id) return json({ error: "negotiation_id required" }, 400);
-
-  const neg = (await env.MARKETPLACE_KV.get(`neg:${body.negotiation_id}`, "json")) as NegotiationRecord | null;
-  if (!neg) return json({ error: "negotiation not found" }, 404);
-  if (neg.status !== "accepted") {
-    return json({ error: `cannot clear — status is '${neg.status}' (must be 'accepted')` }, 409);
-  }
-
-  const lastOffer = neg.offers[neg.offers.length - 1];
-  const agreedUsd = lastOffer?.amount_usd ?? 0;
-  const { fee, net } = computeFee(agreedUsd);
-
-  const result: ClearingResult = {
-    negotiation_id: neg.id,
-    listing_id: neg.listing_id,
-    buyer_did: neg.buyer_did,
-    seller_did: neg.seller_did,
-    agreed_price_usd: agreedUsd,
-    platform_fee_usd: fee, // logged only — no on-chain transfer in v1
-    seller_net_usd: net,
-    cleared_at: new Date().toISOString(),
-    settlement_status: "logged",
-  };
-
-  neg.status = "cleared";
-  neg.updated_at = result.cleared_at;
-
-  await Promise.all([
-    env.MARKETPLACE_KV.put(`neg:${neg.id}`, JSON.stringify(neg), {
-      expirationTtl: 60 * 60 * 24 * 365,
-    }),
-    env.MARKETPLACE_KV.put(`clear:${neg.id}`, JSON.stringify(result), {
-      expirationTtl: 60 * 60 * 24 * 365,
-    }),
-    incrKV(env.MARKETPLACE_KV, "stats:cleared_total"),
-  ]);
-
-  return json({ ok: true, clearing: result });
-}
-
-// ── Stats handler ──────────────────────────────────────────────────────────
-
-async function getStats(req: Request, env: Env): Promise<Response> {
-  const denied = await requireAdmin(req, env);
-  if (denied) return denied;
-
-  const [agents, listings, negotiations, cleared] = await Promise.all([
-    env.MARKETPLACE_KV.get("stats:agents_total"),
-    env.MARKETPLACE_KV.get("stats:listings_total"),
-    env.MARKETPLACE_KV.get("stats:negotiations_total"),
-    env.MARKETPLACE_KV.get("stats:cleared_total"),
-  ]);
-
-  return json({
-    agents_total: parseInt(agents ?? "0", 10),
-    listings_total: parseInt(listings ?? "0", 10),
-    negotiations_total: parseInt(negotiations ?? "0", 10),
-    cleared_total: parseInt(cleared ?? "0", 10),
-    take_rate: TAKE_RATE,
-    version: VERSION,
-    ts: new Date().toISOString(),
-  });
-}
-
-// ── ADP — Agent Discovery Protocol ────────────────────────────────────────
-
-function agentDiscovery(): Response {
-  return new Response(
-    JSON.stringify(
-      {
-        "@context": "https://schema.org",
-        "@type": "Service",
-        name: "Shadow Warden AI Agentic Marketplace",
-        version: VERSION,
-        protocol: "M2M/1.0",
-        capabilities: ["search", "negotiate", "clear", "register"],
-        endpoints: {
-          health: "/health",
-          register: "POST /agents/register",
-          agent_get: "GET /agents/:did",
-          listings_create: "POST /listings",
-          listings_search: "GET /listings",
-          listings_get: "GET /listings/:id",
-          listings_sponsor: "POST /listings/:id/sponsor",
-          negotiations_start: "POST /negotiations",
-          negotiations_get: "GET /negotiations/:id",
-          offer_send: "POST /negotiations/:id/offer",
-          offer_accept: "POST /negotiations/:id/accept",
-          offer_reject: "POST /negotiations/:id/reject",
-          clear: "POST /clear",
-          stats: "GET /stats",
-        },
-        fee: {
-          take_rate: TAKE_RATE,
-          currency: "USD",
-          model: "take_rate",
-          note: "Platform fee is logged; on-chain settlement in v2 via Circle Gateway",
-        },
-        sponsored: {
-          boost: SPONSORED_BOOST,
-          applied: "in-memory after index fetch",
-          label: "sponsored field on every search result",
-        },
-        auth: {
-          type: "DID",
-          scheme: "did:shadow:{base62(sha256(pubkey)[:32])}",
-          admin: "X-Admin-Key header for privileged endpoints",
-        },
-      },
-      null,
-      2
-    ),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600",
-        "Access-Control-Allow-Origin": "*",
-      },
-    }
-  );
-}
-
-// ── Main router ────────────────────────────────────────────────────────────
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const method = request.method;
-    const path = url.pathname.replace(/\/$/, "") || "/";
-    const origin = request.headers.get("Origin") ?? "";
-    const cors = corsHeaders(origin, env.ALLOWED_ORIGIN ?? "*");
+    const url     = new URL(request.url);
+    const method  = request.method;
+    const allowed = env.ALLOWED_ORIGIN ?? "https://shadow-warden-ai.com";
+    const cors    = corsHeaders(request.headers.get("Origin") ?? "", allowed);
 
-    // CORS preflight
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    // ── ADP (no auth, cacheable)
-    if (method === "GET" && path === "/.well-known/agent.json") {
-      return agentDiscovery();
+    // Edge health. Answers for the Worker itself and says nothing about the
+    // gateway — a proxy reporting its upstream healthy without asking is the
+    // kind of claim this project removes.
+    if (method === "GET" && url.pathname === "/health") {
+      return addCors(
+        json({ ok: true, version: VERSION, role: "proxy", ts: new Date().toISOString() }),
+        cors,
+      );
     }
 
-    // ── Health
-    if (method === "GET" && path === "/health") {
-      return json({ ok: true, version: VERSION, ts: new Date().toISOString() });
+    const backend = (env.WARDEN_BACKEND_URL ?? "").replace(/\/+$/, "");
+    if (!backend) {
+      // Fail closed and loudly. Serving anything from the edge while the origin
+      // is unreachable is how the demo listing survived: an answer that looks
+      // like the market is worse than an error that says it is unavailable.
+      return addCors(
+        json(
+          {
+            error: "backend_not_configured",
+            detail: "set WARDEN_BACKEND_URL with `wrangler secret put`",
+          },
+          503,
+        ),
+        cors,
+      );
     }
 
-    // ── Agents
-    if (method === "POST" && path === "/agents/register") {
-      const res = await registerAgent(request, env);
-      return addCors(res, cors);
-    }
-    if (method === "GET" && path.startsWith("/agents/")) {
-      const did = decodeURIComponent(path.slice("/agents/".length));
-      return addCors(await getAgent(env, did), cors);
+    const target = targetPath(url.pathname);
+    if (target === null) {
+      return addCors(json({ error: "not found", path: url.pathname }, 404), cors);
     }
 
-    // ── Listings
-    if (method === "POST" && path === "/listings") {
-      return addCors(await createListing(request, env), cors);
-    }
-    if (method === "GET" && path === "/listings") {
-      return addCors(await searchListings(url, env), cors);
-    }
-    // GET /listings/:id
-    if (method === "GET" && /^\/listings\/[^/]+$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await getListing(env, id), cors);
-    }
-    // POST /listings/:id/sponsor
-    if (method === "POST" && /^\/listings\/[^/]+\/sponsor$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await sponsorListing(request, env, id), cors);
+    const headers = new Headers();
+    request.headers.forEach((value, key) => {
+      if (!STRIP_REQUEST.has(key.toLowerCase())) headers.set(key, value);
+    });
+    // The gateway resolves the caller with `get_client_ip`, which trusts these
+    // only from an allow-listed peer. Passing the real client through is what
+    // keeps ERS, shadow ban and rate limiting keyed on the caller rather than
+    // on one constant for the whole internet.
+    const clientIp = request.headers.get("CF-Connecting-IP");
+    if (clientIp) {
+      headers.set("X-Forwarded-For", clientIp);
+      headers.set("X-Real-IP", clientIp);
     }
 
-    // ── Negotiations
-    if (method === "POST" && path === "/negotiations") {
-      return addCors(await startNegotiation(request, env), cors);
-    }
-    if (method === "GET" && /^\/negotiations\/[^/]+$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await getNegotiation(env, id), cors);
-    }
-    if (method === "POST" && /^\/negotiations\/[^/]+\/offer$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await sendOffer(request, env, id), cors);
-    }
-    if (method === "POST" && /^\/negotiations\/[^/]+\/accept$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await acceptOffer(request, env, id), cors);
-    }
-    if (method === "POST" && /^\/negotiations\/[^/]+\/reject$/.test(path)) {
-      const id = path.split("/")[2];
-      return addCors(await rejectOffer(request, env, id), cors);
+    let upstream: Response;
+    try {
+      upstream = await fetch(backend + target + url.search, {
+        method,
+        headers,
+        body: method === "GET" || method === "HEAD" ? undefined : request.body,
+        redirect: "manual",
+      });
+    } catch (err) {
+      return addCors(
+        json({ error: "backend_unreachable", detail: String(err) }, 502),
+        cors,
+      );
     }
 
-    // ── Clear
-    if (method === "POST" && path === "/clear") {
-      return addCors(await clearNegotiation(request, env), cors);
-    }
+    const out = new Headers();
+    upstream.headers.forEach((value, key) => {
+      if (!STRIP_RESPONSE.has(key.toLowerCase())) out.set(key, value);
+    });
+    Object.entries(cors).forEach(([k, v]) => out.set(k, v));
 
-    // ── Stats (admin)
-    if (method === "GET" && path === "/stats") {
-      return addCors(await getStats(request, env), cors);
-    }
-
-    return addCors(json({ error: "not found", path }, 404), cors);
+    return new Response(upstream.body, { status: upstream.status, headers: out });
   },
 };
 
-// Attach CORS headers to any Response
 function addCors(res: Response, cors: Record<string, string>): Response {
   const next = new Response(res.body, res);
   Object.entries(cors).forEach(([k, v]) => next.headers.set(k, v));
