@@ -1127,10 +1127,21 @@ Two corollaries that have each already cost a real defect:
 > manufacturing.
 >
 > **A merged fix is not a deployed fix**, and this one nearly proved it twice
-> over. No workflow runs `wrangler deploy` for this worker — Workers Builds is
-> connected only to `shadow-warden-installer` — so `npm run deploy` is a human
-> step, and the local checkout was **three commits behind `origin/main`** at the
-> time, which would have republished the vulnerable version from a directory
+> over. When the paragraph below was written (2026-09-19) nothing shipped this
+> Worker at all; **#512 changed that on 2026-09-20** by adding
+> `cf-marketplace-deploy`, which on a push to `main` compares the `VERSION`
+> constant against what `/health` answers and, when they differ, deploys and
+> spends 60s proving the edge actually moved. `CLOUDFLARE_API_TOKEN` was added
+> the same day, so the deploy is now automatic.
+>
+> Worth keeping for the shape of it: this section was briefly "corrected" to say
+> the original claim had been wrong from the start and came from a careless
+> `grep`. It had not — it was true when written and was made false by a merge
+> hours later. Checking *whether* something is true and checking *when* it
+> became true are different acts, and skipping the second produces a confident
+> retraction of an accurate statement. The local checkout was also **three
+> commits behind `origin/main`** at
+> the time, which would have republished the vulnerable version from a directory
 > that looked current. Deploy from a tree you have verified by content, and set
 > `ADMIN_KEY` with `wrangler secret put` **before** the deploy, not after: it is
 > a distinct secret from the gateway's `ADMIN_KEY`, and between the two steps
