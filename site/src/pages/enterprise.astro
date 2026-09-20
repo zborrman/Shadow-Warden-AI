@@ -1,0 +1,6 @@
+---
+// /enterprise was a 404 while LICENSE and outbound copy pointed at it, and the
+// page it wanted has been sitting at /enterprise-guide all along. A redirect
+// rather than a second copy: two pages saying the same thing drift.
+return Astro.redirect('/enterprise-guide', 301);
+---

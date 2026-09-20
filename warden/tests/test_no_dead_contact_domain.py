@@ -35,15 +35,14 @@ import pytest
 _REPO = Path(__file__).resolve().parents[2]
 _DEAD = "shadowwarden.ai"
 
-# Fake member rows in the site's localStorage demos (`ops@`, `dev@`, `soc@`,
-# `ci-bot@`). They are invented personas, not contact claims — and pointing them
-# at the real domain would make fabricated users look like real accounts, which
-# is the worse defect. Left as a recorded decision rather than silently swept in.
-_DEMO_PERSONAS = {
-    "site/src/pages/settings.astro",
-    "site/src/pages/community/view.astro",
-    "site/src/components/ConsoleSection.astro",
-}
+# The allowlist is empty, and that is the point. It used to hold three site
+# files carrying invented member rows (`ops@`, `dev@`, ...) on the dead zone.
+# Repointing those at the real domain would have made fabricated users look like
+# real accounts — the worse defect — so they moved to `example.com`, which RFC
+# 2606 reserves precisely so that a placeholder cannot be mistaken for a real
+# address. Nothing in the tree needs an exemption any more; an entry appearing
+# here again should have to argue for itself.
+_DEMO_PERSONAS: set[str] = set()
 
 
 def _tracked_files() -> list[str]:
@@ -83,23 +82,41 @@ def test_no_file_addresses_a_zone_this_project_does_not_own():
     )
 
 
-def test_the_demo_persona_allowlist_still_describes_real_files():
-    """An allowlist that names files which no longer exist quietly widens: the
-    entry stops excusing anything and nobody notices it went stale."""
-    missing = [p for p in _DEMO_PERSONAS if not (_REPO / p).exists()]
-    assert not missing, f"allowlisted files are gone, drop them from the list: {missing}"
+def test_the_allowlist_is_still_empty():
+    """An exemption list is the quiet way a ratchet stops holding. Every entry
+    added here excuses a whole file, so adding one is a decision that should be
+    visible in a diff rather than arrived at while chasing a red test."""
+    assert not _DEMO_PERSONAS, (
+        "something was exempted from this guard: "
+        f"{sorted(_DEMO_PERSONAS)} — fix the file or argue for the entry"
+    )
 
 
-def test_the_allowlist_is_only_ever_demo_personas():
-    """If one of those files gains a *real* contact claim on the dead zone, the
-    allowlist would hide it. Only the invented mailboxes may appear there."""
-    allowed_local_parts = ("ops@", "dev@", "soc@", "ci-bot@")
-    for rel in sorted(_DEMO_PERSONAS):
-        text = (_REPO / rel).read_text(encoding="utf-8", errors="ignore")
-        for line in text.splitlines():
-            if _DEAD not in line:
-                continue
-            assert any(p + _DEAD in line for p in allowed_local_parts), (
-                f"{rel}: a reference to {_DEAD} that is not one of the demo "
-                f"personas — {line.strip()[:120]}"
-            )
+# ── security.txt ─────────────────────────────────────────────────────────────
+
+
+def test_security_txt_is_published_and_not_expiring():
+    """RFC 9116 makes `Expires` mandatory, and a lapsed file is worse than none:
+    it reads as a live channel while telling a parser it is stale. This fails
+    while there is still time to renew it, not after.
+
+    The file did not exist at all until 2026-09-20 — `/.well-known/security.txt`
+    returned the 404 page on both surfaces while `.github/SECURITY.md` named a
+    mailbox in a domain this project does not own.
+    """
+    import datetime as _dt
+
+    txt = _REPO / "site" / "public" / ".well-known" / "security.txt"
+    assert txt.exists(), "site/public/.well-known/security.txt is gone"
+    body = txt.read_text(encoding="utf-8")
+
+    assert "mailto:security@shadow-warden-ai.com" in body, "no working contact"
+    assert _DEAD not in body
+
+    m = [ln for ln in body.splitlines() if ln.startswith("Expires:")]
+    assert len(m) == 1, f"RFC 9116 requires exactly one Expires field, found {len(m)}"
+    expires = _dt.datetime.fromisoformat(m[0].split(":", 1)[1].strip().replace("Z", "+00:00"))
+    left = expires - _dt.datetime.now(_dt.UTC)
+    assert left > _dt.timedelta(days=30), (
+        f"security.txt expires in {left.days} days — renew the Expires field"
+    )

@@ -270,7 +270,7 @@ class BrowserSandbox:
             "ignore_https_errors": True,
             "user_agent": (
                 "Mozilla/5.0 (compatible; WardenBot/1.0; "
-                "+https://github.com/zborrman/Shadow-Warden-AI)"
+                "+https://shadow-warden-ai.com/bot)"
             ),
         }
         if self.record_video:

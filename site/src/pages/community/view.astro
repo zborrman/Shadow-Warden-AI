@@ -852,7 +852,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         fingerprint:'a3:8f:c2:91:de:4b',
         disappearingMessages:'24h',
         members:[
-          {id:'USR-0001',name:'Zach Borrman', email:'ops@shadowwarden.ai',role:'owner', joined:now-124*day},
+          {id:'USR-0001',name:'Zach Borrman', email:'ops@example.com',role:'owner', joined:now-124*day},
           {id:'USR-0014',name:'Elena Wójcik', email:'elena.w@acme.com',  role:'admin', joined:now-93*day },
           {id:'USR-0018',name:'Devon Rojas',  email:'devon.r@acme.com',  role:'admin', joined:now-75*day },
           {id:'USR-0091',name:'Sora Itō',     email:'sora.i@acme.com',   role:'member',joined:now-30*day },
@@ -1118,7 +1118,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         : canMgr&&!isMe
         ? `<button class="btn-change" data-mid="${esc(m.id)}" data-cur="${esc(m.role)}">Change ↓</button>`
         : '';
-      const emailVal = isMe ? (m.email||'ops@shadowwarden.ai') : (m.email||'—');
+      const emailVal = isMe ? (m.email||'ops@example.com') : (m.email||'—');
       return `
         <div class="mrow">
           <div class="mc">
