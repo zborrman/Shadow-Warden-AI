@@ -3,7 +3,8 @@
  *
  * Runs at the edge (api.shadow-warden-ai.com/*) before requests reach the
  * warden backend. Enforces:
- *   1. Payload size gate — reject POST/PUT bodies > 1 MB (413)
+ *   1. Payload size gate — 1 MB on command routes, DOCUMENT_PREFIXES
+ *      get the document limit the gateway itself accepts (413)
  *   2. Content-Type enforcement on /filter + /mcp routes (415)
  *   3. Header forwarding — CF-Ray → X-CF-Ray for distributed tracing
  *   4. Pass-through with rate-limit bypass header for health probes
@@ -11,7 +12,25 @@
  * Fail-open: any unexpected error falls through to the origin unchanged.
  */
 
-const MAX_BODY_BYTES = 1_048_576; // 1 MB
+const MAX_BODY_BYTES = 1_048_576; // 1 MB — the default for command-shaped routes
+
+// Routes whose body is a *document*, not a command. The gateway accepts up to
+// DOC_INTEL_MAX_BYTES (50 MB) on these, and `/filter` carries the file as
+// base64 inside JSON, which inflates it by 4/3. A flat 1 MB cap at the edge
+// would therefore reject every document over ~768 KB while the product
+// advertises 50 MB — Document Intelligence (FE-50) broken by a constant living
+// in a different directory, with a 413 the gateway never issued and no log of
+// it anywhere in warden. `warden/tests/test_edge_preflight_coherence.py` pins
+// this list and this number to what the gateway actually accepts.
+const DOCUMENT_PREFIXES = [
+  "/filter",
+  "/ext/filter",
+  "/document-intel/",
+  "/doc-converter",
+  "/obsidian/scan-attachment",
+  "/prompt-library/from-file",
+];
+const MAX_DOCUMENT_BYTES = 70 * 1024 * 1024; // 50 MB × 4/3 for base64, plus JSON overhead
 
 // Routes that MUST have Content-Type: application/json
 const JSON_REQUIRED_PREFIXES = ["/filter", "/mcp", "/agent/", "/staff/"];
@@ -49,9 +68,13 @@ export default {
         const isCanonical = rawLength !== null && /^\d+$/.test(rawLength.trim());
         const contentLength = isCanonical ? Number(rawLength.trim()) : null;
 
-        if (contentLength !== null && contentLength > MAX_BODY_BYTES) {
+        const maxBytes = DOCUMENT_PREFIXES.some((prefix) => path.startsWith(prefix))
+          ? MAX_DOCUMENT_BYTES
+          : MAX_BODY_BYTES;
+
+        if (contentLength !== null && contentLength > maxBytes) {
           return jsonError(413, "payload_too_large", {
-            max_bytes: MAX_BODY_BYTES,
+            max_bytes: maxBytes,
             received_bytes: contentLength,
           });
         }
