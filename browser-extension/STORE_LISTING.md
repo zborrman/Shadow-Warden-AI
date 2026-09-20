@@ -113,7 +113,7 @@ PRIVACY
 • No data is sent to Shadow Warden AI's servers. Ever.
 • The extension contains no third-party analytics, tracking, or advertising code.
 • All analysis runs on your organisation's own infrastructure.
-• Full privacy policy: https://github.com/zborrman/Shadow-Warden-AI/blob/main/browser-extension/PRIVACY_POLICY.md
+• Full privacy policy: https://shadow-warden-ai.com/privacy
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REQUIREMENTS
@@ -195,7 +195,7 @@ Shadow Warden AI has a single purpose: to intercept outbound AI prompts on suppo
 
 **Privacy Policy URL to enter in the dashboard:**
 ```
-https://github.com/zborrman/Shadow-Warden-AI/blob/main/browser-extension/PRIVACY_POLICY.md
+https://shadow-warden-ai.com/privacy
 ```
 
 *(Host this file at the URL above before submitting. The PRIVACY_POLICY.md in this repo is the authoritative source.)*

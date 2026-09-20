@@ -3,7 +3,7 @@
 **Organisation:** Shadow Warden AI Ltd.
 **Data Protection Contact:** privacy@shadow-warden-ai.com
 **GDPR Article 30 Reference:** Article 30(1) — Record maintained by Controller; Article 30(2) — Record maintained by Processor
-**Last Updated:** March 2026
+**Last Updated:** September 2026
 **Review Frequency:** Annually or upon material change
 
 ---
@@ -29,7 +29,7 @@ Shadow Warden AI Ltd. operates as both:
 | **Personal Data categories** | Any text data appearing in AI prompts: may include names, email addresses, phone numbers, ID numbers, financial data |
 | **Special category data** | Not intentionally processed; if detected, flagged and blocked; not stored |
 | **Recipients** | None — data is analysed locally and not forwarded to third parties (except where Controller explicitly routes approved content to their AI provider) |
-| **Retention** | **Zero content retention** — prompt content is never written to disk or logs. Metadata (tenant ID, risk level, content length, timestamps) retained for [90 days] then purged. |
+| **Retention** | **Zero content retention** — prompt content is never written to disk or logs. Metadata (tenant ID, risk level, content length, timestamps) retained for **30 days** then purged — `GDPR_LOG_RETENTION_DAYS`, which is 30 in production and 30 by default in code. This read `[90 days]`, an unfilled placeholder, until 2026-09-20; 90 would have contradicted both the DPIA and the running service. |
 | **International transfers** | None for content. Metadata stored in EU (Hetzner, Germany). Where Sub-processors outside EEA are involved, SCCs apply (see DPA Annex III). |
 | **Security measures** | See DPA Annex II — TLS 1.3, zero-content logging, rate limiting, access controls |
 | **Automated decision-making** | Yes — automated risk scoring and block/allow decisions. Controllers retain the right to audit decisions via request logs. |
@@ -46,10 +46,10 @@ Shadow Warden AI Ltd. operates as both:
 | **Purpose** | Providing the Shadow Warden AI service; invoicing; support |
 | **Legal basis** | Contract (Art. 6(1)(b)); Legal obligation (Art. 6(1)(c)) for tax/accounting records |
 | **Data subjects** | Customer organisation contacts (procurement, IT, legal, billing) |
-| **Personal Data categories** | Name, business email, phone, job title, billing address, payment method (tokenised — held by Stripe) |
-| **Recipients** | Stripe Inc. (billing); Hetzner Online GmbH (hosting); internal staff on need-to-know basis |
+| **Personal Data categories** | Business email and a bcrypt password hash at signup. Name, phone, job title, billing address and payment method are **not** collected today — no billing flow is connected. |
+| **Recipients** | Hetzner Online GmbH (hosting); internal staff on need-to-know basis. **No payment provider is currently engaged** — neither Stripe nor Lemon Squeezy credentials are configured in production, so no billing data reaches either. This row named Stripe as a recipient of data it has never received; add the provider back here when one is actually connected. |
 | **Retention** | Account data: duration of contract + 3 years. Invoice records: 7 years (legal obligation). |
-| **International transfers** | Stripe (US) — SCCs + EU-U.S. DPF |
+| **International transfers** | None today. Hosting is Hetzner, Germany (EEA). A transfer basis will be required when a payment provider is connected. |
 | **Security measures** | Encrypted database; MFA for admin access; RBAC |
 | **DPIA required?** | No — standard B2B processing, no high-risk indicators |
 

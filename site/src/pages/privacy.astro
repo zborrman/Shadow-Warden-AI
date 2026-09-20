@@ -1,0 +1,153 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const effectiveDate = 'September 20, 2026';
+
+// Astro cannot read the gateway's Python settings at build time, so this
+// number is typed — and pinned. `warden/tests/test_privacy_notice_coherence.py`
+// fails if it stops matching `settings.gdpr_log_retention_days`, because a
+// retention period published to data subjects that the software does not
+// honour is a false statement, not a stale one.
+const metadataRetentionDays = 30;
+---
+
+<BaseLayout
+  title="Privacy Notice — Shadow Warden AI"
+  description="What Shadow Warden AI collects, why, how long it is kept, and how to exercise your rights under the GDPR."
+>
+  <div class="pt-14" style="background:#03050f">
+    <div class="mx-auto max-w-3xl px-4 lg:px-8 py-20">
+
+      <div class="mb-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
+             style="color:#80b4fd;background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.2)">
+          Legal
+        </div>
+        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-2" style="color:#f1f5f9">
+          Privacy Notice
+        </h1>
+        <p class="text-[14px]" style="color:#64748b">Effective {effectiveDate}</p>
+      </div>
+
+      <div class="space-y-8 text-[14px] leading-relaxed" style="color:#94a3b8">
+
+        <section>
+          <p>
+            This notice describes what Shadow Warden AI does with personal data, in the
+            terms GDPR Article 13 asks for. It covers what the service does
+            <em>today</em>. Where something is not yet in use, this notice says so
+            rather than describing it as if it were.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">1. Who is responsible</h2>
+          <p>
+            Shadow Warden AI, established in Israel, decides how and why the data
+            described here is processed. For anything in this notice, including every
+            request under section 6, write to
+            <a href="mailto:privacy@shadow-warden-ai.com" style="color:#60a5fa">privacy@shadow-warden-ai.com</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">2. What is collected</h2>
+          <p class="mb-3">Two things, and nothing else:</p>
+          <ul class="space-y-2 ml-5" style="list-style:disc">
+            <li>
+              <strong style="color:#cbd5e1">Your account.</strong> When you sign up we store
+              the email address you give us and a bcrypt hash of your password. We do not
+              store the password itself and cannot recover it.
+            </li>
+            <li>
+              <strong style="color:#cbd5e1">Request metadata.</strong> When a prompt passes
+              through the gateway we record what kind of request it was, how long it was,
+              how long it took, and what the filter decided.
+            </li>
+          </ul>
+          <p class="mt-4">
+            <strong style="color:#cbd5e1">Prompt content is never written to disk or to any
+            log.</strong> It is analysed in memory and discarded. This is a property of how
+            the gateway is built, not a policy applied afterwards — there is no store to
+            purge it from, and no copy for us to read.
+          </p>
+          <p class="mt-3">
+            No payment data is collected. No payment provider is currently connected to
+            this service, so nothing of that kind reaches us or anyone else.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">3. Why, and on what legal basis</h2>
+          <ul class="space-y-2 ml-5" style="list-style:disc">
+            <li>Account data, to give you access to the service you asked for — performance of a contract, Art. 6(1)(b).</li>
+            <li>Request metadata, to operate the gateway, spot abuse and keep it working — legitimate interests, Art. 6(1)(f). You may object; see section 6.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">4. How long it is kept</h2>
+          <ul class="space-y-2 ml-5" style="list-style:disc">
+            <li>Request metadata: <strong style="color:#cbd5e1">{metadataRetentionDays} days</strong>, then deleted automatically.</li>
+            <li>Account data: for as long as the account exists. Delete the account and it goes with it.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">5. Where it is held, and who else sees it</h2>
+          <p>
+            On servers operated by Hetzner Online GmbH in Germany, inside the EEA. We do
+            not sell personal data, and we do not share it with third parties for their
+            own purposes. Prompt content is never transmitted anywhere by the gateway —
+            it goes to an AI provider only when you route it there yourself, under your
+            own agreement with that provider.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">6. Your rights</h2>
+          <p class="mb-3">
+            You may ask for a copy of your data, ask us to correct it, ask us to delete
+            it, ask us to restrict how we use it, ask for it in a portable form, or
+            object to processing we base on legitimate interests. Write to
+            <a href="mailto:privacy@shadow-warden-ai.com" style="color:#60a5fa">privacy@shadow-warden-ai.com</a>
+            and we will answer within 30 days.
+          </p>
+          <p>
+            You can also complain to the data protection supervisory authority where you
+            live or work. Exercising a right here does not affect that.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">7. Automated decisions</h2>
+          <p>
+            The gateway decides automatically whether to allow or block a request, from
+            the content of that request. That decision governs a prompt, not a person: it
+            produces no legal effect and nothing comparable to one. You can ask us why a
+            particular request was blocked.
+          </p>
+        </section>
+
+        <section>
+          <h2 class="text-[18px] font-bold mb-3" style="color:#e2e8f0">8. Changes</h2>
+          <p>
+            If this notice changes materially we will change the effective date above and
+            say so on this page. The underlying record — our Article 30 register and the
+            Data Protection Impact Assessment this notice is drawn from — is published at
+            <a href="/doc/compliance" style="color:#60a5fa">/doc/compliance</a>.
+          </p>
+        </section>
+
+        <section class="pt-4 border-t" style="border-color:rgba(255,255,255,0.06)">
+          <p class="text-[13px]" style="color:#475569">
+            Related: <a href="/terms" style="color:#60a5fa">Terms of Service</a> ·
+            <a href="/trust" style="color:#60a5fa">Trust Center</a> ·
+            <a href="/doc/compliance" style="color:#60a5fa">GDPR DPIA</a>
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
