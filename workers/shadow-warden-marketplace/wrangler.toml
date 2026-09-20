@@ -5,12 +5,16 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ALLOWED_ORIGIN = "https://shadow-warden-ai.com"
+# The gateway this Worker forwards to. A public hostname, not a credential --
+# it was documented as a secret, and treating it as one put a manual step in
+# front of a deploy. Declared here so the config is self-sufficient: the proxy
+# works the moment it ships, with nothing to remember.
+WARDEN_BACKEND_URL = "https://api.shadow-warden-ai.com"
 
 # KV binding removed in v2.0.0: this Worker is a proxy and owns no state.
 # The namespace still exists but is no longer served — see src/index.ts.
 
-# Secrets (set via wrangler secret put):
-#   WARDEN_BACKEND_URL  — https://api.shadow-warden-ai.com
+# No secrets are required. ADMIN_KEY is no longer read and may be deleted.
 
 [[routes]]
 pattern = "marketplace.shadow-warden-ai.com/*"

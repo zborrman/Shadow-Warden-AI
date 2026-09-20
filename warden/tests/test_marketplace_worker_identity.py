@@ -128,8 +128,23 @@ def test_the_worker_holds_no_state(wrangler: str, src: str):
 
 
 def test_it_forwards_to_the_gateway_under_the_versioned_prefix(src: str):
+    """`/v1` is canonical. It is not a declared route — `APIVersionMiddleware`
+    resolves it — so reading `main.py` suggests only `/marketplace` exists and
+    makes `/v1` look like a 404. It is not: production answers 200 on both, and
+    the unversioned surface carries `Sunset: 2027-08-23`."""
     assert '"/v1/marketplace"' in src
     assert "WARDEN_BACKEND_URL" in src
+
+
+def test_the_backend_url_is_configured_not_remembered(wrangler: str):
+    """It shipped documented as a secret. It is a public hostname, and treating
+    it as a credential put a manual step in front of a deploy — the kind that
+    gets skipped, leaving a proxy answering 503 for everything. Declared in
+    `[vars]`, the config is self-sufficient."""
+    assert 'WARDEN_BACKEND_URL = "https://api.shadow-warden-ai.com"' in wrangler
+    assert "wrangler secret put" not in wrangler, (
+        "No secret is required by this Worker any more."
+    )
 
 
 def test_no_backend_configured_fails_closed(src: str):
