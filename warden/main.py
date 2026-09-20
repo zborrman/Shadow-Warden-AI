@@ -1373,25 +1373,31 @@ except ImportError:
     log.warning("QuotaMiddleware not available — quota enforcement skipped.")
 
 # ── Prometheus instrumentation ────────────────────────────────────────────────
-# Patch prometheus_fastapi_instrumentator routing to skip _IncludedRouter objects
-# that lack a .path attribute (known bug in v8.x with nested include_router calls).
-try:
-    import prometheus_fastapi_instrumentator.routing as _pfi_routing
-    _orig_get_route_name = _pfi_routing._get_route_name
-
-    def _patched_get_route_name(scope, routes, *args, **kwargs):
-        # Signature-agnostic passthrough: v8.0.x's _get_route_name took
-        # (scope, routes, route_name); v8.1.0 dropped the third arg to
-        # (scope, routes). Forwarding *args/**kwargs keeps this patch working
-        # across both instead of hard-coding a positional arg count (an unbounded
-        # `>=8.0.0` pin let 8.1.0 in and the old 3-arg call TypeError'd on every
-        # instrumented request — a full gateway outage).
-        safe_routes = [r for r in routes if hasattr(r, "path") and hasattr(r, "matches")]
-        return _orig_get_route_name(scope, safe_routes, *args, **kwargs)
-
-    _pfi_routing._get_route_name = _patched_get_route_name
-except Exception as _exc:  # noqa: BLE001
-    log.debug("suppressed exception: %r", _exc)
+# There used to be a monkeypatch here, and it is worth saying what it did.
+#
+# prometheus_fastapi_instrumentator 8.0.x could not resolve the `_IncludedRouter`
+# objects FastAPI >= 0.116 puts in `app.routes` for every `include_router` call —
+# they carry no `.path` — so the patch filtered them out before the library saw
+# them:
+#
+#     safe_routes = [r for r in routes if hasattr(r, "path") and hasattr(r, "matches")]
+#
+# 8.1.0 learned to expand those objects itself, via `effective_route_contexts()`.
+# The filter then became the defect: it removed exactly the routes the library
+# had just learned to resolve, so every endpoint registered through a router —
+# which is all of them but the handful declared on `app` directly — was recorded
+# as `handler="none"`. Measured on production 2026-09-20: of the handler labels
+# across `http_requests_total` and both latency histograms, **one** was a real
+# path (`/filter`, declared inline here) and everything else was `none`. Two
+# successful requests to a live `/billing/tiers` produced no new label at all.
+#
+# So the dashboards, the error-rate alert, the availability SLO and all four
+# burn-rate rules have been reading one route and a bucket marked "unknown".
+#
+# Nothing replaces the patch: the library is correct now, and
+# `warden/tests/test_metrics_route_attribution.py` asserts that by making a
+# request through a nested router and reading the label back, rather than by
+# trusting a version number.
 
 if _PROMETHEUS_ENABLED:
     # .add(metrics.default(...)) rather than a bare .add(metrics.latency(...)):
