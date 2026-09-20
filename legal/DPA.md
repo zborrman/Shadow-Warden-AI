@@ -80,7 +80,7 @@ Shadow Warden AI shall:
 - EU Standard Contractual Clauses (Module 2: Controller to Processor), incorporated herein by reference; or
 - Another transfer mechanism permitted under GDPR Chapter V.
 
-5.2 The Controller may request a completed SCCs addendum by contacting privacy@shadowwarden.ai.
+5.2 The Controller may request a completed SCCs addendum by contacting privacy@shadow-warden-ai.com.
 
 ---
 
@@ -148,5 +148,5 @@ This DPA is governed by the laws of [England & Wales / [Customer's jurisdiction 
 ---
 
 *Shadow Warden AI Ltd.*
-*privacy@shadowwarden.ai*
+*privacy@shadow-warden-ai.com*
 *Version 1.0 — March 2026*

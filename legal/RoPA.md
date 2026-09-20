@@ -1,7 +1,7 @@
 # Record of Processing Activities (RoPA)
 
 **Organisation:** Shadow Warden AI Ltd.
-**Data Protection Contact:** privacy@shadowwarden.ai
+**Data Protection Contact:** privacy@shadow-warden-ai.com
 **GDPR Article 30 Reference:** Article 30(1) — Record maintained by Controller; Article 30(2) — Record maintained by Processor
 **Last Updated:** March 2026
 **Review Frequency:** Annually or upon material change
@@ -94,12 +94,12 @@ Shadow Warden AI Ltd. operates as both:
 
 | Right | How to exercise | Response time |
 |-------|-----------------|---------------|
-| Access (Art. 15) | Email privacy@shadowwarden.ai | 30 days |
-| Rectification (Art. 16) | Email privacy@shadowwarden.ai | 30 days |
-| Erasure (Art. 17) | Email privacy@shadowwarden.ai; or `POST /gdpr/purge` API | 30 days |
-| Restriction (Art. 18) | Email privacy@shadowwarden.ai | 30 days |
-| Portability (Art. 20) | Email privacy@shadowwarden.ai | 30 days |
-| Object (Art. 21) | Email privacy@shadowwarden.ai | 30 days |
+| Access (Art. 15) | Email privacy@shadow-warden-ai.com | 30 days |
+| Rectification (Art. 16) | Email privacy@shadow-warden-ai.com | 30 days |
+| Erasure (Art. 17) | Email privacy@shadow-warden-ai.com; or `POST /gdpr/purge` API | 30 days |
+| Restriction (Art. 18) | Email privacy@shadow-warden-ai.com | 30 days |
+| Portability (Art. 20) | Email privacy@shadow-warden-ai.com | 30 days |
+| Object (Art. 21) | Email privacy@shadow-warden-ai.com | 30 days |
 | Withdraw consent | N/A — no consent-based processing currently active | — |
 
 > **Note on Processor role:** Where Shadow Warden AI processes data as a Processor, data subjects must direct requests to the relevant Controller (the organisation that submitted the data to Shadow Warden AI). Shadow Warden AI will assist Controllers in responding to such requests as required by the applicable DPA.

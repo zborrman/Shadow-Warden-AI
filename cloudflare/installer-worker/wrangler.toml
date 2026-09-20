@@ -4,8 +4,17 @@ compatibility_date = "2025-01-01"
 workers_dev = false
 preview_urls = false
 
-# Route: get.shadowwarden.ai/install
-# (configure in Cloudflare dashboard: Workers & Pages → installer → Triggers → Custom Domains)
+# Route: get.shadow-warden-ai.com/install
+#
+# It used to name a host in a look-alike zone this project does not own, and
+# that whole zone is NXDOMAIN — see warden/tests/test_no_dead_contact_domain.py.
+# Cloudflare Workers Builds has redeployed this Worker on every push to main
+# (10 deployments in two days, 1:1 with pushes) while it answered on nothing.
+#
+# The zone is now the right one, so a single DNS record makes it real. That
+# record does not exist yet: until somebody adds `get` to the
+# shadow-warden-ai.com zone and binds it as a Custom Domain, this Worker is
+# still deployed and still unreachable.
 
 [[kv_namespaces]]
 binding = "INSTALL_STATS"

@@ -1,6 +1,6 @@
 # shadow-warden-go
 
-Go SDK for the [Shadow Warden AI](https://shadowwarden.ai) security gateway.
+Go SDK for the [Shadow Warden AI](https://shadow-warden-ai.com) security gateway.
 
 ## Install
 

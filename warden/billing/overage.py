@@ -156,14 +156,14 @@ def get_upgrade_url(tier: str, metric: str) -> str:
     from warden.billing.pricing import canonical_tier
     current   = canonical_tier(tier)
     next_tier = _NEXT_TIER.get(current, "pro")
-    base_url  = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+    base_url  = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
     return f"{base_url}/billing/upgrade?from={current}&to={next_tier}&reason={metric}"
 
 
 def get_overage_pack_url(tier: str, metric: str) -> str:
     """URL to buy a capacity pack instead of upgrading a plan."""
     from warden.billing.pricing import canonical_tier
-    base_url = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+    base_url = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
     return f"{base_url}/billing/overage-pack?tier={canonical_tier(tier)}&metric={metric}"
 
 

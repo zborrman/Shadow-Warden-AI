@@ -4,7 +4,7 @@
 **Last reviewed:** 2026-03-13
 **Product:** Shadow Warden AI Browser Extension (Chrome / Edge)
 **Developer:** Shadow Warden AI
-**Contact:** privacy@shadowwarden.ai
+**Contact:** privacy@shadow-warden-ai.com
 
 ---
 
@@ -147,7 +147,7 @@ Because prompt content is never stored by Shadow Warden AI, there is no personal
 
 For data held by your **local gateway** (metadata logs), contact your IT administrator. The gateway's `/gdpr/export` and `/gdpr/purge` endpoints give administrators full control over log retention.
 
-For any privacy questions directed to Shadow Warden AI as the extension developer, contact **privacy@shadowwarden.ai**.
+For any privacy questions directed to Shadow Warden AI as the extension developer, contact **privacy@shadow-warden-ai.com**.
 
 ---
 
@@ -166,5 +166,5 @@ Material changes will be communicated by updating the version number and date at
 ## 13. Contact
 
 **Shadow Warden AI — Privacy Team**
-Email: privacy@shadowwarden.ai
+Email: privacy@shadow-warden-ai.com
 Subject line: "Browser Extension Privacy Inquiry"

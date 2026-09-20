@@ -432,7 +432,7 @@ def get_quota_usage(tenant_id: str) -> dict:
 
 
 def _build_upgrade_url(current_tier: str) -> str:
-    base = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+    base = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
     next_tier_map = {
         "starter":    "individual",
         "individual": "pro",

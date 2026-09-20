@@ -51,7 +51,7 @@ Privacy guarantees
   • Enterprise nodes can set ``THREAT_FEED_RECEIVE_ONLY=true`` to consume
     the global feed without contributing (air-gapped intelligence)
 
-Pricing tiers (for the hosted SaaS feed at shadowwarden.ai)
+Pricing tiers (for the hosted SaaS feed at shadow-warden-ai.com)
 ────────────────────────────────────────────────────────────
   Free  — read-only, daily refresh, up to 500 rules
   Pro   — read-write, hourly refresh, unlimited rules   ($49/mo)
