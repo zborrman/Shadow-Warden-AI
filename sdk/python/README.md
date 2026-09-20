@@ -1,6 +1,6 @@
 # shadow-warden-sdk
 
-Python SDK for the [Shadow Warden AI](https://shadowwarden.ai) security gateway.
+Python SDK for the [Shadow Warden AI](https://shadow-warden-ai.com) security gateway.
 
 ## Install
 

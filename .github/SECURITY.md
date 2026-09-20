@@ -12,8 +12,8 @@ Report privately through one of these channels:
 
 | Channel | Contact |
 |---------|---------|
-| Email (preferred) | security@shadowwarden.ai |
-| Web form | https://shadowwarden.ai/contact |
+| Email (preferred) | security@shadow-warden-ai.com |
+| Web form | https://shadow-warden-ai.com/contact |
 | PGP key | Available on request via email |
 
 **Response SLA:**

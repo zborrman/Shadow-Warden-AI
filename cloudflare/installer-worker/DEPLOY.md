@@ -1,10 +1,10 @@
 # Shadow Warden Installer Worker — Deployment Guide
 
-Serves `install.sh` at `https://get.shadowwarden.ai/install` via Cloudflare Workers.
+Serves `install.sh` at `https://get.shadow-warden-ai.com/install` via Cloudflare Workers.
 
 ## Prerequisites
 
-- Cloudflare account with `shadowwarden.ai` zone
+- Cloudflare account with `shadow-warden-ai.com` zone
 - Node.js ≥ 18 and `wrangler` CLI
 
 ```bash
@@ -66,13 +66,13 @@ Published shadow-warden-installer (X.XXs)
 
 ---
 
-## Step 4 — Custom domain: get.shadowwarden.ai
+## Step 4 — Custom domain: get.shadow-warden-ai.com
 
 In the Cloudflare dashboard:
 
 1. **Workers & Pages** → `shadow-warden-installer` → **Settings** → **Domains & Routes**
 2. Click **Add Custom Domain**
-3. Enter: `get.shadowwarden.ai`
+3. Enter: `get.shadow-warden-ai.com`
 4. Cloudflare will automatically create a CNAME DNS record.
 
 > No separate DNS record is required — Cloudflare handles it.
@@ -83,13 +83,13 @@ In the Cloudflare dashboard:
 
 ```bash
 # Health check
-curl https://get.shadowwarden.ai/health
+curl https://get.shadow-warden-ai.com/health
 
 # Serve the installer (trial)
-curl -sSL "https://get.shadowwarden.ai/install?plan=trial" | head -5
+curl -sSL "https://get.shadow-warden-ai.com/install?plan=trial" | head -5
 
 # Stats (replace TOKEN with what you set in Step 2)
-curl -H "X-Stats-Token: TOKEN" https://get.shadowwarden.ai/stats
+curl -H "X-Stats-Token: TOKEN" https://get.shadow-warden-ai.com/stats
 ```
 
 ---

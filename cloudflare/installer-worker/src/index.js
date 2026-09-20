@@ -48,7 +48,7 @@ export default {
       return handleInstall(request, env, ctx, url);
     }
 
-    return new Response("Not found.\n\nInstall Shadow Warden AI:\n  curl -sSL https://get.shadowwarden.ai/install | bash -s -- --trial\n", {
+    return new Response("Not found.\n\nInstall Shadow Warden AI:\n  curl -sSL https://get.shadow-warden-ai.com/install | bash -s -- --trial\n", {
       status: 404,
       headers: { "Content-Type": "text/plain" },
     });

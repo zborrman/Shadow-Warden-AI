@@ -48,7 +48,7 @@ log = logging.getLogger("warden.billing.router")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-_PORTAL_BASE = os.getenv("PORTAL_BASE_URL", "https://app.shadowwarden.ai")
+_PORTAL_BASE = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

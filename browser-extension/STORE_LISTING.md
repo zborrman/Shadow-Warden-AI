@@ -113,7 +113,7 @@ PRIVACY
 • No data is sent to Shadow Warden AI's servers. Ever.
 • The extension contains no third-party analytics, tracking, or advertising code.
 • All analysis runs on your organisation's own infrastructure.
-• Full privacy policy: https://shadowwarden.ai/privacy
+• Full privacy policy: https://github.com/zborrman/Shadow-Warden-AI/blob/main/browser-extension/PRIVACY_POLICY.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REQUIREMENTS
@@ -195,7 +195,7 @@ Shadow Warden AI has a single purpose: to intercept outbound AI prompts on suppo
 
 **Privacy Policy URL to enter in the dashboard:**
 ```
-https://shadowwarden.ai/privacy
+https://github.com/zborrman/Shadow-Warden-AI/blob/main/browser-extension/PRIVACY_POLICY.md
 ```
 
 *(Host this file at the URL above before submitting. The PRIVACY_POLICY.md in this repo is the authoritative source.)*
@@ -213,12 +213,12 @@ The extension overrides window.fetch (content_scripts world: "MAIN") exclusively
 
 The prompt text is forwarded only to the organisation's own local gateway (default: http://localhost:8001, configurable via Group Policy). No data is sent to Shadow Warden AI's servers. The extension fails open if the gateway is unreachable.
 
-All source code is available for review at: https://github.com/shadowwarden-ai/warden
+All source code is available for review at: https://github.com/zborrman/Shadow-Warden-AI
 
-Test credentials for a live demo environment:
-  Gateway: https://demo.shadowwarden.ai
-  API Key: sw_demo_reviewer_2026
-  Tenant ID: chrome_review
+There is no hosted demo environment. The extension is reviewed against a local
+gateway, which is how it runs in production too: start it with `docker compose
+up` from https://github.com/zborrman/Shadow-Warden-AI and point the extension at
+http://localhost:8001, its default.
 ```
 
 ---

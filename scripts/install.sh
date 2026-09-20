@@ -3,10 +3,10 @@
 #  Shadow Warden AI — One-Line SMB Installer  v2.9
 #
 #  Trial (14 days, free):
-#    curl -sSL https://get.shadowwarden.ai/install | bash -s -- --trial
+#    curl -sSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | bash -s -- --trial
 #
 #  Paid license:
-#    curl -sSL https://get.shadowwarden.ai/install | bash -s -- --license=SW-XXX-YYY-ZZZ
+#    curl -sSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | bash -s -- --license=SW-XXX-YYY-ZZZ
 #
 #  Requirements: Ubuntu 20.04+ / Debian 11+ (root or sudo)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ echo -e "${NC}"
 IS_TRIAL=false
 LICENSE_KEY=""
 INSTALL_DIR="${SHADOW_WARDEN_DIR:-/opt/shadow-warden}"
-DRM_ENDPOINT="${DRM_ENDPOINT:-https://drm.shadowwarden.ai/api/provision}"
+DRM_ENDPOINT="${DRM_ENDPOINT:-https://drm.shadow-warden-ai.com/api/provision}"
 COMPOSE_URL="${COMPOSE_URL:-https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/docker-compose.yml}"
 
 for arg in "$@"; do
@@ -61,7 +61,7 @@ for arg in "$@"; do
 done
 
 if [ "$IS_TRIAL" = false ] && [ -z "$LICENSE_KEY" ]; then
-    die "Specify --trial or --license=YOUR_KEY\n\nGet a license at: https://shadowwarden.ai/pricing"
+    die "Specify --trial or --license=YOUR_KEY\n\nGet a license at: https://shadow-warden-ai.com/pricing"
 fi
 
 # ── Root check ────────────────────────────────────────────────────────────────
@@ -289,11 +289,11 @@ echo ""
 echo -e "  ${BOLD}Logs:${NC}          docker compose -C $INSTALL_DIR logs -f warden"
 echo -e "  ${BOLD}Stop:${NC}          docker compose -C $INSTALL_DIR down"
 echo -e "  ${BOLD}Dashboard:${NC}     http://${PUBLIC_IP}:3000  (Grafana)"
-echo -e "  ${BOLD}Docs:${NC}          https://docs.shadowwarden.ai"
+echo -e "  ${BOLD}Docs:${NC}          https://shadow-warden-ai.com/doc"
 echo ""
 if [ "$PLAN" = "trial" ]; then
 echo -e "  ${YELLOW}${BOLD}⚠  Trial expires in 14 days.${NC}"
-echo -e "  ${YELLOW}   Upgrade at: https://shadowwarden.ai/pricing${NC}"
+echo -e "  ${YELLOW}   Upgrade at: https://shadow-warden-ai.com/pricing${NC}"
 echo ""
 fi
 echo -e "  Config saved to: ${BOLD}${INSTALL_DIR}/.env${NC}"

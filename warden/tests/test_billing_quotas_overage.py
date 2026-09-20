@@ -150,7 +150,14 @@ class TestGetUpgradeUrl:
         monkeypatch.delenv("PORTAL_BASE_URL", raising=False)
         from warden.billing.overage import get_upgrade_url
         url = get_upgrade_url("individual", "bw")
-        assert "shadowwarden.ai" in url or "shadow" in url
+        # This used to accept `... in url or "shadow" in url`, and it passed for
+        # years against a default pointing at a look-alike zone this project has
+        # never owned — an NXDOMAIN, so every quota-exceeded response offered an
+        # upgrade link that resolves to nothing. The second arm made the first
+        # decorative: it accepts any spelling containing "shadow", the wrong one
+        # included. The host is pinned exactly now; the zone itself is guarded by
+        # warden/tests/test_no_dead_contact_domain.py.
+        assert url.startswith("https://app.shadow-warden-ai.com/"), url
 
 
 class TestGetOveragePackUrl:
