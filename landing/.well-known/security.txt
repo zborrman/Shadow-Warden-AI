@@ -1,0 +1,13 @@
+# Shadow Warden AI — vulnerability disclosure (RFC 9116)
+#
+# This file existed nowhere until 2026-09-20: /.well-known/security.txt
+# returned the 404 page on both the apex and www, while .github/SECURITY.md
+# named a mailbox in a domain this project does not own. A researcher who
+# tried to report a vulnerability had no working address on either surface.
+
+Contact: mailto:security@shadow-warden-ai.com
+Contact: https://shadow-warden-ai.com/contact
+Expires: 2027-09-20T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://shadow-warden-ai.com/.well-known/security.txt
+Policy: https://github.com/zborrman/Shadow-Warden-AI/blob/main/.github/SECURITY.md

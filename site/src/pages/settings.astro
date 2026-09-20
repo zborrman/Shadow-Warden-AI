@@ -237,7 +237,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
           <!-- Sticky save footer -->
           <div class="save-footer">
-            <span class="save-timestamp" id="save-timestamp">Last saved 2 min ago by ops@shadowwarden.ai</span>
+            <span class="save-timestamp" id="save-timestamp">Last saved 2 min ago by ops@example.com</span>
             <div class="save-actions">
               <button class="btn-secondary-sm" onclick="resetDefaults()">Reset to defaults</button>
               <button class="btn-primary-sm" onclick="saveFilter()">Save changes</button>
@@ -481,10 +481,10 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               <button class="btn-primary-sm ml-auto">Invite member</button>
             </div>
             {[
-              { name: 'ops@shadowwarden.ai',   role: 'Owner',  joined: 'Jan 2026',  avatar: '🛡' },
-              { name: 'dev@shadowwarden.ai',    role: 'Admin',  joined: 'Feb 2026',  avatar: '⚙' },
-              { name: 'soc@shadowwarden.ai',    role: 'Viewer', joined: 'Mar 2026',  avatar: '🔍' },
-              { name: 'ci-bot@shadowwarden.ai', role: 'Viewer', joined: 'Mar 2026',  avatar: '🤖' },
+              { name: 'ops@example.com',   role: 'Owner',  joined: 'Jan 2026',  avatar: '🛡' },
+              { name: 'dev@example.com',    role: 'Admin',  joined: 'Feb 2026',  avatar: '⚙' },
+              { name: 'soc@example.com',    role: 'Viewer', joined: 'Mar 2026',  avatar: '🔍' },
+              { name: 'ci-bot@example.com', role: 'Viewer', joined: 'Mar 2026',  avatar: '🤖' },
               { name: 'audit@client.com',       role: 'Viewer', joined: 'Apr 2026',  avatar: '📋' },
             ].map(m => (
               <div class="key-row">
@@ -1539,7 +1539,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
   // ── Save filter ─────────────────────────────────────────────
   (window as any).saveFilter = function () {
     const ts = document.getElementById('save-timestamp');
-    if (ts) ts.textContent = `Last saved just now by ops@shadowwarden.ai`;
+    if (ts) ts.textContent = `Last saved just now by ops@example.com`;
   };
 
   (window as any).resetDefaults = function () {

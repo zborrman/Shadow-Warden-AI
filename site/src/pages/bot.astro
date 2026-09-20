@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+<BaseLayout title="Shadow Warden Bot — Shadow Warden AI"
+            description="What the Shadow Warden AI user agent is, what it fetches, and how to stop it.">
+  <div class="max-w-2xl mx-auto px-4 py-20">
+    <h1 class="text-[32px] font-black mb-4" style="color:#f1f5f9">Shadow Warden Bot</h1>
+    <p class="text-[15px] mb-6" style="color:#94a3b8">
+      If you found this page in your access logs, a Shadow Warden AI browser
+      sandbox fetched a page from your site. The user agent names this page so
+      that the answer is one click away rather than a guess.
+    </p>
+
+    <h2 class="text-[18px] font-bold mt-10 mb-3" style="color:#e2e8f0">What it does</h2>
+    <p class="text-[14px] mb-4" style="color:#94a3b8">
+      It renders a page in a headless Chromium instance on behalf of an operator
+      who asked for it — a visual check of a page, or a screenshot compared
+      against an earlier one. It is driven by a person or a scheduled job inside
+      one deployment; it does not crawl, does not follow links it was not given,
+      and builds no index.
+    </p>
+
+    <h2 class="text-[18px] font-bold mt-10 mb-3" style="color:#e2e8f0">How to stop it</h2>
+    <p class="text-[14px] mb-4" style="color:#94a3b8">
+      Block the user agent at your edge, or write to
+      <a href="mailto:security@shadow-warden-ai.com" style="color:#60a5fa">security@shadow-warden-ai.com</a>
+      and say which host it came from. Each deployment runs its own gateway, so
+      the traffic comes from the operator's infrastructure, not from ours.
+    </p>
+
+    <p class="text-[13px] mt-10" style="color:#475569">
+      Source: <a href="https://github.com/zborrman/Shadow-Warden-AI" style="color:#60a5fa">github.com/zborrman/Shadow-Warden-AI</a>
+    </p>
+  </div>
+</BaseLayout>
