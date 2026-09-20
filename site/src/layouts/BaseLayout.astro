@@ -539,9 +539,14 @@ const isSettingsActive = isActive('/settings');
             { label: 'Trust Center', href: '/trust' },
             { label: 'Terms of Service', href: '/terms' },
             { label: 'Refund Policy', href: '/refund' },
+            { label: 'Privacy Notice', href: '/privacy' },
             { label: 'GDPR DPIA', href: '/doc/compliance' },
-            { label: 'SOC 2 Type II', href: '/trust#reports' },
-            { label: 'Privacy Policy', href: '#' },
+            // "SOC 2 Type II" alone read as a certification we hold. We hold
+            // none: docs/capability-matrix.md rates this SELF-ATTESTED — a
+            // control mapping and an evidence collector, which is preparation.
+            // The anchor was wrong too (#reports; the section is #tab-reports),
+            // so the link never even reached what it named.
+            { label: 'SOC 2 readiness', href: '/trust#tab-reports' },
           ]},
         ].map(col => (
           <div>
