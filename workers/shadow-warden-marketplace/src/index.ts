@@ -53,6 +53,15 @@ const STRIP_REQUEST = new Set([
   "host", "connection", "keep-alive", "transfer-encoding", "upgrade",
   "proxy-authorization", "proxy-authenticate", "te", "trailer",
   "cf-connecting-ip", "cf-ray", "cf-visitor", "cf-ipcountry",
+  // Identity headers a client must never author. The gateway's
+  // `get_client_ip()` trusts these *because* the peer is inside
+  // TRUSTED_PROXY_CIDRS — which this proxy is. Forwarding a caller's own
+  // `X-Forwarded-For` would therefore let them key ERS, shadow ban and rate
+  // limiting on somebody else. Stripped here and re-set below from
+  // `CF-Connecting-IP` only, so the value is always Cloudflare's, never the
+  // caller's. Absent that header nothing is sent and the gateway falls back to
+  // the socket peer.
+  "x-forwarded-for", "x-real-ip",
 ]);
 
 const STRIP_RESPONSE = new Set([

@@ -177,6 +177,24 @@ def test_the_real_client_reaches_the_gateway(src: str):
     assert "X-Forwarded-For" in src
 
 
+def test_a_caller_cannot_author_its_own_client_ip(src: str):
+    """The other half, and the dangerous one.
+
+    `get_client_ip()` trusts `X-Forwarded-For` *because* the peer sits inside
+    TRUSTED_PROXY_CIDRS — which this proxy does. Forwarding a caller's own copy
+    would let them key ERS, shadow ban and the rate limiter on somebody else,
+    so both headers are stripped on the way in and re-set only from
+    `CF-Connecting-IP`. The value the gateway sees is always Cloudflare's.
+    """
+    assert '"x-forwarded-for", "x-real-ip",' in src, (
+        "Both must be in STRIP_REQUEST. Setting them afterwards is not enough: "
+        "without the strip, a request arriving with no CF-Connecting-IP carries "
+        "the caller's own identity headers straight through."
+    )
+    strip_block = src.split("STRIP_REQUEST", 1)[1].split("]", 1)[0]
+    assert "x-forwarded-for" in strip_block and "x-real-ip" in strip_block
+
+
 def test_the_edge_does_not_report_on_the_gateways_health(src: str):
     """A proxy answering `/health` says only that the proxy is up. Claiming the
     upstream is healthy without asking is a measurement nobody took."""
