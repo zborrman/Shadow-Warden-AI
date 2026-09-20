@@ -59,6 +59,28 @@ const STRIP_RESPONSE = new Set([
   "connection", "keep-alive", "transfer-encoding", "upgrade", "trailer",
 ]);
 
+/**
+ * The header names to drop, including any the `Connection` header nominates.
+ *
+ * RFC 9110 §7.6.1: `Connection` lists further headers that are hop-by-hop for
+ * this connection only. A fixed deny-list misses them, so a client could name
+ * a header there and have it cross the proxy boundary to the gateway — or the
+ * gateway could leak one back. Cloudflare manages `Connection` itself, which
+ * makes this narrow rather than absent; narrow is still worth closing at a
+ * boundary whose whole job is deciding what crosses.
+ */
+function dropSet(headers: Headers, base: Set<string>): Set<string> {
+  const drop = new Set(base);
+  const conn = headers.get("connection");
+  if (conn) {
+    for (const token of conn.split(",")) {
+      const name = token.trim().toLowerCase();
+      if (name) drop.add(name);
+    }
+  }
+  return drop;
+}
+
 function json(data: unknown, status = 200, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data, null, 2), {
     status,
@@ -130,9 +152,10 @@ export default {
       return addCors(json({ error: "not found", path: url.pathname }, 404), cors);
     }
 
+    const dropReq = dropSet(request.headers, STRIP_REQUEST);
     const headers = new Headers();
     request.headers.forEach((value, key) => {
-      if (!STRIP_REQUEST.has(key.toLowerCase())) headers.set(key, value);
+      if (!dropReq.has(key.toLowerCase())) headers.set(key, value);
     });
     // The gateway resolves the caller with `get_client_ip`, which trusts these
     // only from an allow-listed peer. Passing the real client through is what
@@ -159,9 +182,10 @@ export default {
       );
     }
 
+    const dropRes = dropSet(upstream.headers, STRIP_RESPONSE);
     const out = new Headers();
     upstream.headers.forEach((value, key) => {
-      if (!STRIP_RESPONSE.has(key.toLowerCase())) out.set(key, value);
+      if (!dropRes.has(key.toLowerCase())) out.set(key, value);
     });
     Object.entries(cors).forEach(([k, v]) => out.set(k, v));
 

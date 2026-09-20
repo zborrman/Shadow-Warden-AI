@@ -165,7 +165,11 @@ def test_the_real_client_reaches_the_gateway(src: str):
 def test_the_edge_does_not_report_on_the_gateways_health(src: str):
     """A proxy answering `/health` says only that the proxy is up. Claiming the
     upstream is healthy without asking is a measurement nobody took."""
-    assert '"role": "proxy"' in src or '"proxy"' in src
+    assert '"role": "proxy"' in src, (
+        "Assert the exact field the Worker emits. A disjunct with a bare "
+        '"proxy" token would pass on a CORS string or an error message, which '
+        "is a ratchet that cannot fail."
+    )
 
 
 # ── the duplication must not come back ───────────────────────────────────────
