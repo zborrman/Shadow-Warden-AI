@@ -86,7 +86,7 @@ def test_the_allowlist_is_still_empty():
     """An exemption list is the quiet way a ratchet stops holding. Every entry
     added here excuses a whole file, so adding one is a decision that should be
     visible in a diff rather than arrived at while chasing a red test."""
-    assert _DEMO_PERSONAS == set(), (
+    assert not _DEMO_PERSONAS, (
         "something was exempted from this guard: "
         f"{sorted(_DEMO_PERSONAS)} — fix the file or argue for the entry"
     )
@@ -116,7 +116,7 @@ def test_security_txt_is_published_and_not_expiring():
     m = [ln for ln in body.splitlines() if ln.startswith("Expires:")]
     assert len(m) == 1, f"RFC 9116 requires exactly one Expires field, found {len(m)}"
     expires = _dt.datetime.fromisoformat(m[0].split(":", 1)[1].strip().replace("Z", "+00:00"))
-    left = expires - _dt.datetime.now(_dt.timezone.utc)
+    left = expires - _dt.datetime.now(_dt.UTC)
     assert left > _dt.timedelta(days=30), (
         f"security.txt expires in {left.days} days — renew the Expires field"
     )
