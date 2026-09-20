@@ -1127,20 +1127,20 @@ Two corollaries that have each already cost a real defect:
 > manufacturing.
 >
 > **A merged fix is not a deployed fix**, and this one nearly proved it twice
-> over. ⚠️ **The sentence that stood here was wrong.** It said no workflow runs
-> `wrangler deploy` for this Worker. `ci.yml` has `cf-marketplace-deploy`: on a
-> push to `main` it compares the `VERSION` constant against what `/health`
-> answers and, when they differ, deploys and then spends 60s proving the edge
-> actually moved. The claim came from one `grep` that returned nothing and was
-> never re-checked — the same way of being wrong this section warns about, in
-> the section itself.
+> over. When the paragraph below was written (2026-09-19) nothing shipped this
+> Worker at all; **#512 changed that on 2026-09-20** by adding
+> `cf-marketplace-deploy`, which on a push to `main` compares the `VERSION`
+> constant against what `/health` answers and, when they differ, deploys and
+> spends 60s proving the edge actually moved. `CLOUDFLARE_API_TOKEN` was added
+> the same day, so the deploy is now automatic.
 >
-> What is true: that job needs `CLOUDFLARE_API_TOKEN`, which is **not** a
-> repository secret, so today it fails loudly instead of shipping ("the edge
-> serves X, the source is Y, and there is no deploy credential"). Until the
-> token exists, `npm run deploy` is a human step in practice but not by design,
-> and the difference matters — a guard that fails is not a guard that is
-> absent. The local checkout was also **three commits behind `origin/main`** at
+> Worth keeping for the shape of it: this section was briefly "corrected" to say
+> the original claim had been wrong from the start and came from a careless
+> `grep`. It had not — it was true when written and was made false by a merge
+> hours later. Checking *whether* something is true and checking *when* it
+> became true are different acts, and skipping the second produces a confident
+> retraction of an accurate statement. The local checkout was also **three
+> commits behind `origin/main`** at
 > the time, which would have republished the vulnerable version from a directory
 > that looked current. Deploy from a tree you have verified by content, and set
 > `ADMIN_KEY` with `wrangler secret put` **before** the deploy, not after: it is
