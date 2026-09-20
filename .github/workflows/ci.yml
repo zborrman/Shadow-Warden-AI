@@ -1568,9 +1568,21 @@ jobs:
 
   # ── Cloudflare Preflight Worker Deploy ───────────────────────────────────────
   #
-  # Deploys cloudflare/preflight-worker/ to Cloudflare Workers on every push
-  # to main that touches the worker source. Requires CLOUDFLARE_API_TOKEN secret
-  # (scoped to "Edit Cloudflare Workers" for the shadow-warden-ai.com zone).
+  # Deploys cloudflare/preflight-worker/ — a Worker that sits on
+  # `api.shadow-warden-ai.com/*`, in front of the entire production API.
+  #
+  # It has never run. `CLOUDFLARE_API_TOKEN` has never been set, so this job has
+  # printed "skipping" and reported success on every run since it was added, and
+  # the script does not exist on the account at all (`wrangler deployments list`
+  # → "This Worker does not exist on your account", code 10007). Its route is
+  # therefore inert and API traffic reaches the origin unchanged.
+  #
+  # That makes adding the token a deployment, not a configuration change: the
+  # next push to main would put an entirely unexercised Worker in front of live
+  # traffic. So the credential no longer decides — `vars.CF_PREFLIGHT_DEPLOY`
+  # does, and somebody has to set it to 'true' on purpose. Same shape as
+  # AUTHORIZE_PAYMENT_ENFORCED and OVERAGE_CHARGE_ENFORCED: a posture flip is a
+  # decision, never a side effect of having a key.
   #
   cf-preflight-deploy:
     name: Deploy CF Preflight Worker
@@ -1578,7 +1590,8 @@ jobs:
     needs: deploy
     if: |
       github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
+      github.event_name == 'push' &&
+      vars.CF_PREFLIGHT_DEPLOY == 'true'
     steps:
       - uses: actions/checkout@v7
 

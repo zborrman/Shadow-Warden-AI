@@ -210,12 +210,33 @@ Enable **Super Bot Fight Mode** on the zone.
 
 ### Cloudflare Workers Pre-filter (C3 from improvement plan)
 
-Deploy a thin Cloudflare Worker at `api.shadow-warden-ai.com/_preflight` that:
-1. Validates `Content-Type: application/json`
-2. Rejects bodies > 1MB before they reach Vercel/warden
-3. Adds `CF-Ray` to request for distributed tracing correlation
+> **Status: NOT DEPLOYED.** The script does not exist on the Cloudflare account
+> — `wrangler deployments list` answers "This Worker does not exist on your
+> account" (10007) — and `CLOUDFLARE_API_TOKEN` has never been set, so the CI
+> job that claims to deploy it has reported success while doing nothing since it
+> was added. Its route is inert; API traffic reaches the origin unchanged.
+> Nothing on this page below depends on it. Deploying it is a posture decision
+> gated behind the `CF_PREFLIGHT_DEPLOY` repository variable, because putting an
+> unexercised Worker in front of the whole API must not be a side effect of
+> adding a credential.
+
+A thin Cloudflare Worker on `api.shadow-warden-ai.com/*` that:
+1. Validates `Content-Type: application/json` on `/filter`, `/mcp`, `/agent/`, `/staff/`
+2. Caps bodies before they reach warden — 1 MB on command routes, and on
+   document routes (`DOCUMENT_PREFIXES`) the limit the gateway itself accepts
+3. Adds `CF-Ray` to the request for distributed tracing correlation
 
 Source of truth: `cloudflare/preflight-worker/src/index.js`.
+
+- **The body cap is route-aware, and has to be.** `/filter` accepts
+  `file_base64` and the gateway allows `DOC_INTEL_MAX_BYTES` (50 MB) of file,
+  which arrives base64-encoded at 4/3 the size. A flat 1 MB cap here rejects
+  every document over ~768 KB with a 413 warden never issued, on a request
+  warden never saw, absent from every log warden writes — Document
+  Intelligence (FE-50) broken by a constant in another directory.
+  `warden/tests/test_edge_preflight_coherence.py` pins the edge limit to the
+  gateway's and runs the gate under node, because pinning the constants alone
+  does not pin the line that uses them.
 
 Two non-obvious properties of that Worker:
 
@@ -251,7 +272,7 @@ response would leak one tenant's verdict to another.
 
 Every rule on this page runs at the Cloudflare edge. A request sent straight to
 the origin IP skips **all** of it: rate limiting, the OWASP ruleset, Bot Fight,
-the `/staff/` API-key rule, the preflight Worker. Full (Strict) TLS does not
+the `/staff/` API-key rule. Full (Strict) TLS does not
 prevent this — it only proves the origin holds a valid cert.
 
 **Implemented (2026-07-24): iptables `DOCKER-USER` allowlist.** Only Cloudflare
