@@ -1,6 +1,6 @@
 # Record of Processing Activities (RoPA)
 
-**Organisation:** Shadow Warden AI Ltd.
+**Organisation:** Shadow Warden AI — a trading name. **No legal entity is registered yet**; incorporation is planned once the service is fully live. Until then the controller is the natural person operating the service, and this record is maintained on that basis.
 **Data Protection Contact:** privacy@shadow-warden-ai.com
 **GDPR Article 30 Reference:** Article 30(1) — Record maintained by Controller; Article 30(2) — Record maintained by Processor
 **Last Updated:** September 2026
@@ -10,7 +10,7 @@
 
 ## Overview
 
-Shadow Warden AI Ltd. operates as both:
+Shadow Warden AI operates as both:
 - **Data Controller** — for personal data of its own employees, contractors, and prospective/existing customers (sales, billing, support).
 - **Data Processor** — on behalf of customer organisations, for personal data that may appear in AI prompts submitted to the Shadow Warden AI security gateway.
 
@@ -108,11 +108,18 @@ Shadow Warden AI Ltd. operates as both:
 
 ## Supervisory Authority
 
-Shadow Warden AI Ltd. is registered with / reports to:
-- **[UK]** Information Commissioner's Office (ICO) — Registration No.: [ICO-REG-NUMBER]
-- **[EU]** [Lead Supervisory Authority — to be determined based on main establishment]
+**No supervisory-authority registration exists.** This section claimed
+registration with the UK Information Commissioner's Office against a
+placeholder number (`[ICO-REG-NUMBER]`) — a regulator registration is not
+something to assert while it is blank.
+
+The lead authority follows from the main establishment, which follows from
+incorporation, which has not happened. When an entity is registered, this
+section records: the entity name, the country of establishment, the lead
+supervisory authority under Art. 56, and any registration number that authority
+in fact issues.
 
 ---
 
-*Maintained by: [DPO / Data Protection Contact]*
+*Maintained by: the data protection contact at privacy@shadow-warden-ai.com. No DPO is appointed — Art. 37 does not require one here, and naming a role nobody holds would be worse than saying so.*
 *Next review: March 2027*

@@ -1,6 +1,6 @@
 # SOC 2 Type II Readiness Roadmap
 
-**Organisation:** Shadow Warden AI Ltd.
+**Organisation:** Shadow Warden AI — a trading name; no legal entity is registered yet (see `legal/RoPA.md`).
 **Target:** SOC 2 Type II — Trust Services Criteria: Security (CC), Availability (A1), Confidentiality (C)
 **Target Audit Window:** 6 months (observation period)
 **Target Audit Completion:** Q4 2026
