@@ -203,7 +203,7 @@ pathspec==1.1.1
 pillow==12.3.0
 platformdirs==4.11.10
 playwright==1.61.0
-plotly==6.8.0
+plotly==7.1.0
 pluggy==1.6.0
 prometheus-fastapi-instrumentator==8.1.0
 prometheus_client==0.26.0
