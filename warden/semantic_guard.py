@@ -44,7 +44,7 @@ _RULES: list[_Rule] = [
               r"do\s+anything\s+now|DAN\b|jailbreak|"
               r"pretend\s+(you\s+)?(are|have)\s+no\s+(rules?|restrictions?|guidelines?)|"
               r"(override|bypass|circumvent)\s+(safety|content|filter)|"
-              r"(system|developer|admin|root)\s+mode\s+(enabled|activated|on)|"
+              r"(system|developer|admin|root)\s+mode\s+(enabled|activated)|"
               r"new\s+persona[:\s]|roleplay\s+as|"
               r"forget\s+(that\s+you\s+are|you('re|\s+are)\s+an?\s+AI))\b"
           ),
@@ -508,6 +508,163 @@ _RULES: list[_Rule] = [
           risk=RiskLevel.HIGH,
           detail="LLM10: Resource exhaustion — request for extremely large output that would exhaust token budget."),
 ]
+
+
+# ── Injection families ────────────────────────────────────────────────────────
+#
+# The rules above match phrasings. Measured 2026-09-21 they caught 15 of the 58
+# baseline jailbreaks and 0 of 28 held-out rewordings of the same attacks —
+# "bypass all safety" slipped past a rule written for "bypass safety", and
+# "ignore the above instructions" past one written for "ignore above". These
+# match the *shape* of each family instead: an action aimed at the model's own
+# safeguards, a claim of authority used to lift them, a request for the model's
+# hidden context. Each is anchored on "your"/"all"/"every" or on an AI-specific
+# object so that ordinary requests ("disable the safety checks in ESLint",
+# "developer mode on Android", "a bath bomb") stay clean — the held-out benign
+# set in tests/adversarial/ exists to hold them to that.
+_SAFEGUARD = (
+    r"(?:content\s+|safety\s+|ethical\s+|moral\s+)?"
+    r"(?:filters?|guardrails?|guidelines?|protocols?|restrictions?|constraints?|"
+    r"safeguards?|moderation|alignment|rules?|checks?|layer)"
+)
+_INJECTION_FAMILY_RULES: list[_Rule] = [
+    # Turn off / get around the model's own safeguards.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:disable|bypass|override|circumvent|deactivate|remove|lift|evade|"
+              r"turn\s+off|switch\s+off|get\s+around)\s+"
+              r"(?:all\s+(?:of\s+)?|every\s+|any\s+)?(?:your|all|every|any)\s+"
+              r"(?:\w+\s+){0,2}?" + _SAFEGUARD + r"\b"
+          ),
+          score=0.88, risk=RiskLevel.HIGH,
+          detail="Instruction to disable or bypass the model's safeguards."),
+
+    # Adopt a persona that has no safeguards.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:you\s+(?:have|had|are|were)|act\s+as\s+if\s+you\s+have|"
+              r"behave\s+as\s+(?:though|if)\s+you\s+have|pretend\s+(?:you\s+are|to\s+be)|"
+              r"respond(?:\s+only)?\s+as|answer\s+(?:this\s+)?as|reply\s+as|"
+              r"respond\s+to\s+all\s+questions)\b"
+              r".{0,50}?\b(?:no|without(?:\s+any)?)\s+"
+              r"(?:ethical\s+|moral\s+|content\s+|safety\s+)?"
+              r"(?:rules|restrictions|filters|guidelines|constraints|considerations)\b"
+          ),
+          score=0.85, risk=RiskLevel.HIGH,
+          detail="Request to adopt a persona without safeguards."),
+
+    # Claim authority over the model, then use it.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:I\s*(?:'m|\s+am)\s+(?:your|the)\s+(?:creator|developer|maker|owner|"
+              r"original\s+developer|system\s+administrator)|"
+              r"as\s+(?:the\s+|your\s+)?(?:system\s+administrator|creator|developer)\s+I)\b"
+              r".{0,120}?\b(?:disable|override|bypass|unlock|unrestricted|without\s+restrictions|"
+              r"safety|filters?)\b"
+              r"|\bI\s+(?:authorize|permit)\s+you\s+to\b.{0,60}?\b(?:without\s+restrictions|anything)\b"
+          ),
+          score=0.86, risk=RiskLevel.HIGH,
+          detail="Claimed authority used to lift the model's safeguards."),
+
+    # Switch into an unrestricted mode.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:sudo|god|jailbreak|unrestricted|unfiltered)\s+mode\s+"
+              r"(?:enabled|activated|engaged|unlocked|on)\b"
+          ),
+          score=0.85, risk=RiskLevel.HIGH,
+          detail="Switch into an unrestricted mode."),
+
+    # Declare the safeguards void.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\byour\s+(?:usual\s+|normal\s+|standard\s+)?(?:restrictions|rules|guidelines|"
+              r"filters)\s+(?:do\s+not|don'?t|no\s+longer)\s+apply\b"
+              r"|\bsafety\s+(?:is\s+)?(?:now\s+)?disabled\b"
+              r"|\b(?:mandatory|authori[sz]ed)\s+override\b"
+              r"|\bcomply\s+with\s+(?:all|every)\s+(?:user\s+)?requests?\b"
+          ),
+          score=0.84, risk=RiskLevel.HIGH,
+          detail="Assertion that the model's safeguards no longer apply."),
+
+    # Ignore earlier instructions — with or without an article.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:ignore|disregard|forget)\s+(?:all\s+(?:of\s+)?)?(?:the\s+)?"
+              r"(?:previous|prior|above|preceding|earlier)\s+"
+              r"(?:instructions?|rules?|prompts?|directions?)\b"
+          ),
+          score=0.90, risk=RiskLevel.HIGH,
+          detail="Instruction to ignore earlier instructions."),
+
+    # Read out the model's hidden context or credentials.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:repeat|output|print|echo|reproduce|recite)\s+(?:back\s+)?(?:the\s+)?"
+              r"(?:words|text|content|lines?|everything)\s+(?:above|before|preceding)\b"
+              r".{0,40}?\b(?:verbatim|starting\s+with|this\s+line|word\s+for\s+word|hidden)\b"
+              r"|\b(?:show|print|give|tell|reveal|display|list|dump|leak)\s+(?:me\s+)?"
+              r"(?:(?:all\s+(?:of\s+)?)|(?:the\s+)?contents?\s+of\s+)?your\s+"
+              r"(?:api\s+keys?|access\s+tokens?|credentials|secret\s+keys?|secrets|passwords?|"
+              r"internal\s+configuration|config(?:uration)?|system\s+prompt|hidden\s+instructions?)\b"
+              r"|\b(?:complete|finish|continue)\s+(?:the\s+following\s+)?(?:sentence|text)\b"
+              r".{0,40}?\b(?:system\s+prompt|hidden\s+instructions?)\b"
+          ),
+          score=0.84, risk=RiskLevel.HIGH,
+          detail="Attempt to read out the model's hidden context or credentials."),
+
+    # Encoded payload paired with an order to run it.
+    _Rule(FlagType.PROMPT_INJECTION,
+          re.compile(
+              r"(?i)\b(?:base64|rot13|hex[- ]?encoded|encoded)\b.{0,80}?"
+              r"\b(?:execute|run|obey|follow)\b(?:\s+(?:it|them|the\s+result))?"
+              r"|\b(?:execute|run)\b\W{0,3}.{0,40}?\b(?:base64|rot13|hex[- ]?encoded)\b"
+          ),
+          score=0.82, risk=RiskLevel.HIGH,
+          detail="Encoded payload with an instruction to execute it."),
+
+    # Weapons and drug synthesis, with an adjective or two in between —
+    # "a pipe bomb" slipped the original rule, which allowed none. Bath, seed and
+    # photo bombs are excluded by name.
+    _Rule(FlagType.HARMFUL_CONTENT,
+          re.compile(
+              r"(?i)\b(?:how\s+to|how\s+do\s+(?:I|you)|instructions?\s+(?:to|for)|guide\s+(?:on|to))\s+"
+              r"(?:make|build|synthesi[sz]e|create|creating|making|manufacture|cook)\s+"
+              r"(?:an?\s+)?(?:(?!bath\b|seed\b|photo\b)\w+\s+){0,2}"
+              r"(?:bomb|explosive|poison|bioweapon|biological\s+weapon|chemical\s+weapon|"
+              r"nerve\s+agents?|sarin|ricin|methamphetamine|meth|fentanyl)\b"
+              r"|\b(?:synthesi[sz]e|synthesis\s+of|cook)\s+(?:\w+\s+){0,2}"
+              r"(?:methamphetamine|meth|fentanyl|sarin|ricin|nerve\s+agents?)\b"
+              r"|\bmak(?:e|ing)\s+(?:\w+\s+){0,2}fentanyl\b"
+          ),
+          score=0.93, risk=RiskLevel.BLOCK,
+          detail="Request for weapon or drug synthesis instructions."),
+
+    # Self-harm, first person.
+    _Rule(FlagType.HARMFUL_CONTENT,
+          re.compile(
+              r"(?i)\b(?:harm|hurt|kill)\s+myself\b.{0,60}?"
+              r"\b(?:methods?|ways?|how\s+to|tell\s+me|give\s+me)\b"
+          ),
+          score=0.92, risk=RiskLevel.BLOCK,
+          detail="Self-harm content detected."),
+
+    # Operational fraud and intrusion requests.
+    _Rule(FlagType.POLICY_VIOLATION,
+          re.compile(
+              r"(?i)\b(?:give|write|create|make|generate|draft)\s+(?:me\s+)?(?:a\s+)?"
+              r"(?:working\s+)?phishing\s+(?:email|page|kit|template)\b"
+              r"|\bclone\s+(?:a\s+|someone'?s\s+)?credit\s+cards?\b"
+              r"|\b(?:hack|hacking)\s+into\s+(?:a\s+|the\s+|my\s+\w+'?s?\s+|someone'?s\s+)?"
+              r"(?:database|account|server|network|wifi)\b"
+              r"|\bdox+(?:ing|x)?\s+(?:someone|a\s+person|people)\b"
+              r"|\bstalk\s+someone\b.{0,40}?\bwithout\s+being\s+detected\b"
+          ),
+          score=0.86, risk=RiskLevel.HIGH,
+          detail="Request for operational fraud or intrusion help."),
+]
+
+_RULES.extend(_INJECTION_FAMILY_RULES)
 
 
 # ── Aggregate risk helper ─────────────────────────────────────────────────────
