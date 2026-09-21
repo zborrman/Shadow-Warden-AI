@@ -41,6 +41,9 @@ class AgentRole(StrEnum):
     THREAT_HUNTER = "THREAT_HUNTER"
     FORENSICS = "FORENSICS"
     DATA_PRIVACY = "DATA_PRIVACY"
+    # External callers of the paid MCP tools (warden/mcp/gateway.py). They used to
+    # reach STAFF_TOOL_HANDLERS directly, with no boundary, velocity or quarantine.
+    MCP_CLIENT = "MCP_CLIENT"
 
 
 class BoundaryViolationError(RuntimeError):

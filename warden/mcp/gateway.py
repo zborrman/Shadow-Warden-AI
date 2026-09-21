@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -40,8 +41,50 @@ from warden.mcp.product_tools import (
     PRODUCT_TOOL_HANDLERS,
     PRODUCT_TOOL_SCHEMAS,
 )
+from warden.staff.boundaries import (
+    AgentRole,
+    AuthorizationBoundary,
+    BoundaryViolationError,
+    get_registry,
+)
+from warden.staff.dispatcher import staff_dispatch
 
 log = logging.getLogger("warden.mcp.gateway")
+
+# ── STAFF-01/02 for external callers ─────────────────────────────────────────
+# Paid tools used to run as `STAFF_TOOL_HANDLERS[tool_name](**arguments)`: no
+# boundary check, no velocity guard, no GSAM quarantine, no SAC screen — the
+# exact hole Phase 7 closed for MasterAgent, left open on the one path strangers
+# can reach. Every call now goes through `staff_dispatch()` as a namespaced
+# principal, and that principal's boundary is precisely the set this gateway
+# already offers (MCP_EXPOSED_TOOLS) — so no legitimate call is newly refused,
+# while velocity, loop detection and quarantine now apply per caller.
+_MCP_PRINCIPAL_PREFIX = "mcp:"
+_MCP_MAX_CALLS_PER_HOUR = 120
+# Boundaries are created on first sight of a paying caller, so they expire
+# rather than accumulate: a caller absent for 30 days is simply re-created.
+_MCP_BOUNDARY_TTL_S = 30 * 24 * 3600
+
+
+def _mcp_principal(agent_id: str | None) -> str:
+    return f"{_MCP_PRINCIPAL_PREFIX}{agent_id or 'anonymous'}"
+
+
+def _ensure_mcp_boundary(principal: str) -> None:
+    reg = get_registry()
+    if reg.get(principal) is not None:
+        return
+    reg.put(
+        AuthorizationBoundary(
+            agent_id=principal,
+            role=AgentRole.MCP_CLIENT,
+            allowed_tools=MCP_EXPOSED_TOOLS,
+            refund_cap_usd=Decimal("0"),
+            autonomy_level=1,
+            max_calls_per_hour=_MCP_MAX_CALLS_PER_HOUR,
+        ),
+        ttl_s=_MCP_BOUNDARY_TTL_S,
+    )
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -467,14 +510,29 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
         if dpi_err is not None:
             return dpi_err
 
-        _agent_id, pay_err = await _check_payment(request, tool_name, version)
+        agent_id, pay_err = await _check_payment(request, tool_name, version)
         if pay_err is not None:
             return pay_err
 
         try:
-            from warden.staff.tools import STAFF_TOOL_HANDLERS  # noqa: PLC0415
-            handler: Any = STAFF_TOOL_HANDLERS[tool_name]
-            result = await handler(**arguments)
+            principal = _mcp_principal(agent_id)
+            _ensure_mcp_boundary(principal)
+            try:
+                result = await staff_dispatch(principal, tool_name, arguments)
+            except BoundaryViolationError as exc:
+                return _ok(req_id, {
+                    "content": [{"type": "text", "text": f"Refused by authorization boundary: {exc}"}],
+                    "isError": True,
+                }, version)
+            # staff_dispatch reports its own refusals (GSAM quarantine, SAC
+            # guard) as error dicts rather than raising.
+            if isinstance(result, dict) and result.get("error") in (
+                "agent_quarantined", "blocked_by_sac_guard",
+            ):
+                return _ok(req_id, {
+                    "content": [{"type": "text", "text": json.dumps(result)}],
+                    "isError": True,
+                }, version)
             return _ok(req_id, {
                 "content": [{"type": "text", "text": json.dumps(result)}],
                 "isError": False,
