@@ -60,7 +60,7 @@ never let a document blur them.
 
 ### Production posture, read from the live manifest
 
-```
+```text
 GET /marketplace/protocol   -> signature_enforced: true
                                settlement_mode:    "simulated"
                                chains:             ["base", "base_sepolia"]
@@ -107,7 +107,7 @@ All of stages 2–4 funnel through one dispatcher —
 fourteen action types at once. That is deliberate, and it is why the dispatcher
 is the highest-blast-radius function in the subsystem.
 
-```
+```text
 Stage 1  REGISTER     POST /marketplace/register      (deliberately unauthenticated:
          DISCOVER     GET  /marketplace/protocol       first contact, D-5)
                       GET  /marketplace/protocol/schema/{action}
@@ -160,7 +160,7 @@ provided != secret`.
 
 ## 6. The money path
 
-```
+```text
 search      -> credits first (rule #16) -> x402 USDC -> charge only verified_payer()
 purchase    -> autonomy L1/L2/L3 -> Budget Guardian -> escrow (one creator only)
 clearing    -> authorize_payment() -> Decimal take rate 1.5% -> outbox -> PostgreSQL
