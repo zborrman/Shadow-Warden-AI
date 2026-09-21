@@ -21,6 +21,14 @@ updates:
       # before. Patch releases on 1.17.x are still offered.
       - dependency-name: "scipy"
         versions: [">=1.18"]
+      # sphinx >= 9.1 requires Python >= 3.12 — the same wall as scipy above.
+      # PR #521 (sphinx 9.0.4 -> 9.1.0) failed only on the 3.11 leg of the
+      # matrix: ResolutionImpossible ("no matching distributions available"),
+      # which took down the 3.11 tests, pip-audit and the Docker build while
+      # 3.12 passed. Lift this with the move to Python 3.12, not before. Patch
+      # releases on 9.0.x are still offered.
+      - dependency-name: "sphinx"
+        versions: [">=9.1"]
       # redis >= 6 cannot install: arq 0.28.0 (the ARQ worker behind every
       # scheduled job) declares `redis<6`. PR #471 (redis 5.3.1 -> 8.1.0) hit
       # ResolutionImpossible on 3.11 and 3.12, pip-audit and the Docker build.
