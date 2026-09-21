@@ -511,7 +511,7 @@ python scripts/warden_doctor.py \\
         {/* One-click SMB */}
         <div>
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">One-Click SMB Installer</p>
-          <CodeBlock>{`bash <(curl -fsSL https://install.shadow-warden-ai.com/smb)`}</CodeBlock>
+          <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | sudo bash`}</CodeBlock>
           <p className="text-xs text-slate-500 mt-1.5">Handles Docker detection, .env keygen, MinIO bucket init, health checks, and smoke test.</p>
         </div>
 

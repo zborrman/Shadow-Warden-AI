@@ -487,7 +487,7 @@ const settingsTabs = [
           <div class="mb-5">
             <div class="text-[11px] font-bold uppercase tracking-wide text-[#8E8E9E] mb-3">One-Click SMB Installer</div>
             <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 text-[#34d399]">
-              bash &lt;(curl -fsSL https://install.shadow-warden-ai.com/smb)
+              curl -fsSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | sudo bash
             </div>
             <div class="text-[10px] text-[#48485A] mt-2">Handles Docker install, .env generation, secrets, MinIO bucket init, health checks, and first-request smoke test.</div>
           </div>
