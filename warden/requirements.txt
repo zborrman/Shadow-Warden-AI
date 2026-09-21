@@ -107,7 +107,7 @@ playwright>=1.44.0
 # Streamlit — `streamlit run warden/analytics/dashboard.py`
 # Plotly — Threat Radar (Scatterpolar) + Attack Timeline (area chart)
 streamlit>=1.35.0
-plotly>=5.22.0
+plotly>=7.1.0
 
 # ── Dashboard authentication ──────────────────────────────────────────────────
 # bcrypt — used by auth.py to verify DASHBOARD_PASSWORD_HASH.
