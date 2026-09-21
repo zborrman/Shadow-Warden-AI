@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import pkgutil
 import subprocess
 import sys
@@ -49,15 +50,43 @@ def _root_cause(exc: BaseException) -> str:
     return f"{type(cur).__name__}: {cur}"
 
 
+def _is_streamlit_entry_script(name: str) -> bool:
+    """True for a module that is a `streamlit run` target, not a library.
+
+    Such a script *executes the page* on import. Outside the Streamlit runtime
+    `st.stop()` is a no-op, so with no log entries `warden.analytics.dashboard`
+    falls through its own empty-state guard into `df["ts"]` on an empty frame
+    and raises `KeyError: 'ts'` — on every CI run, in a report whose job is to
+    name real import bugs. It read as a real bug and was scheduled as one.
+
+    The pages directory was already excluded for exactly this reason; the two
+    entry scripts at the top of `warden/analytics/` were not. The signature is
+    a module-level `st.set_page_config(`, which only an entry script calls.
+    "Imports streamlit" would be wrong: `auth.py`, `components.py` and
+    `accessibility.py` import it as libraries and must still be audited.
+    """
+    spec = importlib.util.find_spec(name)
+    origin = getattr(spec, "origin", None) if spec else None
+    if not origin or not origin.endswith(".py"):
+        return False
+    try:
+        src = Path(origin).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return any(line.startswith("st.set_page_config(") for line in src.splitlines())
+
+
 def audit() -> dict[str, str]:
     import warden  # noqa: PLC0415
 
     failures: dict[str, str] = {}
     for mod in pkgutil.walk_packages(warden.__path__, prefix="warden."):
         name = mod.name
-        # Skip test packages and Streamlit page scripts — they are not routers and
-        # legitimately import heavy UI-only deps.
+        # Skip test packages and Streamlit scripts — they are not routers, they
+        # legitimately import heavy UI-only deps, and importing one runs a page.
         if ".tests" in name or "/tests" in name or ".analytics.pages" in name:
+            continue
+        if _is_streamlit_entry_script(name):
             continue
         try:
             importlib.import_module(name)
