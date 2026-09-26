@@ -235,6 +235,13 @@ is sent. Exit: for at least 5 escrows, preflight's verdict was reproduced by a
 manual `deposit` from the operator's own machine. This is where a preflight that
 passes but shouldn't gets caught, before it can cost anything.
 
+Run it with `scripts/phase1_deposit.py` — `check` reports the verdict and sends
+nothing, `deposit` sends one transaction and records whether the chain agreed,
+`report` says whether the five exist yet. Both directions count: a verdict of
+*refuse* is reproduced by a deposit that **reverts**, which `--force` exists to
+show. A gate that only counted landings would pass a preflight that refuses
+everything.
+
 **Phase 2 — per-chain enable.** `ESCROW_SETTLE_CHAINS=base_sepolia`, a list, not
 a global boolean. A boolean is a kill switch pointed the wrong way: it turns
 settlement on everywhere at once, including chains with no token configured.
