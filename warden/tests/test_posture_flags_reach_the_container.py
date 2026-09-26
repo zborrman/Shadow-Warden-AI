@@ -157,14 +157,21 @@ def _getenv_defaults(root: Path, flag: str) -> list[str]:
         except SyntaxError:
             continue
         for node in ast.walk(tree):
-            if not isinstance(node, ast.Call) or len(node.args) < 2:
+            if not isinstance(node, ast.Call) or not node.args:
                 continue
             fn = node.func
             name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
             if name != "getenv":
                 continue
-            key, default = node.args[0], node.args[1]
-            if isinstance(key, ast.Constant) and key.value == flag:
+            key = node.args[0]
+            # `os.getenv(key, default="false")` is the same call written the
+            # other legal way. Reading only positional args skipped it while the
+            # existing positional "true" read kept the assertion green — the
+            # hole this collector replaced, one shape over.
+            default = node.args[1] if len(node.args) > 1 else next(
+                (kw.value for kw in node.keywords if kw.arg == "default"), None
+            )
+            if default is not None and isinstance(key, ast.Constant) and key.value == flag:
                 value = default.value if isinstance(default, ast.Constant) else None
                 # A non-string default is not a posture value either -- report it
                 # rather than coercing, so the test says what it actually found.
@@ -190,3 +197,14 @@ def test_secure_default_flags_stay_out_of_compose_and_default_secure():
             f"{flag} now defaults to {hits}, not {secure!r}. The exclusion from "
             "compose was only safe while the default was the secure value."
         )
+
+
+def test_a_keyword_default_is_collected(tmp_path):
+    """`os.getenv(key, default=...)` is the same call, written the other legal
+    way. Missing it lets an insecure keyword default sit beside the secure
+    positional one with the assertion still green."""
+    src = 'import os\nX = os.getenv("FLAG_UNDER_TEST", default="false")\n'
+    pkg = tmp_path / "warden"
+    pkg.mkdir()
+    (pkg / "m.py").write_text(src, encoding="utf-8")
+    assert _getenv_defaults(tmp_path, "FLAG_UNDER_TEST") == ["false"]
