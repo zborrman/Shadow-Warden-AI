@@ -92,7 +92,7 @@ onnxscript>=0.1.0            # required by torch.onnx.export in PyTorch 2.x
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
 # asyncpg  — async driver for FastAPI / SQLAlchemy async engine
 # psycopg2 — sync driver for migration scripts and CLI tools
-sqlalchemy[asyncio]>=2.0.0
+sqlalchemy[asyncio]>=2.0.54
 asyncpg>=0.29.0
 alembic>=1.13.0
 psycopg2-binary>=2.9.0
