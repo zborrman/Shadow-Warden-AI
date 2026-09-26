@@ -137,12 +137,43 @@ def test_the_parser_actually_reads_the_file():
     assert "ARQ_MODE=1" in _service_env("arq-worker")
 
 
+def _getenv_defaults(root: Path, flag: str) -> list[str]:
+    """Every literal default passed to `os.getenv(flag, ...)` under `warden/`.
+
+    Parsed, not matched. A regex over the source read only double-quoted
+    arguments, so `os.getenv('X402_REQUIRE_SIGNED_PAYMENT', 'false')` was
+    invisible while the existing secure read kept the result at ["true"] -- the
+    test would pass through a fail-open regression on the payment path. Quoting
+    style is not a security property; the call is.
+    """
+    import ast
+
+    out: list[str] = []
+    for py in (root / "warden").rglob("*.py"):
+        if "tests" in py.parts:
+            continue
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or len(node.args) < 2:
+                continue
+            fn = node.func
+            name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", "")
+            if name != "getenv":
+                continue
+            key, default = node.args[0], node.args[1]
+            if isinstance(key, ast.Constant) and key.value == flag:
+                out.append(default.value if isinstance(default, ast.Constant) else "<non-literal>")
+    return out
+
+
 def test_secure_default_flags_stay_out_of_compose_and_default_secure():
     """The other direction. A flag whose default is the secure value must *not*
     gain a passthrough: that would make the protection switchable from .env.
     And its in-code default must still be the secure one, or the exclusion
     above stops being safe."""
-    import re as _re
     root = Path(__file__).resolve().parents[2]
     compose = _COMPOSE.read_text(encoding="utf-8")
     for flag, secure in _SECURE_DEFAULT_NOT_PASSED.items():
@@ -150,12 +181,7 @@ def test_secure_default_flags_stay_out_of_compose_and_default_secure():
             f"{flag} is now passed through docker-compose.yml. It defaults to "
             f"{secure!r} inside the image; a passthrough lets .env turn the check off."
         )
-        hits = []
-        for py in (root / "warden").rglob("*.py"):
-            if "tests" in py.parts:
-                continue
-            src = py.read_text(encoding="utf-8", errors="replace")
-            hits += _re.findall(rf'getenv\(\s*"{flag}"\s*,\s*"([^"]*)"', src)
+        hits = _getenv_defaults(root, flag)
         assert hits, f"{flag} is no longer read with a default -- re-check the exclusion"
         assert all(h.lower() == secure for h in hits), (
             f"{flag} now defaults to {hits}, not {secure!r}. The exclusion from "
