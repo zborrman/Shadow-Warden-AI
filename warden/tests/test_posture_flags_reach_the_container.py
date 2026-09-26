@@ -165,7 +165,10 @@ def _getenv_defaults(root: Path, flag: str) -> list[str]:
                 continue
             key, default = node.args[0], node.args[1]
             if isinstance(key, ast.Constant) and key.value == flag:
-                out.append(default.value if isinstance(default, ast.Constant) else "<non-literal>")
+                value = default.value if isinstance(default, ast.Constant) else None
+                # A non-string default is not a posture value either -- report it
+                # rather than coercing, so the test says what it actually found.
+                out.append(value if isinstance(value, str) else "<non-literal>")
     return out
 
 
