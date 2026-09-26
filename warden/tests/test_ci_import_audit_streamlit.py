@@ -75,3 +75,33 @@ def test_the_logger_still_writes_what_the_dashboard_reads():
         args["elapsed_ms"] = 1.0
     written = set(build_entry(**args))
     assert reads - derived <= written, sorted(reads - derived - written)
+
+
+def test_the_marker_is_parsed_not_matched(audit_mod, tmp_path, monkeypatch):
+    """Two cases a text test gets wrong in opposite directions.
+
+    A call written `st.set_page_config (` with a space is a real entry script
+    the audit would then import and run. A library that merely *mentions* the
+    name in a docstring or string is not one, and skipping it would hide a real
+    import bug -- the outcome this whole file exists to prevent.
+    """
+    import importlib.util as _u
+    import sys
+
+    cases = {
+        "spaced_entry": ("import streamlit as st\nst.set_page_config (page_title='x')\n", True),
+        "mentions_only": ('"""Docs: call st.set_page_config() in the entry script."""\n'
+                          'MARKER = "st.set_page_config("\n', False),
+        "guarded_call": ("import streamlit as st\n"
+                         "def main():\n    st.set_page_config(page_title='x')\n", False),
+    }
+    for name, (src, expected) in cases.items():
+        f = tmp_path / f"{name}.py"
+        f.write_text(src, encoding="utf-8")
+        spec = _u.spec_from_file_location(name, f)
+        mod = _u.module_from_spec(spec)
+        sys.modules[name] = mod          # find_spec resolves from sys.modules
+        try:
+            assert audit_mod._is_streamlit_entry_script(name) is expected, name
+        finally:
+            sys.modules.pop(name, None)

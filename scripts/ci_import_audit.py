@@ -25,6 +25,7 @@ Usage:
 """
 from __future__ import annotations
 
+import ast
 import importlib
 import importlib.util
 import pkgutil
@@ -70,10 +71,19 @@ def _is_streamlit_entry_script(name: str) -> bool:
     if not origin or not origin.endswith(".py"):
         return False
     try:
-        src = Path(origin).read_text(encoding="utf-8", errors="replace")
-    except OSError:
+        tree = ast.parse(Path(origin).read_text(encoding="utf-8", errors="replace"))
+    except (OSError, SyntaxError):
         return False
-    return any(line.startswith("st.set_page_config(") for line in src.splitlines())
+    # Parsed, not matched: a text test misses `st.set_page_config (` with a
+    # space and fires on the name inside a docstring or string literal, which
+    # would skip a library the audit must still check.
+    for node in tree.body:
+        call = node.value if isinstance(node, ast.Expr) else None
+        fn = call.func if isinstance(call, ast.Call) else None
+        if (isinstance(fn, ast.Attribute) and fn.attr == "set_page_config"
+                and isinstance(fn.value, ast.Name) and fn.value.id == "st"):
+            return True
+    return False
 
 
 def audit() -> dict[str, str]:
