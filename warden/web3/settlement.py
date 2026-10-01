@@ -210,6 +210,25 @@ def settlement_preflight(
         return Preflight(ok=False, configured=configured, reason=reason,
                          detail=detail, checks=checks)
 
+    # 0 — the per-trade value cap. The launch programme's risk register names it
+    #     twice, against "mainnet moves real value through untested paths", and
+    #     nothing implemented it until now. It runs first because it is local,
+    #     chain-independent and definitive: a trade over the cap is refused for
+    #     the reason it is actually refused for, rather than being masked by
+    #     "not configured" in a deployment that has not enabled settlement yet.
+    trade_cap = trade_cap_usd()
+    if trade_cap > 0 and float(amount_usd) > trade_cap:
+        return _fail(
+            "above_trade_cap",
+            f"{float(amount_usd):.2f} USD exceeds the {trade_cap:.2f} USD "
+            "per-trade cap (SETTLEMENT_MAX_TRADE_USD)",
+            configured=False,
+        )
+    checks.append(Check(
+        "within_trade_cap", True,
+        "uncapped" if trade_cap <= 0 else f"{trade_cap:.2f} USD",
+    ))
+
     # 1 — is settlement configured for this chain at all. Local: environment and
     #     a packaged file, no network, so an unconfigured deployment pays nothing
     #     for asking.
@@ -320,6 +339,23 @@ def settlement_preflight(
     )
 
 
+def trade_cap_usd() -> float:
+    """The most one settlement may move, in USD. `0` means uncapped.
+
+    Read per call from `settings.settlement_max_trade_usd`, never snapshotted,
+    so raising or removing the cap takes effect without a restart — the same
+    rule `sending_enabled()` follows for the chain list.
+    """
+    from warden.config import settings  # noqa: PLC0415 — per-call, not import-time
+
+    try:
+        return max(0.0, float(settings.settlement_max_trade_usd))
+    except (TypeError, ValueError):
+        # An unparseable cap is not "no cap": that would turn a typo into an
+        # uncapped settlement. Fall back to the documented default.
+        return 25.0
+
+
 def _signer_address(w3: Any) -> str:
     """The address that will pay gas. Read from the key, never from config."""
     return w3.eth.account.from_key(os.getenv("WEB3_SIGNER_KEY", "").strip()).address
@@ -334,6 +370,18 @@ def deposit_params(pre: Preflight, buyer: str, seller: str, window_seconds: int)
     """
     if not pre.ok:
         raise SettlementRefused(f"preflight did not pass: {pre.reason}")
+    # The cap again, from the verdict's own numbers. Preflight already applied
+    # it; this catches a caller holding a verdict taken before the cap was
+    # lowered, and any future path that builds a deposit from a Preflight it
+    # did not just produce. A value cap that only one call site honours is not
+    # a cap.
+    cap = trade_cap_usd()
+    if cap > 0 and pre.token_decimals >= 0:
+        usd = pre.amount_minor / (10 ** pre.token_decimals)
+        if usd > cap:
+            raise SettlementRefused(
+                f"{usd:.2f} USD exceeds the {cap:.2f} USD per-trade cap"
+            )
     return {
         "tradeId": bytes.fromhex(pre.trade_id[2:]),
         "buyer": buyer,
