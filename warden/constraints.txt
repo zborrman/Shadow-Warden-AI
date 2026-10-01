@@ -227,7 +227,7 @@ pydantic_core==2.46.4
 pydeck==0.9.3
 pyee==13.0.1
 Pygments==2.20.0
-PyJWT==2.13.0
+PyJWT==2.15.0
 pyOpenSSL==26.4.0
 PyOTP==2.10.0
 pytest==9.1.1
@@ -297,7 +297,7 @@ types-requests==2.33.0.20260906
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uc-micro-py==2.0.0
-urllib3==2.7.0
+urllib3==2.8.0
 uvicorn==0.50.0
 uvloop==0.22.1
 varint==1.0.2
