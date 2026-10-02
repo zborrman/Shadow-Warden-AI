@@ -174,6 +174,39 @@ def _send(w3, acct, tx, label: str, explorer: str) -> dict:
     return rcpt
 
 
+def _code_landed(w3, rcpt, attempts: int = 6, wait_s: float = 3.0) -> bool:
+    """Whether the deployed contract's code is visible, allowing for lag.
+
+    The first real deployment (2026-10-02, Base Sepolia, tx 0xc6dc5b75…) was
+    reported here as "the address holds no code - the deployment did not take".
+    It had taken: status 1, 4277 bytes of runtime code at the receipt's address,
+    byte-identical to this repository's build. The public RPC is load-balanced,
+    and `get_code` reached a node that had not yet seen the block the receipt
+    came from. A false failure on a deploy is worse than a slow success — it
+    tells the operator to deploy again, which puts a second escrow on chain.
+
+    So: a reverted receipt fails at once, and an empty answer is retried, asking
+    at the receipt's own block first so a lagging node errors or catches up
+    rather than answering about the past.
+    """
+    if rcpt.get("status") == 0:
+        _fail("the deploy transaction reverted (receipt status 0)")
+    addr = rcpt["contractAddress"]
+    block = rcpt.get("blockNumber")
+    for i in range(attempts):
+        for ident in (block, "latest"):
+            if ident is None:
+                continue
+            try:
+                if len(w3.eth.get_code(addr, block_identifier=ident)) >= 100:
+                    return True
+            except Exception:  # noqa: BLE001 — a node behind the block may refuse it
+                pass
+        if i < attempts - 1:
+            time.sleep(wait_s)
+    return False
+
+
 def cmd_check(w3, meta, args) -> None:
     abi, code = _artifacts("escrow")
     size = len(code.removeprefix("0x")) // 2
@@ -227,8 +260,14 @@ def cmd_deploy(w3, meta, args, acct) -> str:
                  "escrow deploy", meta["block_explorer"])
     addr = rcpt["contractAddress"]
 
-    if len(w3.eth.get_code(addr)) < 100:
-        _fail("the address holds no code - the deployment did not take")
+    if not _code_landed(w3, rcpt):
+        _fail(
+            f"the receipt says the deploy succeeded, but {addr} still shows no "
+            "code after retrying. Check it on the explorer before doing anything "
+            f"else: {meta['block_explorer']}/address/{addr}\n"
+            "  Do NOT re-run --deploy until you have — that would put a second "
+            "escrow on chain."
+        )
 
     on_chain = w3.eth.contract(address=addr, abi=abi).functions.arbiter().call()
     if on_chain != acct.address:
