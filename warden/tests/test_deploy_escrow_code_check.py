@@ -97,3 +97,34 @@ def test_the_chain_still_wins_when_it_is_ahead(mod):
     mod._NEXT_NONCE.clear()
     mod._NEXT_NONCE["0xSender"] = 3
     assert mod._next_nonce(_StaleCountNode(start=7), "0xSender") == 7
+
+
+# ── visibility barrier: the third failure of the same lag ─────────────────────
+
+
+class _BlockNode:
+    """Load-balanced: answers from a sequence of nodes at different heights."""
+
+    def __init__(self, heights):
+        self.heights, self.i = list(heights), 0
+        self.eth = self
+
+    @property
+    def block_number(self):
+        h = self.heights[min(self.i, len(self.heights) - 1)]
+        self.i += 1
+        return h
+
+
+def test_one_fresh_node_is_not_enough(mod):
+    """After `approve` landed in block 100, one node answering 101 then a lagging
+    one answering 99 must not count as visible — that is the read pattern that
+    made the deposit's gas estimate see an allowance of zero."""
+    node = _BlockNode([101, 99, 101, 101, 101])
+    assert mod._await_visible(node, {"blockNumber": 100}, needed=3, timeout_s=5, wait_s=0) is True
+    assert node.i == 5, "the barrier accepted before three consecutive caught-up reads"
+
+
+def test_the_barrier_gives_up_instead_of_hanging(mod):
+    node = _BlockNode([99])
+    assert mod._await_visible(node, {"blockNumber": 100}, needed=3, timeout_s=0.05, wait_s=0) is False

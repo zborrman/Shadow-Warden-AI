@@ -187,7 +187,37 @@ def _send(w3, acct, tx, label: str, explorer: str) -> dict:
     rcpt = w3.eth.wait_for_transaction_receipt(h, timeout=180)
     if rcpt["status"] != 1:
         _fail(label + " reverted on chain - " + explorer + "/tx/0x" + h.hex().removeprefix("0x"))
+    _await_visible(w3, rcpt)
     return rcpt
+
+
+def _await_visible(w3, rcpt, needed: int = 3, timeout_s: float = 30.0, wait_s: float = 1.0) -> bool:
+    """Wait until the block holding `rcpt` is visible to the RPC, repeatedly.
+
+    The third failure of the same lag: on the first live `--trade` the buyer's
+    `approve` was confirmed, and the very next call — the gas estimate inside
+    `deposit(...).build_transaction()` — reached a node that had not seen it,
+    read an allowance of zero, and reverted with "allowance". A receipt proves
+    the transaction is mined, not that the next node asked will know.
+
+    The public RPC is load-balanced, so one fresh answer proves nothing about
+    the next request. This waits for `needed` consecutive reads at or past the
+    block after the receipt's — a cheap way to make the next state-dependent
+    call land on a node that has caught up. Base Sepolia blocks are ~2 s.
+    Returns False (and lets the caller proceed) on timeout rather than failing:
+    the barrier reduces a race, it does not own correctness.
+    """
+    target = rcpt["blockNumber"] + 1
+    seen, deadline = 0, time.time() + timeout_s
+    while time.time() < deadline:
+        try:
+            seen = seen + 1 if w3.eth.block_number >= target else 0
+        except Exception:  # noqa: BLE001 — a lagging node may error; that is not "seen"
+            seen = 0
+        if seen >= needed:
+            return True
+        time.sleep(wait_s)
+    return False
 
 
 def _code_landed(w3, rcpt, attempts: int = 6, wait_s: float = 3.0) -> bool:
