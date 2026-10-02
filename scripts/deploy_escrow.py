@@ -151,9 +151,24 @@ def _derive(w3, base_key: str, label: str):
     return w3.eth.account.from_key(seed)
 
 
+#: The next nonce this process will use, per sender. The public RPC is
+#: load-balanced: right after a receipt arrives from one node, the next
+#: `get_transaction_count` can reach a node that has not seen that transaction
+#: yet and return the stale count. Reusing it is "replacement transaction
+#: underpriced" — the first live `--trade` (2026-10-02) died exactly that way,
+#: one step after its token deployed. So the chain is asked for `pending`, and
+#: never trusted below what this process has already sent.
+_NEXT_NONCE: dict[str, int] = {}
+
+
+def _next_nonce(w3, address: str) -> int:
+    on_chain = w3.eth.get_transaction_count(address, "pending")
+    return max(on_chain, _NEXT_NONCE.get(address, 0))
+
+
 def _send(w3, acct, tx, label: str, explorer: str) -> dict:
     tx.setdefault("from", acct.address)
-    tx.setdefault("nonce", w3.eth.get_transaction_count(acct.address))
+    tx.setdefault("nonce", _next_nonce(w3, acct.address))
     tx.setdefault("chainId", w3.eth.chain_id)
     if "gas" not in tx:
         try:
@@ -167,6 +182,7 @@ def _send(w3, acct, tx, label: str, explorer: str) -> dict:
 
     signed = w3.eth.account.sign_transaction(tx, acct.key)
     h = w3.eth.send_raw_transaction(signed.raw_transaction)
+    _NEXT_NONCE[acct.address] = tx["nonce"] + 1
     print("  {:<22} 0x{}".format(label, h.hex().removeprefix("0x")))
     rcpt = w3.eth.wait_for_transaction_receipt(h, timeout=180)
     if rcpt["status"] != 1:

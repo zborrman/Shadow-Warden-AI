@@ -64,3 +64,36 @@ def test_a_reverted_receipt_fails_immediately(mod):
     with pytest.raises(SystemExit):
         mod._code_landed(node, {**_RCPT, "status": 0}, attempts=3, wait_s=0)
     assert node.calls == 0, "a reverted deploy was retried as if it might still land"
+
+
+# ── nonce: the second failure of the same lag ─────────────────────────────────
+
+
+class _StaleCountNode:
+    """Reports the count it had before the last send — a node one tx behind."""
+
+    def __init__(self, start: int):
+        self.count = start
+        self.eth = self
+
+    def get_transaction_count(self, address, block_identifier="latest"):
+        return self.count  # never advances: every answer is stale after a send
+
+
+def test_a_stale_count_does_not_reuse_a_nonce(mod):
+    """The first live --trade died with "replacement transaction underpriced":
+    the token deployed with nonce 1, then a lagging node said the count was
+    still 1, and the funding transfer reused it."""
+    mod._NEXT_NONCE.clear()
+    node, sender = _StaleCountNode(start=1), "0xSender"
+    first = mod._next_nonce(node, sender)
+    mod._NEXT_NONCE[sender] = first + 1          # what _send records after sending
+    second = mod._next_nonce(node, sender)
+    assert (first, second) == (1, 2), "the second transaction reused the first one's nonce"
+
+
+def test_the_chain_still_wins_when_it_is_ahead(mod):
+    """A transaction sent from elsewhere moves the chain past the local count."""
+    mod._NEXT_NONCE.clear()
+    mod._NEXT_NONCE["0xSender"] = 3
+    assert mod._next_nonce(_StaleCountNode(start=7), "0xSender") == 7
