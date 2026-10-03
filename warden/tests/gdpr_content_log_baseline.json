@@ -1,0 +1,10 @@
+{
+  "total": 6,
+  "per_file": {
+    "warden/brain/nemotron_client.py": 1,
+    "warden/main.py": 1,
+    "warden/rag_evolver.py": 2,
+    "warden/syndicates/invites_router.py": 1,
+    "warden/telegram_alert.py": 1
+  }
+}

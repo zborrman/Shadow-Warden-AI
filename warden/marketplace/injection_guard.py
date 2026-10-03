@@ -65,11 +65,18 @@ def scan_negotiation_message(text: str) -> bool:
 
     for pattern in INJECTION_PATTERNS:
         if pattern.search(text):
-            log.warning("InjectionGuard: pattern match — %.60r", text)
+            # The pattern is ours; the message is the caller's. Logging which
+            # rule fired and how long the input was tells an operator what they
+            # need without writing an agent's payload into Loki/MinIO/the SIEM
+            # (GDPR: content is never logged — see warden/hooks/gdpr_content_log.py).
+            log.warning(
+                "InjectionGuard: pattern match — rule=%r len=%d",
+                pattern.pattern, len(text),
+            )
             return True
 
     if _DELIMITER_ATTACK_RE.search(text):
-        log.warning("InjectionGuard: delimiter attack — %.60r", text)
+        log.warning("InjectionGuard: delimiter attack — len=%d", len(text))
         return True
 
     return False
