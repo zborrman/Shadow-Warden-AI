@@ -151,9 +151,24 @@ def _derive(w3, base_key: str, label: str):
     return w3.eth.account.from_key(seed)
 
 
+#: The next nonce this process will use, per sender. The public RPC is
+#: load-balanced: right after a receipt arrives from one node, the next
+#: `get_transaction_count` can reach a node that has not seen that transaction
+#: yet and return the stale count. Reusing it is "replacement transaction
+#: underpriced" — the first live `--trade` (2026-10-02) died exactly that way,
+#: one step after its token deployed. So the chain is asked for `pending`, and
+#: never trusted below what this process has already sent.
+_NEXT_NONCE: dict[str, int] = {}
+
+
+def _next_nonce(w3, address: str) -> int:
+    on_chain = w3.eth.get_transaction_count(address, "pending")
+    return max(on_chain, _NEXT_NONCE.get(address, 0))
+
+
 def _send(w3, acct, tx, label: str, explorer: str) -> dict:
     tx.setdefault("from", acct.address)
-    tx.setdefault("nonce", w3.eth.get_transaction_count(acct.address))
+    tx.setdefault("nonce", _next_nonce(w3, acct.address))
     tx.setdefault("chainId", w3.eth.chain_id)
     if "gas" not in tx:
         try:
@@ -167,11 +182,75 @@ def _send(w3, acct, tx, label: str, explorer: str) -> dict:
 
     signed = w3.eth.account.sign_transaction(tx, acct.key)
     h = w3.eth.send_raw_transaction(signed.raw_transaction)
+    _NEXT_NONCE[acct.address] = tx["nonce"] + 1
     print("  {:<22} 0x{}".format(label, h.hex().removeprefix("0x")))
     rcpt = w3.eth.wait_for_transaction_receipt(h, timeout=180)
     if rcpt["status"] != 1:
         _fail(label + " reverted on chain - " + explorer + "/tx/0x" + h.hex().removeprefix("0x"))
+    _await_visible(w3, rcpt)
     return rcpt
+
+
+def _await_visible(w3, rcpt, needed: int = 3, timeout_s: float = 30.0, wait_s: float = 1.0) -> bool:
+    """Wait until the block holding `rcpt` is visible to the RPC, repeatedly.
+
+    The third failure of the same lag: on the first live `--trade` the buyer's
+    `approve` was confirmed, and the very next call — the gas estimate inside
+    `deposit(...).build_transaction()` — reached a node that had not seen it,
+    read an allowance of zero, and reverted with "allowance". A receipt proves
+    the transaction is mined, not that the next node asked will know.
+
+    The public RPC is load-balanced, so one fresh answer proves nothing about
+    the next request. This waits for `needed` consecutive reads at or past the
+    block after the receipt's — a cheap way to make the next state-dependent
+    call land on a node that has caught up. Base Sepolia blocks are ~2 s.
+    Returns False (and lets the caller proceed) on timeout rather than failing:
+    the barrier reduces a race, it does not own correctness.
+    """
+    target = rcpt["blockNumber"] + 1
+    seen, deadline = 0, time.time() + timeout_s
+    while time.time() < deadline:
+        try:
+            seen = seen + 1 if w3.eth.block_number >= target else 0
+        except Exception:  # noqa: BLE001 — a lagging node may error; that is not "seen"
+            seen = 0
+        if seen >= needed:
+            return True
+        time.sleep(wait_s)
+    return False
+
+
+def _code_landed(w3, rcpt, attempts: int = 6, wait_s: float = 3.0) -> bool:
+    """Whether the deployed contract's code is visible, allowing for lag.
+
+    The first real deployment (2026-10-02, Base Sepolia, tx 0xc6dc5b75…) was
+    reported here as "the address holds no code - the deployment did not take".
+    It had taken: status 1, 4277 bytes of runtime code at the receipt's address,
+    byte-identical to this repository's build. The public RPC is load-balanced,
+    and `get_code` reached a node that had not yet seen the block the receipt
+    came from. A false failure on a deploy is worse than a slow success — it
+    tells the operator to deploy again, which puts a second escrow on chain.
+
+    So: a reverted receipt fails at once, and an empty answer is retried, asking
+    at the receipt's own block first so a lagging node errors or catches up
+    rather than answering about the past.
+    """
+    if rcpt.get("status") == 0:
+        _fail("the deploy transaction reverted (receipt status 0)")
+    addr = rcpt["contractAddress"]
+    block = rcpt.get("blockNumber")
+    for i in range(attempts):
+        for ident in (block, "latest"):
+            if ident is None:
+                continue
+            try:
+                if len(w3.eth.get_code(addr, block_identifier=ident)) >= 100:
+                    return True
+            except Exception:  # noqa: BLE001 — a node behind the block may refuse it
+                pass
+        if i < attempts - 1:
+            time.sleep(wait_s)
+    return False
 
 
 def cmd_check(w3, meta, args) -> None:
@@ -227,8 +306,14 @@ def cmd_deploy(w3, meta, args, acct) -> str:
                  "escrow deploy", meta["block_explorer"])
     addr = rcpt["contractAddress"]
 
-    if len(w3.eth.get_code(addr)) < 100:
-        _fail("the address holds no code - the deployment did not take")
+    if not _code_landed(w3, rcpt):
+        _fail(
+            f"the receipt says the deploy succeeded, but {addr} still shows no "
+            "code after retrying. Check it on the explorer before doing anything "
+            f"else: {meta['block_explorer']}/address/{addr}\n"
+            "  Do NOT re-run --deploy until you have — that would put a second "
+            "escrow on chain."
+        )
 
     on_chain = w3.eth.contract(address=addr, abi=abi).functions.arbiter().call()
     if on_chain != acct.address:
