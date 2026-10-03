@@ -775,10 +775,11 @@ async def proxy_chat(
                 with contextlib.suppress(Exception):
                     OUTPUT_GUARD_SANITIZATIONS.labels(tenant_id=_og_tenant).inc()
                 log.warning(
-                    "output_guard_sanitized tenant=%r risks=%r snippet=%r",
+                    "output_guard_sanitized tenant=%r risks=%r findings=%d snippet_len=%d",
                     _og_tenant,
                     og_result.risk_types,
-                    og_result.findings[0].snippet if og_result.findings else "",
+                    len(og_result.findings),
+                    len(og_result.findings[0].snippet) if og_result.findings else 0,
                 )
                 # ── Stage 5: Notification Hook ─────────────────────────────
                 # Notify the shop manager via Telegram / CRM webhook for

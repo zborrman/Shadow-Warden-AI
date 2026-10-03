@@ -109,3 +109,15 @@ repos:
         language: system
         types: [python]
         files: ^warden/api/
+
+      # H-7. CLAUDE.md calls "content is NEVER logged" a hard requirement and a
+      # protected invariant; nothing enforced it, and four live sites logged
+      # request content. The merge gate is
+      # warden/tests/test_gdpr_content_never_logged.py — CI runs pytest, not
+      # pre-commit — so this entry is for fast local feedback, not the wall.
+      - id: gdpr-content-log
+        name: GDPR — content never reaches a log call
+        entry: python warden/hooks/gdpr_content_log.py
+        language: system
+        types: [python]
+        exclude: ^warden/(tests|hooks)/

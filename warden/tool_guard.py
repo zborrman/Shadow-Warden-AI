@@ -373,10 +373,10 @@ class ToolCallGuard:
 
         if threats:
             log.warning(
-                "tool_result_blocked tool=%r threats=%r content_preview=%r",
+                "tool_result_blocked tool=%r threats=%r content_len=%d",
                 tool_name,
                 [t.kind for t in threats],
-                content[:120],
+                len(content),
             )
 
         return ToolInspectionResult(
