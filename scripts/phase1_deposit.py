@@ -46,17 +46,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from warden.config import data_path  # noqa: E402
 from warden.marketplace.agent import get_agent  # noqa: E402
 from warden.marketplace.escrow import _conn  # noqa: E402
+from warden.web3.chains import get_chain, verify_usdc_contract  # noqa: E402
 from warden.web3.settlement import (  # noqa: E402
     Preflight,
     deposit_params,
     settlement_preflight,
+    to_minor_units,
     trade_id_for,
 )
-from warden.web3.smart_contract import _contract_address, call_escrow_result  # noqa: E402
+from warden.web3.smart_contract import (  # noqa: E402
+    _abi_path,
+    _contract_address,
+    _error_selectors,
+    _load_abi,
+    call_escrow_result,
+)
 
 JOURNAL = Path(data_path("phase1_deposit_journal.jsonl", "PHASE1_JOURNAL_PATH"))
 REQUIRED_MATCHES = 5
 DELIVERY_WINDOW_SECONDS = 48 * 3600
+
+#: Refusals the contract can be asked to repeat. Each is a fact about chain
+#: state that `deposit` itself trips over. Everything else preflight refuses is
+#: policy or configuration — the trade cap, an unconfigured chain, a malformed
+#: address — which the contract has no opinion on: forcing past the cap would
+#: *land*, moving more than the cap allows, and be logged as a mismatch.
+CHAIN_REPRODUCIBLE_REFUSALS = frozenset({"insufficient_allowance", "insufficient_balance"})
+
+#: Exception types web3 raises when a node executed the call and it reverted.
+#: Anything else — `MismatchedABI`, a timeout, an unreachable RPC — means the
+#: contract never judged the deposit, so it cannot have agreed with preflight.
+_REVERT_EXCEPTIONS = frozenset({"ContractLogicError", "ContractCustomError", "ContractPanicError"})
 
 
 # ── escrow lookup ─────────────────────────────────────────────────────────────
@@ -114,19 +134,67 @@ def read_journal() -> list[dict]:
     return [json.loads(ln) for ln in JOURNAL.read_text(encoding="utf-8").splitlines() if ln.strip()]
 
 
+def chain_rejected(res, abi_errors: frozenset[str] | set[str]) -> bool:
+    """Whether the contract itself refused the call — not merely that it failed.
+
+    A refusal is only reproduced when the chain executed the deposit and said
+    no: a mined transaction with status 0, the escrow's own custom error, or a
+    revert web3 reports as such. The first version counted any failure, so a
+    forced deposit whose arguments could not even be encoded (`MismatchedABI`,
+    nothing sent, no transaction hash) was journalled as the chain agreeing.
+    """
+    if getattr(res, "ok", False) or getattr(res, "simulated", False):
+        return False
+    error = getattr(res, "error", "") or ""
+    if getattr(res, "tx_hash", "") and error == "reverted":
+        return True
+    return error in abi_errors or error in _REVERT_EXCEPTIONS
+
+
+def counts(entry: dict) -> bool:
+    """Whether one journal entry is a reproduced verdict.
+
+    A refusal needs `chain_rejected`: entries written before that field existed
+    recorded any failure as a revert, and are not evidence of anything.
+    """
+    if not entry.get("match"):
+        return False
+    return bool(entry.get("preflight_ok")) or bool(entry.get("chain_rejected"))
+
+
+def forced_params(escrow_id: str, amount_usd: float, buyer: str, seller: str,
+                  token: str, decimals: int) -> dict:
+    """The deposit preflight refused, built in full so the contract can judge it.
+
+    A refused `Preflight` carries no token and no amount — it stopped before
+    recording them — so building from it sent `token=""`, which web3 rejects
+    locally. These are the arguments a passing preflight would have produced.
+    """
+    return {
+        "tradeId": bytes.fromhex(trade_id_for(escrow_id)[2:]),
+        "buyer": buyer,
+        "seller": seller,
+        "token": token,
+        "amount": to_minor_units(amount_usd, decimals),
+        "deliveryWindowSeconds": DELIVERY_WINDOW_SECONDS,
+    }
+
+
 def summarise(entries: list[dict]) -> dict:
     """One row per escrow — the newest attempt wins, so a retry after a fix
     does not count twice and a later failure is not hidden by an earlier pass."""
     by_escrow: dict[str, dict] = {}
     for e in entries:
         by_escrow[e["escrow_id"]] = e
-    matched = [e for e in by_escrow.values() if e["match"]]
+    matched = [e for e in by_escrow.values() if counts(e)]
     return {
         "escrows": len(by_escrow),
         "matched": len(matched),
         "required": REQUIRED_MATCHES,
         "passed": len(matched) >= REQUIRED_MATCHES,
         "mismatched": [e for e in by_escrow.values() if not e["match"]],
+        # Matched on paper, but the chain never judged it — see `counts`.
+        "unproven": [e for e in by_escrow.values() if e["match"] and not counts(e)],
     }
 
 
@@ -189,24 +257,35 @@ def cmd_deposit(args) -> int:
               "real, re-run with --force: the deposit must then revert.")
         return 2
 
+    if not pre.ok and pre.reason not in CHAIN_REPRODUCIBLE_REFUSALS:
+        print(f"\n{pre.reason!r} is a policy or configuration refusal; the contract\n"
+              "cannot reproduce it, and forcing past it would move value the\n"
+              "refusal exists to stop. Only "
+              f"{', '.join(sorted(CHAIN_REPRODUCIBLE_REFUSALS))} can be forced.")
+        return 2
+
     if pre.ok:
         params = deposit_params(pre, buyer, seller, DELIVERY_WINDOW_SECONDS)
     else:
         # Only here: preflight refused and we are testing that the chain agrees.
-        # `amount_minor` may be 0 when the refusal happened before conversion.
-        params = {
-            "tradeId": bytes.fromhex(trade_id_for(row["escrow_id"])[2:]),
-            "buyer": buyer,
-            "seller": seller,
-            "token": pre.token_address,
-            "amount": pre.amount_minor,
-            "deliveryWindowSeconds": DELIVERY_WINDOW_SECONDS,
-        }
+        from web3 import Web3  # noqa: PLC0415
+
+        verdict = verify_usdc_contract(chain, Web3(Web3.HTTPProvider(get_chain(chain)["rpc_url"])))
+        if not verdict.get("ok"):
+            print(f"Cannot build the forced deposit: {verdict.get('reason', '')}")
+            return 1
+        params = forced_params(
+            row["escrow_id"], float(row["amount_usd"]), buyer, seller,
+            Web3.to_checksum_address(get_chain(chain)["usdc_address"]),
+            int(verdict.get("decimals", 6)),
+        )
         print("\n--force: sending a deposit preflight refused, to see the revert.")
 
     print("\nSending deposit…")
     res = call_escrow_result(contract, "deposit", params, chain=chain)
-    match = bool(pre.ok) == bool(res.ok)
+    rejected = chain_rejected(res, set(_error_selectors(_load_abi(_abi_path())).values()))
+    # A pass is reproduced by a real landing; a refusal by the contract's own no.
+    match = (res.ok and not res.simulated) if pre.ok else rejected
     entry = {
         "escrow_id": row["escrow_id"],
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -217,23 +296,35 @@ def cmd_deposit(args) -> int:
         "failure": getattr(res, "reason", "") or getattr(res, "error", ""),
         "tx_hash": getattr(res, "tx_hash", "") or "",
         "forced": bool(args.force),
+        "chain_rejected": rejected,
         "match": match,
     }
     _append(entry)
 
-    print(f"  on-chain: {'landed' if res.ok else 'reverted'}"
+    outcome = _outcome(entry)
+    print(f"  on-chain: {outcome}"
           f"{'  ' + entry['failure'] if entry['failure'] else ''}")
     if entry["tx_hash"]:
         print(f"  tx      : {entry['tx_hash']}")
     print(f"\n{'MATCH' if match else 'MISMATCH'} — preflight said "
-          f"{'pass' if pre.ok else 'refuse'}, the chain said "
-          f"{'landed' if res.ok else 'reverted'}.")
-    if not match:
+          f"{'pass' if pre.ok else 'refuse'}, the chain {outcome}.")
+    if not match and not res.ok and not rejected:
+        print("The contract never judged this deposit, so nothing was reproduced.\n"
+              "Fix the cause above and run it again; this run does not count.")
+    elif not match:
         print("This is what the gate is for. Do not proceed to Phase 2; the\n"
               "preflight and the chain disagree about this escrow.")
     s = summarise(read_journal())
     print(f"Verified escrows: {s['matched']}/{s['required']}")
     return 0 if match else 3
+
+
+def _outcome(entry: dict) -> str:
+    if entry.get("sent_ok"):
+        return "landed"
+    if entry.get("chain_rejected"):
+        return "reverted"
+    return "never judged it (failed before the contract)"
 
 
 def cmd_report(_args) -> int:
@@ -245,8 +336,10 @@ def cmd_report(_args) -> int:
     print(f"Verdict reproduced: {s['matched']}/{s['required']}")
     for e in s["mismatched"]:
         print(f"  MISMATCH {e['escrow_id']}: preflight "
-              f"{'pass' if e['preflight_ok'] else 'refuse'} vs chain "
-              f"{'landed' if e['sent_ok'] else 'reverted'}")
+              f"{'pass' if e['preflight_ok'] else 'refuse'} vs chain {_outcome(e)}")
+    for e in s["unproven"]:
+        print(f"  UNPROVEN {e['escrow_id']}: a refusal journalled without the chain's\n"
+              "           own answer — re-run it with --force")
     print("\nPhase 1 exit: " + ("MET — §7's five are on the record."
                                 if s["passed"] else "not yet met."))
     return 0 if s["passed"] else 1
