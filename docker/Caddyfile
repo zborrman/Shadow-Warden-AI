@@ -328,6 +328,16 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 	handle {
 		root * /srv/landing
 
+		# Predictable names for the developer resources. An agent that guesses
+		# /docs or /api-reference should land on the page, not a 404.
+		redir /docs /doc 301
+		redir /developer /developers 301
+		redir /api-docs /doc/api-reference 301
+		redir /api-reference /doc/api-reference 301
+		redir /versioning /doc/versioning 301
+		redir /deprecation /doc/versioning 301
+		redir /changelog /doc/changelog 301
+
 		# ── Markdown content negotiation (https://acceptmarkdown.com) ─────────
 		# Same URL as the HTML, decided by Accept. Caddy matchers cannot do the
 		# full q-value arithmetic, so this is the conservative subset: markdown
@@ -414,6 +424,30 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 			path /doc/rate-limits /doc/rate-limits/
 		}
 		rewrite @md_ratelimits /rate-limits.md
+		@md_about {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /about /about/
+		}
+		rewrite @md_about /about.md
+		@md_cli {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /cli /cli/
+		}
+		rewrite @md_cli /cli.md
+		@md_versioning {
+			method GET HEAD
+			header Accept *text/markdown*
+			not header Accept *text/markdown;q=0*
+			not header Accept "*text/markdown; q=0*"
+			path /doc/versioning /doc/versioning/
+		}
+		rewrite @md_versioning /versioning.md
 
 		# Both variants must advertise that they vary, or a cache in front of us
 		# hands one client's representation to the other.

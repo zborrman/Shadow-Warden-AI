@@ -74,9 +74,24 @@ class TestUnversionedPath:
 
     def test_carries_the_deprecation_contract(self, client):
         r = client.get("/filter-ish")
-        assert r.headers["Deprecation"] == "true"
+        assert r.headers["Deprecation"] == "@1787443200"  # RFC 9745 sf-date
         assert r.headers["Sunset"].endswith("GMT"), r.headers["Sunset"]
-        assert r.headers["Link"] == '</v1/filter-ish>; rel="successor-version"'
+        assert r.headers["Link"] == (
+            '</v1/filter-ish>; rel="successor-version", '
+            '<https://shadow-warden-ai.com/doc/versioning>; rel="deprecation"; type="text/html"'
+        )
+
+    def test_deprecation_is_an_rfc_9745_date_not_the_draft_boolean(self, client):
+        """The published RFC replaced `Deprecation: true` with `@<unix-seconds>`."""
+        import re
+        value = client.get("/filter-ish").headers["Deprecation"]
+        assert re.fullmatch(r"@\d+", value), value
+
+    def test_the_sunset_follows_the_deprecation(self, client):
+        from email.utils import parsedate_to_datetime
+        r = client.get("/filter-ish")
+        sunset = parsedate_to_datetime(r.headers["Sunset"]).timestamp()
+        assert sunset > int(r.headers["Deprecation"][1:])
 
     def test_successor_link_points_at_the_same_resource(self, client):
         """A link to a path that does not exist is worse than no link."""
@@ -108,7 +123,7 @@ class TestSuccessorLink:
     def test_query_string_is_preserved(self, client):
         """`/filter-ish?cursor=abc` and `/filter-ish` are different answers."""
         link = client.get("/filter-ish", params={"cursor": "abc"}).headers["Link"]
-        assert link == '</v1/filter-ish?cursor=abc>; rel="successor-version"'
+        assert link.startswith('</v1/filter-ish?cursor=abc>; rel="successor-version"')
 
     def test_every_existing_link_header_survives(self, client):
         """Link is a list (RFC 8288) and may arrive as several headers."""

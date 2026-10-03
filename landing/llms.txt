@@ -56,7 +56,9 @@ Everything programmatic hangs off one page, and every URL here answers.
 - [API reference](https://shadow-warden-ai.com/doc/api-reference) and [OpenAPI 3.1](https://shadow-warden-ai.com/openapi.json) — 500+ paths, with a `servers` block so a client need not infer the base URL
 - [Authentication](https://shadow-warden-ai.com/doc/authentication) — `X-API-Key`, OIDC bearer on `/ext/*`, admin keys, and what every rejection code means
 - [Rate limits](https://shadow-warden-ai.com/doc/rate-limits) — the `RateLimit` header contract every response carries
-- [SDKs and CLI](https://shadow-warden-ai.com/sdk) — Python, TypeScript, and the `warden` console script
+- [SDKs](https://shadow-warden-ai.com/sdk) — Python and TypeScript clients
+- [CLI](https://shadow-warden-ai.com/cli) — the `warden` command (`pip install "shadow-warden-sdk>=1.1.0"`), exit codes scripts can rely on
+- [Versioning and deprecation policy](https://shadow-warden-ai.com/doc/versioning) — `v1` in the path; `Deprecation` (RFC 9745), `Sunset` (RFC 8594) and successor links; 180-day notice
 - [MCP server](https://shadow-warden-ai.com/mcp) — Streamable HTTP at `POST https://api.shadow-warden-ai.com/mcp/`, manifest at [/.well-known/mcp.json](https://shadow-warden-ai.com/.well-known/mcp.json). `filter_text`, `gateway_health` and `list_pricing` are free.
 - [Quick start](https://shadow-warden-ai.com/doc/quick-start) — Docker Compose to first filtered request
 - [Marketplace manifest](https://shadow-warden-ai.com/.well-known/ai-market.json) — M2M registration, KYA, payment rails
@@ -86,8 +88,18 @@ directly: [/index.md](https://shadow-warden-ai.com/index.md),
 [/developers.md](https://shadow-warden-ai.com/developers.md),
 [/mcp.md](https://shadow-warden-ai.com/mcp.md),
 [/authentication.md](https://shadow-warden-ai.com/authentication.md),
-[/rate-limits.md](https://shadow-warden-ai.com/rate-limits.md).
+[/rate-limits.md](https://shadow-warden-ai.com/rate-limits.md),
+[/about.md](https://shadow-warden-ai.com/about.md),
+[/cli.md](https://shadow-warden-ai.com/cli.md),
+[/versioning.md](https://shadow-warden-ai.com/versioning.md).
 Unknown paths return HTTP 404 with a markdown recovery body.
+
+## About and contact
+
+- [About](https://shadow-warden-ai.com/about) — what this is, who maintains it, and what we do not claim
+- [Contact](https://shadow-warden-ai.com/contact) — sales, support and security
+- [Privacy notice](https://shadow-warden-ai.com/privacy)
+- [Trust centre](https://shadow-warden-ai.com/trust)
 
 ## Pricing
 

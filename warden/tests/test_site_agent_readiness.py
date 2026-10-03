@@ -445,6 +445,9 @@ class TestPublishedLanding:
             "mcp.md",
             "authentication.md",
             "rate-limits.md",
+            "about.md",
+            "cli.md",
+            "versioning.md",
             "404.md",
             ".well-known/agent-instructions.md",
             ".well-known/did.json",
@@ -454,6 +457,9 @@ class TestPublishedLanding:
             "mcp/index.html",
             "doc/authentication/index.html",
             "doc/rate-limits/index.html",
+            "about/index.html",
+            "cli/index.html",
+            "doc/versioning/index.html",
         ],
     )
     def test_the_published_site_carries_the_machine_readable_files(self, rel):
@@ -481,6 +487,8 @@ class TestDeveloperResources:
         "/mcp": "mcp.astro",
         "/doc/authentication": "doc/authentication.astro",
         "/doc/rate-limits": "doc/rate-limits.astro",
+        "/cli": "cli.astro",
+        "/doc/versioning": "doc/versioning.astro",
     }
 
     @pytest.mark.parametrize("route,source", sorted(PAGES.items()))

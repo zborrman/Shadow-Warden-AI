@@ -10,7 +10,9 @@ One entry point for everything programmatic. Every URL below answers.
 - [Authentication](https://shadow-warden-ai.com/doc/authentication) — `X-API-Key`, OIDC bearer on `/ext/*`, admin keys, and what each rejection code means
 - [Rate limits](https://shadow-warden-ai.com/doc/rate-limits) — the `RateLimit` header contract every response carries
 - [API reference](https://shadow-warden-ai.com/doc/api-reference) — rendered from the OpenAPI document below
-- [SDKs and CLI](https://shadow-warden-ai.com/sdk) — Python, TypeScript, and the `warden` console script
+- [SDKs](https://shadow-warden-ai.com/sdk) — Python and TypeScript clients
+- [CLI](https://shadow-warden-ai.com/cli) — the `warden` console script, commands and exit codes
+- [Versioning](https://shadow-warden-ai.com/doc/versioning) — `v1` in the path, Deprecation and Sunset headers, 180-day notice
 - [MCP server](https://shadow-warden-ai.com/mcp) — the gateway as MCP tools over Streamable HTTP
 
 ## Machine-readable surfaces

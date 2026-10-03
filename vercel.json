@@ -4,6 +4,15 @@
   "framework": null,
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/docs", "destination": "/doc", "permanent": true },
+    { "source": "/developer", "destination": "/developers", "permanent": true },
+    { "source": "/api-docs", "destination": "/doc/api-reference", "permanent": true },
+    { "source": "/api-reference", "destination": "/doc/api-reference", "permanent": true },
+    { "source": "/versioning", "destination": "/doc/versioning", "permanent": true },
+    { "source": "/deprecation", "destination": "/doc/versioning", "permanent": true },
+    { "source": "/changelog", "destination": "/doc/changelog", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/auth/:path*", "destination": "https://api.shadow-warden-ai.com/auth/:path*" },
     { "source": "/api/marketplace/analytics/:path*", "destination": "https://api.shadow-warden-ai.com/marketplace/analytics/:path*" },

@@ -14,12 +14,12 @@ away, in headers a client can act on without reading this page:
 
 ```http
 HTTP/1.1 200 OK
-Deprecation: true
+Deprecation: @1787443200
 Sunset: Mon, 23 Aug 2027 00:00:00 GMT
-Link: </v1/filter>; rel="successor-version"
+Link: </v1/filter>; rel="successor-version", <https://shadow-warden-ai.com/doc/versioning>; rel="deprecation"; type="text/html"
 ```
 
-`Deprecation` and `Sunset` are RFC 8594; the `Link` relation is RFC 8288. A
+`Deprecation` is RFC 9745 (an `@`-prefixed Unix timestamp, not the earlier draft's `true`); `Sunset` is RFC 8594; the `Link` relations are RFC 8288. The published policy is at <https://shadow-warden-ai.com/doc/versioning>. A
 machine client can follow the successor link without a human reading a changelog,
 which is the point on a platform whose callers are agents.
 

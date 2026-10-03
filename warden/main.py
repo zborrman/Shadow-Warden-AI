@@ -1191,7 +1191,13 @@ app = FastAPI(
         "reset parameter.\n\n"
         "Live counters accompany the policy on routes that consume the window; a route "
         "that consumes nothing publishes the policy alone. Full conventions: "
-        "https://shadow-warden-ai.com/doc/rate-limits"
+        "https://shadow-warden-ai.com/doc/rate-limits\n\n"
+        "**Versioning:** the version is in the URL path — use `/v1/...`. Unversioned "
+        "paths still work but answer with `Deprecation: @<unix-time>` (RFC 9745), "
+        "`Sunset` (RFC 8594) and `Link: <...>; rel=\"successor-version\"` / "
+        "`rel=\"deprecation\"` (RFC 8288), and are served until 2027-08-23. A versioned "
+        "resource gets at least 180 days' notice before sunset. "
+        "Policy: https://shadow-warden-ai.com/doc/versioning"
     ),
     version=_warden_version,
     # Without this a generated client resolves every path against whatever host
