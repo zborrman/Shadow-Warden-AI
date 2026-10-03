@@ -4,7 +4,7 @@ from __future__ import annotations
 import contextlib
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from warden.auth_guard import require_api_key
@@ -65,8 +65,61 @@ async def list_agents(
     return [a.to_dict() for a in _list(tenant_id=tenant_id, community_id=community_id, limit=limit)]
 
 
+def _authenticated_owner(request: Request) -> str:
+    """The tenant that *proved* it is calling, or "" — never the body's claim.
+
+    Registration is unauthenticated on purpose (Stage 1 first contact, D-5),
+    and `POST /register` used to write `body.tenant_id` straight into the KYA
+    record as `owner_tenant_id`. That field is not decoration: `listing.py` and
+    `clearing.py` resolve the paying tenant through it, and `autonomy.py` asks
+    KYB about it. So anyone could register an agent owned by someone else's
+    tenant and have that agent's spend authorised against the victim's policy —
+    and, with KYB enforcement on, inherit the victim's VERIFIED status.
+
+    Ownership now comes from the credential or not at all. Empty is already the
+    handled case everywhere downstream and it fails conservative: the purchase
+    path falls back to the agent's own DID (self-scoped, not someone else's),
+    and `_owner_kyb_unverified()` treats "" as unverified, capping the agent at
+    REQUIRE_APPROVAL rather than granting it the victim's compliance.
+    """
+    try:
+        from warden.auth_guard import resolve_tenant_id  # noqa: PLC0415
+
+        return resolve_tenant_id(request.headers.get("X-API-Key")) or ""
+    except Exception as exc:
+        log.debug("register: owner resolution failed, leaving unowned: %s", exc)
+        return ""
+
+
+def _kya_onboard(agent_id: str, owner_tenant_id: str) -> dict:
+    """Register and screen a newly issued DID; the fields to merge into the reply.
+
+    Lives here, on the one handler both entry points reach, because it used to
+    live only on the `POST /register` wrapper. `POST /agents/register` — the
+    route the TypeScript SDK calls — skipped it, so an SDK-registered agent got
+    no KYA record and therefore no autonomy policy (`screen_agent()` grants the
+    default L2 one on VERIFIED). With `AUTHORIZE_PAYMENT_ENFORCED=true` every
+    purchase such an agent made would have been refused: the flag would have
+    been a kill switch for the SDK's own front door.
+    """
+    try:
+        from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415
+        from warden.marketplace.kya import screen_agent  # noqa: PLC0415
+
+        kya_register(agent_id, owner_tenant_id=owner_tenant_id)
+        record = screen_agent(agent_id)
+        return {"kya_status": record.kya_status,
+                "kya_risk_score": round(record.risk_score, 3)}
+    except Exception as exc:
+        # Rule 18 fail-open by design — agent registers with kya_status=PENDING
+        # when screening errors. Counter makes the unscreened path alertable.
+        log.debug("kya registration fail-open: %s", exc)
+        record_failopen("marketplace_kya", Reason.BACKEND_ERROR, exc)
+        return {"kya_status": "PENDING"}
+
+
 @router.post("/agents/register", status_code=201)
-async def register_agent(body: AgentRegisterRequest) -> dict:
+async def register_agent(body: AgentRegisterRequest, request: Request) -> dict:
     from warden.marketplace.agent import AgentAlreadyRegisteredError, pubkey_to_agent_id
     from warden.marketplace.agent import register_agent as _register
 
@@ -101,7 +154,6 @@ async def register_agent(body: AgentRegisterRequest) -> dict:
         )
         with contextlib.suppress(Exception):
             MARKETPLACE_AGENTS_ACTIVE.inc()
-        return agent.to_dict()
     except AgentAlreadyRegisteredError as exc:
         # 409, not 400: the request was well-formed, the agent exists. It also
         # no longer bumps MARKETPLACE_AGENTS_ACTIVE — every re-registration used
@@ -109,6 +161,13 @@ async def register_agent(body: AgentRegisterRequest) -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # Only a newly issued DID is screened: a 409 above never reaches here, so a
+    # re-registration cannot re-run screening and re-grant a policy an operator
+    # revoked.
+    result = agent.to_dict()
+    result.update(_kya_onboard(agent.agent_id, _authenticated_owner(request)))
+    return result
 
 
 @router.get("/agents/{agent_id}")
