@@ -1595,6 +1595,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # `npm ci` runs package install scripts (esbuild, workerd and fsevents all
+      # declare one). Keep it in a step that has no deploy credential in its
+      # environment, so a compromised dependency cannot read the token.
+      - name: Install preflight worker dependencies
+        working-directory: cloudflare/preflight-worker
+        run: npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
+
       - name: Deploy preflight worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1607,8 +1614,8 @@ jobs:
           fi
           # Use the Worker's own locked Wrangler, not a floating `wrangler@3`:
           # pinning the dependency is worthless if the only thing that deploys
-          # it asks npx for a different version. Mirrors the marketplace job.
-          npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
+          # it asks npx for a different version. Dependencies were installed in
+          # the previous step, which does not carry the token.
           npx wrangler deploy --keep-vars
 
   # ── Cloudflare Marketplace Worker ────────────────────────────────────────────
@@ -1645,6 +1652,12 @@ jobs:
           cache: npm
           cache-dependency-path: workers/shadow-warden-marketplace/package-lock.json
 
+      # Same reason as the preflight job: `npm ci` runs dependency install
+      # scripts, so it does not belong in a step holding the deploy token.
+      - name: Install marketplace worker dependencies
+        working-directory: workers/shadow-warden-marketplace
+        run: npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
+
       - name: Deploy only when the edge is behind, then prove it moved
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -1678,7 +1691,6 @@ jobs:
             exit 1
           fi
 
-          npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
           npx wrangler deploy --keep-vars || { echo "::error::wrangler deploy failed"; exit 1; }
 
           # Prove it, rather than trusting the upload's exit code.

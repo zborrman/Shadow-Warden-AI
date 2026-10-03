@@ -89,7 +89,10 @@ def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
     bad: list[str] = []
     for wf in sorted((_REPO / ".github" / "workflows").glob("*.yml")):
         for n, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"\bnpx\s+(?:--yes\s+)?wrangler@", line):
+            # `-y` is the same flag as `--yes`, and the first version of this
+            # pattern matched only the long form — so the shorter spelling of
+            # the exact command this guard bans would have passed it.
+            if re.search(r"\bnpx\s+(?:(?:--yes|-y)\s+)*wrangler@", line):
                 bad.append(f"{wf.name}:{n}: {line.strip()}")
     assert not bad, (
         "a workflow pins its own Wrangler on the command line, bypassing the "
@@ -100,14 +103,22 @@ def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
 
 @pytest.mark.parametrize("worker", _worker_dirs(), ids=lambda d: d.name)
 def test_lockfile_agrees_with_the_declared_range(worker: Path) -> None:
-    """A lockfile that resolved a different major is worse than none: it reads
-    as a pin while the build runs something else."""
+    """A lockfile that resolved outside the declared range is worse than none:
+    it reads as a pin while the build runs something else."""
     lock_path = worker / "package-lock.json"
     if not lock_path.is_file():
         pytest.skip("covered by test_worker_has_a_lockfile")
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
     entry = lock.get("packages", {}).get("node_modules/wrangler")
     assert entry, f"{worker.name}: lockfile does not contain wrangler"
-    assert entry["version"].split(".")[0] == "4", (
-        f"{worker.name}: lockfile pins wrangler {entry['version']}"
+
+    pkg = json.loads((worker / "package.json").read_text(encoding="utf-8"))
+    spec = (pkg.get("devDependencies", {}) | pkg.get("dependencies", {}))["wrangler"]
+    locked = tuple(int(x) for x in entry["version"].split(".")[:3])
+    floor = tuple(int(x) for x in spec.lstrip("^~>=< ").split(".")[:3])
+    # Comparing majors alone was not enough: it accepted a locked 4.1.0 under
+    # `^4.105.0` — the declared range violated while the test reports a pin.
+    assert locked >= floor, (
+        f"{worker.name}: lockfile has wrangler {entry['version']}, below the "
+        f"declared {spec}"
     )
