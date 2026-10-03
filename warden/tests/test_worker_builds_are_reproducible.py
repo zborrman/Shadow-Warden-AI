@@ -100,8 +100,16 @@ def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
     comment = re.compile(r"(?m)^\s*#.*$")
     spec = re.compile(r"\bwrangler@[\w.^~*-]+")
 
+    # Both extensions are valid workflow files; globbing one leaves the other
+    # unscanned, and a guard is only as wide as what it opens.
+    workflows = sorted(
+        w for ext in ("*.yml", "*.yaml")
+        for w in (_REPO / ".github" / "workflows").glob(ext)
+    )
+    assert workflows, "no workflow files found — this guard scanned nothing"
+
     bad: list[str] = []
-    for wf in sorted((_REPO / ".github" / "workflows").glob("*.yml")):
+    for wf in workflows:
         for n, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
             if comment.match(line):
                 continue

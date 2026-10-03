@@ -1596,7 +1596,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # `npm ci` below runs dependency install scripts; do not leave a
-          # usable git credential in .git/config where one could read it.
+          # usable git credential on the runner where one could read it.
+          # (checkout@v7 keeps it under $RUNNER_TEMP, not .git/config.)
           persist-credentials: false
 
       # Resolve the credential question first, so the steps below can be
@@ -1664,7 +1665,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # `npm ci` below runs dependency install scripts; do not leave a
-          # usable git credential in .git/config where one could read it.
+          # usable git credential on the runner where one could read it.
+          # (checkout@v7 keeps it under $RUNNER_TEMP, not .git/config.)
           persist-credentials: false
 
       - uses: actions/setup-node@v7
