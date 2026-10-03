@@ -1822,6 +1822,16 @@ class Settings:
     escrow_settle_chains: str = field(
         default_factory=lambda: _env("ESCROW_SETTLE_CHAINS", "")
     )
+    # The per-trade value cap the launch programme's risk register asks for
+    # twice, against "mainnet moves real value through untested paths". Until
+    # now nothing implemented it. It bounds what one wrong settlement can cost:
+    # clearing already settled every trade at $0.00 for months with tests that
+    # agreed, so the assumption here is that the bug class is still latent.
+    # Dollars, applied to the escrow's own amount before anything is built.
+    # `0` disables the cap — a deliberate decision, not a default.
+    settlement_max_trade_usd: float = field(
+        default_factory=lambda: _float("SETTLEMENT_MAX_TRADE_USD", 25.0)
+    )
     # P1a. Both default to Base's public endpoints: they answer without an
     # account and were verified reachable from the production host, so a
     # deployment needs no RPC provider signup to settle. Override to point at

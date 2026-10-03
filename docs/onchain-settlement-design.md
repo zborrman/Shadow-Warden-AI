@@ -242,6 +242,14 @@ nothing, `deposit` sends one transaction and records whether the chain agreed,
 show. A gate that only counted landings would pass a preflight that refuses
 everything.
 
+**The per-trade cap applies throughout.** `SETTLEMENT_MAX_TRADE_USD` (default
+$25) is checked first in preflight — before configuration, because it is local
+and definitive — and again in `deposit_params`, so a verdict taken before the
+cap was lowered cannot still build a deposit. It bounds what one wrong
+settlement can cost: clearing settled every trade at $0.00 for months with tests
+that agreed, and that bug class is assumed latent. `0` disables it, which is a
+decision rather than a default.
+
 **Phase 2 — per-chain enable.** `ESCROW_SETTLE_CHAINS=base_sepolia`, a list, not
 a global boolean. A boolean is a kill switch pointed the wrong way: it turns
 settlement on everywhere at once, including chains with no token configured.
