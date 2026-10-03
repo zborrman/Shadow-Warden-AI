@@ -1,0 +1,102 @@
+---
+// A dedicated CLI page. The CLI used to be one section of /sdk and one row of
+// index.md, which an audit read as "mentioned", not "published". The package is
+// on PyPI (shadow-warden-sdk >= 1.1.0) and the commands below are asserted
+// against sdk/python/shadow_warden/cli.py by test_site_agent_readiness.py.
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const commands = [
+  ['warden health', 'does the gateway answer?'],
+  ['warden filter "ignore previous instructions"', 'screen text'],
+  ['warden filter --json --file prompt.txt', 'machine-readable verdict'],
+  ['warden filter --stdin < prompt.txt', 'pipeline friendly'],
+  ['warden filter --strict "..."', 'block on MEDIUM risk too'],
+  ['warden impact --requests 50000', 'projected value at a volume'],
+  ['warden billing', 'plan, quota, add-ons'],
+  ['warden version', 'SDK version'],
+];
+const exits = [
+  ['0', 'The content is allowed / the command succeeded.'],
+  ['1', 'The content was blocked.'],
+  ['2', 'Usage error — bad arguments or nothing to read.'],
+  ['3', 'The gateway could not be reached or answered with an error.'],
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI CLI — the warden command"
+  description="Install the official Shadow Warden AI command-line client with pip: warden filter, health, billing, and exit codes scripts can rely on."
+  markdown="/cli.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/developers" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Developers</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">CLI</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Shadow Warden AI CLI</h1>
+        <p class="text-[14px] max-w-2xl" style="color:#94a3b8">
+          <span class="font-mono">warden</span> is the official command-line client. It is a console script of the
+          published <a href="https://pypi.org/project/shadow-warden-sdk/" style="color:#80b4fd">shadow-warden-sdk</a>
+          package (1.1.0 or later), so an agent or a shell script can use the gateway without writing an integration.
+        </p>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-4xl px-4 lg:px-8 py-12 space-y-14">
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Install</h2>
+        <pre class="rounded-xl p-4 text-[12px] overflow-x-auto" style="background:#0b0b12;border:1px solid rgba(255,255,255,0.07);color:#cbd5e1">pip install "shadow-warden-sdk&gt;=1.1.0"
+# or, isolated from your project environments:
+pipx install "shadow-warden-sdk&gt;=1.1.0"
+warden version</pre>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Configure</h2>
+        <pre class="rounded-xl p-4 text-[12px] overflow-x-auto" style="background:#0b0b12;border:1px solid rgba(255,255,255,0.07);color:#cbd5e1">export WARDEN_API_KEY="sk_..."
+export WARDEN_GATEWAY_URL="https://api.shadow-warden-ai.com"   # default
+export WARDEN_TENANT_ID="default"</pre>
+        <p class="text-[13px] mt-3" style="color:#64748b">Flags (<span class="font-mono">--api-key</span>, <span class="font-mono">--gateway-url</span>, <span class="font-mono">--tenant-id</span>, <span class="font-mono">--timeout</span>) override the environment.</p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Commands</h2>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse"><tbody>
+            {commands.map(([c, d]) => (
+              <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                <td class="px-4 py-3 text-[12px] font-mono" style="color:#80b4fd">{c}</td>
+                <td class="px-4 py-3 text-[12px]" style="color:#94a3b8">{d}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Exit codes</h2>
+        <p class="text-[13px] mb-4" style="color:#94a3b8">The exit code is the contract, so a script never has to parse output.</p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse"><tbody>
+            {exits.map(([c, d]) => (
+              <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                <td class="px-4 py-3 text-[13px] font-mono" style="color:#f59e0b">{c}</td>
+                <td class="px-4 py-3 text-[12px]" style="color:#94a3b8">{d}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+        <p class="text-[13px] leading-relaxed mt-4" style="color:#64748b">
+          A gateway error exits 3, never 1, so an outage cannot read as “blocked”. <span class="font-mono">--json</span>
+          output never contains the matched secret, only its kind. See also
+          <a href="/sdk" style="color:#80b4fd">SDKs</a> and the <a href="/developers" style="color:#80b4fd">developer portal</a>.
+        </p>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

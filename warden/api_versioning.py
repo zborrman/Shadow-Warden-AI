@@ -21,10 +21,11 @@ Instead one ASGI middleware, ahead of routing:
   * `/v1/<path>` is rewritten to `<path>` before the router sees it, so every
     endpoint is reachable under the version today, with no per-route edits and no
     duplicate entries in the route table.
-  * A response to an **unversioned** path carries `Deprecation: true`, a `Sunset`
-    date and a `Link: …; rel="successor-version"` pointing at the `/v1` form —
-    RFC 8594 and RFC 8288, which is what a well-behaved client already knows how
-    to read.
+  * A response to an **unversioned** path carries `Deprecation: @<unix-time>`
+    (RFC 9745), a `Sunset` date (RFC 8594) and `Link` relations (RFC 8288):
+    `successor-version` pointing at the `/v1` form and `deprecation` pointing at
+    the published policy page — which is what a well-behaved client already
+    knows how to read.
 
 So integrators can move today, existing callers keep working, and the date by
 which they must move is published rather than implied.
@@ -58,6 +59,14 @@ _PREFIX = f"/{API_VERSION}"
 #: Overridable so the window can be extended without a code change — extending it
 #: is a promise being kept, shortening it is not, and both belong in a PR body.
 _DEFAULT_SUNSET = "2027-08-23"
+
+#: The day the unversioned form became deprecated — RFC 9745 wants the instant a
+#: resource *was or will be* deprecated, as a structured-field date. The earlier
+#: draft's `Deprecation: true` is not what the published RFC specifies.
+DEPRECATED_SINCE = "2026-08-23"
+
+#: Where the human- and agent-readable policy lives. Linked as `rel="deprecation"`.
+POLICY_URL = "https://shadow-warden-ai.com/doc/versioning"
 
 #: Zero-padded ISO calendar date, nothing else.
 _CANONICAL_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -116,6 +125,12 @@ def _sunset_http_date(date_str: str = "") -> str:
     raw = _validated_sunset(date_str or SUNSET_DATE)
     dt = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=UTC)
     return dt.strftime("%a, %d %b %Y 00:00:00 GMT")
+
+
+def _deprecation_value() -> str:
+    """RFC 9745 `Deprecation` value: an sf-date, `@` + whole seconds since epoch."""
+    dt = datetime.strptime(DEPRECATED_SINCE, "%Y-%m-%d").replace(tzinfo=UTC)
+    return f"@{int(dt.timestamp())}"
 
 
 def is_exempt(path: str) -> bool:
@@ -198,9 +213,12 @@ class APIVersionMiddleware:
         async def _send(message: Message) -> None:
             if message["type"] == "http.response.start":
                 headers = MutableHeaders(raw=message["headers"])
-                headers["Deprecation"] = "true"
+                headers["Deprecation"] = _deprecation_value()
                 headers["Sunset"] = _sunset_http_date()
-                link = f'<{successor}>; rel="successor-version"'
+                link = (
+                    f'<{successor}>; rel="successor-version", '
+                    f'<{POLICY_URL}>; rel="deprecation"; type="text/html"'
+                )
                 # Link is a comma-separated list (RFC 8288) AND may be sent as
                 # several headers. `.get()` returns only the first, so assigning
                 # its value back would silently drop the rest — a paginated
@@ -219,5 +237,6 @@ def version_info() -> dict:
         "current": API_VERSION,
         "prefix": _PREFIX,
         "unversioned_supported_until": SUNSET_DATE,
-        "policy": "https://github.com/zborrman/Shadow-Warden-AI/blob/main/docs/api-versioning.md",
+        "policy": POLICY_URL,
+        "deprecated_since": DEPRECATED_SINCE,
     }

@@ -1,0 +1,102 @@
+---
+// The deprecation policy, published because an audit found API versioning but
+// no policy a client could read: the headers existed, nothing said what they
+// promise. Held against warden/api_versioning.py by
+// warden/tests/test_site_agent_readiness.py — the sunset date here must equal
+// the one the middleware serves.
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const headers = [
+  { n: 'Deprecation: @1787443200', s: 'RFC 9745', d: 'This resource is deprecated; the value is the Unix time it became so.' },
+  { n: 'Sunset: Mon, 23 Aug 2027 00:00:00 GMT', s: 'RFC 8594', d: 'The instant after which it may stop working.' },
+  { n: 'Link: <successor>; rel="successor-version"', s: 'RFC 8288', d: 'Where to move to.' },
+  { n: 'Link: <policy>; rel="deprecation"', s: 'RFC 9745', d: 'This page.' },
+];
+---
+
+<BaseLayout
+  title="Shadow Warden AI API Versioning and Deprecation Policy"
+  description="How the Shadow Warden AI API is versioned (v1 in the URL path) and how deprecation is signalled: Deprecation and Sunset headers, successor links, and a 180-day notice commitment."
+  markdown="/versioning.md"
+>
+  <div class="pt-14">
+    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+      <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
+        <div class="flex items-center gap-2 mb-4">
+          <a href="/" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Home</a>
+          <span style="color:#1e1e2a">/</span>
+          <a href="/doc" class="text-[13px] hover:text-white transition-colors" style="color:#475569">Doc</a>
+          <span style="color:#1e1e2a">/</span>
+          <span class="text-[13px]" style="color:#94a3b8">Versioning</span>
+        </div>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Shadow Warden AI API Versioning and Deprecation</h1>
+        <p class="text-[14px]" style="color:#475569">How a change is announced before it can break a caller</p>
+      </div>
+    </div>
+
+    <div class="mx-auto max-w-4xl px-4 lg:px-8 py-12 space-y-14">
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Versioning</h2>
+        <p class="text-[13px] leading-relaxed mb-4" style="color:#94a3b8">
+          The version is in the URL path. The current and only version is <span class="font-mono">v1</span>.
+          The OpenAPI 3.1 document at <a href="/openapi.json" style="color:#80b4fd">/openapi.json</a> declares the
+          <span class="font-mono">v1</span> base URL in its <span class="font-mono">servers</span> block.
+        </p>
+        <pre class="rounded-xl p-4 text-[12px] overflow-x-auto" style="background:#0b0b12;border:1px solid rgba(255,255,255,0.07);color:#cbd5e1">POST https://api.shadow-warden-ai.com/v1/filter     ← use this
+POST https://api.shadow-warden-ai.com/filter        ← works, deprecated</pre>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">What counts as a breaking change</h2>
+        <p class="text-[13px] leading-relaxed" style="color:#94a3b8">
+          Within <span class="font-mono">v1</span> we do not remove or rename a field, change a type, tighten a
+          validation rule, or remove an endpoint. Adding an optional field, an endpoint or a response header is
+          not breaking, so clients must ignore fields they do not recognise. A breaking change ships as a new
+          version beside <span class="font-mono">v1</span>, never in place.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">How deprecation is signalled</h2>
+        <p class="text-[13px] leading-relaxed mb-4" style="color:#94a3b8">
+          A deprecated resource answers with standard headers a client can act on without reading this page.
+          Today they are sent on every unversioned path. Unversioned paths are served until
+          <span class="font-mono">2027-08-23</span>.
+        </p>
+        <div class="rounded-xl overflow-hidden" style="border:1px solid rgba(255,255,255,0.07)">
+          <table class="w-full text-left" style="border-collapse:collapse">
+            <tbody>
+              {headers.map(h => (
+                <tr style="border-top:1px solid rgba(255,255,255,0.06)">
+                  <td class="px-4 py-3 text-[12px] font-mono" style="color:#80b4fd">{h.n}</td>
+                  <td class="px-4 py-3 text-[12px]" style="color:#94a3b8">{h.s}</td>
+                  <td class="px-4 py-3 text-[12px] hidden md:table-cell" style="color:#64748b">{h.d}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-[13px] leading-relaxed mt-4" style="color:#64748b">
+          Infrastructure and discovery paths (<span class="font-mono">/health</span>, <span class="font-mono">/metrics</span>,
+          <span class="font-mono">/docs</span>, <span class="font-mono">/openapi.json</span>,
+          <span class="font-mono">/.well-known/*</span>) are not versioned and not deprecated.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">The timeline we commit to</h2>
+        <ol class="space-y-2 text-[13px] leading-relaxed list-decimal pl-5" style="color:#94a3b8">
+          <li><strong>Announce</strong> — the <span class="font-mono">Deprecation</span> header and successor link appear, and the change is recorded in the <a href="/doc/changelog" style="color:#80b4fd">changelog</a>.</li>
+          <li><strong>Notice period</strong> — at least 180 days between the first <span class="font-mono">Deprecation</span> header and the <span class="font-mono">Sunset</span> date for any versioned resource.</li>
+          <li><strong>Sunset</strong> — after the date the resource may return <span class="font-mono">410 Gone</span>.</li>
+        </ol>
+        <p class="text-[13px] leading-relaxed mt-4" style="color:#64748b">
+          The sunset date may be extended, never shortened. Related:
+          <a href="/developers" style="color:#80b4fd">developer portal</a>,
+          <a href="/doc/rate-limits" style="color:#80b4fd">rate limits</a>,
+          <a href="/doc/authentication" style="color:#80b4fd">authentication</a>.
+        </p>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

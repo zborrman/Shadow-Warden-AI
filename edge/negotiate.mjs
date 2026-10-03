@@ -28,6 +28,9 @@ export const MARKDOWN_ROUTES = Object.freeze({
   "/trust": "/trust.md",
   "/developers": "/developers.md",
   "/mcp": "/mcp.md",
+  "/about": "/about.md",
+  "/cli": "/cli.md",
+  "/doc/versioning": "/versioning.md",
   "/doc/authentication": "/authentication.md",
   "/doc/rate-limits": "/rate-limits.md",
 });
