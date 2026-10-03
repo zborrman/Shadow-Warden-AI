@@ -1594,6 +1594,10 @@ jobs:
       vars.CF_PREFLIGHT_DEPLOY == 'true'
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `npm ci` below runs dependency install scripts; do not leave a
+          # usable git credential in .git/config where one could read it.
+          persist-credentials: false
 
       # Resolve the credential question first, so the steps below can be
       # skipped rather than made to fail: without a token this job's contract is
@@ -1658,6 +1662,10 @@ jobs:
       github.event_name == 'push'
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `npm ci` below runs dependency install scripts; do not leave a
+          # usable git credential in .git/config where one could read it.
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:

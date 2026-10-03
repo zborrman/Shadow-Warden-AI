@@ -85,28 +85,33 @@ def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
     with a literal `npx wrangler@3 deploy` — so the Worker's pinned Wrangler 4
     was never the one that ran. A guard that inspects the declaration and not the
     caller is the defect this repository keeps finding in its own rules.
+
+    Four review rounds were spent teaching an `npx`-shaped pattern each new way
+    to spell one command — `--yes`, then `-y`, then a line continuation, then
+    `-p`/`--package`. Enumerating a command's syntax is not a check on the
+    command. The rule it kept failing to express is much smaller and has no
+    spellings: **a workflow never names a wrangler version at all.** The version
+    lives in the Worker's package.json and its lockfile, so any `wrangler@…` in
+    a workflow is by definition a second opinion about it.
     """
+    # Prose about the defect is not the defect: a comment warning against
+    # `npx wrangler@3` must not fail the guard that bans it. Same reason the
+    # Worker source ratchets strip comments before matching.
+    comment = re.compile(r"(?m)^\s*#.*$")
+    spec = re.compile(r"\bwrangler@[\w.^~*-]+")
+
     bad: list[str] = []
     for wf in sorted((_REPO / ".github" / "workflows").glob("*.yml")):
-        lines = wf.read_text(encoding="utf-8").splitlines()
-        for n, line in enumerate(lines, 1):
-            # A shell continuation splits one command across two physical lines,
-            # so `npx -y \` + `wrangler@3 deploy` passed a per-line scan — the
-            # banned command, merely wrapped. Join the continuation before
-            # matching, and keep reporting the line the command starts on.
-            joined, k = line, n - 1
-            while joined.rstrip().endswith("\\") and k + 1 < len(lines):
-                k += 1
-                joined = joined.rstrip()[:-1] + " " + lines[k].strip()
-            # `-y` is the same flag as `--yes`, and the first version of this
-            # pattern matched only the long form — so the shorter spelling of
-            # the exact command this guard bans would have passed it.
-            if re.search(r"\bnpx\s+(?:(?:--yes|-y)\s+)*wrangler@", joined):
-                bad.append(f"{wf.name}:{n}: {joined.strip()}")
+        for n, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+            if comment.match(line):
+                continue
+            if spec.search(line):
+                bad.append(f"{wf.name}:{n}: {line.strip()}")
     assert not bad, (
-        "a workflow pins its own Wrangler on the command line, bypassing the "
-        "Worker's package.json and lockfile:\n  " + "\n  ".join(bad)
-        + "\nRun `npm ci` in the worker directory and call `npx wrangler` instead."
+        "a workflow names a wrangler version, which is a second opinion about "
+        "the one in the Worker's package.json and lockfile:\n  "
+        + "\n  ".join(bad)
+        + "\nRun `npm ci` in the worker directory and call a bare `npx wrangler`."
     )
 
 
