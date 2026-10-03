@@ -242,6 +242,23 @@ nothing, `deposit` sends one transaction and records whether the chain agreed,
 show. A gate that only counted landings would pass a preflight that refuses
 everything.
 
+A refusal counts only when **the contract itself said no** — a mined revert, the
+escrow's own custom error, or a revert the node reports. The first `--force` run
+was journalled as a match with `MismatchedABI` and no transaction: the refused
+verdict carries no token or amount, the deposit could not be encoded, and
+nothing reached the chain. An RPC outage would have "proven" a refusal the same
+way. Only `insufficient_allowance` and `insufficient_balance` can be forced;
+the cap and configuration refusals are policy the contract has no view on, and
+forcing past the cap would move what the cap exists to stop.
+
+*Record (Base Sepolia, escrow `0x899Ff611…cBDcF8`, 2026-10-03):* five deposits
+in real USDC landed where preflight passed; one forced deposit preflight
+refused for `insufficient_allowance` reverted with *"ERC20: transfer amount
+exceeds allowance"*. Phase 2's exit was then run on a local gateway: three
+escrows driven through `EscrowService` fund → deliver → confirm reached
+`Released`, read back through `base-sepolia-rpc.publicnode.com`. Production has
+not enabled any chain.
+
 **The per-trade cap applies throughout.** `SETTLEMENT_MAX_TRADE_USD` (default
 $25) is checked first in preflight — before configuration, because it is local
 and definitive — and again in `deposit_params`, so a verdict taken before the
