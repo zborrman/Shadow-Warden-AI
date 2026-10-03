@@ -1605,7 +1605,11 @@ jobs:
             echo "preflight worker: **not deployed** — no CLOUDFLARE_API_TOKEN" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          npx wrangler@3 deploy --keep-vars
+          # Use the Worker's own locked Wrangler, not a floating `wrangler@3`:
+          # pinning the dependency is worthless if the only thing that deploys
+          # it asks npx for a different version. Mirrors the marketplace job.
+          npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
+          npx wrangler deploy --keep-vars
 
   # ── Cloudflare Marketplace Worker ────────────────────────────────────────────
   #

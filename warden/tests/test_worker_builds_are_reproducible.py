@@ -26,6 +26,7 @@ invocation; the two maintained workers (`worker/`,
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -73,6 +74,27 @@ def test_worker_pins_a_supported_wrangler_major(worker: Path) -> None:
     assert major == "4", (
         f"{worker.relative_to(_REPO).as_posix()} pins wrangler {spec}. wrangler 3 is "
         f"end-of-life and warns on every run that it may cause critical errors."
+    )
+
+
+def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
+    """Pinning the dependency is worthless if the thing that deploys ignores it.
+
+    The first version of this guard checked `package.json` and the lockfile and
+    stopped there, while `.github/workflows/ci.yml` deployed the preflight Worker
+    with a literal `npx wrangler@3 deploy` — so the Worker's pinned Wrangler 4
+    was never the one that ran. A guard that inspects the declaration and not the
+    caller is the defect this repository keeps finding in its own rules.
+    """
+    bad: list[str] = []
+    for wf in sorted((_REPO / ".github" / "workflows").glob("*.yml")):
+        for n, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"\bnpx\s+(?:--yes\s+)?wrangler@", line):
+                bad.append(f"{wf.name}:{n}: {line.strip()}")
+    assert not bad, (
+        "a workflow pins its own Wrangler on the command line, bypassing the "
+        "Worker's package.json and lockfile:\n  " + "\n  ".join(bad)
+        + "\nRun `npm ci` in the worker directory and call `npx wrangler` instead."
     )
 
 
