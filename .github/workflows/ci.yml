@@ -1595,28 +1595,41 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Resolve the credential question first, so the steps below can be
+      # skipped rather than made to fail: without a token this job's contract is
+      # to warn and stay green, and an `npm ci` placed ahead of that check would
+      # turn an absent credential into a red build.
+      - name: Check for a deploy credential
+        id: cred
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLOUDFLARE_API_TOKEN is not set — the preflight Worker was NOT deployed. This job is green because it did nothing."
+            echo "preflight worker: **not deployed** — no CLOUDFLARE_API_TOKEN" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # `npm ci` runs package install scripts (esbuild, workerd and fsevents all
       # declare one). Keep it in a step that has no deploy credential in its
       # environment, so a compromised dependency cannot read the token.
       - name: Install preflight worker dependencies
+        if: steps.cred.outputs.have == 'true'
         working-directory: cloudflare/preflight-worker
         run: npm ci --no-audit --no-fund || { echo "::error::npm ci failed"; exit 1; }
 
       - name: Deploy preflight worker
+        if: steps.cred.outputs.have == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         working-directory: cloudflare/preflight-worker
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN is not set — the preflight Worker was NOT deployed. This job is green because it did nothing."
-            echo "preflight worker: **not deployed** — no CLOUDFLARE_API_TOKEN" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          # Use the Worker's own locked Wrangler, not a floating `wrangler@3`:
-          # pinning the dependency is worthless if the only thing that deploys
-          # it asks npx for a different version. Dependencies were installed in
-          # the previous step, which does not carry the token.
-          npx wrangler deploy --keep-vars
+        # Use the Worker's own locked Wrangler, not a floating `wrangler@3`:
+        # pinning the dependency is worthless if the only thing that deploys it
+        # asks npx for a different version. Dependencies came from the previous
+        # step, which does not carry the token.
+        run: npx wrangler deploy --keep-vars
 
   # ── Cloudflare Marketplace Worker ────────────────────────────────────────────
   #

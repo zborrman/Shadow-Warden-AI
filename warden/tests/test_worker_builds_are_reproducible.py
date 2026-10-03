@@ -88,12 +88,21 @@ def test_no_workflow_deploys_with_a_floating_wrangler() -> None:
     """
     bad: list[str] = []
     for wf in sorted((_REPO / ".github" / "workflows").glob("*.yml")):
-        for n, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+        lines = wf.read_text(encoding="utf-8").splitlines()
+        for n, line in enumerate(lines, 1):
+            # A shell continuation splits one command across two physical lines,
+            # so `npx -y \` + `wrangler@3 deploy` passed a per-line scan — the
+            # banned command, merely wrapped. Join the continuation before
+            # matching, and keep reporting the line the command starts on.
+            joined, k = line, n - 1
+            while joined.rstrip().endswith("\\") and k + 1 < len(lines):
+                k += 1
+                joined = joined.rstrip()[:-1] + " " + lines[k].strip()
             # `-y` is the same flag as `--yes`, and the first version of this
             # pattern matched only the long form — so the shorter spelling of
             # the exact command this guard bans would have passed it.
-            if re.search(r"\bnpx\s+(?:(?:--yes|-y)\s+)*wrangler@", line):
-                bad.append(f"{wf.name}:{n}: {line.strip()}")
+            if re.search(r"\bnpx\s+(?:(?:--yes|-y)\s+)*wrangler@", joined):
+                bad.append(f"{wf.name}:{n}: {joined.strip()}")
     assert not bad, (
         "a workflow pins its own Wrangler on the command line, bypassing the "
         "Worker's package.json and lockfile:\n  " + "\n  ".join(bad)
