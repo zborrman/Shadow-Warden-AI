@@ -75,6 +75,14 @@ _PROVEN = {
         "NegotiationEngine.accept_offer -> _assert_actor, same envelope",
 }
 
+# The fields `_PROVEN` actually covers. Exempting a route wholesale would let it
+# gain a *second* agent identifier — a new `*_did`, say — that the signature
+# envelope says nothing about, and the exemption would carry the new claim too.
+_PROVEN_FIELDS = {
+    "POST /marketplace/negotiations/{negotiation_id}/offer": {"from_agent_id"},
+    "POST /marketplace/negotiations/{negotiation_id}/accept": {"from_agent_id"},
+}
+
 # Why each unproven route is still here. A route in the baseline without a note
 # fails the test: an unexplained exemption is how a real hole hides among
 # accepted ones.
@@ -229,6 +237,20 @@ def test_no_new_route_acts_on_an_unproven_agent_id(
     baseline: dict[str, list[str]] = (
         json.loads(_BASELINE.read_text(encoding="utf-8")) if _BASELINE.is_file() else {}
     )
+    # A proven route is exempt only for the fields its proof covers. Anything
+    # beyond them is an unproven claim on a route that merely looks settled.
+    beyond = sorted(
+        f"{r}: +{sorted(set(f) - _PROVEN_FIELDS.get(r, set()))}"
+        for r, f in measured.items()
+        if r in _PROVEN and set(f) - _PROVEN_FIELDS.get(r, set())
+    )
+    assert not beyond, (
+        "a proven route takes an agent identifier its proof does not cover:\n  "
+        + "\n  ".join(beyond)
+        + "\n\n`_assert_actor` signs `from_agent_id`; another identifier on the "
+          "same route is a separate claim and needs its own envelope."
+    )
+
     fresh = {r: f for r, f in measured.items() if r not in _PROVEN}
 
     if os.getenv("UPDATE_ACTOR_PROOF_BASELINE") == "1":
@@ -315,16 +337,29 @@ def test_the_proven_routes_still_call_the_proof() -> None:
             encoding="utf-8"
         )
     )
+    def _calls_directly(fn: ast.AST) -> bool:
+        """True only for a call in this function's own body.
+
+        `ast.walk` would also count `_assert_actor` inside a nested `def` that
+        nobody invokes — a proof that never runs reading as a proof that does.
+        """
+        stack = list(ast.iter_child_nodes(fn))
+        while stack:
+            node = stack.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue  # a nested definition is not this function's work
+            if isinstance(node, ast.Call) and (
+                getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            ) == "_assert_actor":
+                return True
+            stack.extend(ast.iter_child_nodes(node))
+        return False
+
     callers = {
         node.name
         for node in ast.walk(tree)
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and any(
-            isinstance(c, ast.Call)
-            and (getattr(c.func, "id", None) or getattr(c.func, "attr", None))
-            == "_assert_actor"
-            for c in ast.walk(node)
-        )
+        and _calls_directly(node)
     }
     for method in ("send_offer", "accept_offer"):
         assert method in callers, (
