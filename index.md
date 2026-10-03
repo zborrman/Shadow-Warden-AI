@@ -43,6 +43,9 @@ is what makes the audit trail GDPR-safe.
 
 - [Documentation](https://shadow-warden-ai.com/doc.md)
 - [SDK and CLI](https://shadow-warden-ai.com/sdk.md)
+- [CLI (`warden`)](https://shadow-warden-ai.com/cli.md)
+- [API versioning policy](https://shadow-warden-ai.com/versioning.md)
+- [About](https://shadow-warden-ai.com/about.md)
 - [Pricing](https://shadow-warden-ai.com/pricing.md)
 - [Agentic marketplace](https://shadow-warden-ai.com/agentic.md)
 - [Trust centre](https://shadow-warden-ai.com/trust.md)

@@ -25,6 +25,8 @@ returns a drop-in OpenAI client whose completions are filtered on the way in.
 
 ## CLI
 
+Full reference: <https://shadow-warden-ai.com/cli.md>.
+
 The `warden` console script ships with `shadow-warden-sdk` >= 1.1.0. It is the
 fastest way for an agent or a shell script to use the gateway without writing an
 integration.
