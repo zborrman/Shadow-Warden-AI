@@ -30,10 +30,13 @@ Two things it deliberately does not claim:
 
 * It does not say the thirteen are exploitable by an anonymous caller. They are
   behind `require_api_key`; the exposure is between tenants, not to the world.
-* It does not verify enforcement for the two that pass. `_assert_actor` always
-  *verifies*, but rejection is gated on `MARKETPLACE_REQUIRE_SIGNED_OFFERS`
-  (default false, true in production). Wiring and enforcement are different
-  claims — Rule.md §29.1 — and this guard only sees the wiring.
+* It does not verify enforcement for the two that pass, and the wiring is
+  thinner than "proven" suggests. `_assert_actor` always checks that the agent
+  is a *party* to the negotiation, but when no signature is supplied and
+  `MARKETPLACE_REQUIRE_SIGNED_OFFERS` is off it returns without verifying
+  anything at all. Those two routes therefore prove identity only when a
+  signature is present and enforcement is on. Wiring and enforcement are
+  different claims — Rule.md §29.1 — and this guard sees only the wiring.
 
 Regenerate after a genuine reduction (an increase fails before it can write):
 
@@ -130,6 +133,14 @@ def agent_fields(route):
         fields = getattr(ann, "model_fields", None)
         if fields:
             out |= {f for f in fields if AGENT.search(f)}
+        else:
+            # `agent_id: str = Body(...)` has no model to look inside. Skipping
+            # it would let a new route carry an agent id past this guard without
+            # ever being classified — the one direction that must never be
+            # silent.
+            name = getattr(p, "name", "") or ""
+            if AGENT.search(name):
+                out.add(name)
     return out
 
 def record(route, prefix=""):
@@ -218,15 +229,41 @@ def test_no_new_route_acts_on_an_unproven_agent_id(
     baseline: dict[str, list[str]] = (
         json.loads(_BASELINE.read_text(encoding="utf-8")) if _BASELINE.is_file() else {}
     )
+    fresh = {r: f for r, f in measured.items() if r not in _PROVEN}
+
     if os.getenv("UPDATE_ACTOR_PROOF_BASELINE") == "1":
-        fresh = {r: f for r, f in measured.items() if r not in _PROVEN}
+        # Regeneration may only record a reduction. Writing whatever is measured
+        # would let a new unproven route be laundered into the baseline by the
+        # very command meant to prove one left it.
+        grew = sorted(
+            r for r, f in fresh.items()
+            if r not in baseline or set(f) - set(baseline.get(r, []))
+        )
+        assert not grew, (
+            "refusing to rewrite the baseline: it would grow by\n  "
+            + "\n  ".join(grew)
+            + "\n\nClassify the route instead — regeneration records a reduction, "
+              "never an addition."
+        )
         _BASELINE.write_text(
             json.dumps(dict(sorted(fresh.items())), indent=2) + "\n", encoding="utf-8"
         )
         pytest.skip("baseline rewritten")
 
-    unproven = {r for r in measured if r not in _PROVEN}
-    added = sorted(unproven - set(baseline))
+    # A baselined route that gains another agent-identifying field is a new
+    # claim on the same path; comparing route names alone would not see it.
+    widened = sorted(
+        f"{r}: +{sorted(set(f) - set(baseline[r]))}"
+        for r, f in fresh.items()
+        if r in baseline and set(f) - set(baseline[r])
+    )
+    assert not widened, (
+        "a baselined route now takes more agent identifiers than it did:\n  "
+        + "\n  ".join(widened)
+        + "\n\nRe-classify it, or prove the new field the way `_assert_actor` does."
+    )
+
+    added = sorted(set(fresh) - set(baseline))
     assert not added, (
         "these routes take an agent identifier in the request body and nothing "
         "proves the caller controls it:\n  "
@@ -262,10 +299,37 @@ def test_every_unproven_route_has_a_recorded_reason() -> None:
     )
 
 
-def test_the_proven_routes_name_their_mechanism() -> None:
-    """`_assert_actor` is the only proof claimed; it must still exist."""
-    from warden.marketplace import negotiation
+def test_the_proven_routes_still_call_the_proof() -> None:
+    """`_PROVEN` is an exemption, so it has to be checked, not asserted.
 
-    assert callable(negotiation._assert_actor)
+    The first version of this test only confirmed `_assert_actor` still existed.
+    It would have stayed green if `send_offer` stopped calling it, and the guard
+    would then exempt two routes on the strength of a comment — the shape of
+    defect this repository keeps finding in its own rules. This reads the
+    methods `_PROVEN` names and fails if the call is gone.
+    """
+    import ast
+
+    tree = ast.parse(
+        (_REPO_ROOT / "warden" / "marketplace" / "negotiation.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    callers = {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(
+            isinstance(c, ast.Call)
+            and (getattr(c.func, "id", None) or getattr(c.func, "attr", None))
+            == "_assert_actor"
+            for c in ast.walk(node)
+        )
+    }
+    for method in ("send_offer", "accept_offer"):
+        assert method in callers, (
+            f"negotiation.{method} no longer calls _assert_actor, but _PROVEN "
+            f"still exempts the route that reaches it"
+        )
     for route, how in _PROVEN.items():
         assert "_assert_actor" in how, f"{route}: no mechanism named"
