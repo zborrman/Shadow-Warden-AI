@@ -1,0 +1,43 @@
+{
+  "POST /a2a/tasks": [
+    "caller_did"
+  ],
+  "POST /acp/cart": [
+    "agent_id"
+  ],
+  "POST /acp/cart/{cart_id}/checkout": [
+    "agent_id"
+  ],
+  "POST /acp/refund": [
+    "agent_id"
+  ],
+  "POST /acp/token": [
+    "agent_id"
+  ],
+  "POST /m2m-store/offers": [
+    "agent_id"
+  ],
+  "POST /marketplace/analytics/query": [
+    "caller_agent_id"
+  ],
+  "POST /marketplace/assets": [
+    "seller_agent_id"
+  ],
+  "POST /marketplace/clear": [
+    "buyer_agent_id"
+  ],
+  "POST /marketplace/escrow": [
+    "buyer_agent_id",
+    "seller_agent_id"
+  ],
+  "POST /marketplace/listings": [
+    "seller_agent_id"
+  ],
+  "POST /marketplace/listings/{listing_id}/purchase": [
+    "buyer_agent_id"
+  ],
+  "POST /marketplace/negotiations": [
+    "buyer_agent_id",
+    "seller_agent_id"
+  ]
+}
