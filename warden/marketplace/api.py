@@ -333,30 +333,9 @@ def _unforgeable_subject(request: Request) -> str:
         return "unproven:anonymous"
 
 
-def _authenticated_owner(request: Request) -> str:
-    """The tenant that *proved* it is calling, or "" — never the body's claim.
-
-    `POST /register` is unauthenticated on purpose (Stage 1 first contact, D-5),
-    and it used to write `body.tenant_id` straight into the KYA record as
-    `owner_tenant_id`. That field is not decoration: `listing.py` and
-    `clearing.py` resolve the paying tenant through it, and `autonomy.py` asks
-    KYB about it. So anyone could register an agent owned by someone else's
-    tenant and have that agent's spend authorised against the victim's policy —
-    and, with KYB enforcement on, inherit the victim's VERIFIED status.
-
-    Ownership now comes from the credential or not at all. Empty is already the
-    handled case everywhere downstream and it fails conservative: the purchase
-    path falls back to the agent's own DID (self-scoped, not someone else's),
-    and `_owner_kyb_unverified()` treats "" as unverified, capping the agent at
-    REQUIRE_APPROVAL rather than granting it the victim's compliance.
-    """
-    try:
-        from warden.auth_guard import resolve_tenant_id  # noqa: PLC0415
-
-        return resolve_tenant_id(request.headers.get("X-API-Key")) or ""
-    except Exception as exc:
-        log.debug("register: owner resolution failed, leaving unowned: %s", exc)
-        return ""
+# Moved to `api_agents`, next to the one handler that writes the KYA record for
+# both registration routes. Re-exported: callers and tests address it here.
+from warden.marketplace.api_agents import _authenticated_owner  # noqa: E402,F401
 
 
 @router.post("/register", status_code=201)
@@ -368,36 +347,19 @@ async def register_market_agent(body: RegisterRequest, request: Request) -> dict
     federation deny-list check and DID derivation as the sub-router endpoint so
     external agents need only one discovery → register → protocol flow.
 
-    After DID assignment, creates a PENDING KYA record and runs initial screening.
+    KYA registration and screening run inside `register_agent` itself, so this
+    route and `POST /agents/register` onboard an agent identically.
     """
     from warden.marketplace.api_agents import AgentRegisterRequest, register_agent
-    result = await register_agent(
+    return await register_agent(
         AgentRegisterRequest(
             tenant_id=body.tenant_id,
             community_id=body.community_id,
             public_key=body.public_key,
             capabilities=body.capabilities,
-        )
+        ),
+        request,
     )
-
-    # KYA: register and screen the newly issued DID (fail-open)
-    agent_id = result.get("agent_id", "")
-    if agent_id:
-        try:
-            from warden.marketplace.kya import register_agent as kya_register  # noqa: PLC0415
-            from warden.marketplace.kya import screen_agent  # noqa: PLC0415
-            kya_record = kya_register(agent_id, owner_tenant_id=_authenticated_owner(request))
-            kya_record = screen_agent(agent_id)
-            result["kya_status"] = kya_record.kya_status
-            result["kya_risk_score"] = round(kya_record.risk_score, 3)
-        except Exception as exc:
-            # Rule 18 fail-open by design — agent registers with kya_status=PENDING
-            # when screening errors. Counter makes the unscreened path alertable.
-            log.debug("kya registration fail-open: %s", exc)
-            record_failopen("marketplace_kya", Reason.BACKEND_ERROR, exc)
-            result["kya_status"] = "PENDING"
-
-    return result
 
 
 class MarketAction(BaseModel):

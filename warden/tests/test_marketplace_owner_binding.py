@@ -86,12 +86,18 @@ def test_the_route_no_longer_reads_the_body_for_ownership():
     """Ratchet. The defect was one argument and read as obviously correct."""
     from pathlib import Path
 
-    src = Path(api_mod.__file__).read_text(encoding="utf-8")
-    assert "owner_tenant_id=body.tenant_id" not in src, (
-        "Ownership must come from the credential. `body.tenant_id` is a claim, "
-        "and this field decides which tenant a purchase is authorised against."
+    # KYA onboarding moved to `api_agents.register_agent`, which both
+    # registration routes now reach; `api.py` must not regrow its own copy.
+    here = Path(api_mod.__file__).parent
+    for name in ("api.py", "api_agents.py"):
+        src = here.joinpath(name).read_text(encoding="utf-8")
+        assert "owner_tenant_id=body.tenant_id" not in src, (
+            "Ownership must come from the credential. `body.tenant_id` is a claim, "
+            "and this field decides which tenant a purchase is authorised against."
+        )
+    assert "_authenticated_owner(request)" in here.joinpath("api_agents.py").read_text(
+        encoding="utf-8"
     )
-    assert "_authenticated_owner(request)" in src
 
 
 @pytest.mark.parametrize(

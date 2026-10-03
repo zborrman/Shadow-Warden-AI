@@ -77,11 +77,11 @@ class TestKYAScreening:
 
     def test_screen_respects_custom_threshold(self, monkeypatch):
         """Setting threshold to 0.0 forces all agents to FLAGGED."""
-        monkeypatch.setenv("KYA_AUTO_VERIFY_SCORE_THRESHOLD", "0.0")
-        import importlib
-
+        # setattr, not setenv + importlib.reload: a reload is not undone at
+        # teardown, so the module kept a 0.0 threshold for the rest of the
+        # process and every later test screened its agents as FLAGGED.
         import warden.marketplace.kya as kya_mod
-        importlib.reload(kya_mod)
+        monkeypatch.setattr(kya_mod, "_AUTO_VERIFY_THRESHOLD", 0.0)
         kya_mod.register_agent("did:shadow:strict-agent", "tenant-S")
         rec = kya_mod.screen_agent("did:shadow:strict-agent")
         assert rec.kya_status == "FLAGGED"
