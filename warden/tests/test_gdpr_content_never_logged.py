@@ -144,6 +144,41 @@ def test_scanner_catches_a_leak(src: str) -> None:
     assert scan_source(src, "x.py"), f"not caught: {src}"
 
 
+# Four bypasses the first version of the scanner had, each found by review on
+# the PR that introduced it and each verified missed before it was closed. They
+# are named individually because the tree happens to contain none of them — so
+# the ratchet count cannot notice a regression here, only these can.
+@pytest.mark.parametrize("src", [
+    # `sorted(text)` logs every character, `min(text)` logs one. Neither is a
+    # measurement, and both were in the metadata exemption.
+    'log.warning("%s", sorted(text))',
+    'log.warning("%s", min(text))',
+    'log.warning("%s", max(content))',
+    # The most idiomatic way to obtain a logger was also the way past the guard:
+    # the receiver is a Call, which `_is_logger_call` did not consider.
+    'logging.getLogger(__name__).warning("%s", content)',
+    'getLogger(__name__).error("%s", payload)',
+    # A serialising call is not a field selection: `body.label` logs a label,
+    # `body.model_dump()` logs the whole request.
+    'log.info("%s", payload.model_dump())',
+    'log.info("%s", request.model_dump())',
+    'log.info("%s", body.dict())',
+    'log.info("%s", request.model_dump_json())',
+])
+def test_scanner_catches_a_closed_bypass(src: str) -> None:
+    assert scan_source(src, "x.py"), f"bypass reopened: {src}"
+
+
+@pytest.mark.parametrize("src", [
+    # The serialising rule must not make ordinary request handling illegal.
+    'log.info("path=%s", request.url.path)',
+    'log.info("method=%s", request.method)',
+    'log.info("h=%s", hash(text))',
+])
+def test_the_bypass_fixes_did_not_overreach(src: str) -> None:
+    assert not scan_source(src, "x.py"), f"false positive: {src}"
+
+
 @pytest.mark.parametrize("src", [
     # The permitted shape: a measurement of content.
     'log.warning("len=%d", len(text))',

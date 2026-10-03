@@ -41,9 +41,10 @@ follows:
 
 Ruff, mypy and Trivy are not lost; they run, but as upstream pre-commit hooks and
 CI jobs, not as the local shell scripts that were described, and they are
-recorded below where they actually live. **`hadolint` and the GDPR content-log
-check are not implemented anywhere** — they are in §6 with the other guards that
-do not exist, which is the only honest place for them.
+recorded below where they actually live. **`hadolint` is not implemented anywhere** — it is in §6 with the other
+guards that do not exist, which is the only honest place for it. The GDPR
+content-log check *is* implemented now, as `warden/hooks/gdpr_content_log.py`
+with the merge gate in pytest, and is recorded in §2 below (H-7).
 
 ---
 
@@ -61,7 +62,7 @@ everything below:
 | `.github/workflows/claude-security-review.yml` | on PRs touching security-critical files | comment only | Opus audit of the diff |
 
 So a guard that exists **only** in `.pre-commit-config.yaml` protects nobody who
-has not installed pre-commit. Three of the five local hooks below say so in
+has not installed pre-commit. Three of the six local hooks below say so in
 their own comments, and each has a pytest twin that is the actual gate.
 
 ```bash

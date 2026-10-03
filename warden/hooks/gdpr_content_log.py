@@ -61,10 +61,25 @@ CONTENT_NAMES = frozenset({
 })
 
 # Wrapping content in one of these yields a measurement, which is permitted.
-METADATA_FNS = frozenset({
-    "len", "type", "bool", "isinstance", "id", "hash",
-    "sorted", "sum", "min", "max", "round", "abs",
+# Deliberately short, and it must stay that way: `sorted`, `min` and `max` were
+# in this set and are not measurements of a string — `sorted(text)` logs every
+# character of it and `min(text)` logs one, so each was an exemption that
+# published content. A name belongs here only if its result cannot vary with the
+# *characters* of the input, which is why `hash` qualifies and `sorted` does not.
+METADATA_FNS = frozenset({"len", "type", "bool", "isinstance", "id", "hash"})
+
+# Calls that hand back an object's contents. These are the exception to the
+# "an object that is dereferenced is not what is logged" rule below: `body.label`
+# selects a field, but `body.model_dump()` serialises the whole request — so the
+# receiver's name must be judged, not pruned.
+SERIALIZING_ATTRS = frozenset({
+    "model_dump", "model_dump_json", "dict", "json", "to_dict", "as_dict",
+    "_asdict", "__dict__",
 })
+
+# Names that carry content only once serialised. `request.url.path` is routine
+# and must stay legal; `request.model_dump()` is the whole request body.
+SERIALIZED_SUBJECTS = frozenset({"request", "req", "form", "message", "msg"})
 
 
 @dataclass(frozen=True)
@@ -88,7 +103,37 @@ def _is_logger_call(func: ast.Attribute) -> bool:
         return receiver.id in LOGGERISH
     if isinstance(receiver, ast.Attribute):
         return receiver.attr in LOGGERISH
+    # `logging.getLogger(__name__).warning(content)` — the receiver is a *call*,
+    # which the first version did not consider a logger at all, so the most
+    # idiomatic way to obtain a logger was also the way to bypass this guard.
+    if isinstance(receiver, ast.Call):
+        fn = receiver.func
+        if isinstance(fn, ast.Attribute) and fn.attr == "getLogger":
+            return True
+        if isinstance(fn, ast.Name) and fn.id == "getLogger":
+            return True
     return False
+
+
+def _serialized_subject(node: ast.Call) -> set[str]:
+    """Names whose *contents* this serializing call hands to the logger."""
+    fn = node.func
+    if not isinstance(fn, ast.Attribute) or fn.attr not in SERIALIZING_ATTRS:
+        return set()
+    found: set[str] = set()
+    cur: ast.AST = fn.value
+    while True:  # walk the receiver chain: a.b.c.model_dump()
+        if isinstance(cur, ast.Name):
+            if cur.id in CONTENT_NAMES or cur.id in SERIALIZED_SUBJECTS:
+                found.add(cur.id)
+            break
+        if isinstance(cur, ast.Attribute):
+            if cur.attr in CONTENT_NAMES or cur.attr in SERIALIZED_SUBJECTS:
+                found.add(cur.attr)
+            cur = cur.value
+            continue
+        break
+    return found
 
 
 def _content_names(node: ast.AST) -> set[str]:
@@ -107,6 +152,9 @@ def _content_names(node: ast.AST) -> set[str]:
                 for arg in cur.args:
                     if isinstance(arg, ast.Constant) and arg.value in CONTENT_NAMES:
                         found.add(str(arg.value))
+            # body.model_dump() serialises the request rather than selecting a
+            # field from it, so the receiver is the thing being logged.
+            found |= _serialized_subject(cur)
         if isinstance(cur, ast.Name):
             if cur.id in CONTENT_NAMES:
                 found.add(cur.id)
