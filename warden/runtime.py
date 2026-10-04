@@ -51,6 +51,13 @@ class Runtime:
         "redactor",          # SecretRedactor
         "guard",             # SemanticGuard (rule engine)
         "agent_monitor",     # AgentMonitor
+        # Published since Phase 3, declared here in P-2 so a reader that runs
+        # before lifespan gets None rather than AttributeError — __getattr__
+        # raises for any name that is neither known nor yet published, and the
+        # websocket handlers in warden/api/ws_stream.py read these per request.
+        "tenant_guard",         # callable: tenant_id -> BrainSemanticGuard
+        "filter_orchestrator",  # callable: the /filter pipeline itself
+        "dynamic_regex_rules",  # list[dict]: hot-reloaded AI-generated rules
     )
 
     def __init__(self) -> None:

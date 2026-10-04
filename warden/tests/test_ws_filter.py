@@ -99,7 +99,10 @@ class TestWsFilterAuth:
 
 class TestWsFilterInputValidation:
     def test_payload_too_large(self, ws_client, monkeypatch):
-        import warden.main as m
+        # P-2: the websocket handlers moved to warden/api/ws_stream.py, so these
+        # module globals moved with them. Patching warden.main would still
+        # succeed and change nothing — the handler reads its own module.
+        import warden.api.ws_stream as m
         monkeypatch.setattr(m, "_WS_MAX_PAYLOAD", 10)
         with ws_client.websocket_connect("/ws/filter") as ws:
             ws.send_text("x" * 20)
@@ -295,7 +298,7 @@ class TestWsFilterCacheHit:
         }
         import json as _json
 
-        with patch("warden.main.get_cached", return_value=_json.dumps(cached_resp)), ws_client.websocket_connect("/ws/filter") as ws:
+        with patch("warden.api.ws_stream.get_cached", return_value=_json.dumps(cached_resp)), ws_client.websocket_connect("/ws/filter") as ws:
             _send(ws, _SAFE_PAYLOAD)
             msgs = _collect_until(ws, {"done", "error"})
 

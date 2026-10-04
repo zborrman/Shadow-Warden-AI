@@ -17,6 +17,21 @@ class RiskLevel(StrEnum):
     BLOCK  = "block"
 
 
+#: Ascending severity. `max_risk` reads its index, so the order here *is* the
+#: definition of "worse" — append, never insert, or every comparison shifts.
+RISK_ORDER = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.BLOCK]
+
+
+def max_risk(a: RiskLevel, b: RiskLevel) -> RiskLevel:
+    """The more severe of two risk levels.
+
+    Lived in `main.py`, which meant anything outside main that needed to combine
+    two stage verdicts either imported main (an import cycle) or re-derived the
+    ordering. It belongs beside the enum whose ordering it encodes.
+    """
+    return a if RISK_ORDER.index(a) >= RISK_ORDER.index(b) else b
+
+
 class FlagType(StrEnum):
     SECRET_DETECTED    = "secret_detected"
     PROMPT_INJECTION   = "prompt_injection"
