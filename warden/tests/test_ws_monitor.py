@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import time
 
 import pytest
@@ -291,8 +292,6 @@ class TestListenerLifecycle:
 
     async def test_no_thread_is_left_running(self, monkeypatch, _auth_on, _owned, _fast_idle):
         """Count threads, not just cleanup calls — the leak was a thread."""
-        import threading
-
         fake = _FakeRedis([])
         monkeypatch.setattr(ws_stream, "_get_redis", lambda: fake)
         before = threading.active_count()
@@ -318,21 +317,102 @@ class TestListenerLifecycle:
         assert "stop.set()" in code, "nothing signals the reader thread to stop"
 
 
+class _GatedWebSocket(_FakeWebSocket):
+    """Stalls the consumer after its first send so the queue can actually fill.
+
+    The first version of the backpressure test fed 150 messages to a 100-slot
+    queue but let the consumer drain as fast as the producer pushed, so the
+    queue probably never filled — and its only assertion was that the pubsub
+    got cleaned up, which is true whether or not anything overflowed. It would
+    have passed against a reintroduced `QueueFull`. Blocking the consumer is
+    what makes the overflow happen on purpose instead of by luck.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(disconnect_after=10 ** 6)   # never self-disconnect
+        self.release = asyncio.Event()
+        self._stalled = False
+
+    async def send_text(self, data: str) -> None:
+        self.sent_text.append(data)
+        if not self._stalled:
+            self._stalled = True
+            await self.release.wait()
+
+
+class _CountingPubSub(_FakePubSub):
+    """Signals once every queued message has been handed to the handler."""
+
+    def __init__(self, messages: list[dict]) -> None:
+        super().__init__(messages)
+        self.drained = threading.Event()
+
+    def get_message(self, timeout: float = 0.0):
+        if self._messages:
+            msg = self._messages.pop(0)
+            if not self._messages:
+                self.drained.set()
+            return msg
+        time.sleep(0.01)
+        return None
+
+
 class TestBackpressure:
-    async def test_a_full_queue_drops_instead_of_raising(
+    async def test_a_full_queue_drops_the_oldest_and_never_raises(
         self, monkeypatch, _auth_on, _owned, _fast_idle
     ):
-        """QueueFull inside a call_soon_threadsafe callback reaches nobody."""
-        fake = _FakeRedis([_msg({**_RESULT, "status_code": n}) for n in range(150)])
+        """
+        The queue holds 100. Push 150 past a stalled consumer and the overflow
+        is forced, not hoped for.
+
+        Two things are asserted that the old version could not see: that nothing
+        reached the event loop's exception handler (a `QueueFull` from inside
+        `call_soon_threadsafe` lands there and nowhere else), and that the
+        readings which survived are the **newest** ones — drop-oldest inverted
+        would keep the stale head and silently lose the live reading.
+        """
+        loop_errors: list[dict] = []
+        asyncio.get_running_loop().set_exception_handler(
+            lambda _loop, ctx: loop_errors.append(ctx)
+        )
+
+        fake = _FakeRedis()
+        fake.ps = _CountingPubSub([_msg({**_RESULT, "status_code": n}) for n in range(150)])
         monkeypatch.setattr(ws_stream, "_get_redis", lambda: fake)
-        # Never drains: every send disconnects only after 200, so the 100-slot
-        # queue overflows while the consumer is still alive.
-        ws = _FakeWebSocket(disconnect_after=200)
+        ws = _GatedWebSocket()
 
-        await _call_with_key(ws_stream, ws, _CHANNEL_ID, "monitor-test-key")
+        task = asyncio.create_task(
+            _call_with_key(ws_stream, ws, _CHANNEL_ID, "monitor-test-key")
+        )
+
+        # Let the producer run dry while the consumer is held at its first send.
+        deadline = time.time() + 10
+        while not fake.ps.drained.is_set() and time.time() < deadline:
+            await asyncio.sleep(0.01)
+        assert fake.ps.drained.is_set(), "the producer never delivered its backlog"
+        await asyncio.sleep(0.1)          # drain the queued call_soon callbacks
+        ws.release.set()
+        await task
+
+        codes = [json.loads(t)["status_code"] for t in ws.sent_text]
+
+        assert loop_errors == [], (
+            f"an exception reached the event loop: {loop_errors}"
+        )
+        assert codes, "nothing was delivered at all"
+        assert codes == sorted(codes), "readings arrived out of order"
+        assert codes[-1] == 149, (
+            "the newest reading was dropped — drop-oldest is inverted, which "
+            "keeps a stale backlog and discards the live value"
+        )
+        assert len(codes) < 150, (
+            "nothing was dropped, so the 100-slot cap never applied and this "
+            "test no longer exercises overflow"
+        )
+        assert len(codes) >= 100, (
+            f"dropped more than the cap required: kept only {len(codes)}"
+        )
         _await_listener_exit(fake.ps)
-
-        # The point is that nothing raised out of the loop callback.
         assert fake.ps.closed
 
 
