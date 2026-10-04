@@ -626,7 +626,7 @@ Built-in SaaS monitoring for HTTP, SSL, DNS, and TCP checks.
 - TimescaleDB hypertable with 1-day chunks, BRIN + composite indexes
 - Continuous aggregate `probe_hourly` (30-min refresh) for uptime % + avg latency
 - 90% columnar compression after 7 days; 30-day raw retention; 2-year aggregate retention
-- Real-time WebSocket push: `/ws/monitor/{id}` via Redis Pub/Sub → asyncio.Queue
+- Real-time WebSocket push: `/ws/monitor/{id}?key=<api_key>` via Redis Pub/Sub → asyncio.Queue (tenant-scoped, SR-9)
 
 **8 endpoints at `/monitors/*`:** create, list, get, patch, delete,
 `/status`, `/uptime?hours=N`, `/history?limit=N`.
