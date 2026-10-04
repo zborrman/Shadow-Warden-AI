@@ -39,6 +39,7 @@ import contextlib
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 
@@ -267,14 +268,71 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
     """
     Subscribe to real-time probe results for a monitor.
 
-    Connect:  ws://host/ws/monitor/<uuid>
+    Connect:  ws://host/ws/monitor/<uuid>?key=<api_key>
     Receives: {"is_up": bool, "latency_ms": float, "status_code": int,
                "error": str|null, "ts": "ISO8601"}
 
-    Uses a queue bridge: sync Redis pubsub runs in a thread executor,
-    forwarding messages to an asyncio.Queue consumed by the WebSocket sender.
+    Authentication (SR-9)
+    ─────────────────────
+    This route accepted **any** connection until now: it took no key, checked no
+    tenant, and streamed a monitor's probe results to whoever held its id, while
+    both sibling sockets in this module gated on `?key=`. Nothing was reading for
+    it either — `test_anonymous_route_audit.py` is a curated list of HTTP paths
+    and contains no socket.
+
+    Two checks now run before anything is subscribed: `require_api_key` on the
+    same `?key=` param the siblings use, then the tenant-ownership query every
+    REST `/monitors/{id}` route already applies. Ownership **fails CLOSED** — if
+    the lookup itself errors, the connection is refused, because an authorization
+    check that cannot run has not passed (same rule as `warden/sac/guard.py` and
+    `secret_keys.resolve_key`).
+
+    Listener lifecycle (SR-10)
+    ──────────────────────────
+    The reader thread blocked in `pubsub.listen()` and nothing ever told it to
+    stop. The handler returns on client disconnect **and on its 30s idle
+    timeout**, so an idle monitor stranded a subscribed thread plus a Redis
+    connection for the life of the process — no disconnect required. Once the
+    queue filled, every later `put_nowait` raised `QueueFull` inside a
+    `call_soon_threadsafe` callback, where nothing catches it, per message,
+    forever. It is now a `threading.Event` + polling `get_message()` loop that
+    the handler's `finally` stops, and the queue drops its oldest reading rather
+    than raising into the loop.
     """
     await websocket.accept()
+
+    # ── 1. Authenticate, exactly as /ws/stream and /ws/filter do ──────────────
+    api_key = websocket.query_params.get("key", "") or None
+    try:
+        auth = require_api_key(api_key)
+    except HTTPException as exc:
+        await websocket.send_json({"error": exc.detail, "code": exc.status_code})
+        await websocket.close(code=1008)   # Policy Violation
+        return
+
+    # ── 2. Authorize: the caller's tenant must own this monitor ───────────────
+    # Imported here, not at module scope, on purpose: `register_router_safe`
+    # swallows every exception, so a top-level import of the DB-backed monitor
+    # router would let a sqlalchemy problem silently unmount this whole module —
+    # taking /ws/stream and /ws/filter, two core product paths, with it. Lazy
+    # keeps a database dependency's blast radius inside the one handler that
+    # needs a database.
+    try:
+        from warden.api.monitor import _get_monitor
+        await _get_monitor(monitor_id, auth.tenant_id)
+    except HTTPException as exc:
+        # 404 from the ownership query: no such monitor, or not this tenant's.
+        # Reported as-is — "not found" is already the non-disclosing answer, and
+        # the REST routes say the same thing for the same case.
+        await websocket.send_json({"error": exc.detail, "code": exc.status_code})
+        await websocket.close(code=1008)
+        return
+    except Exception as exc:
+        log.warning("ws_monitor: ownership check failed, refusing — %r", exc)
+        await websocket.send_json({"error": "Authorization unavailable.", "code": 503})
+        await websocket.close(code=1011)   # Internal error
+        return
+
     r = _get_redis()
     if r is None:
         await websocket.send_json({"error": "Redis unavailable"})
@@ -284,21 +342,39 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
     channel = f"monitor:{monitor_id}:result"
     loop = asyncio.get_running_loop()
+    stop = threading.Event()
+
+    def _enqueue(data: str) -> None:
+        # A full queue means the client is not draining. Drop the oldest reading
+        # instead of raising QueueFull inside a loop callback, where nothing
+        # catches it: a probe result is a snapshot, so the newest is the useful
+        # one and a stale backlog is worth less than a live reading.
+        if queue.full():
+            with contextlib.suppress(asyncio.QueueEmpty):
+                queue.get_nowait()
+        with contextlib.suppress(asyncio.QueueFull):
+            queue.put_nowait(data)
 
     def _listen() -> None:
         pubsub = r.pubsub()
-        pubsub.subscribe(channel)
         try:
-            for msg in pubsub.listen():
-                if msg["type"] == "message":
-                    loop.call_soon_threadsafe(queue.put_nowait, msg["data"])
+            # Inside the try: a failing subscribe must still reach the cleanup.
+            pubsub.subscribe(channel)
+            while not stop.is_set():
+                # Polling, not listen(): a blocking generator cannot be told to
+                # stop, which is the whole of SR-10. 1s is the worst-case delay
+                # between the handler returning and this thread noticing.
+                msg = pubsub.get_message(timeout=1.0)
+                if msg and msg["type"] == "message":
+                    loop.call_soon_threadsafe(_enqueue, msg["data"])
         except Exception as _exc:  # noqa: BLE001
             log.debug("suppressed exception: %r", _exc)
         finally:
             with contextlib.suppress(Exception):
                 pubsub.unsubscribe(channel)
+            with contextlib.suppress(Exception):
+                pubsub.close()
 
-    import threading
     _t = threading.Thread(target=_listen, daemon=True)
     _t.start()
 
@@ -310,6 +386,9 @@ async def ws_monitor_stream(websocket: WebSocket, monitor_id: str):
         pass
     except Exception as exc:
         log.debug("ws_monitor: error — %s", exc)
+    finally:
+        # The only thing that stops the reader thread. Every exit path reaches it.
+        stop.set()
 
 
 # ── WebSocket /ws/filter — per-stage streaming ───────────────────────────────
