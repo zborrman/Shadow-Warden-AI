@@ -74,14 +74,14 @@ def test_buckets_can_resolve_a_single_digit_millisecond_claim():
 
 class TestTheObserverMovesTheMetric:
     def test_a_timings_dict_lands_in_the_histogram(self):
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         before = _count_for("topology")
         _observe_stage_timings({"topology": 1.5, "ml": 8.0, "total": 12.0})
         assert _count_for("topology") == before + 1
 
     def test_every_stage_gets_its_own_series(self):
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         before = {s: _count_for(s) for s in ("obfuscation", "redaction", "rules")}
         _observe_stage_timings({"obfuscation": 0.4, "redaction": 2.0, "rules": 0.9})
@@ -92,7 +92,7 @@ class TestTheObserverMovesTheMetric:
         """A histogram in the wrong unit is worse than none: it reads plausible."""
         from prometheus_client import REGISTRY
 
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         _observe_stage_timings({"unit_probe": 2.0})
         sums = _samples("warden_filter_stage_duration_seconds_sum")
@@ -108,7 +108,7 @@ class TestTheObserverMovesTheMetric:
         registration would have passed on the day it was still a ghost, so this
         checks the observer moves it.
         """
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         key: tuple[tuple[str, str], ...] = (("le", "+Inf"), ("source", "filter"))
         before = _samples("warden_filter_duration_seconds_bucket").get(key, 0.0)
@@ -117,7 +117,7 @@ class TestTheObserverMovesTheMetric:
         assert after == before + 1, "the SLA metric did not record the request"
 
     def test_the_sla_metric_is_in_seconds_too(self):
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         key: tuple[tuple[str, str], ...] = (("source", "sla_unit_probe"),)
         _observe_stage_timings({"total": 12.0}, "sla_unit_probe")
@@ -126,7 +126,7 @@ class TestTheObserverMovesTheMetric:
 
     def test_total_does_not_also_land_in_the_per_stage_series(self):
         """A total among the stages would dwarf every real one."""
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         before = _count_for("total")
         _observe_stage_timings({"total": 99.0})
@@ -138,7 +138,7 @@ class TestTheObserverMovesTheMetric:
         /ws/stream socket. Unlabelled, a socket burst would land in a panel
         titled "/filter" and read as REST latency.
         """
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         before_rest = _count_for("topology", "filter")
         before_ws = _count_for("topology", "ws")
@@ -160,7 +160,7 @@ class TestTheObserverMovesTheMetric:
     )
     def test_a_malformed_timings_dict_never_raises(self, timings):
         """Instrumentation must never be able to fail a filter decision."""
-        from warden.main import _observe_stage_timings
+        from warden.metrics import observe_stage_timings as _observe_stage_timings
 
         _observe_stage_timings(timings)  # must not raise
 
@@ -174,32 +174,57 @@ class TestThePipelineIsWired:
     these read the call sites rather than trusting that they exist.
     """
 
-    def _source(self) -> str:
+    # Every file that finalises a timings dict. `/ws/filter` builds its own,
+    # stage by stage, and it moved to warden/api/ws_stream.py in P-2 — scanning
+    # main.py alone would have quietly stopped covering it.
+    _CALL_SITES = ("main.py", "api/ws_stream.py")
+
+    def _source(self, rel: str = "main.py") -> str:
         from pathlib import Path
 
-        return (Path(__file__).resolve().parents[1] / "main.py").read_text(
+        return (Path(__file__).resolve().parents[1] / rel).read_text(
             encoding="utf-8", errors="ignore"
         )
 
     def test_every_finalised_timings_dict_is_observed(self):
-        src = self._source().splitlines()
-        finalisers = [
-            n for n, line in enumerate(src)
-            if 'timings["total"] =' in line
-        ]
-        assert finalisers, "no filter path finalises a timings dict — re-check this guard"
-        for n in finalisers:
-            following = "".join(src[n + 1 : n + 3])
-            assert "_observe_stage_timings(timings" in following, (
-                f"main.py:{n + 1} finalises timings without observing them"
-            )
+        seen = 0
+        for rel in self._CALL_SITES:
+            src = self._source(rel).splitlines()
+            finalisers = [
+                n for n, line in enumerate(src)
+                if 'timings["total"] =' in line
+            ]
+            for n in finalisers:
+                following = "".join(src[n + 1 : n + 3])
+                assert "_observe_stage_timings(timings" in following, (
+                    f"{rel}:{n + 1} finalises timings without observing them"
+                )
+            seen += len(finalisers)
+        assert seen >= 3, (
+            f"only {seen} filter paths finalise a timings dict — REST /filter, the "
+            "batch/multimodal path and /ws/filter each have one, so a drop means a "
+            "call site moved and this guard stopped following it"
+        )
 
     def test_the_helper_is_imported_from_the_shared_registry(self):
         """
         warden/metrics.py exists so a metric is registered once per process.
-        Instantiating a Histogram in main.py would raise "Duplicated timeseries"
-        on the second import under pytest.
+        Instantiating a Histogram in a request module would raise "Duplicated
+        timeseries" on the second import under pytest.
+
+        P-2 moved the observer itself into warden/metrics.py, beside the
+        histograms it writes, so `/ws/filter` could record without importing
+        main. Neither module names the histogram or a local copy of the observer
+        any more — only the import and the call sites — which is what this test
+        always meant to assert.
         """
-        src = self._source()
-        assert "FILTER_STAGE_DURATION_SECONDS" in src
-        assert 'Histogram(\n            "warden_filter_stage_duration_seconds"' not in src
+        for rel in self._CALL_SITES:
+            src = self._source(rel)
+            assert "observe_stage_timings" in src, (
+                f"{rel} no longer imports the observer — its per-stage timings "
+                "would go unrecorded"
+            )
+            assert "Histogram(" not in src, (
+                f"{rel} instantiates a Histogram: register it in warden/metrics.py, "
+                "or the second import under pytest raises Duplicated timeseries"
+            )

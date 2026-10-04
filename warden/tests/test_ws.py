@@ -105,7 +105,10 @@ class TestWsAuth:
 class TestWsInputValidation:
     def test_payload_too_large(self, ws_client, monkeypatch):
         """Payloads exceeding WS_MAX_PAYLOAD_BYTES get a 413 error."""
-        import warden.main as m
+        # P-2: the websocket handlers moved to warden/api/ws_stream.py, so these
+        # module globals moved with them. Patching warden.main would still
+        # succeed and change nothing — the handler reads its own module.
+        import warden.api.ws_stream as m
         monkeypatch.setattr(m, "_WS_MAX_PAYLOAD", 10)  # 10 bytes — always triggers
 
         with ws_client.websocket_connect("/ws/stream") as ws:
@@ -201,7 +204,10 @@ class TestWsFilterPipeline:
 class TestWsLlmStreaming:
     def test_llm_not_configured_returns_503(self, ws_client, monkeypatch):
         """If LLM_BASE_URL/LLM_API_KEY are empty, the endpoint returns 503."""
-        import warden.main as m
+        # P-2: the websocket handlers moved to warden/api/ws_stream.py, so these
+        # module globals moved with them. Patching warden.main would still
+        # succeed and change nothing — the handler reads its own module.
+        import warden.api.ws_stream as m
         monkeypatch.setattr(m, "_LLM_BASE_URL", "")
         monkeypatch.setattr(m, "_LLM_API_KEY",  "")
 
@@ -218,7 +224,10 @@ class TestWsLlmStreaming:
         """When LLM backend is mocked, token events are forwarded to the client."""
         import httpx
 
-        import warden.main as m
+        # P-2: the websocket handlers moved to warden/api/ws_stream.py, so these
+        # module globals moved with them. Patching warden.main would still
+        # succeed and change nothing — the handler reads its own module.
+        import warden.api.ws_stream as m
 
         monkeypatch.setattr(m, "_LLM_BASE_URL", "http://fake-llm")
         monkeypatch.setattr(m, "_LLM_API_KEY",  "fake-key")
@@ -284,7 +293,10 @@ class TestWsLlmStreaming:
         """Non-200 from LLM backend produces an error event."""
         import httpx
 
-        import warden.main as m
+        # P-2: the websocket handlers moved to warden/api/ws_stream.py, so these
+        # module globals moved with them. Patching warden.main would still
+        # succeed and change nothing — the handler reads its own module.
+        import warden.api.ws_stream as m
 
         monkeypatch.setattr(m, "_LLM_BASE_URL", "http://fake-llm")
         monkeypatch.setattr(m, "_LLM_API_KEY",  "fake-key")

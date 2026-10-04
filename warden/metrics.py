@@ -1277,3 +1277,49 @@ except ImportError:
     FILTER_DURATION_SECONDS         = cast("Histogram", _Noop())
     POISON_EMBEDDING_REUSE_TOTAL    = cast("Counter", _Noop())
     ADV_SUFFIX_STRIP_TOTAL          = cast("Counter", _Noop())
+
+
+def observe_stage_timings(timings: dict[str, float], source: str = "filter") -> None:
+    """
+    Aggregate one request's per-stage timings into the Prometheus histograms.
+
+    The pipeline has always measured these — each stage writes its own key into
+    `timings`, which is returned to the caller as `processing_ms` — but the
+    numbers lived for the length of one response and nowhere else. The site
+    meanwhile published a figure for every stage (`<2ms` topology, `<8ms`
+    brain), and `docs/capability-matrix.md` ruled them UNMEASURED because
+    nothing stood behind them. This is what makes them measurable.
+
+    Lives here rather than in `main.py` (where it was written) so that the
+    non-REST entry points can record too without importing `main`: the `/ws/filter`
+    socket moved to `warden/api/ws_stream.py` in P-2, and a websocket that
+    reached back into `main` for its observer would be the import cycle the
+    runtime seam exists to prevent. Beside the histograms it writes is also the
+    only place a reader can check the label sets agree.
+
+    `source` is the entry point the timings came from — the filter pipeline
+    serves REST `/filter`, the batch and multimodal routes and the `/ws/stream`
+    socket, and without the label a WebSocket burst would land in a panel
+    labelled `/filter` and read as REST latency.
+
+    Cannot raise, by construction rather than by `except Exception`: the label
+    must be a string and the value a real number, and both are checked here.
+    A blanket suppression would have been the easy way to promise the same
+    thing, and `test_no_new_suppressions` is right to refuse it — a swallowed
+    error in the observer is how a metric silently stops recording.
+    """
+    for stage, ms in timings.items():
+        if not isinstance(stage, str):
+            continue
+        if isinstance(ms, bool) or not isinstance(ms, (int, float)):
+            continue
+        if ms != ms or ms in (float("inf"), float("-inf")):   # NaN or infinity
+            continue
+        seconds = float(ms) / 1000.0
+        if stage == "total":
+            # The pipeline's own end-to-end time — the metric docs/sla.md names
+            # as evidence for its objectives. Kept out of the per-stage series,
+            # where a total would dwarf every real stage.
+            FILTER_DURATION_SECONDS.labels(source=source).observe(seconds)
+            continue
+        FILTER_STAGE_DURATION_SECONDS.labels(stage=stage, source=source).observe(seconds)
