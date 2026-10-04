@@ -124,7 +124,13 @@ def _code_of(fn) -> str:
     import textwrap
 
     tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
-    body = tree.body[0].body
+    func = tree.body[0]
+    # Narrowed rather than ignored: `tree.body[0]` is an `ast.stmt`, which has no
+    # `.body`, and mypy is right to say so. An assert also means a caller that
+    # passes something other than a function fails here instead of silently
+    # comparing against an empty string, which every `in` check would pass.
+    assert isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)), fn
+    body: list[ast.stmt] = func.body
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
         body = body[1:]
     return "\n".join(ast.unparse(node) for node in body)
