@@ -58,6 +58,11 @@ class Runtime:
         "tenant_guard",         # callable: tenant_id -> BrainSemanticGuard
         "filter_orchestrator",  # callable: the /filter pipeline itself
         "dynamic_regex_rules",  # list[dict]: hot-reloaded AI-generated rules
+        # Callables main owns and shares with the extracted /filter routes (P-2).
+        # `spawn_task` registers into main's live-task set so shutdown can await
+        # them, so it cannot simply be copied into the router.
+        "spawn_task",           # callable: fire-and-forget task with tracking
+        "ship_bypass",          # callable: best-effort SIEM ship for bypasses
     )
 
     def __init__(self) -> None:

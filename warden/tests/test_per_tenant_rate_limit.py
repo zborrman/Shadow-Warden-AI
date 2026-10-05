@@ -137,14 +137,17 @@ class TestTenantLimitFunc:
     named 'key' — see LimitGroup.__iter__ in slowapi/wrappers.py.
     """
 
+    # `tenant_limit` is imported from warden.limiter, its real home. main.py
+    # re-exported it only for the /filter routes, which moved to
+    # warden/api/filter.py in P-2; the re-export went with them.
     def test_returns_default_for_unknown_key(self):
         from warden.auth_guard import _DEFAULT_KEY_RATE
-        from warden.main import _tenant_limit
+        from warden.limiter import tenant_limit as _tenant_limit
         assert _tenant_limit("unknown-xyz") == f"{_DEFAULT_KEY_RATE}/minute"
 
     def test_returns_default_for_ip_fallback(self):
         from warden.auth_guard import _DEFAULT_KEY_RATE
-        from warden.main import _tenant_limit
+        from warden.limiter import tenant_limit as _tenant_limit
         assert _tenant_limit("192.168.1.1") == f"{_DEFAULT_KEY_RATE}/minute"
 
     def test_returns_configured_rate_for_known_key(self, monkeypatch, tmp_path):
@@ -163,12 +166,12 @@ class TestTenantLimitFunc:
         monkeypatch.setattr(auth_guard, "_key_store", [])
         monkeypatch.setattr(auth_guard, "_key_store_loaded", False)
 
-        from warden.main import _tenant_limit
+        from warden.limiter import tenant_limit as _tenant_limit
         assert _tenant_limit(raw_key) == "300/minute"
 
     def test_format_is_slowapi_compatible(self):
         """Verify the string matches the `N/minute` format slowapi expects."""
-        from warden.main import _tenant_limit
+        from warden.limiter import tenant_limit as _tenant_limit
         result = _tenant_limit("")
         parts = result.split("/")
         assert len(parts) == 2

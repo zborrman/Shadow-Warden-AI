@@ -48,18 +48,30 @@ class FilterPipeline:
         auth: AuthResult,
         background_tasks: BackgroundTasks | None = None,
         client_ip: str = "",
+        source: str = "filter",
     ) -> FilterResponse:
         """Run the full pipeline and return a FilterResponse.
 
         Fails closed: if no orchestrator is published (app not booted), raises
         PipelineUnavailableError rather than silently allowing the request.
+
+        ``source`` names the entry point for the latency histogram. The facade
+        shipped without it, which is why only the two callers that wanted the
+        default ("/filter" and "/ext/filter") could adopt it — `/demo/filter`,
+        `/filter/batch` and `/filter/multimodal` each pass their own source and
+        had to keep calling the orchestrator directly. Routing them through a
+        facade that dropped the argument would have relabelled all three as REST
+        `filter` traffic in `warden_filter_stage_duration_seconds`, which is the
+        exact confusion the label exists to prevent.
         """
         orchestrator: Any = runtime.get(_ORCHESTRATOR_SLOT)
         if orchestrator is None:
             raise PipelineUnavailableError(
                 "filter orchestrator not published to runtime — app not started"
             )
-        return await orchestrator(payload, request_id, auth, background_tasks, client_ip)
+        return await orchestrator(
+            payload, request_id, auth, background_tasks, client_ip, source
+        )
 
 
 def is_available() -> bool:
