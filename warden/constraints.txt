@@ -111,7 +111,7 @@ faster-whisper==1.2.1
 filelock==3.29.0
 flatbuffers==25.12.19
 frozenlist==1.8.0
-fsspec==2026.4.0
+fsspec==2026.9.0
 gitdb==4.0.12
 # 3.1.50 carried 8 fixable HIGH advisories (command injection via unguarded git
 # options in Repo.archive()/git.ls_remote(); arbitrary file overwrite via
