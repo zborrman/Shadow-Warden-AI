@@ -63,6 +63,11 @@ class Runtime:
         # them, so it cannot simply be copied into the router.
         "spawn_task",           # callable: fire-and-forget task with tracking
         "ship_bypass",          # callable: best-effort SIEM ship for bypasses
+        # Read by the pipeline body in warden/services/filter_orchestrator.py (P-2).
+        # The other fourteen singletons it needs were already published; these two
+        # were only ever read from inside main, so nothing had required them here.
+        "honey_engine",         # HoneyEngine — fake-secret honeytraps
+        "session_guard",        # SessionGuard — cross-request session risk
     )
 
     def __init__(self) -> None:
