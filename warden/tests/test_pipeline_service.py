@@ -23,14 +23,39 @@ async def test_run_delegates_to_published_orchestrator():
 
     seen = {}
 
-    async def fake_orchestrator(payload, rid, auth, bg, ip):
-        seen.update(payload=payload, rid=rid, auth=auth, bg=bg, ip=ip)
+    async def fake_orchestrator(payload, rid, auth, bg, ip, source):
+        seen.update(payload=payload, rid=rid, auth=auth, bg=bg, ip=ip, source=source)
         return "RESULT"
 
     runtime.publish(filter_orchestrator=fake_orchestrator)
     out = await FilterPipeline().run("P", "rid-1", "AUTH", None, "1.2.3.4")
     assert out == "RESULT"
-    assert seen == {"payload": "P", "rid": "rid-1", "auth": "AUTH", "bg": None, "ip": "1.2.3.4"}
+    assert seen == {"payload": "P", "rid": "rid-1", "auth": "AUTH", "bg": None,
+                    "ip": "1.2.3.4", "source": "filter"}
+
+
+@pytest.mark.asyncio
+async def test_run_forwards_the_source_label():
+    """`source` is why three routes could not adopt this facade (P-2).
+
+    It names the entry point for `warden_filter_stage_duration_seconds`.
+    `/demo/filter`, `/filter/batch` and `/filter/multimodal` each pass their own;
+    a facade that accepted the argument and dropped it would relabel all three as
+    REST `filter` traffic, which is the confusion the label exists to prevent.
+    """
+    from warden.runtime import runtime
+    from warden.services.pipeline import FilterPipeline
+
+    seen = {}
+
+    async def fake_orchestrator(payload, rid, auth, bg, ip, source):
+        seen["source"] = source
+        return "RESULT"
+
+    runtime.publish(filter_orchestrator=fake_orchestrator)
+    for label in ("demo", "batch", "multimodal"):
+        await FilterPipeline().run("P", "rid", "AUTH", None, "", source=label)
+        assert seen["source"] == label, f"facade dropped source={label!r}"
 
 
 @pytest.mark.asyncio

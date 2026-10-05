@@ -106,7 +106,9 @@ def test_no_content_bearing_field_was_added():
 
 def test_the_filter_handler_passes_every_new_field():
     """A field added to the builder and never passed is a field that stays absent."""
-    import warden.main as m
+    # P-2 inc. 6: the pipeline body moved to warden/services/filter_orchestrator.py. Scanning main.py would find no `_stage_scores` table at all and
+    # the split below would IndexError rather than assert anything useful.
+    import warden.services.filter_orchestrator as m
 
     src = inspect.getsource(m)
     # The handler collects these by name into `_stage_scores` and splats that

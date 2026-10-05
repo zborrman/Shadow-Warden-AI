@@ -174,10 +174,14 @@ class TestThePipelineIsWired:
     these read the call sites rather than trusting that they exist.
     """
 
-    # Every file that finalises a timings dict. `/ws/filter` builds its own,
-    # stage by stage, and it moved to warden/api/ws_stream.py in P-2 — scanning
-    # main.py alone would have quietly stopped covering it.
-    _CALL_SITES = ("main.py", "api/ws_stream.py")
+    # Every file that finalises a timings dict, and nothing else. Both entries
+    # have moved during P-2: `/ws/filter` left main.py for api/ws_stream.py
+    # (inc. 4), then the pipeline body left for services/filter_orchestrator.py
+    # (inc. 6). main.py now finalises no timings and imports no observer, so
+    # listing it would assert the opposite of the truth. A guard pinned to one
+    # file stops covering the code it was written for the moment that code moves
+    # — which is why this list is asserted against a minimum count below.
+    _CALL_SITES = ("api/ws_stream.py", "services/filter_orchestrator.py")
 
     def _source(self, rel: str = "main.py") -> str:
         from pathlib import Path

@@ -119,12 +119,16 @@ def test_redis_error_fail_open():
 
 
 # ── Integration: 429 raised when limit exceeded ───────────────────────────────
+#
+# P-2 moved the /filter group to warden/api/filter.py, which imports
+# check_tenant_rate_limit itself. Patching warden.main would still succeed and
+# change nothing — the route reads its own module's binding.
 
 @pytest.mark.integration
 @pytest.mark.slow
 def test_filter_returns_429_when_tenant_rate_exceeded(client):
     """The /filter endpoint must return 429 when check_tenant_rate_limit is True."""
-    with patch("warden.main.check_tenant_rate_limit", return_value=True):
+    with patch("warden.api.filter.check_tenant_rate_limit", return_value=True):
         resp = client.post("/filter", json={"content": "hello", "tenant_id": "trial"})
     assert resp.status_code == 429
     assert "rate limit" in resp.json()["detail"].lower()
@@ -134,6 +138,6 @@ def test_filter_returns_429_when_tenant_rate_exceeded(client):
 @pytest.mark.slow
 def test_filter_passes_when_tenant_rate_ok(client):
     """Normal requests must not be affected when rate limit is not exceeded."""
-    with patch("warden.main.check_tenant_rate_limit", return_value=False):
+    with patch("warden.api.filter.check_tenant_rate_limit", return_value=False):
         resp = client.post("/filter", json={"content": "What is 2+2?", "tenant_id": "acme"})
     assert resp.status_code == 200

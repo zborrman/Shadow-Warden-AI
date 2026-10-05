@@ -58,8 +58,34 @@ def _body_model(path: str):
     """The Pydantic model FastAPI will actually validate this route's body with."""
     from warden.main import app
 
-    for route in app.routes:
-        if getattr(route, "path", None) == path and "POST" in getattr(route, "methods", ()):
+    def _walk(routes, prefix=""):
+        """Yield (full_path, route), descending into included routers.
+
+        Under starlette>=1.0 `include_router` leaves a lazy
+        `fastapi.routing._IncludedRouter` node in `app.routes` instead of
+        expanding the sub-routes into it, with the real ones on
+        `.original_router` and the prefix on `.include_context`. This helper
+        used to scan `app.routes` flat, which worked only while `/filter` and
+        `/filter/batch` were inline `@app.post` routes — P-2 moved them into
+        `warden/api/filter.py` and the lookup returned None, so the test failed
+        rather than silently checking nothing (its own assertion says why).
+        Same traversal as `test_route_inventory.py::_record`.
+        """
+        for route in routes:
+            if type(route).__name__ == "_IncludedRouter":
+                ctx = getattr(route, "include_context", None)
+                orig = getattr(route, "original_router", None)
+                if orig is not None:
+                    yield from _walk(orig.routes, prefix + (getattr(ctx, "prefix", "") or ""))
+                continue
+            sub = getattr(route, "routes", None)
+            if getattr(route, "endpoint", None) is None and sub:
+                yield from _walk(sub, prefix)
+                continue
+            yield prefix + (getattr(route, "path", "") or ""), route
+
+    for full_path, route in _walk(app.routes):
+        if full_path == path and "POST" in (getattr(route, "methods", None) or ()):
             field = getattr(route, "body_field", None)
             if field is None:
                 continue

@@ -141,24 +141,28 @@ def test_ws_events_accepts_valid_key(_authed_client):
 # ── the producer is actually wired ───────────────────────────────────────────
 
 
-def test_main_feeds_the_router_not_a_local_bus():
+def test_the_pipeline_feeds_the_router_not_a_local_bus():
     """
     The filter pipeline must broadcast into the module that owns the live
     endpoint. Feeding a main.py-local bus is what broke this before.
     """
     import inspect
 
-    import warden.main as m
+    import warden.main as main_mod
+    import warden.services.filter_orchestrator as orch
 
-    src = inspect.getsource(m)
-    assert "_ws_broadcast_event(" in src, (
-        "main.py no longer calls warden.api.ws_events.broadcast_event — the "
-        "/ws/events stream would have no producer."
+    # P-2 inc. 6 moved the pipeline body (the producer) out of main.py. The
+    # producer assertion follows it; the no-local-bus assertion covers BOTH,
+    # because a local _EventBus reintroduced in either file has the same effect.
+    assert "_ws_broadcast_event(" in inspect.getsource(orch), (
+        "the filter pipeline no longer calls warden.api.ws_events.broadcast_event "
+        "— the /ws/events stream would have no producer."
     )
-    assert "_event_bus" not in src, (
-        "main.py reintroduced a local _EventBus. Its only possible consumer is "
-        "an inline /ws/events handler, which the mounted router shadows."
-    )
+    for mod in (main_mod, orch):
+        assert "_event_bus" not in inspect.getsource(mod), (
+            f"{mod.__name__} reintroduced a local _EventBus. Its only possible "
+            "consumer is an inline /ws/events handler, which the router shadows."
+        )
 
 
 @pytest.mark.asyncio

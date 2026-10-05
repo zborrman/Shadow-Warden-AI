@@ -50,9 +50,11 @@ _BASELINE_REASONS = {
     "warden/brain/nemotron_client.py":
         "resp.text of a 4xx from NVIDIA NIM - a third-party error body, not our "
         "request. Worth revisiting: a validation error can echo the input back.",
-    "warden/main.py":
+    "warden/services/filter_orchestrator.py":
         "dyn_rule.snippet is the first 60 chars of the Evolution Engine's own "
-        "regex pattern (see the field's comment at main.py:331), not user text.",
+        "regex pattern - the field is declared in main.py with that comment, and "
+        "_DynamicRegexRule stays there while the pipeline body that logs it moved "
+        "here in P-2 inc. 6. Not user text.",
     "warden/rag_evolver.py":
         "the platform LLM's proposed-rule output when it fails to parse as JSON, "
         "at DEBUG. Generated rule text, not customer content.",
