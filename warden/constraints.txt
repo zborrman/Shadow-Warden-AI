@@ -140,7 +140,7 @@ httpx==0.28.1
 huggingface_hub==1.32.0
 idna==3.18
 imagesize==2.0.0
-importlib_metadata==9.0.0
+importlib_metadata==9.0.1
 iniconfig==2.3.0
 ipfshttpclient==0.8.0a2
 isodate==0.7.2
