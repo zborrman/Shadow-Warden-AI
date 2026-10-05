@@ -156,7 +156,7 @@ class TestTheEncodeIsSkipped:
     def test_main_passes_the_vector_across(self):
         from pathlib import Path
 
-        src = (Path(__file__).resolve().parents[1] / "main.py").read_text(
+        src = (Path(__file__).resolve().parents[1] / "services" / "filter_orchestrator.py").read_text(
             encoding="utf-8", errors="ignore"
         )
         # Assert the wiring, not its spelling. The first version of this guard
@@ -166,7 +166,7 @@ class TestTheEncodeIsSkipped:
         # reproduced in a test written to prevent it.
         import re
 
-        call = re.search(r"_poison_guard\.check_async\((.*?)\n\s*\)", src, re.S)
+        call = re.search(r"poison_guard\.check_async\((.*?)\n\s*\)", src, re.S)
         assert call, "the poison guard call site is gone — re-check this guard"
         args = call.group(1)
         assert re.search(r"embedding\s*=", args), (

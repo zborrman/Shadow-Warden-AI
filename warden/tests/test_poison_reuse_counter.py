@@ -25,7 +25,8 @@ import pytest
 
 pytest.importorskip("prometheus_client")
 
-_MAIN = Path(__file__).resolve().parents[1] / "main.py"
+# P-2 inc. 6: the pipeline body moved to warden/services/filter_orchestrator.py.
+_MAIN = Path(__file__).resolve().parents[1] / "services" / "filter_orchestrator.py"
 
 
 def _labels_for(reused: str) -> float:
@@ -79,7 +80,7 @@ def test_it_is_counted_before_the_call_not_inside_the_guard():
     """
     src = _MAIN.read_text(encoding="utf-8", errors="ignore")
     counter_at = src.index("POISON_EMBEDDING_REUSE_TOTAL.labels")
-    call_at = src.index("_poison_guard.check_async(", counter_at - 4000)
+    call_at = src.index("poison_guard.check_async(", counter_at - 4000)
     assert counter_at < call_at, "the counter must be incremented before the call"
 
 
