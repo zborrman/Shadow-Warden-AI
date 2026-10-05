@@ -1415,7 +1415,10 @@ app.include_router(_docs_router)
 # blocks below can use register_router_safe() one-liners. The staff subsystem +
 # Turso migrations are wired via the fuller import near the end of the file.
 from warden.app_factory import RouterSpec as _RouterSpec  # noqa: E402
-from warden.app_factory import register_router_safe  # noqa: E402
+from warden.app_factory import (  # noqa: E402
+    register_required_router,
+    register_router_safe,
+)
 
 register_router_safe(app, _RouterSpec("warden.auth.router", label="HttpOnly session auth mounted at /auth"))
 
@@ -1531,7 +1534,11 @@ register_router_safe(app, _RouterSpec("warden.api.ws_events", label="WebSocket a
 
 register_router_safe(app, _RouterSpec("warden.api.ws_stream", label="WebSocket filter/LLM streams mounted at /ws/stream, /ws/filter, /ws/monitor (P-2)"))
 
-register_router_safe(app, _RouterSpec("warden.api.filter", label="Filter group mounted at /filter, /demo/filter, /ext/*, /filter/batch, /filter/multimodal (P-2)"))
+# REQUIRED, not optional: these seven routes are the product. Before P-2 they
+# were inline @app routes and could not fail separately from the app; a
+# swallowed import error here would boot a gateway that 404s /filter while
+# /health still reports "ok". Boot fails instead.
+register_required_router(app, _RouterSpec("warden.api.filter", label="Filter group mounted at /filter, /demo/filter, /ext/*, /filter/batch, /filter/multimodal (P-2)"))
 
 register_router_safe(app, _RouterSpec("warden.api.red_team", label="Red-team autopilot mounted at /agent/red-team (AR-11)"))
 

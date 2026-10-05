@@ -57,6 +57,36 @@ def register_router_safe(app: FastAPI, spec: RouterSpec) -> bool:
     return False
 
 
+class RequiredRouterError(RuntimeError):
+    """A router the product cannot serve without failed to mount."""
+
+
+def register_required_router(app: FastAPI, spec: RouterSpec) -> None:
+    """Register a router whose absence is not survivable. Raises instead of 404ing.
+
+    `register_router_safe` exists so a broken *optional* subsystem cannot kill the
+    gateway, and it deliberately swallows every exception. That is the wrong
+    contract for the product's own endpoints: when `/filter` was an inline
+    `@app.post` it could not fail separately from the app, and P-2 moving it into
+    a router introduced a failure mode where one bad import in
+    `warden/api/filter.py` — `warden.shadow_ban`, `warden.masking.engine`,
+    anything — boots a gateway that answers 404 on the endpoint it exists to
+    serve.
+
+    Nothing downstream catches that. The startup canary calls
+    `filter_orchestrator` directly and never touches the HTTP route; `/health`
+    reports no route inventory; and `test_route_inventory.py` tolerates a
+    whole module being absent, so a regenerated fixture would stop failing on it.
+    Refusing to boot is the only signal that cannot be missed.
+    """
+    if not register_router_safe(app, spec):
+        raise RequiredRouterError(
+            f"required router {spec.import_path!r} failed to mount — refusing to boot. "
+            "See the logged ImportError/Exception above for the cause; the gateway "
+            "would otherwise serve 404 on a core endpoint."
+        )
+
+
 def register_router_group(app: FastAPI, specs: list[RouterSpec]) -> dict[str, bool]:
     """Register a group of routers. Returns label→success map."""
     return {(spec.label or spec.import_path): register_router_safe(app, spec) for spec in specs}
