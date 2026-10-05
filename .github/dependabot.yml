@@ -9,6 +9,19 @@ updates:
     labels:
       - "dependencies"
       - "security"
+    # Families pinned with `==` in warden/constraints.txt must be bumped as a
+    # set, or the bump cannot resolve. OpenTelemetry is the demonstrated case:
+    # every member cross-pins its siblings exactly
+    # (`opentelemetry-exporter-otlp-proto-http 1.45.0` requires
+    # `opentelemetry-exporter-otlp-proto-common==1.45.0`), so a single-package
+    # PR is unmergeable by construction — PR #561 failed both test legs, the
+    # Docker build and pip-audit with ResolutionImpossible, and every later
+    # release would have produced the same PR again. Grouping, not `ignore`:
+    # these updates are wanted, just not one at a time.
+    groups:
+      opentelemetry:
+        patterns:
+          - "opentelemetry-*"
     ignore:
       # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
       # Upgrading requires re-enabling MCR base image + playwright install chromium.
