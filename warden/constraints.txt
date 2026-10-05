@@ -201,7 +201,7 @@ pandas==3.0.5
 parsimonious==0.10.0
 pathspec==1.1.1
 pillow==12.3.0
-platformdirs==4.11.10
+platformdirs==4.12.2
 playwright==1.61.0
 plotly==7.1.0
 pluggy==1.6.0
