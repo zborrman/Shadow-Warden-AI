@@ -22,6 +22,17 @@ updates:
       opentelemetry:
         patterns:
           - "opentelemetry-*"
+      # Same shape, second instance: boto3 pins botocore to an exact floor
+      # (`boto3 1.43.108 depends on botocore<1.44.0 and >=1.43.108`) and also
+      # caps s3transfer, so a single-package bump is unmergeable. PR #573 failed
+      # both test legs, the Docker build and pip-audit with ResolutionImpossible
+      # against the pinned botocore==1.43.102. Named explicitly rather than by a
+      # `boto*` glob, which would miss s3transfer.
+      aws-sdk:
+        patterns:
+          - "boto3"
+          - "botocore"
+          - "s3transfer"
     ignore:
       # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
       # Upgrading requires re-enabling MCR base image + playwright install chromium.
