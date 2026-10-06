@@ -287,7 +287,7 @@ threadpoolctl==3.7.0
 tokenizers==0.22.2
 toml==0.10.2
 toolz==1.1.0
-tqdm==4.68.3
+tqdm==4.70.1
 transformers==5.13.0
 trio==0.33.0
 trio-typing==0.10.0
