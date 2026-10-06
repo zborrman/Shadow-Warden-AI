@@ -26,6 +26,19 @@ updates:
       # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
       # Upgrading requires re-enabling MCR base image + playwright install chromium.
       - dependency-name: "playwright"
+      # pyee is capped by that same playwright pin, not by anything about pyee:
+      # `playwright 1.61.0 depends on pyee<14 and >=13`. PR #567 (pyee 13.0.1 ->
+      # 14.0.0) failed both test legs, the Docker build and pip-audit with
+      # ResolutionImpossible. The cap lifts only when the playwright pin above
+      # lifts - it is not an independent decision, so it is documented here
+      # rather than left to be rediscovered from a red PR each release.
+      #
+      # General rule for this file: a transitive whose range is constrained by a
+      # *pinned* parent needs an ignore tied to that parent. `greenlet` is the
+      # other playwright-capped transitive in warden/constraints.txt; expect the
+      # same failure shape if a major bump for it is ever offered.
+      - dependency-name: "pyee"
+        versions: [">=14"]
       # scipy >= 1.18 requires Python >= 3.12, and this project's floor is 3.11:
       # pyproject `requires-python = ">=3.11"`, warden/Dockerfile `python:3.11-slim`,
       # and the CI matrix tests 3.11. PR #468 (scipy 1.18.1) could not install on
