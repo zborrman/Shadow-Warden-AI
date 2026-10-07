@@ -78,7 +78,7 @@ charset-normalizer==3.5.2
 ckzg==2.1.7
 click==8.4.2
 clickhouse-connect==1.6.0
-coverage==7.15.0
+coverage==7.16.2
 cryptography==50.0.1
 ctranslate2==4.8.1
 cytoolz==1.1.0
