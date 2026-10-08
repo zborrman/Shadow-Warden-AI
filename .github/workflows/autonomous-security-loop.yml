@@ -97,7 +97,14 @@ jobs:
       - name: Run mypy
         id: mypy
         run: |
-          pip install mypy --quiet
+          # Same set as ci.yml's Lint job. With bare `pip install mypy` the
+          # count below is wrong: mypy cannot see that webauthn's credential
+          # classes are pydantic models, so it reports "no attribute
+          # model_validate_json" and similar as if they were source defects.
+          # That number is fed to the Maker agent as its starting picture, and
+          # on 2026-10-07 it duly reported "the 4 mypy errors are a separate
+          # issue" - it was reading artefacts of a missing dependency.
+          pip install mypy pydantic fastapi --quiet
           MYPYPATH=. python -m mypy warden/ --ignore-missing-imports --no-strict-optional \
             > mypy-result.txt 2>&1 || true
           ERRORS=0
@@ -267,8 +274,22 @@ jobs:
         run: |
           pip install ruff mypy --quiet
           pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
-          pip install -e ".[dev]" --quiet 2>/dev/null || true
-          pip install -r warden/requirements.txt --quiet 2>/dev/null || true
+          # `-c constraints.txt` as CLAUDE.md requires and as ci.yml does.
+          # Without it the resolver takes newest-of-everything and can fail
+          # outright - which is exactly what has been happening to dependabot
+          # PRs all week (ResolutionImpossible on opentelemetry, pyee, boto3).
+          #
+          # And no `2>/dev/null || true`. These two lines used to swallow every
+          # install failure, so a broken environment reached the mypy step
+          # looking like four type errors in the source:
+          #   auth/fido.py - "RegistrationCredential has no attribute
+          #   model_validate_json" is what mypy says when pydantic is not
+          #   installed, not a defect in fido.py.
+          # The loop then failed verification on errors it had not caused and
+          # could not fix, five nights running (3-7 Oct). A dependency install
+          # that cannot fail is a dependency install whose result nobody reads.
+          pip install -e ".[dev]" --quiet
+          pip install -r warden/requirements.txt -c warden/constraints.txt --quiet
 
       - name: Install Playwright
         working-directory: site
