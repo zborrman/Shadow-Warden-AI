@@ -25,7 +25,7 @@ Check stuck escrows: `GET /marketplace/escrows?status=funded&agent_id=<id>`
 
 ## Contract deployment
 
-- Real: deploys `warden/blockchain/contracts/Escrow.sol` via Web3 (Sepolia / Ganache / eth_tester)
+- Real: deploys `contracts/Escrow.sol` via Web3 (Sepolia / Ganache / eth_tester)
 - Simulation: `contract_address = keccak256(buyer|seller|listing|nonce)[:20]` (deterministic)
 - Circuit breaker: 3 RPC retries → `EscrowDeploymentError` → HTTP 502
 
