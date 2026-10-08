@@ -21,6 +21,17 @@ reviews:
     drafts: false
     base_branches:
       - "main"
+    # Dependency bots get no review. Over the last 60 PRs, 32 were dependabot's
+    # and the review added nothing to any of them: every failure they produced
+    # was a pip `ResolutionImpossible`, caught by pip-audit and the test legs,
+    # never by a reviewer reading a one-line version change. The reviews that
+    # did find real defects (#556 backpressure, #557 required-router) were all
+    # on human PRs. Skipping bots keeps the plan's review budget for the diffs
+    # where a reviewer can actually see something.
+    ignore_usernames:
+      - "dependabot"
+      - "dependabot[bot]"
+      - "github-actions[bot]"
   abort_on_close: true
 
   labeling_instructions:
