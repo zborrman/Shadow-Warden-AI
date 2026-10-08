@@ -11,7 +11,7 @@ Design
   This keeps all tests green without a running blockchain.
 
   The Solidity contract source is at:
-    warden/blockchain/contracts/Escrow.sol
+    contracts/Escrow.sol
 
 Lifecycle
 ─────────

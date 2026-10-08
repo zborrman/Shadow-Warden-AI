@@ -9,7 +9,7 @@
 | Crypto | Ed25519 signing (`cryptography` library), Fernet for vault secrets |
 | Identity | DID format: `did:shadow:{base62(sha256(pubkey_bytes)[:32])}` |
 | Assets | UECIID: `SEP-{11 base-62 chars}` from Snowflake ID via `sep.py` |
-| Escrow | Web3 / eth_tester simulation; `warden/blockchain/contracts/Escrow.sol` |
+| Escrow | Web3 / eth_tester simulation; `contracts/Escrow.sol` |
 | Threat detection | MAESTRO: GoalMisalignmentDetector + CollusionDetector + ModelPoisoningDetector |
 | Loop state | `data/AGENTS.md` — written by `sova_marketplace_state_sync` every 15 min |
 
