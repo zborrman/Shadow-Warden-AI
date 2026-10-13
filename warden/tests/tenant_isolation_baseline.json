@@ -1,5 +1,5 @@
 {
-  "total": 175,
+  "total": 169,
   "routes": [
     "warden/agentic/router.py::get_activity::tenant_id",
     "warden/agentic/router.py::list_agents::tenant_id",
@@ -62,12 +62,6 @@
     "warden/api/framework_builder.py::update_framework::tenant_id",
     "warden/api/incident_register.py::get_stats::tenant_id",
     "warden/api/incident_register.py::list_incidents::tenant_id",
-    "warden/api/onboarding.py::get_tenant_status::tenant_id",
-    "warden/api/onboarding.py::msp_report::tenant_id",
-    "warden/api/onboarding.py::rotate_tenant_key::tenant_id",
-    "warden/api/onboarding.py::set_tenant_status::tenant_id",
-    "warden/api/onboarding.py::set_tenant_telegram::tenant_id",
-    "warden/api/onboarding.py::verify_tenant_telegram::tenant_id",
     "warden/api/policy.py::add_policy_rule::tenant_id",
     "warden/api/policy.py::classify_text::tenant_id",
     "warden/api/policy.py::delete_policy_rule::tenant_id",
