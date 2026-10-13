@@ -25,12 +25,19 @@ from contextlib import suppress
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.api.gdpr import require_tenant_owner_or_admin
 from warden.runtime import runtime as _runtime
 
 log = logging.getLogger("warden.api.billing_usage")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
+
+# H-5. These routes needed only a valid API key while acting on the tenant in the
+# path, so any tenant's key could read any tenant's request counts and spend, and
+# set or remove its monthly cap — a removed cap is unlimited spend billed to the
+# victim; a $0.0001 cap is a denial of service (every request then answers 402).
+# The caller's own tenant, or the operator (X-Admin-Key). Reused from gdpr.py.
+_OWNER_OR_ADMIN = Depends(require_tenant_owner_or_admin)
 
 
 class _QuotaRequest(BaseModel):
@@ -50,7 +57,7 @@ def _require_billing():
 @router.get(
     "/{tenant_id}",
     summary="Aggregated usage and cost for a tenant",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[_OWNER_OR_ADMIN],
 )
 async def get_billing(
     tenant_id: str,
@@ -69,7 +76,7 @@ async def get_billing(
 @router.get(
     "/{tenant_id}/daily",
     summary="Day-by-day billing breakdown for a tenant",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[_OWNER_OR_ADMIN],
 )
 async def get_billing_daily(
     tenant_id: str,
@@ -87,7 +94,7 @@ async def get_billing_daily(
 @router.post(
     "/{tenant_id}/quota",
     summary="Set or update the monthly USD cost cap for a tenant",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[_OWNER_OR_ADMIN],
 )
 async def set_billing_quota(tenant_id: str, body: _QuotaRequest):
     """
