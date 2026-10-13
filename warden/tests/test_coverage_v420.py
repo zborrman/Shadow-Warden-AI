@@ -375,61 +375,9 @@ class TestIdempotencyHook:
 
 
 # ── Hooks: tenant_isolation ───────────────────────────────────────────────────
-
-class TestTenantIsolationHook:
-
-    def _write_py(self, content: str) -> Path:
-        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as f:
-            f.write(content)
-        return Path(f.name)
-
-    def test_filter_without_tenant_id_warns(self):
-        from warden.hooks.tenant_isolation import check_file
-        p = self._write_py("q.filter(User.status == 'active')\n")
-        warnings = check_file(p)
-        assert any("tenant_id" in w for w in warnings)
-        os.unlink(p)
-
-    def test_filter_with_tenant_id_ok(self):
-        from warden.hooks.tenant_isolation import check_file
-        p = self._write_py("q.filter(User.tenant_id == tid)\n")
-        warnings = check_file(p)
-        assert warnings == []
-        os.unlink(p)
-
-    def test_filter_by_without_tenant_warns(self):
-        from warden.hooks.tenant_isolation import check_file
-        p = self._write_py("q.filter_by(status='active')\n")
-        warnings = check_file(p)
-        assert any("filter_by" in w for w in warnings)
-        os.unlink(p)
-
-    def test_where_without_tenant_warns(self):
-        from warden.hooks.tenant_isolation import check_file
-        p = self._write_py("stmt.where(Table.id == 1)\n")
-        warnings = check_file(p)
-        assert any("where" in w for w in warnings)
-        os.unlink(p)
-
-    def test_syntax_error_returns_empty(self):
-        from warden.hooks.tenant_isolation import check_file
-        p = self._write_py("def bad(:\n    pass\n")
-        warnings = check_file(p)
-        assert warnings == []
-        os.unlink(p)
-
-    def test_main_no_files_returns_zero(self):
-        from warden.hooks.tenant_isolation import main
-        with mock.patch("sys.argv", ["hook"]):
-            assert main() == 0
-
-    def test_main_non_api_file_skipped(self):
-        from warden.hooks.tenant_isolation import main
-        p = self._write_py("q.filter(User.id == uid)\n")
-        with mock.patch("sys.argv", ["hook", str(p)]):
-            result = main()
-        assert result == 0  # not in warden/api — skipped
-        os.unlink(p)
+# The tests that lived here exercised the SQLAlchemy `.filter()` scanner, which
+# matched nothing in this codebase (raw SQLite) and was replaced under H-5. The
+# replacement is covered by warden/tests/test_tenant_isolation.py.
 
 
 # ── Community reputation ──────────────────────────────────────────────────────
