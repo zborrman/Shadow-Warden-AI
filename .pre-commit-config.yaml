@@ -103,12 +103,17 @@ repos:
         pass_filenames: false
         files: ^dashboard/src/.*\.tsx?$
 
+      # H-5. A route must not take the tenant it acts on from the caller. The
+      # first version grepped for SQLAlchemy .filter() in warden/api/ — which
+      # uses raw SQLite — so it reported zero on every run, and exited 0 anyway.
+      # Blocking now; the merge gate is warden/tests/test_tenant_isolation.py.
       - id: tenant-isolation
-        name: Multi-tenant query isolation (advisory)
+        name: Route takes its tenant from auth, not the request
         entry: python warden/hooks/tenant_isolation.py
         language: system
         types: [python]
-        files: ^warden/api/
+        files: ^warden/
+        exclude: ^warden/tests/
 
       # H-7. CLAUDE.md calls "content is NEVER logged" a hard requirement and a
       # protected invariant; nothing enforced it, and four live sites logged
