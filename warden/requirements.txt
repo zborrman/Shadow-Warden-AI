@@ -5,7 +5,7 @@
 # 200), only route-inventory introspection needed teaching to expand that node
 # (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
 fastapi>=0.136.0
-starlette>=1.0.0
+starlette>=1.7.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 python-multipart>=0.0.9
