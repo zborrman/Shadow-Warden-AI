@@ -31,6 +31,7 @@ from pydantic import BaseModel, Field
 
 from warden.analytics import logger as event_logger
 from warden.analytics.report import get_engine as _get_report_engine
+from warden.api.gdpr import require_admin_only, require_tenant_owner_or_admin
 from warden.auth_guard import AuthResult, require_api_key
 from warden.runtime import runtime as _runtime
 
@@ -39,6 +40,16 @@ log = logging.getLogger("warden.api.onboarding")
 # Unprefixed router — paths span /onboard, /tenants and /msp, so full paths are
 # declared on each route (matches the historical inline layout exactly).
 router = APIRouter()
+
+# H-5. Every route here used to need only a valid API key, while acting on the
+# tenant named in the path — so any tenant's key could rotate (and receive) any
+# other tenant's key, read its metadata and compliance report, repoint its alerts,
+# and list, create or suspend every tenant. Two shapes, both reused from gdpr.py:
+#   fleet operations (create, list, suspend, fleet stats) -> operator only;
+#   one tenant's own record                               -> that tenant, or operator.
+# Suspension is operator-only on purpose: a suspended tenant must not reactivate itself.
+_ADMIN_ONLY = Depends(require_admin_only)
+_OWNER_OR_ADMIN = Depends(require_tenant_owner_or_admin)
 
 
 # ── Request models ────────────────────────────────────────────────────────────
@@ -70,6 +81,7 @@ def _require_onboarding():
 
 @router.post(
     "/onboard",
+    dependencies=[_ADMIN_ONLY],
     tags=["onboarding"],
     summary="Create a new SMB tenant (MSP admin only)",
     status_code=201,
@@ -114,6 +126,7 @@ async def create_tenant(
 
 @router.get(
     "/onboard/{tenant_id}",
+    dependencies=[_OWNER_OR_ADMIN],
     tags=["onboarding"],
     summary="Get tenant status",
 )
@@ -131,6 +144,7 @@ async def get_tenant_status(
 
 @router.get(
     "/tenants",
+    dependencies=[_ADMIN_ONLY],
     tags=["onboarding"],
     summary="List all tenants (MSP dashboard)",
 )
@@ -145,6 +159,7 @@ async def list_tenants(
 
 @router.post(
     "/onboard/{tenant_id}/rotate-key",
+    dependencies=[_OWNER_OR_ADMIN],
     tags=["onboarding"],
     summary="Issue a new API key for a tenant (invalidates old key immediately)",
 )
@@ -169,6 +184,7 @@ async def rotate_tenant_key(
 
 @router.put(
     "/onboard/{tenant_id}/status",
+    dependencies=[_ADMIN_ONLY],
     tags=["onboarding"],
     summary="Activate or deactivate a tenant",
 )
@@ -190,6 +206,7 @@ async def set_tenant_status(
 
 @router.put(
     "/onboard/{tenant_id}/telegram",
+    dependencies=[_OWNER_OR_ADMIN],
     tags=["onboarding"],
     summary="Set or clear a tenant's Telegram chat_id",
 )
@@ -208,6 +225,7 @@ async def set_tenant_telegram(
 
 @router.post(
     "/onboard/{tenant_id}/verify-telegram",
+    dependencies=[_OWNER_OR_ADMIN],
     tags=["onboarding"],
     summary="Send a test Telegram message to verify bot and chat_id",
 )
@@ -226,6 +244,7 @@ async def verify_tenant_telegram(
 
 @router.get(
     "/msp/overview",
+    dependencies=[_ADMIN_ONLY],
     tags=["msp"],
     summary="Cross-tenant MSP overview — aggregate stats for all tenants",
 )
@@ -319,6 +338,7 @@ async def msp_overview(
 
 @router.get(
     "/msp/report/{tenant_id}",
+    dependencies=[_OWNER_OR_ADMIN],
     tags=["msp"],
     summary="Monthly compliance report for a single tenant",
 )

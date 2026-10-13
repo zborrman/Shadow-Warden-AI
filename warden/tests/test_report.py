@@ -21,6 +21,17 @@ import pytest
 
 from warden.analytics.report import ReportData, ReportEngine, _recommendations
 
+# GET /msp/report/{tenant_id} is tenant-owner-or-operator since H-5; these tests
+# render a report for "acme" from the suite's default tenant, so they call it as
+# the operator. Ownership itself is tested in test_onboarding_tenant_ownership.py.
+_ADMIN = "report-test-admin-key"
+_OPERATOR = {"X-Admin-Key": _ADMIN}
+
+
+@pytest.fixture(autouse=True)
+def _operator_key(monkeypatch):
+    monkeypatch.setenv("ADMIN_KEY", _ADMIN)
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_entries(
@@ -337,7 +348,7 @@ class TestReportEndpoint:
         from fastapi.testclient import TestClient
 
         from warden.main import app
-        self.client = TestClient(app, raise_server_exceptions=True)
+        self.client = TestClient(app, raise_server_exceptions=True, headers=_OPERATOR)
 
     def _entries(self) -> list[dict]:
         return _make_entries(n_allowed=5, n_blocked=1)
@@ -431,7 +442,7 @@ class TestWhiteLabel:
         from fastapi.testclient import TestClient
 
         from warden.main import app
-        client = TestClient(app, raise_server_exceptions=True)
+        client = TestClient(app, raise_server_exceptions=True, headers=_OPERATOR)
         with patch("warden.analytics.report.load_entries", return_value=_make_entries()):
             resp = client.get(
                 "/msp/report/acme?month=2026-02&fmt=html&brand_name=CorpShield",
@@ -509,7 +520,7 @@ class TestRenderPdf:
         from fastapi.testclient import TestClient
 
         from warden.main import app
-        client  = TestClient(app, raise_server_exceptions=True)
+        client  = TestClient(app, raise_server_exceptions=True, headers=_OPERATOR)
         entries = _make_entries(n_allowed=1)
         _, pw_patch = _make_playwright_mock(b"%PDF-mock")
 
