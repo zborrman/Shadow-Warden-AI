@@ -1,5 +1,5 @@
 {
-  "total": 169,
+  "total": 166,
   "routes": [
     "warden/agentic/router.py::get_activity::tenant_id",
     "warden/agentic/router.py::list_agents::tenant_id",
@@ -10,9 +10,6 @@
     "warden/api/billing_audit.py::get_evm_anchors::tenant_id",
     "warden/api/billing_audit.py::get_summary::tenant_id",
     "warden/api/billing_audit.py::verify_chain::tenant_id",
-    "warden/api/billing_usage.py::get_billing::tenant_id",
-    "warden/api/billing_usage.py::get_billing_daily::tenant_id",
-    "warden/api/billing_usage.py::set_billing_quota::tenant_id",
     "warden/api/budget.py::get_status::tenant_id",
     "warden/api/budget.py::list_approvals::tenant_id",
     "warden/api/community.py::create_community_post::tenant_id",
