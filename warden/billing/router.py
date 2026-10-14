@@ -37,10 +37,11 @@ import logging
 import os
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
+from warden.auth_guard import AuthResult, require_api_key
 from warden.billing.feature_gate import ANNUAL_PRICING, OVERAGE_PRICES, FeatureGate
 from warden.billing.pricing import TIER_PRICE_USD_MONTH
 
@@ -53,10 +54,25 @@ _PORTAL_BASE = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _require_tenant(x_tenant_id: str | None) -> str:
-    if not x_tenant_id or not x_tenant_id.strip():
-        raise HTTPException(status_code=401, detail="X-Tenant-ID header is required.")
-    return x_tenant_id.strip()
+def _caller_tenant(
+    auth: AuthResult = Depends(require_api_key),
+    x_tenant_id: str | None = Header(default=None),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """The tenant a billing route acts on: the one the caller's API key resolves to.
+
+    H-5. These routes used to take the tenant from a bare ``X-Tenant-ID`` header and
+    checked no credential at all, so an anonymous caller could read any tenant's
+    plan, quota, add-ons and referral stats, the platform's MRR and LLM cost
+    (``/margin``), and start a tenant's one-time trial on its behalf. The header is
+    now honoured only alongside a valid ``X-Admin-Key`` — the operator acting on a
+    named tenant; every other caller gets its own tenant, whatever it claims.
+    """
+    if x_tenant_id and x_tenant_id.strip() and x_admin_key:
+        admin_key = os.getenv("ADMIN_KEY", "")
+        if admin_key and hmac.compare_digest(x_admin_key, admin_key):
+            return x_tenant_id.strip()
+    return auth.tenant_id
 
 
 def _require_admin(x_admin_key: str | None) -> None:
@@ -128,9 +144,8 @@ async def get_billing_tiers():
     summary="Current subscription plan and billing details for a tenant",
 )
 async def get_billing_status(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     try:
         from warden.lemon_billing import get_lemon_billing
         status = get_lemon_billing().get_status(tenant_id)
@@ -160,9 +175,8 @@ async def get_billing_status(
     summary="Current monthly request usage for a tenant",
 )
 async def get_billing_quota(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.quota_middleware import get_quota_usage
     return get_quota_usage(tenant_id)
 
@@ -174,7 +188,7 @@ async def get_billing_quota(
     summary="Revenue vs. LLM cost for a tenant this month",
 )
 async def get_billing_margin(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
     """
     Gross margin of one tenant: plan price minus month-to-date inference spend,
@@ -185,7 +199,6 @@ async def get_billing_margin(
     per-tenant COGS, and mixing the two hides which customers are actually
     expensive to serve.
     """
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.finops.llm_budget import margin_report, resolve_tier
     return margin_report(tenant_id, resolve_tier(tenant_id) or "starter")
 
@@ -280,13 +293,12 @@ async def enterprise_quote(
 )
 async def billing_upgrade(
     plan:           str        = Query(..., description="Target plan: trial|individual|community_business|pro|enterprise"),
-    x_tenant_id:    str | None = Header(default=None),
+    tenant_id:    str        = Depends(_caller_tenant),
     customer_email: str | None = Query(default=None),
     agent_id:       str | None = Query(default=None, description="Marketplace DID — bound to subscription for M2M billing"),
     success_url:    str | None = Query(default=None),
     cancel_url:     str | None = Query(default=None),
 ):
-    tenant_id  = _require_tenant(x_tenant_id)
     _success   = success_url  or f"{_PORTAL_BASE}/billing/success"
     _cancel    = cancel_url   or f"{_PORTAL_BASE}/billing/cancel"
 
@@ -333,10 +345,9 @@ async def list_addons():
     summary="List add-ons purchased by a tenant",
 )
 async def get_tenant_addons(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
     """Return the set of active add-on keys for the requesting tenant."""
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.addons import ADDON_CATALOG  # noqa: PLC0415
     from warden.billing.addons import get_tenant_addons as _get_addons
     active_keys = _get_addons(tenant_id)
@@ -355,11 +366,10 @@ async def get_tenant_addons(
 )
 async def addon_checkout(
     addon_key:   str,
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
     success_url: str | None = Query(default=None),
     cancel_url:  str | None = Query(default=None),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.addons import ADDON_CATALOG
     addon = ADDON_CATALOG.get(addon_key)
     if not addon:
@@ -453,14 +463,13 @@ class TrialStartRequest(BaseModel):
 )
 async def start_trial(
     body:        TrialStartRequest,
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
     """
     Activates a 14-day Pro trial capped at 10 000 requests.
     MasterAgent is excluded from the trial.
     One-time per tenant — raises 409 if already used.
     """
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.trial import start_trial as _start  # noqa: PLC0415
     try:
         record = _start(tenant_id, current_tier=body.current_tier)
@@ -474,9 +483,8 @@ async def start_trial(
     summary="Get current trial status for a tenant",
 )
 async def trial_status(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.trial import get_trial  # noqa: PLC0415
     trial = get_trial(tenant_id)
     if not trial:
@@ -505,11 +513,10 @@ async def list_bundles():
 )
 async def bundle_checkout(
     bundle_key:  str,
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
     success_url: str | None = Query(default=None),
     cancel_url:  str | None = Query(default=None),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
     bundle = BUNDLE_CATALOG.get(bundle_key)
     if not bundle:
@@ -567,9 +574,8 @@ async def add_community_seats(
     summary="Get extra community member seats for a tenant",
 )
 async def get_community_seats(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.addons import get_seat_expansion  # noqa: PLC0415
     extra = get_seat_expansion(tenant_id)
     return {
@@ -586,9 +592,8 @@ async def get_community_seats(
     summary="Generate a referral code for the requesting tenant",
 )
 async def generate_referral(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
 
     # Look up the tenant's current plan
     try:
@@ -638,9 +643,8 @@ async def redeem_referral(body: RedeemReferralRequest):
     summary="Referral statistics for a tenant",
 )
 async def get_referral_stats(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ):
-    tenant_id = _require_tenant(x_tenant_id)
     from warden.billing.referral import get_referral_stats
     stats = get_referral_stats(tenant_id)
 
@@ -667,13 +671,12 @@ async def get_referral_stats(
     summary="Preview overage charges for the current billing period (BL-19)",
 )
 async def overage_preview(
-    x_tenant_id: str | None = Header(default=None),
+    tenant_id: str = Depends(_caller_tenant),
 ) -> dict:
     """
     Returns the projected overage charge for the current period.
     Used by the dashboard billing widget and the ARQ overage cron.
     """
-    tenant_id = _require_tenant(x_tenant_id)
     return _calculate_overage(tenant_id)
 
 

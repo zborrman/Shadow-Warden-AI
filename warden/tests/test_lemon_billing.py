@@ -297,9 +297,12 @@ class TestBillingRouter:
         assert tiers_by_name["starter"]["siem_integration"] is False
         assert tiers_by_name["enterprise"]["referral_program"] is False
 
-    def test_quota_requires_tenant_id(self, client):
-        resp = client.get("/billing/quota")
-        assert resp.status_code == 401
+    def test_quota_header_alone_does_not_select_a_tenant(self, client):
+        # H-5: X-Tenant-ID used to be the identity. It is honoured only with a
+        # valid X-Admin-Key now; in dev mode every caller is tenant "default".
+        resp = client.get("/billing/quota", headers={"X-Tenant-ID": "someone-else"})
+        assert resp.status_code == 200
+        assert resp.json()["tenant_id"] == "default"
 
     def test_quota_returns_usage(self, client):
         resp = client.get("/billing/quota", headers={"X-Tenant-ID": "test-tenant"})
@@ -309,9 +312,10 @@ class TestBillingRouter:
         assert "used"            in data
         assert "effective_limit" in data
 
-    def test_status_requires_tenant_id(self, client):
-        resp = client.get("/billing/status")
-        assert resp.status_code == 401
+    def test_status_header_alone_does_not_select_a_tenant(self, client):
+        resp = client.get("/billing/status", headers={"X-Tenant-ID": "someone-else"})
+        assert resp.status_code == 200
+        assert resp.json()["tenant_id"] == "default"
 
     def test_status_returns_plan(self, client):
         resp = client.get("/billing/status", headers={"X-Tenant-ID": "test-tenant"})
@@ -320,9 +324,6 @@ class TestBillingRouter:
         assert data["plan"] in ("starter", "individual", "community_business", "pro", "enterprise")
         assert "features" in data
 
-    def test_referral_generate_requires_tenant_id(self, client):
-        resp = client.post("/billing/referral/generate")
-        assert resp.status_code == 401
 
     def test_referral_generate_returns_code(self, client):
         resp = client.post(
@@ -341,14 +342,15 @@ class TestBillingRouter:
         )
         assert resp.status_code == 422
 
-    def test_referral_redeem_valid_code(self, client):
+    def test_referral_redeem_valid_code(self, client, monkeypatch):
         import warden.billing.referral as ref_mod
         ref_mod._CODE_STORE.clear()
 
-        # Generate a code first
+        # Generate a code first — as the operator, the one caller X-Tenant-ID binds for
+        monkeypatch.setenv("ADMIN_KEY", "lemon-test-admin")
         gen_resp = client.post(
             "/billing/referral/generate",
-            headers={"X-Tenant-ID": "referrer-test"},
+            headers={"X-Tenant-ID": "referrer-test", "X-Admin-Key": "lemon-test-admin"},
         )
         assert gen_resp.status_code == 200
         code = gen_resp.json()["code"]
