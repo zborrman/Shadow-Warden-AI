@@ -33,6 +33,25 @@ updates:
           - "boto3"
           - "botocore"
           - "s3transfer"
+      # Everything else, minor and patch, as one weekly PR. constraints.txt is a
+      # `pip freeze` that Dependabot edits one line at a time, so any pair of
+      # packages with a cross-pin breaks a single-package bump (the two family
+      # groups above are the instances found so far); and one PR per package
+      # cost a review per package — 11 between 2026-10-13 and 10-15, two of which
+      # (#567 pyee, #587 huggingface-hub) could not install at all.
+      # Groups match in order, so the families above keep their own PRs.
+      # Majors stay one PR each: they are the bumps worth reading on their own.
+      # Security updates are not grouped (this applies to version updates only),
+      # so a CVE fix never waits for the weekly batch.
+      # If the grouped PR fails to resolve, find the package in its log and add
+      # an `ignore` below tied to the pin that caps it - the same rule as pyee.
+      pip-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       # Playwright is pinned — browser sandbox is disabled (BROWSER_ENABLED=false).
       # Upgrading requires re-enabling MCR base image + playwright install chromium.
