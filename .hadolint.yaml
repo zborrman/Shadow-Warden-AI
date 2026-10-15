@@ -1,0 +1,13 @@
+# H-6. Dockerfile linter config. Trivy already scans the base images for CVEs;
+# nothing checked the authoring side until this. Runs in CI (`lint` job) and as
+# a pre-commit hook. Fails on warning and above; `info` findings are reported
+# but do not block.
+failure-threshold: warning
+
+ignored:
+  # Pin versions in apt-get install. Deliberately not done: the images build on
+  # python:3.11-slim / node:20-alpine, whose archives drop superseded package
+  # versions, so an exact apt pin breaks the build the next time Debian ships a
+  # point release - usually a security fix, the update we most want. Package
+  # versions are covered by Trivy's image scan instead.
+  - DL3008

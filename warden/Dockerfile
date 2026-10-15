@@ -73,6 +73,10 @@ RUN git clone --depth 1 --branch "${LIBOQS_VERSION}" \
 #  Rule: every pip install on this image's critical path is version-decided —
 #  either an explicit `==` here, or via `-c constraints.txt`. Enforced by
 #  warden/tests/test_deps_pinned.py.
+# Relative destination with no WORKDIR in this builder stage: the files land in
+# `/`, which is where the pip steps below read them from. Changing the builder's
+# cwd would move every relative path in the stage at once, so it is waived here.
+# hadolint ignore=DL3045
 COPY requirements.txt constraints.txt ./
 
 # Installed into the builder's REAL site-packages, not a `--prefix=/install`
