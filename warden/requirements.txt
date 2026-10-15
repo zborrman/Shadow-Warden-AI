@@ -57,7 +57,7 @@ prometheus-client>=0.26.0
 transformers>=4.40.0
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
-sentence-transformers>=3.0.0
+sentence-transformers>=6.1.0
 
 # Numerics (pulled in by torch/transformers anyway, pinned for clarity)
 numpy>=1.26.0
