@@ -108,7 +108,7 @@ eth-utils==6.0.0
 eth_abi==5.2.0
 fastapi==0.139.0
 faster-whisper==1.2.1
-filelock==3.29.0
+filelock==4.1.1
 flatbuffers==25.12.19
 frozenlist==1.8.0
 fsspec==2026.9.0
