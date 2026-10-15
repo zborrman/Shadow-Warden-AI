@@ -1,0 +1,56 @@
+{
+  "_comment": "H-3 ratchet. `survived` may only go down; null = not yet measured by the weekly sweep (scripts/mutation_sweep.py). `last_reported` is history from manual sweeps, not a gate.",
+  "modules": {
+    "causal_arbiter": {
+      "source": "warden/causal_arbiter.py",
+      "tests": [
+        "warden/tests/test_causal_arbiter.py",
+        "warden/tests/test_causal_c1_guardrail.py",
+        "warden/tests/test_causal_online.py",
+        "warden/tests/test_cpt_drift_gate_links.py"
+      ],
+      "survived": 196,
+      "last_reported": "200 of 652 (2026-08-31, PR #427)",
+      "measured": "196 of 660 - first CI sweep, 2026-10-15, PR #600"
+    },
+    "x402_gate": {
+      "source": "warden/marketplace/x402_gate.py",
+      "tests": [
+        "warden/tests/test_x402_gate.py"
+      ],
+      "survived": 247,
+      "last_reported": "259 (2026-08-03 sweep, SR-7.3)",
+      "measured": "247 of 565 - first CI sweep, 2026-10-15, PR #600; 27 further mutants have no covering test"
+    },
+    "auth_guard": {
+      "source": "warden/auth_guard.py",
+      "tests": [
+        "warden/tests/test_auth_guard.py"
+      ],
+      "survived": 45,
+      "last_reported": "not re-measured since SR-7.3",
+      "measured": "45 of 227 - first CI sweep, 2026-10-15, PR #600"
+    },
+    "secret_redactor": {
+      "source": "warden/secret_redactor.py",
+      "tests": [
+        "warden/tests/test_secret_redactor.py",
+        "warden/tests/test_contract_security.py"
+      ],
+      "survived": 68,
+      "last_reported": "19 (SR-7.3 remediation)",
+      "measured": "68 of 278 - first CI sweep, 2026-10-15, PR #600"
+    },
+    "semantic_guard": {
+      "source": "warden/semantic_guard.py",
+      "tests": [
+        "warden/tests/test_semantic_guard.py",
+        "warden/tests/test_contract_security.py",
+        "warden/tests/test_injection_families_heldout.py"
+      ],
+      "survived": 53,
+      "last_reported": "recorded as 0 after SR-7.3; the first CI sweep measured 53 with the contract and held-out tests included - the earlier figure was not reproducible",
+      "measured": "53 of 87 - first CI sweep, 2026-10-15, PR #600"
+    }
+  }
+}
