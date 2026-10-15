@@ -1,0 +1,89 @@
+name: Mutation sweep (H-3)
+
+# Mutation testing is too slow to gate a PR, so between manual sweeps the
+# suite's strength on the money and auth path went unmeasured. This runs it
+# weekly, one job per module, and fails when a module's surviving-mutant count
+# rises above warden/tests/mutation_survivor_baseline.json. Logic and rules:
+# scripts/mutation_sweep.py. The matrix below must list exactly the baseline's
+# modules — warden/tests/test_mutation_sweep.py enforces that.
+#
+# Also runs on a PR that changes the sweep itself, so a broken sweep is found
+# when it is edited rather than on the next Sunday.
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"   # Sunday 03:00 UTC — clear of the 02:00 security loop
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/mutation-sweep.yml"
+      - "scripts/mutation_sweep.py"
+      - "warden/tests/mutation_survivor_baseline.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-sweep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    name: mutmut · ${{ matrix.module }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [auth_guard, causal_arbiter, secret_redactor, semantic_guard, x402_gate]
+
+    env:
+      ANTHROPIC_API_KEY: ""
+      WARDEN_API_KEY: ""
+      ALLOW_UNAUTHENTICATED: "true"
+      SEMANTIC_THRESHOLD: "0.72"
+      STRICT_MODE: "false"
+      REDIS_URL: "memory://"
+      LOGS_PATH: "/tmp/warden_test_logs.json"
+      DYNAMIC_RULES_PATH: "/tmp/warden_test_dynamic_rules.json"
+      MODEL_CACHE_DIR: "/tmp/warden-model-cache"
+      IMAGE_GUARD_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install project and pinned dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install -r warden/requirements.txt -c warden/constraints.txt
+
+      - name: Narrow mutmut to ${{ matrix.module }}
+        run: python scripts/mutation_sweep.py prepare "${{ matrix.module }}"
+
+      - name: Run mutmut
+        run: mutmut run --max-children 4
+
+      - name: Export stats
+        if: always()
+        run: mutmut export-cicd-stats
+
+      - name: Ratchet against the baseline
+        run: python scripts/mutation_sweep.py check "${{ matrix.module }}" | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash -o pipefail {0}
+
+      - name: Keep the stats
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutmut-${{ matrix.module }}
+          path: mutants/mutmut-cicd-stats.json
+          if-no-files-found: warn
+          retention-days: 90

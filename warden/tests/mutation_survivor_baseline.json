@@ -1,0 +1,40 @@
+{
+  "_comment": "H-3 ratchet. `survived` may only go down; null = not yet measured by the weekly sweep (scripts/mutation_sweep.py). `last_reported` is history from manual sweeps, not a gate.",
+  "modules": {
+    "causal_arbiter": {
+      "source": "warden/causal_arbiter.py",
+      "tests": [
+        "warden/tests/test_causal_arbiter.py",
+        "warden/tests/test_causal_c1_guardrail.py",
+        "warden/tests/test_causal_online.py",
+        "warden/tests/test_cpt_drift_gate_links.py"
+      ],
+      "survived": null,
+      "last_reported": "200 of 652 (2026-08-31, PR #427)"
+    },
+    "x402_gate": {
+      "source": "warden/marketplace/x402_gate.py",
+      "tests": ["warden/tests/test_x402_gate.py"],
+      "survived": null,
+      "last_reported": "259 (2026-08-03 sweep, SR-7.3)"
+    },
+    "auth_guard": {
+      "source": "warden/auth_guard.py",
+      "tests": ["warden/tests/test_auth_guard.py"],
+      "survived": null,
+      "last_reported": "not re-measured since SR-7.3"
+    },
+    "secret_redactor": {
+      "source": "warden/secret_redactor.py",
+      "tests": ["warden/tests/test_secret_redactor.py"],
+      "survived": null,
+      "last_reported": "19 (SR-7.3 remediation)"
+    },
+    "semantic_guard": {
+      "source": "warden/semantic_guard.py",
+      "tests": ["warden/tests/test_semantic_guard.py"],
+      "survived": null,
+      "last_reported": "not re-measured since SR-7.3"
+    }
+  }
+}
