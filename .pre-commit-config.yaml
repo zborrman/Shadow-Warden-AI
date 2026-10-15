@@ -46,6 +46,14 @@ repos:
 
   # ── Bandit (security linting) ─────────────────────────────────────────────
 
+  # H-6. Dockerfile linter; config in .hadolint.yaml. The CI `lint` job runs the
+  # same pinned version over every tracked Dockerfile, so this hook is a fast
+  # local copy of the gate, not the gate itself. Needs Docker running.
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint-docker
+
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.8
     hooks:
