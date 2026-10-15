@@ -14,25 +14,36 @@
     },
     "x402_gate": {
       "source": "warden/marketplace/x402_gate.py",
-      "tests": ["warden/tests/test_x402_gate.py"],
+      "tests": [
+        "warden/tests/test_x402_gate.py"
+      ],
       "survived": null,
       "last_reported": "259 (2026-08-03 sweep, SR-7.3)"
     },
     "auth_guard": {
       "source": "warden/auth_guard.py",
-      "tests": ["warden/tests/test_auth_guard.py"],
+      "tests": [
+        "warden/tests/test_auth_guard.py"
+      ],
       "survived": null,
       "last_reported": "not re-measured since SR-7.3"
     },
     "secret_redactor": {
       "source": "warden/secret_redactor.py",
-      "tests": ["warden/tests/test_secret_redactor.py"],
+      "tests": [
+        "warden/tests/test_secret_redactor.py",
+        "warden/tests/test_contract_security.py"
+      ],
       "survived": null,
       "last_reported": "19 (SR-7.3 remediation)"
     },
     "semantic_guard": {
       "source": "warden/semantic_guard.py",
-      "tests": ["warden/tests/test_semantic_guard.py"],
+      "tests": [
+        "warden/tests/test_semantic_guard.py",
+        "warden/tests/test_contract_security.py",
+        "warden/tests/test_injection_families_heldout.py"
+      ],
       "survived": null,
       "last_reported": "not re-measured since SR-7.3"
     }
