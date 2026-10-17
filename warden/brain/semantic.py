@@ -291,7 +291,10 @@ def _load_model() -> SentenceTransformer:
 
     # `cache_folder` tells sentence-transformers where to store the weights.
     model = SentenceTransformer(MODEL_NAME, cache_folder=MODEL_CACHE_DIR)
-    log.info("Model loaded — embedding dim=%d", model.get_sentence_embedding_dimension())
+    # sentence-transformers 6 renamed get_sentence_embedding_dimension and warns
+    # on the old name; prefer the new one, keep the old for a <6 install.
+    _dim = getattr(model, "get_embedding_dimension", None) or model.get_sentence_embedding_dimension
+    log.info("Model loaded — embedding dim=%d", _dim())
     return model
 
 
