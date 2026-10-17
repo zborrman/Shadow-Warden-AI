@@ -114,6 +114,23 @@ updates:
         versions: [">=0.9"]
       - dependency-name: "eth-account"
         versions: [">=0.14"]
+      # Found by the first grouped PR (#601, 76 updates), which cannot resolve
+      # while any one of these is in it. Each was isolated by re-resolving the
+      # batch on Python 3.11 and holding back one package at a time.
+      # Python 3.11 wall (lift with the move to 3.12, like scipy/sphinx above):
+      - dependency-name: "numpy"
+        versions: [">=2.5"]
+      - dependency-name: "deprecated"      # 3.x not installable on 3.11 (#604)
+        versions: [">=3"]
+      - dependency-name: "docutils"        # sphinx 9.0.x requires docutils<0.23
+        versions: [">=0.23"]
+      # Capped by a pinned parent - lift together with that parent:
+      - dependency-name: "sphinx-press-theme"   # libsql-client 0.3.1: <0.9
+        versions: [">=0.9"]
+      - dependency-name: "parsimonious"    # eth-abi 5.2 (web3 7 line): <0.11
+        versions: [">=0.11"]
+      - dependency-name: "mpmath"          # sympy 1.14: <1.4
+        versions: [">=1.4"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
