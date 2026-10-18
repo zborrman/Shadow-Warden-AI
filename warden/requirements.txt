@@ -72,7 +72,7 @@ cryptography>=50.0.2
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
-anthropic>=0.40.0
+anthropic>=1.14.0
 
 # ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
 # Install to enable Jaeger tracing across filter pipeline stages.
