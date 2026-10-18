@@ -105,7 +105,7 @@ eth-keys==0.8.0
 eth-rlp==2.2.0
 eth-typing==6.0.0
 eth-utils==6.0.0
-eth_abi==5.2.0
+eth_abi==6.0.0
 fastapi==0.139.0
 faster-whisper==1.2.1
 filelock==4.1.1
