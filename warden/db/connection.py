@@ -49,9 +49,22 @@ def is_postgres() -> bool:
     return any(DATABASE_URL.startswith(p) for p in (*_ASYNC_DRIVERS, *_SYNC_DRIVERS))
 
 
+_PSYCOPG2 = "postgresql+psycopg2://"
+
+
 def _sync_url(url: str) -> str:
-    """Convert an asyncpg URL to a psycopg2 URL for sync operations."""
-    return url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    """Return the URL with the psycopg2 driver named explicitly.
+
+    A bare ``postgresql://`` used to mean psycopg2. SQLAlchemy 2.1 changed that
+    default to psycopg 3, which this image does not install, so the bump in
+    #615 made every sync engine raise ``No module named 'psycopg'`` — Alembic at
+    boot and the filter-events mirror. Both degrade silently, so nothing went down and
+    nothing was written. Never leave the driver to the library's default.
+    """
+    for prefix in ("postgresql+asyncpg://", "postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return _PSYCOPG2 + url[len(prefix):]
+    return url
 
 
 def _async_url(url: str) -> str:

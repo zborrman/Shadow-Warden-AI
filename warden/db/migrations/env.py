@@ -44,8 +44,12 @@ if config.config_file_name is not None and not logging.getLogger().handlers:
 
 # Read DATABASE_URL from environment (convert asyncpg → psycopg2 for sync migrations)
 _url = os.environ.get("DATABASE_URL", "")
-if _url.startswith("postgresql+asyncpg://"):
-    _url = _url.replace("postgresql+asyncpg://", "postgresql://", 1)
+# Name psycopg2 explicitly: since SQLAlchemy 2.1 a bare postgresql:// means
+# psycopg 3, which is not installed (see warden.db.connection._sync_url).
+for _prefix in ("postgresql+asyncpg://", "postgresql://", "postgres://"):
+    if _url.startswith(_prefix):
+        _url = "postgresql+psycopg2://" + _url[len(_prefix):]
+        break
 if not _url:
     raise RuntimeError("DATABASE_URL environment variable is not set.")
 

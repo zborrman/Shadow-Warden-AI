@@ -89,7 +89,8 @@ def test_upgrade_pins_database_url_for_alembic_env(monkeypatch):
 
     assert migrate.upgrade_to_head()["status"] == "ok"
     # Alembic saw a psycopg2-style sync URL, not the asyncpg one, and not nothing.
-    assert seen["env"] == "postgresql://u:p@localhost/db"
+    # psycopg2 is named explicitly: since SQLAlchemy 2.1 a bare postgresql:// means psycopg 3
+    assert seen["env"] == "postgresql+psycopg2://u:p@localhost/db"
     # …and the process environment is left exactly as it was found.
     assert "DATABASE_URL" not in os.environ
 
