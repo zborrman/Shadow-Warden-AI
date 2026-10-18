@@ -141,6 +141,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/analytics"
@@ -149,6 +157,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/app"
@@ -157,6 +173,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/portal"
@@ -173,6 +197,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
