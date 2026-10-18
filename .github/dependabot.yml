@@ -124,6 +124,8 @@ updates:
         versions: [">=3"]
       - dependency-name: "docutils"        # sphinx 9.0.x requires docutils<0.23
         versions: [">=0.23"]
+      - dependency-name: "networkx"        # 3.7 requires Python >=3.12 (#608)
+        versions: [">=3.7"]
       # Capped by a pinned parent - lift together with that parent:
       - dependency-name: "sphinx-press-theme"   # libsql-client 0.3.1: <0.9
         versions: [">=0.9"]
@@ -131,6 +133,8 @@ updates:
         versions: [">=0.11"]
       - dependency-name: "mpmath"          # sympy 1.14: <1.4
         versions: [">=1.4"]
+      - dependency-name: "pyarrow"         # streamlit 1.65: <26 (#609)
+        versions: [">=26"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
@@ -139,6 +143,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/analytics"
@@ -147,6 +159,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/app"
@@ -155,6 +175,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/portal"
@@ -171,6 +199,14 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The Python version of a base image is a migration, not a bump: the
+    # floor is 3.11 (pyproject, CI matrix) and several ignores above are
+    # 3.11 walls that lift together with it. #18-#21 proposed 3.11/3.12 ->
+    # 3.14 and sat unmergeable from 2026-04-01. Patch and digest updates of
+    # the current line are still offered.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
