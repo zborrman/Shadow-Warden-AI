@@ -4,10 +4,10 @@
 # into app.routes — runtime serving is unaffected (both include patterns return
 # 200), only route-inventory introspection needed teaching to expand that node
 # (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
-fastapi>=0.136.0
-starlette>=1.7.0
-uvicorn[standard]>=0.30.0
-pydantic>=2.7.0
+fastapi>=0.143.1
+starlette>=1.8.0
+uvicorn[standard]>=0.54.0
+pydantic>=2.14.1
 python-multipart>=0.0.9
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ prometheus-client>=0.26.0
 # ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
 
 # Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
-transformers>=4.40.0
+transformers>=5.19.0
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
 sentence-transformers>=6.1.0
@@ -85,17 +85,17 @@ opentelemetry-instrumentation-fastapi>=0.66b1
 # ── ONNX Runtime (optional, ONNX_MODEL_PATH=...) ─────────────────────────────
 # 2-4x faster MiniLM CPU inference vs. PyTorch.
 # Export model once with: python scripts/export_onnx.py
-onnxruntime>=1.30.0
-onnxscript>=0.1.0            # required by torch.onnx.export in PyTorch 2.x
+onnxruntime>=1.31.0
+onnxscript>=0.7.2            # required by torch.onnx.export in PyTorch 2.x
 
 # ── PostgreSQL support (optional, DATABASE_URL=postgresql+asyncpg://...) ─────
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
 # asyncpg  — async driver for FastAPI / SQLAlchemy async engine
 # psycopg2 — sync driver for migration scripts and CLI tools
-sqlalchemy[asyncio]>=2.0.54
+sqlalchemy[asyncio]>=2.1.4
 asyncpg>=0.32.0
-alembic>=1.13.0
-psycopg2-binary>=2.9.0
+alembic>=1.20.0
+psycopg2-binary>=2.9.13
 
 # ── Browser automation ────────────────────────────────────────────────────────
 # Playwright Python — the mcr.microsoft.com/playwright/python base image
@@ -106,7 +106,7 @@ playwright>=1.44.0
 # ── Analytics Dashboard ───────────────────────────────────────────────────────
 # Streamlit — `streamlit run warden/analytics/dashboard.py`
 # Plotly — Threat Radar (Scatterpolar) + Attack Timeline (area chart)
-streamlit>=1.65.0
+streamlit>=1.66.0
 plotly>=7.1.0
 
 # ── Dashboard authentication ──────────────────────────────────────────────────
@@ -127,7 +127,7 @@ pyotp>=2.9.0
 # PyJWT — signs and verifies session JWTs issued after successful SAML login.
 # Install separately if SAML SSO is not needed (saves ~50 MB of native deps).
 python3-saml>=1.16.0
-PyJWT>=2.8.0
+PyJWT>=2.15.1
 
 # ── Shadow AI network-level discovery (optional) ─────────────────────────────
 # scapy — ARP/ICMP host pre-probe for ShadowAIDetector.scan().
@@ -153,19 +153,19 @@ PyJWT>=2.8.0
 # faiss-cpu>=1.8.0
 
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
-cachetools>=7.1.8
+cachetools>=7.2.1
 
 # ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
 # clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
 # Import is guarded: when missing or GSAM_CLICKHOUSE_ENABLED=false the collector
 # spools to NDJSON and the app runs normally (fail-open).
-clickhouse-connect>=0.7.0
+clickhouse-connect>=1.10.1
 
 # ── WebAuthn / FIDO2 passkey authentication ───────────────────────────────────
 # py-webauthn — server-side WebAuthn library for FIDO2 passkey registration and
 # authentication.  Required by warden/auth/fido.py for production passkey flows.
 # Falls back to stub mode when not installed (returns _stub:true in responses).
-webauthn>=2.0.0
+webauthn>=3.0.1
 
 # ── Office document parsing (C2 Local File Scanner — docx/xlsx) ───────────────
 # python-docx — extract paragraphs + table cells from .docx files
@@ -177,7 +177,7 @@ openpyxl>=3.1.0
 # Microsoft MarkItDown — converts PDF/DOCX/PPTX/XLSX/HTML/images/ZIP/EPUB to
 # Markdown for the community document workflow (/doc-converter, /prompt-library/from-file,
 # /obsidian/scan-attachment).  Install separately if community features are not needed.
-markitdown>=0.0.1
+markitdown>=0.1.8
 
 # ── v1.4 Multi-Modal Guard ────────────────────────────────────────────────────
 # Pillow — image decoding for ImageGuard (CLIP input preprocessing)
@@ -226,4 +226,4 @@ defusedxml==0.7.1          # XXE-safe XML parsing (SAML assertions, threat feeds
 #   setuptools <83.0.0  → PYSEC-2026-3447            (pip-audit)
 #   wheel      <0.46.2  → CVE-2026-24049 (priv-esc)  (Trivy HIGH)
 setuptools>=83.0.0
-wheel>=0.46.2
+wheel>=0.48.0
