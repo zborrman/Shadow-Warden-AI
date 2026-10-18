@@ -124,6 +124,8 @@ updates:
         versions: [">=3"]
       - dependency-name: "docutils"        # sphinx 9.0.x requires docutils<0.23
         versions: [">=0.23"]
+      - dependency-name: "networkx"        # 3.7 requires Python >=3.12 (#608)
+        versions: [">=3.7"]
       # Capped by a pinned parent - lift together with that parent:
       - dependency-name: "sphinx-press-theme"   # libsql-client 0.3.1: <0.9
         versions: [">=0.9"]
