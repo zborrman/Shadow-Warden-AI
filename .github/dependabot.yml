@@ -131,6 +131,8 @@ updates:
         versions: [">=0.11"]
       - dependency-name: "mpmath"          # sympy 1.14: <1.4
         versions: [">=1.4"]
+      - dependency-name: "pyarrow"         # streamlit 1.65: <26 (#609)
+        versions: [">=26"]
 
   - package-ecosystem: "docker"
     directory: "/warden"
