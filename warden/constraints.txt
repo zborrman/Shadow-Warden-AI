@@ -240,7 +240,7 @@ python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.32
 python3-saml==1.16.0
-pyunormalize==17.0.0
+pyunormalize==18.0.0
 PyYAML==6.0.3
 redis==5.3.1
 referencing==0.37.0
