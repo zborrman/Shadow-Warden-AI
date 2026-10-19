@@ -484,7 +484,7 @@ function InstallSection() {
   ]
 
   return (
-    <Section title="Install / Uninstall" description={`Shadow Warden AI v7.9 — Docker Compose, ${services.length} services, single command`} icon={Package}>
+    <Section title="Install / Uninstall" description={`Shadow Warden AI v7.10 — Docker Compose, ${services.length} services, single command`} icon={Package}>
       <div className="space-y-5 max-w-xl">
 
         {/* Quick Start */}

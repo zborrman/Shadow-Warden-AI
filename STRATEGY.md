@@ -1,6 +1,6 @@
 # Strategy.md — Shadow Warden AI Go-to-Market & Business Strategy
 
-**Version 7.9 · Last updated 2026-09-09**
+**Version 7.10 · Last updated 2026-10-19**
 
 ---
 
