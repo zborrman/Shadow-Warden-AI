@@ -71,6 +71,11 @@ _CLAIM = re.compile(
       | &lt;\s*\d+\s*ms          # HTML-escaped, as built pages carry it
       | under\s+\d+\s*ms         # in under 2ms
       | p99\s*[<≤]\s*\d+\s*ms    # P99 < 50ms
+      # A stat tile splits the number from its unit across two fields
+      # (`{ val: '<20', unit: 'ms' }` on index.astro claimed an unmeasured
+      # "<20 ms" this way and none of the forms above could see it).
+      | ['"]\s*(?:<|&lt;)\s*\d+\s*['"][^'"
+]{0,40}['"]\s*ms\s*['"]
     )""",
     re.X | re.I,
 )
@@ -118,7 +123,8 @@ def counts() -> dict[str, int]:
 
 def test_the_pattern_still_matches_the_notations_it_was_written_for():
     """A guard that stops matching is a guard that stops guarding."""
-    for sample in ("sub-2ms", "<2ms", "< 8 ms", "&lt;3ms", "in under 2ms", "P99 < 50ms"):
+    for sample in ("sub-2ms", "<2ms", "< 8 ms", "&lt;3ms", "in under 2ms", "P99 < 50ms",
+                   "{ val: '<20',   unit: 'ms' }"):
         assert _CLAIM.search(sample), f"{sample!r} no longer reads as a latency claim"
     for benign in ("2ms", "milliseconds", "sub-second", "<2 seconds", "P99"):
         assert not _CLAIM.search(benign), f"{benign!r} should not count as a claim"

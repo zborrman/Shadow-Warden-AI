@@ -111,9 +111,9 @@ const softwareApplication = {
 </section>
 
 <div class="idx-stats">
-  <div class="idx-stat"><div class="idx-stat-n">2,847</div><div class="idx-stat-l">Communities</div></div>
-  <div class="idx-stat"><div class="idx-stat-n">18,400</div><div class="idx-stat-l">Assets Listed</div></div>
-  <div class="idx-stat"><div class="idx-stat-n">94,200</div><div class="idx-stat-l">Cleared Trades</div></div>
+  <div class="idx-stat"><div class="idx-stat-n">Pre-launch</div><div class="idx-stat-l">Status</div></div>
+  <div class="idx-stat"><div class="idx-stat-n">Testnet</div><div class="idx-stat-l">Settlement today</div></div>
+  <div class="idx-stat"><div class="idx-stat-n">$25</div><div class="idx-stat-l">Per-trade cap</div></div>
   <div class="idx-stat"><div class="idx-stat-n">1.5%</div><div class="idx-stat-l">Take Rate</div></div>
 </div>
 
@@ -205,12 +205,12 @@ const softwareApplication = {
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[
-        { val: '2,847', unit: 'communities', color: '#06b6d4',
-          desc: 'Business communities exchanging AI assets under SEP protocol with UECIID provenance tracking' },
+        { val: 'SEP',   unit: 'protocol',    color: '#06b6d4',
+          desc: 'Business communities exchange AI assets under SEP with UECIID provenance tracking' },
         { val: '1.5%',  unit: 'take rate',   color: '#10b981',
           desc: 'Platform commission on cleared M2M transactions — computed with Decimal math, zero float drift' },
-        { val: '<20',   unit: 'ms',          color: '#ef4444',
-          desc: 'Causal Transfer Guard evaluates every trade — blocks exfiltration at P ≥ 0.70 before settlement' },
+        { val: '0.70',  unit: 'block threshold', color: '#ef4444',
+          desc: 'Causal Transfer Guard evaluates every trade and blocks exfiltration at P ≥ 0.70 before settlement' },
         { val: '30+',   unit: 'tools',       color: '#80b4fd',
           desc: 'SOVA agent manages your marketplace SOC: visual patrol, shadow AI discovery, corpus watchdog' },
       ].map(s => (
@@ -506,34 +506,6 @@ const softwareApplication = {
 </section>
 
 
-<!-- ── 6. INCIDENT CHART ──────────────────────────────────────────────── -->
-<section class="py-20 fade-in-section" style="background:#0c1020;border-top:1px solid rgba(128,180,253,0.08)">
-  <div class="mx-auto max-w-4xl px-4 lg:px-8">
-    <div class="text-center mb-10">
-      <h2 class="text-[20px] font-bold mb-1" style="color:#f0f4fc">
-        AI incidents drop after deployment
-      </h2>
-      <p style="font-size:13px;color:#6b7c96">
-        Average reduction across SMB customers — first 6 months
-      </p>
-    </div>
-    <div class="rounded-lg p-5 border" style="background:#070910;border-color:rgba(128,180,253,0.09)">
-      <canvas id="incidentChart"></canvas>
-    </div>
-    <div class="flex items-center justify-center gap-8 mt-4" style="font-size:12px">
-      <div class="flex items-center gap-2">
-        <span class="inline-block w-4 h-px rounded" style="background:#ef4444"></span>
-        <span style="color:#6b7c96">Before Shadow Warden</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="inline-block w-4 h-px rounded" style="background:#34d399"></span>
-        <span style="color:#6b7c96">After deployment</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-
 <!-- ── 7. FOR WHOM ──────────────────────────────────────────────────────── -->
 <section class="py-20 fade-in-section">
   <div class="mx-auto max-w-6xl px-4 lg:px-8">
@@ -562,7 +534,7 @@ const softwareApplication = {
             'Post-Quantum Auth (Ed25519 + ML-DSA-65)',
             'Sovereign AI Cloud across 8 jurisdictions',
             'MasterAgent multi-agent SOC coordinator',
-            'GDPR DPIA + SOC 2 Type II ready',
+            'GDPR DPIA + SOC 2 control mapping (self-attested)',
             'Unlimited requests · 99.95% uptime target',
           ],
         },
@@ -830,8 +802,8 @@ const softwareApplication = {
         Agentic Commerce &amp; Web3
       </h2>
       <p class="max-w-2xl mx-auto" style="font-size:14px;color:#a8b8d0">
-        The first AI security gateway with built-in mandate controls for AI-driven purchasing —
-        signed on-chain, audited via STIX, compliant by design.
+        An AI security gateway with built-in mandate controls for AI-driven purchasing —
+        signed mandates, a STIX audit trail, and an on-chain mandate contract on testnet today.
       </p>
     </div>
 
@@ -957,71 +929,6 @@ order   = agent.purchase(&#123; <span style="color:#34d399">"store_url"</span>: 
 <!-- ── Scripts & styles ─────────────────────────────────────────────────── -->
 <script is:inline>
   (function () {
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
-    s.onload = function () {
-      var canvas = document.getElementById('incidentChart');
-      if (!canvas) return;
-      new Chart(canvas.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'],
-          datasets: [
-            {
-              label: 'Before Shadow Warden',
-              data: [142, 158, 167, 149, 163, 155],
-              borderColor: '#ef4444',
-              backgroundColor: 'rgba(239,68,68,0.05)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#ef4444',
-              pointRadius: 3,
-              pointHoverRadius: 5,
-            },
-            {
-              label: 'After deployment',
-              data: [142, 89, 54, 31, 18, 11],
-              borderColor: '#34d399',
-              backgroundColor: 'rgba(52,211,153,0.05)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#34d399',
-              pointRadius: 3,
-              pointHoverRadius: 5,
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#0c1020',
-              borderColor: 'rgba(128,180,253,0.15)',
-              borderWidth: 1,
-              titleColor: '#f0f4fc',
-              bodyColor: '#a8b8d0',
-              padding: 10,
-            },
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(128,180,253,0.05)' },
-              ticks: { color: '#6b7c96', font: { size: 11 } },
-            },
-            y: {
-              grid: { color: 'rgba(128,180,253,0.05)' },
-              ticks: { color: '#6b7c96', font: { size: 11 } },
-              title: { display: true, text: 'AI incidents per month', color: '#6b7c96', font: { size: 10 } },
-            },
-          },
-        },
-      });
-    };
-    document.head.appendChild(s);
 
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {

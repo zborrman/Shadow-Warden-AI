@@ -172,3 +172,50 @@ def test_a_day_with_no_data_renders_as_no_data() -> None:
     """Unknown is a state, and on a status page it is the honest one."""
     body = _status_page()
     assert "no data" in body, "cells with no record must say so rather than render green"
+
+
+# ── The same invented set, everywhere else ────────────────────────────────────
+# Everything above pins agentic.astro. The same constants (2,847 communities,
+# 18,400 assets, 94,200 cleared trades) were also a stat bar under the homepage
+# hero, a stat tile, and the "Based on 94,200 trades across 2,847 communities"
+# baseline of the /price ROI estimator — and the homepage carried a line chart
+# titled "Average reduction across SMB customers — first 6 months" with invented
+# before/after series, beside a section saying there are no customers. None of
+# that was in this file's reach. Removed 2026-10-19, before external auditors
+# were sent to the site; these keep any page from bringing them back.
+
+_SITE = Path(__file__).resolve().parents[2] / "site" / "src"
+_LANDING = Path(__file__).resolve().parents[2] / "landing"
+
+_INVENTED = re.compile(
+    r"""2,847(?!,)|\b2847\b(?!\d)|94,200|\b94200\b|18,400\s*(?:Assets|assets)|2,847,391
+      | across\s+SMB\s+customers | incidentChart""",
+    re.X,
+)
+
+
+def _published_text():
+    for root in (_SITE, _LANDING):
+        if not root.exists():
+            continue
+        for p in root.rglob("*"):
+            if p.suffix.lower() in {".astro", ".html", ".ts", ".js", ".md", ".json", ".xml"}:
+                yield p, p.read_text(encoding="utf-8", errors="ignore")
+
+
+def test_the_invented_marketplace_numbers_appear_nowhere() -> None:
+    hits = []
+    for path, text in _published_text():
+        for line_no, line in enumerate(text.splitlines(), 1):
+            # agentic.astro's comment that tells the story is the one allowed mention
+            if line.lstrip().startswith(("//", "*", "#", "<!--")):
+                continue
+            if _INVENTED.search(line):
+                hits.append(f"{path.as_posix()}:{line_no}: {line.strip()[:110]}")
+    assert not hits, "invented usage numbers on a public page:\n  " + "\n  ".join(hits[:20])
+
+
+def test_the_pattern_catches_what_was_removed() -> None:
+    for sample in ('<div class="idx-stat-n">2,847</div>', "Based on 94,200 trades",
+                   "Average reduction across SMB customers", '<canvas id="incidentChart">'):
+        assert _INVENTED.search(sample), sample
