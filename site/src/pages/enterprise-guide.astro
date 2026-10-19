@@ -293,7 +293,7 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
         <h2 class="text-[24px] font-bold">Deployment Architecture</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-6" style="color:#94a3b8">
-        Shadow Warden runs as 11 Docker services behind a Caddy v2 reverse proxy with QUIC/HTTP3 support.
+        Shadow Warden runs as {PRODUCT.services} Docker services behind a Caddy v2 reverse proxy with QUIC/HTTP3 support.
         All services are stateless except Redis and PostgreSQL.
       </p>
       <div class="rounded-xl border border-white/[0.07] overflow-hidden mb-6">
@@ -389,7 +389,7 @@ curl http://localhost:8001/health
         <h2 class="text-[24px] font-bold">Agentic SOC — SOVA &amp; MasterAgent</h2>
       </div>
       <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
-        Shadow Warden AI ships two autonomous AI operators running on Claude Opus 4.6 with 30+ tools. SOVA handles
+        Shadow Warden AI ships two autonomous AI operators: SOVA on {PRODUCT.sovaModel} with {PRODUCT.sovaTools} tools, and the MasterAgent coordinator. SOVA handles
         scheduled threat intelligence, health monitoring, and visual patrol. MasterAgent decomposes complex SOC
         investigations into parallel sub-agent workstreams with HMAC task tokens and human approval gates.
       </p>
@@ -397,7 +397,7 @@ curl http://localhost:8001/health
         <div class="rounded-xl border border-white/[0.07] overflow-hidden">
           <div class="px-5 py-4 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
             <div class="text-[13px] font-bold text-white">SOVA Agent</div>
-            <div class="text-[11px] text-[#64748b] mt-0.5">Claude Opus 4.6 · 30 tools · ARQ cron scheduler</div>
+            <div class="text-[11px] text-[#64748b] mt-0.5">{PRODUCT.sovaModel} · {PRODUCT.sovaTools} tools · ARQ cron scheduler</div>
           </div>
           <div class="p-5 space-y-2">
             {[

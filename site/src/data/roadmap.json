@@ -114,7 +114,7 @@
     "category": "Cyber Security",
     "subcategory": "Agentic SOC",
     "feature": "SOVA Agent",
-    "description": "Claude Opus 4.6 agentic loop. 30 tools. 7 ARQ cron schedules. Redis memory: 20-turn cap, 6h TTL.",
+    "description": "Claude Opus agentic loop over the full SOVA tool set. 7 ARQ cron schedules. Redis memory: 20-turn cap, 6h TTL.",
     "version": "v3.0",
     "tier": "Pro+",
     "status": "shipped"
@@ -677,7 +677,7 @@
     "version": "",
     "tier": "All",
     "status": "planned",
-    "description": "Single Grafana dashboard consolidating metrics from all 11 Docker Compose services: proxy, warden, app, analytics, dashboard, postgres, redis, prometheus, grafana, minio, minio-init. Panels cover CPU/memory per container, request rates, error budgets, and storage utilisation."
+    "description": "Single Grafana dashboard consolidating metrics from all Docker Compose services: proxy, warden, app, analytics, dashboard, postgres, redis, prometheus, grafana, minio, minio-init. Panels cover CPU/memory per container, request rates, error budgets, and storage utilisation."
   },
   {
     "id": "FE-01",

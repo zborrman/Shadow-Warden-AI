@@ -17,6 +17,12 @@ export const PRODUCT = {
   version: "7.10.0",
   /** The short form used in badges and footers. */
   display: "v7.10",
+  /** warden/agent/tools.py, len(TOOL_HANDLERS) — tools the SOVA operator can call. */
+  sovaTools: 92,
+  /** warden/agent/sova.py, default of SOVA_MODEL (`claude-opus-4-8`), as a display name. */
+  sovaModel: "Claude Opus 4.8",
+  /** docs/security-model.md §2.2, number of defense-in-depth layers. */
+  defenseLayers: 9,
   /** docker-compose.yml, count of top-level `services:` keys. */
   services: 24,
   /** site/public/openapi.json, count of `paths` — regenerate with scripts/export_openapi.py. */

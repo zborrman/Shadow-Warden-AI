@@ -3,7 +3,7 @@ import { PRODUCT } from '../data/product';
 import Layout from '../layouts/Layout.astro';
 
 const models = [
-  { id: 'filter_events',          icon: '🛡️', name: 'Filter Events',              domain: 'Security',    metrics: 7, desc: 'Block rate, P99 latency, verdict distribution across the 15-layer pipeline.' },
+  { id: 'filter_events',          icon: '🛡️', name: 'Filter Events',              domain: 'Security',    metrics: 7, desc: 'Block rate, P99 latency, verdict distribution across the ${PRODUCT.defenseLayers}-layer pipeline.' },
   { id: 'ers_scores',             icon: '⚡', name: 'Entity Risk Scores',         domain: 'Security',    metrics: 4, desc: 'Session risk scores, shadow-ban events, high-risk session count.' },
   { id: 'incidents',              icon: '🔥', name: 'Security Incidents',         domain: 'Security',    metrics: 5, desc: 'STIX-linked incident journal — severity, status, avg resolution time.' },
   { id: 'billing_usage',          icon: '📊', name: 'Billing & Quota',            domain: 'Revenue',     metrics: 4, desc: 'Requests consumed, cost, quota utilisation, overage charges.' },
