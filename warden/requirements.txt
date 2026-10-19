@@ -54,7 +54,7 @@ prometheus-client>=0.26.0
 # ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
 
 # Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
-transformers>=5.20.0
+transformers>=5.20.1
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
 sentence-transformers>=6.1.0
