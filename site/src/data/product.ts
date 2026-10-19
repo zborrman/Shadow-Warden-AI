@@ -14,11 +14,11 @@
  */
 export const PRODUCT = {
   /** warden/__init__.py::__version__ — the version of record. */
-  version: "7.9.0",
+  version: "7.10.0",
   /** The short form used in badges and footers. */
-  display: "v7.9",
+  display: "v7.10",
   /** docker-compose.yml, count of top-level `services:` keys. */
   services: 24,
   /** site/public/openapi.json, count of `paths` — regenerate with scripts/export_openapi.py. */
-  endpoints: 660,
+  endpoints: 663,
 } as const;

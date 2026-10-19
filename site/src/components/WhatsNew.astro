@@ -1,10 +1,46 @@
 ---
 const releases = [
   {
-    version: 'v7.9',
-    date: 'Aug 2026',
+    version: 'v7.10',
+    date: 'Oct 2026',
     badge: 'Latest',
     badgeColor: '#FF2D55',
+    items: [
+      {
+        icon: '🔐',
+        title: 'Tenant Isolation, Enforced',
+        tier: 'All Plans',
+        desc: 'A route may no longer take the tenant it acts on from the request. The guard is now blocking, and the first fixes closed a key-rotation takeover, cross-tenant spend caps, and billing reads that answered without a key.',
+        tags: ['Security', 'Multi-Tenant', 'Auth'],
+      },
+      {
+        icon: '🧾',
+        title: 'Claims Match the Product',
+        tier: 'All Plans',
+        desc: 'Invented marketplace numbers and an illustrative customer chart were removed from the site; compliance wording now says what it is — a self-attested control mapping, not a certification.',
+        tags: ['Trust', 'Compliance'],
+      },
+      {
+        icon: '🧬',
+        title: 'Weekly Mutation Sweep',
+        tier: 'All Plans',
+        desc: 'Mutation testing of the money and auth modules runs every week, and the number of surviving mutants per module may only go down.',
+        tags: ['Testing', 'CI'],
+      },
+      {
+        icon: '🔒',
+        title: 'Origin TLS, Strictly Verified',
+        tier: 'All Plans',
+        desc: 'The edge now verifies the origin certificate (Cloudflare Full strict) against a long-lived Origin CA certificate whose key never left the server.',
+        tags: ['Infrastructure', 'TLS'],
+      },
+    ],
+  },
+  {
+    version: 'v7.9',
+    date: 'Aug 2026',
+    badge: '',
+    badgeColor: '#64748b',
     items: [
       {
         icon: '🏷️',
