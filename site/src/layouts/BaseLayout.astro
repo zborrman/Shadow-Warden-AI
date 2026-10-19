@@ -131,6 +131,15 @@ const categories = [
     href: '/dashboard',
     color: '#80b4fd',
     sub: [...new Set(roadmap.filter(r => r.category === 'Dashboard').map(r => r.subcategory))],
+    // Read-only Grafana public dashboards, served from metrics.<domain> where
+    // Caddy passes only the public-dashboard paths (docker/Caddyfile). Chosen
+    // because their panels return data; pre-launch, several read zero — which
+    // is the truth, not a fault. The access tokens are public by design.
+    links: [
+      { label: '● Live — Service Health',      href: 'https://metrics.shadow-warden-ai.com/public-dashboards/53657fb3227a4bb78d7ce2532899168a' },
+      { label: '● Live — Marketplace Liquidity', href: 'https://metrics.shadow-warden-ai.com/public-dashboards/8212954652f74ca7a31f86a67bdad2e5' },
+      { label: '● Live — Community Hub',       href: 'https://metrics.shadow-warden-ai.com/public-dashboards/5c3b6c9ec3c140f8b0eb44987d368789' },
+    ],
   },
   {
     label: 'Settings',
