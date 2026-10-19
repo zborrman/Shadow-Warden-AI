@@ -4,7 +4,7 @@
 # into app.routes — runtime serving is unaffected (both include patterns return
 # 200), only route-inventory introspection needed teaching to expand that node
 # (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
-fastapi>=0.143.1
+fastapi>=0.143.2
 starlette>=1.8.0
 uvicorn[standard]>=0.54.0
 pydantic>=2.14.1
@@ -54,7 +54,7 @@ prometheus-client>=0.26.0
 # ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
 
 # Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
-transformers>=5.19.0
+transformers>=5.20.0
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
 sentence-transformers>=6.1.0
@@ -72,7 +72,7 @@ cryptography>=50.0.2
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
-anthropic>=1.14.0
+anthropic>=1.15.0
 
 # ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
 # Install to enable Jaeger tracing across filter pipeline stages.
@@ -153,7 +153,7 @@ PyJWT>=2.15.1
 # faiss-cpu>=1.8.0
 
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
-cachetools>=7.2.1
+cachetools>=7.2.2
 
 # ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
 # clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
