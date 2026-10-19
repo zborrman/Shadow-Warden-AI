@@ -17,7 +17,7 @@ const demoMessages = [
   },
   {
     role: 'assistant',
-    text: "All 14 defense layers are operational. Corpus at 4,821 examples — healthy. ERS active with 3 shadow-banned sessions. No circuit breaker trips in last 6h.",
+    text: "All 9 defense layers are operational. Corpus at 4,821 examples — healthy. ERS active with 3 shadow-banned sessions. No circuit breaker trips in last 6h.",
     stats: [{ k: 'Layers', v: '14/14' }, { k: 'Corpus', v: '4,821' }, { k: 'Shadow Banned', v: '3' }, { k: 'CB Trips', v: '0' }],
   },
 ];
@@ -42,7 +42,7 @@ const demoMessages = [
         </div>
         <div>
           <div class="text-[14px] font-bold">SOVA Agent</div>
-          <div class="text-[10px] text-[#30D158]">Claude Opus 4.6 · 30 tools · ARQ scheduler</div>
+          <div class="text-[10px] text-[#30D158]">Claude Opus 4.6 · 92 tools · ARQ scheduler</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -67,7 +67,7 @@ const demoMessages = [
             system health, forensics, compliance reports, and visual patrol via Playwright.
             How can I help secure your AI infrastructure today?
           </div>
-          <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.6 · ready</div>
+          <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.8 · ready</div>
         </div>
       </div>
 
@@ -202,7 +202,7 @@ const demoMessages = [
 
     const responses: Record<string, string> = {
       'Run morning threat intelligence brief': '📋 Morning Brief complete. OSV scanned 847 new CVEs — 2 affecting your dependency stack (flagged). ArXiv: 3 new LLM attack papers synthesized into corpus (+12 examples). Shadow ban queue: 7 active sessions. Corpus health: 4,821 examples, drift NOMINAL.',
-      'Run full system health check': '✅ All 14 defense layers operational. P99 latency: 18.3ms. Corpus: 4,821 examples. Circuit breaker: CLOSED. ERS: 3 shadow-banned sessions (gaslight strategy). MinIO: CONNECTED. Redis: CONNECTED. No anomalies detected.',
+      'Run full system health check': '✅ All 9 defense layers operational. P99 latency: 18.3ms. Corpus: 4,821 examples. Circuit breaker: CLOSED. ERS: 3 shadow-banned sessions (gaslight strategy). MinIO: CONNECTED. Redis: CONNECTED. No anomalies detected.',
       'Check ML corpus health and drift': '🧬 Corpus report: 4,821 total examples (↑23 from yesterday Evolution Engine). Distribution: BLOCK 3,241 / ALLOW 1,580. Drift score: 0.12 (NOMINAL threshold 0.3). Last evolution: 47 minutes ago triggered by BLOCK cluster.',
     };
 
@@ -214,7 +214,7 @@ const demoMessages = [
       <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
       <div class="flex-1 max-w-[85%]">
         <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${reply}</div>
-        <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.6</div>
+        <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.8</div>
       </div>`;
     msgs.appendChild(botDiv);
     msgs.scrollTop = msgs.scrollHeight;

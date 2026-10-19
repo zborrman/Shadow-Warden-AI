@@ -376,7 +376,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
             <h3 class="card-title mb-5">Agent Modules</h3>
             <div class="space-y-3 max-w-md">
               {[
-                { id: 'toggle-sova',       label: 'SOVA Agent',          desc: 'Autonomous operator with 30 tools + cron jobs',                defaultOn: true  },
+                { id: 'toggle-sova',       label: 'SOVA Agent',          desc: `Autonomous operator with ${PRODUCT.sovaTools} tools + cron jobs`,                defaultOn: true  },
                 { id: 'toggle-master',     label: 'MasterAgent',         desc: 'Multi-agent SOC coordinator (Pro+)',                           defaultOn: false },
                 { id: 'toggle-healer',     label: 'WardenHealer',        desc: 'Autonomous anomaly detection with OLS trend + Haiku triage',   defaultOn: true  },
                 { id: 'toggle-evolution',  label: 'Evolution Engine',    desc: 'Auto-generates detection rules from Claude Opus',              defaultOn: false },

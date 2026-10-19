@@ -1,4 +1,5 @@
 ---
+import { PRODUCT } from '../data/product';
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
@@ -19,7 +20,7 @@ const features = [
   { id: 'FE-12', title: 'Shadow AI Discovery',           version: 'v4.2', tier: 'Pro+',               status: 'shipped',    category: 'Governance',        desc: '18-provider fingerprint DB. Async /24 subnet probe, DNS telemetry classifier.' },
   { id: 'FE-13', title: 'Explainable AI (XAI)',          version: 'v4.3', tier: 'Pro+',               status: 'shipped',    category: 'Observability',     desc: '9-stage DAG, causal attribution, counterfactuals, HTML + PDF reports.' },
   { id: 'FE-14', title: 'MasterAgent SOC',               version: 'v4.0', tier: 'Pro+',               status: 'shipped',    category: 'Agents',            desc: '4 sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent). HMAC tokens.' },
-  { id: 'FE-15', title: 'SOVA Agent',                    version: 'v3.x', tier: 'Pro+',               status: 'shipped',    category: 'Agents',            desc: 'Claude Opus 4.6 autonomous operator. 30 tools, 7 ARQ cron jobs, Redis memory.' },
+  { id: 'FE-15', title: 'SOVA Agent',                    version: 'v3.x', tier: 'Pro+',               status: 'shipped',    category: 'Agents',            desc: `${PRODUCT.sovaModel} autonomous operator. ${PRODUCT.sovaTools} tools, 7 ARQ cron jobs, Redis memory.` },
   { id: 'FE-16', title: 'SEP — Syndicate Exchange',      version: 'v4.6', tier: 'Community Business+', status: 'shipped',   category: 'Communities',       desc: 'UECIID business identity, STIX 2.1 audit chain, Knock-and-Verify invitations.' },
   { id: 'FE-17', title: 'Secrets Governance',            version: 'v4.9', tier: 'Community Business+', status: 'shipped',   category: 'Security',          desc: 'Multi-cloud vault connectors. SQLite inventory, risk scoring, rotation scheduling.' },
   { id: 'FE-18', title: 'Obsidian Plugin',               version: 'v4.19', tier: 'Pro+',              status: 'shipped',    category: 'Integrations',      desc: 'Scan, share, XAI pipeline visualizer, Dataview dashboard, offline publish queue.' },
