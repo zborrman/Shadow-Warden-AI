@@ -1,6 +1,6 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.9 · Last updated 2026-08-03**
+**Version 7.10 · Last updated 2026-10-19**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
@@ -21,6 +21,17 @@ We publish an updated priority snapshot every quarter. The `📋 Planned` items 
 > **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
 
 ---
+
+## v7.10 Release — 2026-10-19 · Security, Honesty & Supply-Chain Hardening
+
+No new features (feature freeze, launch programme P0). See `docs/changelog.md`.
+
+| Area | Change | Status |
+|------|--------|--------|
+| Security | Tenant-isolation guard blocking; takeover, cross-tenant caps and keyless billing reads closed (#588, #590, #596, #597) | ✅ |
+| Claims | Invented site metrics removed; compliance wording self-attested (#624) | ✅ |
+| Quality | Weekly mutation sweep (#600), hadolint (#599), grouped dependency updates (#598) | ✅ |
+| Infra | Origin CA + Cloudflare Full (strict) | ✅ |
 
 ## v7.9 Release — 2026-08-03 · FinOps & Monetization (FM-7)
 

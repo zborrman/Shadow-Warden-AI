@@ -4,7 +4,7 @@
 > every AI request and the world: it blocks jailbreaks, strips secrets and PII,
 > and never logs content.
 
-Shadow Warden AI v7.9 — Proprietary — https://shadow-warden-ai.com
+Shadow Warden AI v7.10 — Proprietary — https://shadow-warden-ai.com
 
 ## When to use this
 

@@ -5,6 +5,27 @@ Feature IDs reference the project ROADMAP.
 
 ---
 
+## v7.10 — Security, Honesty & Supply-Chain Hardening (2026-10-19)
+
+Feature freeze (launch programme P0) is in force; this release contains no new subsystem.
+
+**Security**
+- Tenant isolation (H-5): blocking guard plus fixes for key-rotation takeover (#590), cross-tenant spend caps (#596) and keyless `/billing/*` reads (#597).
+- `/ws/monitor` authentication and reader-thread leak (#556).
+
+**Claims**
+- Invented marketplace numbers and an illustrative customer chart removed from the site; compliance wording aligned with the capability matrix (#624).
+
+**Quality gates**
+- Weekly mutation sweep with survivor ratchet (#600); `hadolint` (#599); grouped dependency updates (#598, #606, #612).
+
+**Infrastructure**
+- Origin TLS: Cloudflare Origin CA + Full (strict).
+- SQLAlchemy 2.1 made a bare `postgresql://` resolve to psycopg 3; sync URLs now name psycopg2 (#618).
+
+**Dependencies**
+- sentence-transformers 6.1, anthropic 1.14, starlette 1.8, plus 72 minor/patch updates (#615).
+
 ## v7.9 — FinOps & Monetization Coherence (2026-08-03)
 
 Track C / **FM-7**. Full analysis: `docs/monetization-plan.md`.

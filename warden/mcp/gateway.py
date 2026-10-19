@@ -35,6 +35,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from warden import __version__ as _warden_version
 from warden.mcp.pricing import DEFAULT_PRICE_USD, MCP_EXPOSED_TOOLS, TOOL_PRICES_USD, price_for
 from warden.mcp.product_tools import (
     FREE_TOOLS,
@@ -101,7 +102,8 @@ router = APIRouter(prefix="/mcp", tags=["mcp"])
 SUPPORTED_PROTOCOL_VERSIONS: tuple[str, ...] = ("2025-06-18", "2025-03-26", "2024-11-05")
 _PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]
 _PROTOCOL_VERSION_HEADER = "MCP-Protocol-Version"
-_SERVER_INFO = {"name": "shadow-warden", "version": "7.9.0"}
+# Read from the version of record so the MCP handshake cannot drift from it.
+_SERVER_INFO = {"name": "shadow-warden", "version": _warden_version}
 
 # MCP error codes (JSON-RPC standard + MCP extensions)
 _PARSE_ERROR     = -32700

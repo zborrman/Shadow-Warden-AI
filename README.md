@@ -4,7 +4,7 @@
 
 Shadow Warden AI is a self-contained, GDPR-compliant security layer that sits in front of every AI request in your application. It blocks jailbreak attempts, strips secrets and PII, shadow-bans attackers, enforces agentic safety guardrails, and self-improves — all without sending sensitive data to third parties.
 
-**Version:** 7.9 · **License:** Proprietary · **Language:** Python 3.11+
+**Version:** 7.10 · **License:** Proprietary · **Language:** Python 3.11+
 
 📋 **Full public roadmap →** [ROADMAP.md](ROADMAP.md) · 📚 **Documentation →** [docs/](docs/README.md)
 
@@ -53,6 +53,19 @@ markdown is served from the *same* URL as the HTML, both variants carry
 `404` whose body — HTML or markdown — lists the recovery routes above.
 
 ---
+
+## What's New in v7.10
+
+A hardening and honesty release. Feature work is frozen until launch (`docs/launch-program.md`), so nothing here is a new subsystem.
+
+| Change | Description |
+|--------|-------------|
+| **Tenant isolation, enforced (H-5)** | The `tenant-isolation` guard matched a pattern the code never used and reported zero on every run. It now finds routes that take their tenant from the request and blocks new ones; 175 were baselined as debt. First fixes: any key could rotate (and receive) another tenant's key (#590), read or remove another tenant's spend cap (#596), and `/billing/*` answered plan, quota and margin with no key at all (#597). |
+| **Public claims match the product** | Invented marketplace totals and an illustrative customer chart were removed from the site; SOC 2 / GDPR wording now reads "self-attested control mapping" (#624). |
+| **Test and supply-chain gates** | Weekly mutation sweep with a per-module survivor ratchet (#600), `hadolint` in CI (#599), grouped Dependabot updates with documented Python-3.11 and pinned-parent ignores (#598, #606, #612). |
+| **Infrastructure** | Origin TLS moved to a Cloudflare Origin CA certificate with Full (strict) verification; the previous origin certificate had expired unnoticed. |
+| **Dependencies** | SQLAlchemy 2.1 (sync URLs now name psycopg2 explicitly, #618), sentence-transformers 6, Anthropic SDK 1.x, Starlette 1.8. |
+| **Settlement (testnet)** | Escrow `deposit` preflight, a $25 per-trade cap for the first 90 days, and Base Sepolia rehearsals. Mainnet stays blocked until an external audit of `Escrow.sol`. |
 
 ## What's New in v7.9
 
