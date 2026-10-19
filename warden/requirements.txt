@@ -191,7 +191,7 @@ faster-whisper>=1.0.0
 # web3 — Ethereum JSON-RPC client for MandateContract (Sepolia/Polygon).
 # py-solc-x — Solidity compiler wrapper (used by deploy_sepolia.py only).
 # Falls back to eth_tester simulation when WEB3_RPC_URL is not set.
-web3>=7.0.0
+web3>=8.0.0
 ipfshttpclient>=0.8.0a2
 
 # soundfile — audio decoding fallback (WAV/FLAC/OGG) for AudioGuard.
