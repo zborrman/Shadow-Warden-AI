@@ -114,6 +114,12 @@ updates:
         versions: [">=0.9"]
       - dependency-name: "eth-account"
         versions: [">=0.14"]
+      # web3 8 itself (#620): requires eth-account>=0.14, the migration above.
+      - dependency-name: "web3"
+        versions: [">=8"]
+      # av 19 requires Python >=3.12 (#622; faster-whisper accepts any av>=11).
+      - dependency-name: "av"
+        versions: [">=19"]
       # Found by the first grouped PR (#601, 76 updates), which cannot resolve
       # while any one of these is in it. Each was isolated by re-resolving the
       # batch on Python 3.11 and holding back one package at a time.
