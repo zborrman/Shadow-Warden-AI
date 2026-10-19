@@ -242,6 +242,29 @@ dash.shadow-warden-ai.com {
 # 	}
 # }
 
+# ── Public metrics (Grafana public dashboards, read-only) ───────────────────
+# Grafana itself stays on 127.0.0.1:3001 — it holds every datasource credential
+# and the alerting config. This vhost forwards ONLY what a Grafana public
+# dashboard needs: the page, its read-only query API, and static assets.
+# Login, the admin UI and the authenticated /api/* answer 404 here.
+# Which dashboards are public is decided inside Grafana (Share -> Public
+# dashboard); revoking one there takes it offline without touching this file.
+metrics.shadow-warden-ai.com {
+	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
+
+	import security_headers
+
+	@public_dashboards path /public-dashboards/* /api/public/dashboards/* /public/*
+	handle @public_dashboards {
+		reverse_proxy grafana:3000 {
+			import client_ip_headers
+		}
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
+
 # ── API Documentation (Redoc) ────────────────────────────────────────────────
 docs.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
