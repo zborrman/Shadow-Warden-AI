@@ -106,7 +106,7 @@ playwright>=1.44.0
 # ── Analytics Dashboard ───────────────────────────────────────────────────────
 # Streamlit — `streamlit run warden/analytics/dashboard.py`
 # Plotly — Threat Radar (Scatterpolar) + Attack Timeline (area chart)
-streamlit>=1.66.0
+streamlit>=1.66.1
 plotly>=7.1.0
 
 # ── Dashboard authentication ──────────────────────────────────────────────────
@@ -181,7 +181,7 @@ markitdown>=0.1.8
 
 # ── v1.4 Multi-Modal Guard ────────────────────────────────────────────────────
 # Pillow — image decoding for ImageGuard (CLIP input preprocessing)
-Pillow>=10.0.0
+Pillow>=13.0.0
 
 # faster-whisper — CTranslate2-optimized Whisper for AudioGuard.
 # Uses int8 quantization for 2-4x faster CPU inference vs openai/whisper.
