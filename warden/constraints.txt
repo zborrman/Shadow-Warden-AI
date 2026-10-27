@@ -72,7 +72,7 @@ boto3==1.43.114
 botocore==1.43.114
 cachetools==7.2.2
 cbor2==6.1.5
-certifi==2026.7.22
+certifi==2026.10.19
 cffi==2.1.1
 charset-normalizer==3.5.2
 ckzg==2.1.8
@@ -108,7 +108,7 @@ eth-utils==6.0.0
 eth_abi==6.0.0
 fastapi==0.143.2
 faster-whisper==1.2.1
-filelock==4.2.0
+filelock==4.2.1
 flatbuffers==25.12.19
 frozenlist==1.8.0
 fsspec==2026.9.0
