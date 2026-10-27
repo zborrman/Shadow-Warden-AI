@@ -200,7 +200,7 @@ packaging==26.3
 pandas==3.0.6
 parsimonious==0.10.0
 pathspec==1.1.1
-pillow==12.3.0
+pillow==13.0.0
 platformdirs==4.13.3
 playwright==1.61.0
 plotly==7.1.0
@@ -278,7 +278,7 @@ sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 SQLAlchemy==2.1.4
 starlette==1.8.0
-streamlit==1.66.0
+streamlit==1.66.1
 stripe==16.0.0
 sympy==1.14.0
 tenacity==9.2.1
