@@ -201,8 +201,15 @@ function isActive(href: string) {
 }
 const isSettingsActive = isActive('/settings');
 // A hub is active when the current page is the hub or any page it lists.
+// A page a hub lists by name belongs to that hub, even when it also sits under
+// another hub's path (/cyber-security/compliance-privacy is listed by Govern
+// but lives under Protect's /cyber-security), so exactly one hub lights up.
+const listsCurrent = (cat: (typeof categories)[number]) =>
+  cat.items.some(i => 'href' in i && i.href.startsWith('/') && isActive(i.href));
+const ownerHub = categories.find(listsCurrent);
 function isHubActive(cat: (typeof categories)[number]) {
-  return isActive(cat.href) || cat.items.some(i => 'href' in i && i.href.startsWith('/') && isActive(i.href));
+  if (ownerHub) return cat === ownerHub;
+  return isActive(cat.href);
 }
 ---
 
@@ -295,7 +302,7 @@ function isHubActive(cat: (typeof categories)[number]) {
               )}
             </a>
             {cat.items.length > 0 && (
-              <div class="absolute top-full left-0 mt-1 w-56 rounded-xl py-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150"
+              <div class="absolute top-full left-0 mt-1 w-56 rounded-xl py-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-150"
                    style="background:#16161f;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 40px rgba(0,0,0,0.5)">
                 {cat.items.map(item => 'divider' in item ? (
                   <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 12px"/>
