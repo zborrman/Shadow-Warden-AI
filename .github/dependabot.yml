@@ -117,6 +117,10 @@ updates:
       # web3 8 itself (#620): requires eth-account>=0.14, the migration above.
       - dependency-name: "web3"
         versions: [">=8"]
+      # pycryptodome 4 (#630): eth-keyfile 0.10 declares pycryptodome<4. Same
+      # web3-line cap - lift with the web3 7 -> 8 migration.
+      - dependency-name: "pycryptodome"
+        versions: [">=4"]
       # av 19 requires Python >=3.12 (#622; faster-whisper accepts any av>=11).
       - dependency-name: "av"
         versions: [">=19"]
