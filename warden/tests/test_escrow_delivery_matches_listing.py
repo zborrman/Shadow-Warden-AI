@@ -10,11 +10,15 @@ asset's stored content.
 from __future__ import annotations
 
 import hashlib
-import sqlite3
 
 import pytest
 
-from warden.marketplace.escrow import EscrowService, expected_asset_hash
+from warden.marketplace.escrow import (
+    EscrowService,
+    ListingContentUnresolvedError,
+    expected_asset_hash,
+)
+from warden.marketplace.service import _conn
 
 _CONTENT = '{"ueciid": "SEP-00000000001", "rules": ["deny x"]}'
 _GOOD = hashlib.sha256(_CONTENT.encode()).hexdigest()
@@ -32,7 +36,11 @@ def _seed(db: str, listing_id: str, asset_id: str, with_asset: bool = True) -> N
     # Create the tables through the real modules, then write rows directly.
     from warden.marketplace import listing, service  # noqa: F401
     EscrowService().get_escrow("none", db)  # applies the registered DDL
-    con = sqlite3.connect(db)
+    with _conn(db) as con:
+        _seed_rows(con, listing_id, asset_id, with_asset)
+
+
+def _seed_rows(con, listing_id: str, asset_id: str, with_asset: bool) -> None:
     if with_asset:
         con.execute(
             "INSERT INTO marketplace_assets (asset_id, asset_type, token_data, ipfs_hash,"
@@ -51,8 +59,6 @@ def _seed(db: str, listing_id: str, asset_id: str, with_asset: bool = True) -> N
         f"INSERT INTO marketplace_listings ({','.join(row)}) VALUES ({','.join('?' * len(row))})",
         tuple(row.values()),
     )
-    con.commit()
-    con.close()
 
 
 def _funded(svc: EscrowService, db: str, listing_id: str):
@@ -86,11 +92,24 @@ def test_the_listed_hash_is_accepted_in_any_common_spelling(db, form):
     assert svc.get_escrow(esc.escrow_id, db).status == "delivered"
 
 
-def test_a_listing_whose_asset_is_not_registered_binds_no_content(db):
+def test_a_listing_whose_asset_is_not_registered_refuses_delivery(db):
+    # SellerAgent.auto_list() reaches publish_listing() without the API's
+    # registration check, so such a listing can exist. It must not read as
+    # "binds no content" — that would accept any hash.
     _seed(db, "LST-S", "SEP-unregistered", with_asset=False)
-    assert expected_asset_hash("LST-S", db) is None
+    with pytest.raises(ListingContentUnresolvedError):
+        expected_asset_hash("LST-S", db)
     svc = EscrowService()
     esc = _funded(svc, db, "LST-S")
+    assert svc.deliver_asset(esc.escrow_id, "sha256:anything", db) is False
+    assert svc.get_escrow(esc.escrow_id, db).status == "funded"
+
+
+def test_an_escrow_with_no_listing_binds_no_content(db):
+    _seed(db, "LST-OTHER", "SEP-x")  # tables exist; this listing id does not
+    assert expected_asset_hash("LST-ABSENT", db) is None
+    svc = EscrowService()
+    esc = _funded(svc, db, "LST-ABSENT")
     assert svc.deliver_asset(esc.escrow_id, "sha256:anything", db) is True
 
 
@@ -115,15 +134,13 @@ def _listing_body(asset_id: str, seller: str) -> dict:
 
 def _register_only_asset(db: str, asset_id: str, seller: str) -> None:
     EscrowService().get_escrow("none", db)
-    con = sqlite3.connect(db)
-    con.execute(
-        "INSERT INTO marketplace_assets (asset_id, asset_type, token_data, ipfs_hash,"
-        " seller_agent_id, community_id, tenant_id, created_at)"
-        " VALUES (?, 'rule', ?, '', ?, 'c1', 't1', '2026-10-31')",
-        (asset_id, _CONTENT, seller),
-    )
-    con.commit()
-    con.close()
+    with _conn(db) as con:
+        con.execute(
+            "INSERT INTO marketplace_assets (asset_id, asset_type, token_data, ipfs_hash,"
+            " seller_agent_id, community_id, tenant_id, created_at)"
+            " VALUES (?, 'rule', ?, '', ?, 'c1', 't1', '2026-10-31')",
+            (asset_id, _CONTENT, seller),
+        )
 
 
 def test_listing_an_unregistered_asset_is_refused(db):
