@@ -112,6 +112,21 @@ _NOT_FOUND       = -32601
 _INVALID_PARAMS  = -32602
 _PAYMENT_REQUIRED = -32099   # MCP extension: payment required
 
+# One copy of the signed-payment instructions, for both 402 paths. It must
+# match `marketplace/x402_gate._verify_payment_identity`: an unsigned payload is
+# always refused, so instructions that omit a field describe a payment that
+# can never succeed.
+_X402_SIGNED_RETRY = (
+    "Fund your balance via POST /marketplace/x402/fund, then retry with "
+    "PAYMENT-SIGNATURE: base64 of the JSON object "
+    '{"agent_id": "did:shadow:<fragment>", "public_key": "<base64 Ed25519 public key>", '
+    '"nonce": "<uuid4>", "issued_at": <unix seconds>, "signature": "<base64>"}, '
+    "where signature is Ed25519 over the UTF-8 bytes of "
+    "x402/1.0:<agent_id>:<nonce>:<issued_at>, issued_at is within 5 minutes, "
+    "and agent_id is did:shadow: followed by the first 32 base-62 characters "
+    "(alphabet 0-9A-Za-z) of SHA-256 over the base64-decoded public_key. "
+)
+
 
 def negotiate_version(requested: str | None) -> str:
     """The revision this exchange runs at.
@@ -258,11 +273,7 @@ async def _check_payment(
                     "tool":         tool_name,
                     "price_usd":    str(price),
                     "instructions": (
-                        "Fund your balance via POST /marketplace/x402/fund, "
-                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\", \"public_key\", "
-                        "\"nonce\", \"issued_at\", \"signature\"}) where signature is "
-                        "Ed25519 over x402/1.0:<agent_id>:<nonce>:<issued_at> and "
-                        "agent_id derives from public_key. "
+                        _X402_SIGNED_RETRY +
                         "Alternatively use Flex Credits: POST /marketplace/credits/purchase."
                     ),
                 },
@@ -316,11 +327,7 @@ async def _check_payment(
                     "tool":         tool_name,
                     "price_usd":    str(price),
                     "instructions": (
-                        "Fund your balance via POST /marketplace/x402/fund, "
-                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\", \"public_key\", "
-                        "\"nonce\", \"issued_at\", \"signature\"}) where signature is "
-                        "Ed25519 over x402/1.0:<agent_id>:<nonce>:<issued_at> and "
-                        "agent_id derives from public_key. "
+                        _X402_SIGNED_RETRY +
                         "Or pay via Lightning: use the L402 macaroon+invoice in WWW-Authenticate. "
                         "Or use Flex Credits: POST /marketplace/credits/purchase."
                     ),
