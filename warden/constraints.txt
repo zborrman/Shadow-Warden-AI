@@ -215,7 +215,7 @@ py-cid==0.5.0
 py-multibase==2.0.0
 py-multicodec==1.0.0
 py-multihash==3.0.0
-pyarrow==24.0.0
+pyarrow==25.0.1
 # 0.6.3: DoS via crafted ASN.1 OBJECT IDENTIFIER / REAL values (CVE-2026-59885,
 # CVE-2026-59886). Production was already on 0.6.4 by accident of floating pins.
 pyasn1==0.6.5
