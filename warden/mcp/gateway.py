@@ -6,7 +6,7 @@ Endpoint: POST /mcp/
 
 Payment flow per tools/call:
   1. Flex Credits fast-path (X-Tenant-ID header, 1 credit per call)
-  2. x402 USDC balance (PAYMENT-SIGNATURE: base64({"agent_id": "..."}))
+  2. x402 USDC balance (PAYMENT-SIGNATURE: base64 JSON, Ed25519-signed — see x402_gate)
   3. L402 Lightning (Authorization: L402 <macaroon>:<preimage>)
   4. Otherwise → 402 JSON-RPC error (WWW-Authenticate: L402 + x402 headers)
 
@@ -21,7 +21,7 @@ Registration:  POST /marketplace/register  →  DID + KYA screening
 Fund balance:  POST /marketplace/x402/fund →  pre-fund USDC credits
 Discover:      POST /mcp/  {"method":"tools/list"}
 Call:          POST /mcp/  {"method":"tools/call","params":{"name":"score_kyc_profile",...}}
-               with PAYMENT-SIGNATURE: base64({"agent_id":"<did:shadow:...>"})
+               with a signed PAYMENT-SIGNATURE (agent_id, public_key, nonce, issued_at, signature)
                or   Authorization: L402 <macaroon>:<preimage>
 """
 from __future__ import annotations
@@ -259,7 +259,10 @@ async def _check_payment(
                     "price_usd":    str(price),
                     "instructions": (
                         "Fund your balance via POST /marketplace/x402/fund, "
-                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\": \"<did>\"}). "
+                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\", \"public_key\", "
+                        "\"nonce\", \"issued_at\", \"signature\"}) where signature is "
+                        "Ed25519 over x402/1.0:<agent_id>:<nonce>:<issued_at> and "
+                        "agent_id derives from public_key. "
                         "Alternatively use Flex Credits: POST /marketplace/credits/purchase."
                     ),
                 },
@@ -314,7 +317,10 @@ async def _check_payment(
                     "price_usd":    str(price),
                     "instructions": (
                         "Fund your balance via POST /marketplace/x402/fund, "
-                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\": \"<did>\"}). "
+                        "then retry with PAYMENT-SIGNATURE: base64({\"agent_id\", \"public_key\", "
+                        "\"nonce\", \"issued_at\", \"signature\"}) where signature is "
+                        "Ed25519 over x402/1.0:<agent_id>:<nonce>:<issued_at> and "
+                        "agent_id derives from public_key. "
                         "Or pay via Lightning: use the L402 macaroon+invoice in WWW-Authenticate. "
                         "Or use Flex Credits: POST /marketplace/credits/purchase."
                     ),
