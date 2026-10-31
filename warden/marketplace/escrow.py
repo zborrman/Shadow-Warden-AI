@@ -27,6 +27,7 @@ Table: marketplace_escrow (shared MARKETPLACE_DB_PATH)
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -288,6 +289,44 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
 
 # ── EscrowService ─────────────────────────────────────────────────────────────
 
+
+def _normalise_hash(value: str) -> str:
+    """Lower-case hex with any ``0x`` / ``sha256:`` prefix removed."""
+    v = (value or "").strip().lower()
+    for prefix in ("0x", "sha256:"):
+        if v.startswith(prefix):
+            v = v[len(prefix):]
+    return v
+
+
+def expected_asset_hash(listing_id: str, db_path: str | None = None) -> str | None:
+    """SHA-256 (hex) of the content the listing was listed with, or None.
+
+    None means the listing binds no content: a listing with no asset, or a
+    database without the listing tables (an escrow opened outside a purchase).
+    Asset content is immutable once registered — every registration mints a
+    fresh UECIID and nothing updates ``token_data`` — so hashing it at delivery
+    time is the same as hashing it at listing time. Any other database error
+    propagates: an unreadable listing must not wave a delivery through.
+    """
+    if not listing_id:
+        return None
+    try:
+        with _conn(db_path) as con:
+            row = con.execute(
+                """SELECT a.token_data FROM marketplace_listings l
+                   JOIN marketplace_assets a ON a.asset_id = l.asset_id
+                   WHERE l.listing_id = ?""",
+                (listing_id,),
+            ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower():
+            return None
+        raise
+    if row is None or not row[0]:
+        return None
+    return hashlib.sha256(str(row[0]).encode("utf-8")).hexdigest()
+
 class EscrowService:
     """
     Manages escrow lifecycle for marketplace purchases.
@@ -539,9 +578,22 @@ class EscrowService:
         asset_hash: str,
         db_path: str | None = None,
     ) -> bool:
-        """Seller delivers asset hash — transitions to 'delivered'."""
+        """Seller delivers asset hash — transitions to 'delivered'.
+
+        When the listing names an asset, the hash must be the SHA-256 of the
+        content that was listed. Until this check the seller's hash was recorded
+        and sent on-chain unexamined, so a seller could deliver anything —
+        or nothing — and the escrow said "delivered" all the same.
+        """
         esc = self._get(escrow_id, db_path)
         if esc is None or esc.status != "funded":
+            return False
+        expected = expected_asset_hash(esc.listing_id, db_path)
+        if expected is not None and _normalise_hash(asset_hash) != expected:
+            log.warning(
+                "escrow %s: delivered hash does not match the listed content; refused",
+                escrow_id,
+            )
             return False
         if not self._call_contract(esc.contract_address, "deliverAsset",
                                    {"assetHash": asset_hash}, escrow_id, db_path=db_path):
