@@ -225,5 +225,5 @@ defusedxml==0.7.1          # XXE-safe XML parsing (SAML assertions, threat feeds
 # gates stay green. Surfaced by the gates themselves — remediated, not waived.
 #   setuptools <83.0.0  → PYSEC-2026-3447            (pip-audit)
 #   wheel      <0.46.2  → CVE-2026-24049 (priv-esc)  (Trivy HIGH)
-setuptools>=83.0.0
+setuptools>=84.2.1
 wheel>=0.48.0
