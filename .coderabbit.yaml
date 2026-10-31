@@ -148,9 +148,90 @@ reviews:
 
     - path: ".github/workflows/**"
       instructions: |
-        CI changes: confirm coverage gate stays >=75%, ruff/mypy still run, and
+        CI changes: confirm coverage gate stays >=83% (--cov-fail-under=83), ruff/mypy still run, and
         pytest collection errors still fail the job (don't let collection errors
         pass silently — this was a real prior incident, see preprod audit).
+
+
+    - path: "warden/{marketplace,payments,billing,voice,agentic,business_community}/**/*.py"
+      instructions: |
+        Money path. Flag:
+        - Agent spend decisions that do not pass through
+          `warden/payments/authorize.py::authorize_payment()` (FT-6 chokepoint).
+          `credits.py::purchase_credits()` is the documented exception.
+        - Float arithmetic on money. `marketplace/clearing.py` uses `Decimal`;
+          any `float(...)` on an amount, price or balance is a defect.
+        - A third copy of x402 balance SQL. Import from
+          `warden/payments/x402_balance.py`; `deduct_strict` (voice) and
+          `deduct_floor` (marketplace) are intentionally different.
+        - Any change to x402 fail-open behaviour; it is a protected invariant.
+        - Overage presented to a provider outside
+          `billing/overage_ledger.py::settle()` (must stay idempotent per
+          (tenant_id, period)).
+        - Prices typed anywhere except `warden/billing/pricing.py`.
+
+    - path: "warden/{api,billing,marketplace,communities,business_intelligence}/**/*.py"
+      instructions: |
+        Tenant isolation (H-5). A tenant id taken from the request (header,
+        query, path or body) must be bound to the caller: use
+        `require_tenant_owner_or_admin` / `require_admin_only` from
+        `warden/api/gdpr.py`, or honour `X-Tenant-ID` only together with a valid
+        `X-Admin-Key` compared via `hmac.compare_digest`. Otherwise default to
+        `auth.tenant_id`. Flag any new entry added to
+        `warden/tests/tenant_isolation_baseline.json` — that file may only shrink.
+        Caller IP must come from `warden.client_ip.get_client_ip(request)`, never
+        `request.client.host`, `get_remote_address()` or a raw X-Forwarded-For.
+
+    - path: "**/*.sol"
+      instructions: |
+        Smart contracts that will hold real funds and go to external audit.
+        Check: access control on every state-changing function (an unguarded
+        `deposit` once allowed draining allowances), reentrancy (checks-effects-
+        interactions), unchecked ERC-20 return values (use SafeERC20), integer
+        rounding on fee splits, events for every state change, and that no
+        function lets an arbitrary caller move another account's funds.
+
+    - path: "{site/src,README.md,docs,sdk}/**"
+      instructions: |
+        Claims Rule (canonical: docs/capability-matrix.md). Flag any public claim
+        that exceeds its row in the capability matrix, or has no row:
+        - "SOC 2 compliant", "certified", or any certification — we hold none;
+          SELF-ATTESTED is a control mapping only.
+        - A SIMULATED capability phrased as live.
+        - Latency, uptime, detection-rate or throughput figures with no
+          instrument behind them (scripts/capability_probe.py is authoritative).
+        - Any implication of customers, revenue, usage or user counts — there are
+          zero registered users.
+        - Hard-coded fallback numbers shown when an API is unreachable.
+
+
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: |
+        Conventional-commit style `type(scope): summary`. Security or deep-eng
+        work carries an `SR-*` / `DE-*` id; never a bare "Phase N".
+    custom_checks:
+      - name: "Feature freeze (launch P0)"
+        mode: "warning"
+        instructions: |
+          Fail if the diff adds a new top-level package directory under `warden/`,
+          a new FastAPI `APIRouter(...)` in a new module, a new frontend app
+          directory at the repo root, or a new chain/payment provider/third-party
+          integration — unless the PR description states it is a security fix,
+          a repair of shipped code, or work a numbered launch-programme phase
+          calls for. Otherwise pass.
+      - name: "landing/ rebuilt with site/"
+        mode: "error"
+        instructions: |
+          Fail if any file under `site/src/` or `site/public/` changed and no file
+          under `landing/` changed. Pass otherwise.
+      - name: "English-only project content"
+        mode: "error"
+        instructions: |
+          Fail if any added line under `site/`, `portal/`, `dashboard/`,
+          `warden/`, `docs/` or `README.md` contains Cyrillic or Hebrew letters.
+          Pass otherwise.
 
   tools:
     ruff:
@@ -200,6 +281,12 @@ chat:
   auto_reply: true
 
 knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "**/CLAUDE.md"
+      - "docs/capability-matrix.md"
+      - "docs/launch-program.md"
   learnings:
     scope: "auto"
   issues:
