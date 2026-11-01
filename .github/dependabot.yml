@@ -121,6 +121,10 @@ updates:
       # web3-line cap - lift with the web3 7 -> 8 migration.
       - dependency-name: "pycryptodome"
         versions: [">=4"]
+      # websockets 16+ (#643): web3 7.16.0 declares websockets<16. Same web3-line
+      # cap - lift with the web3 7 -> 8 migration.
+      - dependency-name: "websockets"
+        versions: [">=16"]
       # av 19 requires Python >=3.12 (#622; faster-whisper accepts any av>=11).
       - dependency-name: "av"
         versions: [">=19"]
