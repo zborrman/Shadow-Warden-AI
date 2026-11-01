@@ -1,16 +1,16 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 ---
 
-<Layout
+<BaseLayout
   title="Incident Detail — Shadow Warden AI Community"
   description="Anonymised public incident card: XAI causal chain, verdict, risk level. No PII, no content — metadata only."
 >
   <Navbar />
 
-  <section class="relative pt-28 pb-8 overflow-hidden">
+  <section class="relative pt-6 pb-8 overflow-hidden">
     <div class="absolute inset-0 pointer-events-none"
          style="background-image:linear-gradient(rgba(99,117,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,117,255,0.03) 1px,transparent 1px);background-size:56px 56px"></div>
 
@@ -86,7 +86,7 @@ import Footer from '../components/Footer.astro';
   </section>
 
   <Footer />
-</Layout>
+</BaseLayout>
 
 <script>
   const API = "https://api.shadow-warden-ai.com";

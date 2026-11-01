@@ -16,6 +16,11 @@ interface Props {
   markdown?: string;
   /** Extra JSON-LD node(s) for this page, merged into the site-wide @graph. */
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /**
+   * Show the Home › Hub › Page trail at the top of <main>. Off only for app
+   * screens that already draw their own in-app trail (/community/*, /account/*).
+   */
+  breadcrumbs?: boolean;
 }
 
 const {
@@ -24,6 +29,7 @@ const {
   ogImage = '/logo.png',
   markdown,
   jsonLd,
+  breadcrumbs = true,
 } = Astro.props;
 
 const SITE_URL = 'https://shadow-warden-ai.com';
@@ -210,6 +216,34 @@ const ownerHub = categories.find(listsCurrent);
 function isHubActive(cat: (typeof categories)[number]) {
   if (ownerHub) return cat === ownerHub;
   return isActive(cat.href);
+}
+
+// Breadcrumbs come from the same table as the nav, so a page can never sit
+// under one hub in the menu and another in its trail. The hub is the one the
+// menu lights up; the middle step is the longest menu entry the page sits
+// under (e.g. /tunnel for /tunnel/per-tenant-routing), and only when it is
+// neither the page itself nor the hub's own landing.
+type Crumb = { label: string; href?: string };
+const crumbHub = categories.find(isHubActive);
+const pageLabel = title.replace(/\s+[—|–-]\s+.*$/, '').trim() || title;
+const crumbs: Crumb[] = [];
+if (breadcrumbs && currentPath !== '/') {
+  const trimmed = currentPath.replace(/(.)\/$/, '$1');
+  crumbs.push({ label: 'Home', href: '/' });
+  if (crumbHub) {
+    const onHub = trimmed === crumbHub.href;
+    crumbs.push(onHub ? { label: crumbHub.label } : { label: crumbHub.label, href: crumbHub.href });
+    if (!onHub) {
+      const parent = crumbHub.items
+        .filter((i): i is { label: string; href: string } =>
+          'href' in i && i.href.startsWith('/') && i.href !== crumbHub.href && isActive(i.href))
+        .sort((a, b) => b.href.length - a.href.length)[0];
+      if (parent && parent.href !== trimmed) crumbs.push({ label: parent.label, href: parent.href });
+      crumbs.push({ label: parent && parent.href === trimmed ? parent.label : pageLabel });
+    }
+  } else {
+    crumbs.push({ label: pageLabel });
+  }
 }
 ---
 
@@ -524,6 +558,20 @@ function isHubActive(cat: (typeof categories)[number]) {
   <!-- Page content -->
   <div id="page-spacer" style="height:92px"></div>
   <main>
+    {crumbs.length > 0 && (
+      <nav aria-label="Breadcrumb" class="mx-auto max-w-7xl px-4 lg:px-8 pt-4">
+        <ol class="flex flex-wrap items-center gap-1.5 text-[12px]" style="color:#64748b">
+          {crumbs.map((c, i) => (
+            <li class="flex items-center gap-1.5">
+              {i > 0 && <span aria-hidden="true" style="color:#334155">›</span>}
+              {c.href
+                ? <a href={c.href} class="transition-colors hover:text-white">{c.label}</a>
+                : <span aria-current="page" style="color:#94a3b8">{c.label}</span>}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )}
     <slot />
   </main>
 
