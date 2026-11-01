@@ -101,6 +101,7 @@ nav:
       - System Overview: architecture/overview.md
       - Filter Pipeline: architecture/pipeline.md
       - Security Model: security-model.md
+      - OWASP Agentic Top 10 Mapping: owasp-agentic-mapping.md
       - DPIA (GDPR Art.35): dpia.md
       - SOC 2 Evidence: soc2-evidence.md
       - SLA: sla.md
