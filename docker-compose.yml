@@ -1153,11 +1153,15 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          # In-memory storage capped at MEMORY_MAX_TRACES ran at 507 of 512 MiB on
+          # 2026-11-01, one burst from an OOM kill that would drop every stored trace.
+          memory: 768M
     environment:
       - COLLECTOR_OTLP_ENABLED=true
       - SPAN_STORAGE_TYPE=memory
       - MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-50000}
+      # Go soft limit below the cgroup limit: the GC tightens before the kernel kills.
+      - GOMEMLIMIT=640MiB
     networks:
       - warden-net
     healthcheck:
