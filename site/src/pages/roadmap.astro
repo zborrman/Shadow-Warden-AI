@@ -1,6 +1,6 @@
 ---
 import { PRODUCT } from '../data/product';
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 
@@ -58,7 +58,7 @@ const tierColor: Record<string, string> = {
 };
 ---
 
-<Layout title="Roadmap — Shadow Warden AI" description="Full roadmap for Shadow Warden AI. Filter shipped, planned features by tier and category.">
+<BaseLayout title="Roadmap — Shadow Warden AI" description="Full roadmap for Shadow Warden AI. Filter shipped, planned features by tier and category.">
   <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen">
     <Navbar />
 
@@ -154,7 +154,7 @@ const tierColor: Record<string, string> = {
 
     <Footer />
   </div>
-</Layout>
+</BaseLayout>
 
 <style>
   .filter-btn.active {

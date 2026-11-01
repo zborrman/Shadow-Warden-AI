@@ -32,6 +32,9 @@ _SITE = _ROOT / "site"
 _PUBLIC = _SITE / "public"
 _PAGES = _SITE / "src" / "pages"
 _LAYOUTS = _SITE / "src" / "layouts"
+# One layout: a page on a second layout had no site header, no footer and no
+# way back (S1). Every layout-level guard below runs over this tuple.
+_SITE_LAYOUTS = ("BaseLayout.astro",)
 _NEGOTIATE = _ROOT / "edge" / "negotiate.mjs"
 _MIDDLEWARE = _ROOT / "middleware.ts"
 _CADDYFILE = _ROOT / "docker" / "Caddyfile"
@@ -222,7 +225,7 @@ class TestStructuredData:
         return re.findall(r"'@type':\s*'([A-Za-z]+)'", src)
 
     def test_both_layouts_emit_json_ld(self):
-        for layout in ("BaseLayout.astro", "Layout.astro"):
+        for layout in _SITE_LAYOUTS:
             types = self._graph(layout)
             assert "Organization" in types, f"{layout} has no Organization node"
             assert "WebPage" in types, f"{layout} has no WebPage node"
@@ -238,7 +241,7 @@ class TestStructuredData:
         Layout.astro pointed WebPage.isPartOf at a WebSite node only BaseLayout
         emitted, so every page built on it carried a dangling reference.
         """
-        for layout in ("BaseLayout.astro", "Layout.astro"):
+        for layout in _SITE_LAYOUTS:
             src = _read(_LAYOUTS / layout)
             referenced = set(re.findall(r"'@id':\s*\{?\s*`\$\{SITE_URL\}/#(\w+)`", src))
             declared = set(re.findall(r"'@id':\s*`\$\{SITE_URL\}/#(\w+)`", src))
@@ -248,14 +251,14 @@ class TestStructuredData:
 
     def test_the_llms_txt_alternate_is_typed_as_it_is_served(self):
         """It is served as text/plain; advertising markdown invites a reject."""
-        for layout in ("BaseLayout.astro", "Layout.astro"):
+        for layout in _SITE_LAYOUTS:
             src = _read(_LAYOUTS / layout)
             link = re.search(r'<link rel="alternate" type="([^"]+)" href="/llms\.txt"', src)
             assert link, f"{layout} no longer links llms.txt"
             assert link.group(1) == "text/plain", f"{layout} mistypes the llms.txt alternate"
 
     def test_open_graph_urls_are_absolute(self):
-        for layout in ("BaseLayout.astro", "Layout.astro"):
+        for layout in _SITE_LAYOUTS:
             src = _read(_LAYOUTS / layout)
             assert 'property="og:url"' in src, f"{layout} publishes no og:url"
             image = re.search(r'property="og:image" content=\{([^}]+)\}', src)
@@ -278,7 +281,7 @@ class TestStructuredData:
         )
 
     def test_both_layouts_publish_a_canonical(self):
-        for layout in ("BaseLayout.astro", "Layout.astro"):
+        for layout in _SITE_LAYOUTS:
             src = _read(_LAYOUTS / layout)
             assert 'rel="canonical"' in src, f"{layout} publishes no canonical URL"
             assert "canonicalPath" in src, (
@@ -742,7 +745,7 @@ class TestOrganizationSchema:
     machine-readable identity data is worse than an incomplete one.
     """
 
-    LAYOUTS = ("BaseLayout.astro", "Layout.astro")
+    LAYOUTS = _SITE_LAYOUTS
 
     @pytest.mark.parametrize("layout", LAYOUTS)
     def test_the_organization_has_a_postal_address(self, layout):
@@ -767,22 +770,6 @@ class TestOrganizationSchema:
                 f"{layout} has a ContactPoint with no email"
             )
 
-    def test_both_layouts_publish_the_same_organization(self):
-        """
-        Two nodes sharing one @id but disagreeing on their fields is a
-        contradiction a consumer resolves arbitrarily.
-        """
-
-        def fields(layout: str) -> set[str]:
-            src = _read(_LAYOUTS / layout)
-            block = re.search(r"'@type': 'Organization',(.*?)\n    \},", src, re.S)
-            assert block, f"{layout} Organization node is gone - re-check this guard"
-            return set(re.findall(r"^\s{6}(\w+):", block.group(1), re.M))
-
-        base, other = (fields(layout) for layout in self.LAYOUTS)
-        assert {"address", "contactPoint"} <= base & other
-        assert base >= other, "Layout.astro publishes a field BaseLayout does not"
-
     @pytest.mark.parametrize("layout", LAYOUTS)
     def test_no_contact_address_is_invented(self, layout):
         """
@@ -806,3 +793,30 @@ class TestOrganizationSchema:
         assert org["address"]["@type"] == "PostalAddress"
         assert org["address"]["addressCountry"]
         assert any(cp.get("email") for cp in org["contactPoint"])
+
+
+class TestOneLayout:
+    """
+    Every page renders the site navigation. Seven pages once sat on a second
+    layout with no header or footer, four of them linked from the menu itself,
+    so a visitor who clicked "SDK" landed on a page with no way back.
+    """
+
+    # Full-screen screens that deliberately draw their own chrome: the auth
+    # forms, the FraudScore console (it loads its own Tailwind build), and the
+    # two pages that only redirect.
+    STANDALONE = {"login.astro", "signup.astro", "fraud-score.astro",
+                  "community.astro", "enterprise.astro"}
+
+    def test_the_site_has_one_layout(self):
+        assert sorted(p.name for p in _LAYOUTS.glob("*.astro")) == list(_SITE_LAYOUTS)
+
+    def test_every_page_renders_the_site_layout(self):
+        pages = _SITE / "src" / "pages"
+        missing = sorted(
+            str(p.relative_to(pages)).replace("\\", "/")
+            for p in pages.rglob("*.astro")
+            if p.name not in self.STANDALONE or p.parent != pages
+            if "layouts/BaseLayout.astro" not in _read(p)
+        )
+        assert missing == [], f"pages without the site navigation: {missing}"
