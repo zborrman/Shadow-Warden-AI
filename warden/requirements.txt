@@ -7,7 +7,7 @@
 fastapi>=0.162.0
 starlette>=1.10.0
 uvicorn[standard]>=0.54.0
-pydantic>=2.14.1
+pydantic>=2.14.2
 python-multipart>=0.0.9
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ prometheus-client>=0.26.0
 # ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
 
 # Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
-transformers>=5.21.0
+transformers>=5.22.0
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
 sentence-transformers>=6.2.0
@@ -153,7 +153,7 @@ PyJWT>=2.15.1
 # faiss-cpu>=1.8.0
 
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
-cachetools>=7.2.6
+cachetools>=7.2.7
 
 # ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
 # clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
