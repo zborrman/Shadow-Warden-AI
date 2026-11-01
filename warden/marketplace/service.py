@@ -13,6 +13,7 @@ Database
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import sqlite3
@@ -185,6 +186,8 @@ def get_asset(asset_id: str, db_path: str | None = None) -> dict | None:
         "asset_type":      row["asset_type"],
         "token_data":      json.loads(row["token_data"]),
         "ipfs_hash":       row["ipfs_hash"],
+        # What a seller must deliver: escrow.deliver_asset refuses any other hash.
+        "content_sha256":  hashlib.sha256(row["token_data"].encode("utf-8")).hexdigest(),
         "seller_agent_id": row["seller_agent_id"],
         "community_id":    row["community_id"],
         "tenant_id":       row["tenant_id"],

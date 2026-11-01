@@ -81,6 +81,21 @@ async def create_listing(body: ListingCreateRequest) -> dict:
     except Exception as exc:
         log.warning("valid_chains check fail-open: %s", exc)
         record_failopen("marketplace_chain", Reason.BACKEND_ERROR, exc)
+    # The listing must name a registered asset that belongs to the seller.
+    # Without this a seller could list an asset that does not exist — whose
+    # delivery then binds no content, so any hash passes `deliver_asset` — or
+    # list another seller's asset as their own. A security decision, so a lookup
+    # failure refuses rather than waves the listing through.
+    try:
+        from warden.marketplace.service import get_asset  # noqa: PLC0415
+        asset = get_asset(body.asset_id)
+    except Exception as exc:
+        log.error("listing asset lookup failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Asset registry unavailable.") from exc
+    if asset is None:
+        raise HTTPException(status_code=404, detail=f"Asset '{body.asset_id}' is not registered.")
+    if asset.get("seller_agent_id") != body.seller_agent_id:
+        raise HTTPException(status_code=403, detail="Asset belongs to a different seller.")
     try:
         listing = publish_listing(
             asset_id=body.asset_id,
