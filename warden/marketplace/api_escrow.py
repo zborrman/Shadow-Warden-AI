@@ -132,7 +132,13 @@ async def deliver_asset(escrow_id: str, body: DeliverRequest) -> dict:
     _require_escrow(svc, escrow_id)
     ok = svc.deliver_asset(escrow_id, body.asset_hash)
     if not ok:
-        raise HTTPException(status_code=409, detail="Cannot deliver in current state.")
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Cannot deliver: escrow is not funded, or asset_hash is not the "
+                "SHA-256 of the listed content."
+            ),
+        )
     return {"delivered": True, "asset_hash": body.asset_hash}
 
 

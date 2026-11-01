@@ -159,9 +159,12 @@ def funded_escrow(client, escrow_id) -> str:
 
 
 @pytest.fixture(scope="module")
-def delivered_escrow(client, funded_escrow) -> str:
+def delivered_escrow(client, funded_escrow, asset_id) -> str:
+    # The delivery must be the listed content; the asset registry publishes its hash.
+    from warden.marketplace.service import get_asset
+    content_sha256 = get_asset(asset_id)["content_sha256"]
     resp = client.post(f"/marketplace/escrow/{funded_escrow}/deliver", json={
-        "asset_hash": "sha256:abc123def456",
+        "asset_hash": "sha256:" + content_sha256,
     })
     assert resp.status_code in (200, 201, 204), resp.text
     return funded_escrow

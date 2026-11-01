@@ -121,6 +121,21 @@ def test_marketplace_agent_registration(client, auth_headers):
 
 # ── 5. Marketplace listing creation ──────────────────────────────────────────
 
+
+def _seed_asset(asset_id: str, seller: str) -> None:
+    """A listing must name the seller's registered asset; register one directly."""
+    from datetime import UTC, datetime
+
+    from warden.marketplace.service import _conn
+    with _conn() as con:
+        con.execute(
+            "INSERT OR IGNORE INTO marketplace_assets (asset_id, asset_type, token_data,"
+            " ipfs_hash, seller_agent_id, community_id, tenant_id, created_at)"
+            " VALUES (?, 'rule', '{}', '', ?, 'prod-community', 'prod-test', ?)",
+            (asset_id, seller, datetime.now(UTC).isoformat()),
+        )
+
+
 def test_marketplace_listing_creation(client, auth_headers):
     """POST /marketplace/listings must create a listing available for search."""
     # First register the selling agent
@@ -131,6 +146,7 @@ def test_marketplace_listing_creation(client, auth_headers):
         json={"tenant_id": "prod-test", "community_id": "prod-community", "public_key": kp.ed25519_pub_b64, "capabilities": ["marketplace_sell"]},
         headers=auth_headers,
     )
+    _seed_asset("prod-rule-001", "prod-seller-001")
     resp = client.post(
         "/marketplace/listings",
         json={
@@ -262,6 +278,7 @@ def test_cross_chain_listing_polygon(client, auth_headers):
         headers=auth_headers,
     )
     # Create listing on polygon_amoy
+    _seed_asset("cross-chain-rule-001", "cross-chain-seller")
     list_resp = client.post(
         "/marketplace/listings",
         json={

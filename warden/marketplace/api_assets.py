@@ -65,10 +65,12 @@ async def register_asset(body: AssetRegisterRequest) -> dict:
         ) from exc
 
     ipfs_hash = ""
+    content_sha256 = ""
     try:
         from warden.marketplace.service import get_asset as _get
         asset = _get(asset_id) or {}
         ipfs_hash = asset.get("ipfs_hash", "")
+        content_sha256 = asset.get("content_sha256", "")
     except Exception:
         pass
 
@@ -77,6 +79,7 @@ async def register_asset(body: AssetRegisterRequest) -> dict:
         "asset_type":     body.asset_type,
         "seller_agent_id": body.seller_agent_id,
         "ipfs_hash":      ipfs_hash,
+        "content_sha256": content_sha256,
     }
 
 

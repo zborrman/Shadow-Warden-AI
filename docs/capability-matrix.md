@@ -129,6 +129,7 @@ our own mapping of our own controls.
 | SOC 2 evidence vault | `LIVE` | Enabled 2026-08-18 (P0). Verified by writing `bundles/p0-verify-session.json` and reading it back through the S3 API; `warden-logs` is receiving live request metadata. See §4.1 for the prerequisite this surfaced. | None |
 | Encrypted offsite backup of the databases | `LIVE` | 388 objects in the offsite bucket, most recent snapshot `20260818T033000Z`, every file `.db.enc` | None |
 | EU AI Act ready | `SELF-ATTESTED` | Our own reading of the regulation | Label as such |
+| OWASP Top 10 for Agentic Applications (2026) mapping | `SELF-ATTESTED` | `docs/owasp-agentic-mapping.md` maps ASI01–ASI10 to controls with per-row status and known gaps. A mapping, not a coverage figure. | Phrase as "mapped to", never "covers" or a percentage |
 
 ### 4.1 What enabling the vault surfaced
 
