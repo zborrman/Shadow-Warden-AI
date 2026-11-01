@@ -84,7 +84,7 @@ class FundRequest(BaseModel):
     buyer, or where settlement is not configured.
     """
     buyer_signature: str | None = Field(default=None, max_length=132)
-    intent_deadline: int | None = Field(default=None, ge=0)
+    intent_deadline: int | None = Field(default=None, ge=0, le=2**63 - 1)  # SQLite INTEGER
 
 
 _INTENT_MAX_SECONDS = 24 * 3600
