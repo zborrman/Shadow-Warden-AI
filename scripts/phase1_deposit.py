@@ -177,6 +177,10 @@ def forced_params(escrow_id: str, amount_usd: float, buyer: str, seller: str,
         "token": token,
         "amount": to_minor_units(amount_usd, decimals),
         "deliveryWindowSeconds": DELIVERY_WINDOW_SECONDS,
+        # Sent from the buyer's own key (WEB3_SIGNER_KEY above), so the
+        # contract needs no signed intent.
+        "intentDeadline": 0,
+        "buyerSignature": b"",
     }
 
 

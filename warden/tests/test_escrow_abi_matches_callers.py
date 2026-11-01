@@ -36,7 +36,8 @@ _SOL_FN_RE = re.compile(r"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", re.MULT
 #: failure this file exists to catch one layer up.
 _SOL_PUBLIC_VAR_RE = re.compile(
     r"^\s*[\w\s\(\)=>\[\]]+?public(?:\s+(?:immutable|constant))?\s+"
-    r"([A-Za-z_][A-Za-z0-9_]*)\s*;",
+    # `;` for a plain declaration, `=` for a constant with an initialiser.
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*[;=]",
     re.MULTILINE,
 )
 
@@ -93,3 +94,15 @@ def test_the_abi_can_decode_this_contract_reverts() -> None:
     expected = {"NotArbiter", "NotBuyer", "WrongState", "TradeExists",
                 "TransferFailed", "DeadlineNotReached"}
     assert expected <= declared, f"missing from the ABI: {sorted(expected - declared)}"
+
+
+def test_the_gateway_loads_the_abi_the_contract_was_built_with() -> None:
+    # `scripts/build_escrow.sh` writes contracts/escrow.abi.json; the gateway
+    # loads warden/web3/abi/escrow.abi.json. A rebuild that refreshed only the
+    # first would leave the gateway encoding calls for the previous contract.
+    gateway = _ROOT / "warden" / "web3" / "abi" / "escrow.abi.json"
+    def canon(p):
+        return sorted(json.dumps(e, sort_keys=True)
+                      for e in json.loads(p.read_text(encoding="utf-8")))
+
+    assert canon(gateway) == canon(_ABI), "copy contracts/escrow.abi.json to warden/web3/abi/"

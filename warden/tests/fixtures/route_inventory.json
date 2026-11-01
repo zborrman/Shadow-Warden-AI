@@ -834,6 +834,7 @@
   ],
   "warden.marketplace.api_escrow": [
     "GET /marketplace/escrow/{escrow_id}",
+    "GET /marketplace/escrow/{escrow_id}/deposit-intent",
     "GET /marketplace/escrows",
     "POST /marketplace/escrow",
     "POST /marketplace/escrow/{escrow_id}/confirm",

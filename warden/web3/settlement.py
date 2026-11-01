@@ -31,7 +31,11 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from warden.web3.chains import DEFAULT_CHAIN, get_chain, verify_usdc_contract
-from warden.web3.smart_contract import _contract_address, settlement_capability
+from warden.web3.smart_contract import (
+    _contract_address,
+    settlement_capability,
+    strip_chain_suffix,
+)
 
 log = logging.getLogger("warden.web3.settlement")
 
@@ -361,7 +365,14 @@ def _signer_address(w3: Any) -> str:
     return w3.eth.account.from_key(os.getenv("WEB3_SIGNER_KEY", "").strip()).address
 
 
-def deposit_params(pre: Preflight, buyer: str, seller: str, window_seconds: int) -> dict:
+def deposit_params(
+    pre: Preflight,
+    buyer: str,
+    seller: str,
+    window_seconds: int,
+    intent_deadline: int = 0,
+    buyer_signature: bytes = b"",
+) -> dict:
     """The arguments `deposit` has always wanted, keyed by their ABI names.
 
     Named parameters rather than positional because `call_escrow` passes them as
@@ -389,4 +400,101 @@ def deposit_params(pre: Preflight, buyer: str, seller: str, window_seconds: int)
         "token": pre.token_address,
         "amount": pre.amount_minor,
         "deliveryWindowSeconds": int(window_seconds),
+        # Empty when the buyer sends the deposit itself; otherwise the buyer's
+        # EIP-712 `DepositIntent` signature over the five fields above, which
+        # is the only thing that lets anyone else draw on the buyer's allowance.
+        "intentDeadline": int(intent_deadline),
+        "buyerSignature": bytes(buyer_signature),
     }
+
+
+# ── Buyer consent (EIP-712 DepositIntent) ────────────────────────────────────
+#
+# `Escrow.deposit` draws on the buyer's allowance only when the buyer sent the
+# transaction or signed this intent for exactly its arguments. The gateway
+# relays with its own key, so a relayed deposit carries the buyer's signature.
+# These helpers build what the buyer signs and check a signature before gas is
+# spent on a deposit the contract would refuse.
+
+INTENT_DOMAIN_NAME = "ShadowWardenEscrow"
+INTENT_DOMAIN_VERSION = "1"
+
+DEPOSIT_INTENT_TYPES: dict[str, list[dict[str, str]]] = {
+    "EIP712Domain": [
+        {"name": "name", "type": "string"},
+        {"name": "version", "type": "string"},
+        {"name": "chainId", "type": "uint256"},
+        {"name": "verifyingContract", "type": "address"},
+    ],
+    "DepositIntent": [
+        {"name": "tradeId", "type": "bytes32"},
+        {"name": "seller", "type": "address"},
+        {"name": "token", "type": "address"},
+        {"name": "amount", "type": "uint256"},
+        {"name": "deliveryWindowSeconds", "type": "uint64"},
+        {"name": "deadline", "type": "uint256"},
+    ],
+}
+
+
+def escrow_contract_address(contract_address: str, chain: str) -> str:
+    """The escrow address a deposit on `chain` will be sent to."""
+    address, _ = strip_chain_suffix(contract_address or _contract_address(chain))
+    return address
+
+
+def deposit_intent_typed_data(
+    *,
+    chain_id: int,
+    verifying_contract: str,
+    trade_id: str,
+    seller: str,
+    token: str,
+    amount_minor: int,
+    window_seconds: int,
+    deadline: int,
+) -> dict[str, Any]:
+    """EIP-712 typed data the buyer signs (``eth_signTypedData_v4`` shape)."""
+    return {
+        "types": DEPOSIT_INTENT_TYPES,
+        "primaryType": "DepositIntent",
+        "domain": {
+            "name": INTENT_DOMAIN_NAME,
+            "version": INTENT_DOMAIN_VERSION,
+            "chainId": int(chain_id),
+            "verifyingContract": verifying_contract,
+        },
+        "message": {
+            "tradeId": trade_id,
+            "seller": seller,
+            "token": token,
+            "amount": int(amount_minor),
+            "deliveryWindowSeconds": int(window_seconds),
+            "deadline": int(deadline),
+        },
+    }
+
+
+def recover_intent_signer(typed_data: dict[str, Any], signature: bytes) -> str:
+    """Address that signed `typed_data`, or ``""`` if the signature is unusable.
+
+    Mirrors the contract: 65 bytes, and the malleable high-``s`` form refused.
+    """
+    if len(signature) != 65:
+        return ""
+    if int.from_bytes(signature[32:64], "big") > _SECP256K1_HALF_N:
+        return ""
+    try:
+        from eth_account import Account
+        from eth_account.messages import encode_typed_data
+
+        msg = encode_typed_data(full_message=typed_data)
+        return str(Account.recover_message(msg, signature=signature))
+    except Exception as exc:
+        log.info("deposit intent signature did not recover: %s", exc)
+        return ""
+
+
+_SECP256K1_HALF_N = int(
+    "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0", 16
+)

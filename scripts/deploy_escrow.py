@@ -357,9 +357,23 @@ def cmd_trade(w3, meta, args, acct, escrow_addr: str) -> None:
     print(f"\n  Trade 0x{trade_id.hex()}")
     _send(w3, buyer, token.functions.approve(escrow.address, AMOUNT)
           .build_transaction({"from": buyer.address}), "buyer approve", exp)
+    # The operator relays the deposit, so the buyer signs its consent first —
+    # exactly what a buyer does through GET /marketplace/escrow/{id}/deposit-intent.
+    from eth_account.messages import encode_typed_data
+
+    from warden.web3.settlement import deposit_intent_typed_data
+
+    deadline = int(w3.eth.get_block("latest")["timestamp"]) + 3600
+    intent = deposit_intent_typed_data(
+        chain_id=w3.eth.chain_id, verifying_contract=escrow.address,
+        trade_id="0x" + trade_id.hex(), seller=seller.address, token=token.address,
+        amount_minor=AMOUNT, window_seconds=DELIVERY_WINDOW, deadline=deadline,
+    )
+    buyer_sig = bytes(buyer.sign_message(encode_typed_data(full_message=intent)).signature)
     _send(w3, acct, escrow.functions.deposit(
         trade_id, buyer.address, seller.address, token.address,
-        AMOUNT, DELIVERY_WINDOW).build_transaction({"from": acct.address}), "deposit", exp)
+        AMOUNT, DELIVERY_WINDOW, deadline, buyer_sig,
+    ).build_transaction({"from": acct.address}), "deposit", exp)
 
     held = token.functions.balanceOf(escrow.address).call()
     if held != AMOUNT:

@@ -33,6 +33,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 _C = _ROOT / "contracts"
 _AMOUNT = 1_000_000          # 1.00 USDC at 6 decimals
 _WINDOW = 48 * 3600          # matches ESCROW_DELIVERY_TIMEOUT_HOURS
+_KEYS: dict[str, str] = {}   # address -> private key, filled by the fixture
 
 
 def _artifacts(stem: str, subdir: str = "") -> tuple[list, str]:
@@ -55,7 +56,11 @@ def chain():
         if not (base / f"{stem}.bin").exists():
             pytest.skip(f"{stem}.bin not built — run scripts/build_escrow.sh")
 
-    w3 = Web3(EthereumTesterProvider(EthereumTester(PyEVMBackend())))
+    tester = EthereumTester(PyEVMBackend())
+    w3 = Web3(EthereumTesterProvider(tester))
+    _KEYS.clear()
+    _KEYS.update({k.public_key.to_checksum_address(): k.to_hex()
+                  for k in tester.backend.account_keys})
     arbiter, buyer, seller = w3.eth.accounts[0], w3.eth.accounts[1], w3.eth.accounts[2]
     # A distinct account, not `arbiter` again: the two roles were one address
     # until 2026-09-03, and a fixture that reuses the arbiter as operator cannot
@@ -103,9 +108,42 @@ def expect_revert(error_name: str):
     assert found, f"expected a {error_name} revert, got {payload!r}"
 
 
-def _deposit(escrow, token, buyer, seller, sender, trade_id=b"\x01" * 32):
+def _intent(escrow, trade_id, seller, token_addr, amount=_AMOUNT, window=_WINDOW,
+            deadline=None, chain_id=None):
+    """The EIP-712 typed data the gateway hands a buyer, for this contract."""
+    from warden.web3.settlement import deposit_intent_typed_data
+
+    w3 = escrow.w3
+    return deposit_intent_typed_data(
+        chain_id=chain_id if chain_id is not None else w3.eth.chain_id,
+        verifying_contract=escrow.address,
+        trade_id="0x" + trade_id.hex(), seller=seller, token=token_addr,
+        amount_minor=amount, window_seconds=window,
+        deadline=deadline if deadline is not None else _now(w3) + 3600,
+    )
+
+
+def _now(w3) -> int:
+    return int(w3.eth.get_block("latest")["timestamp"])
+
+
+def _sign(typed, signer) -> bytes:
+    from eth_account import Account
+    from eth_account.messages import encode_typed_data
+
+    msg = encode_typed_data(full_message=typed)
+    return bytes(Account.sign_message(msg, private_key=_KEYS[signer]).signature)
+
+
+def _deposit(escrow, token, buyer, seller, sender, trade_id=b"\x01" * 32, sign=True):
+    """Deposit as `sender`. A relayer carries the buyer's signed intent unless
+    `sign=False`; the buyer sending for itself needs none."""
+    deadline, sig = 0, b""
+    if sender != buyer and sign:
+        typed = _intent(escrow, trade_id, seller, token.address)
+        deadline, sig = typed["message"]["deadline"], _sign(typed, buyer)
     escrow.functions.deposit(
-        trade_id, buyer, seller, token.address, _AMOUNT, _WINDOW
+        trade_id, buyer, seller, token.address, _AMOUNT, _WINDOW, deadline, sig
     ).transact({"from": sender})
     return trade_id
 
@@ -215,9 +253,9 @@ class TestAccessControlAddedAfterSlither:
         attacker = w3.eth.accounts[6]
         before = token.functions.balanceOf(buyer).call()
 
-        with expect_revert("NotBuyer"):
+        with expect_revert("BadSignature"):
             escrow.functions.deposit(
-                b"\x09" * 32, buyer, attacker, token.address, _AMOUNT, _WINDOW
+                b"\x09" * 32, buyer, attacker, token.address, _AMOUNT, _WINDOW, 2**40, b""
             ).transact({"from": attacker})
 
         assert token.functions.balanceOf(buyer).call() == before
@@ -227,7 +265,7 @@ class TestAccessControlAddedAfterSlither:
         w3, escrow, token, arbiter, buyer, seller = chain
         tid = b"\x0a" * 32
         escrow.functions.deposit(
-            tid, buyer, seller, token.address, _AMOUNT, _WINDOW
+            tid, buyer, seller, token.address, _AMOUNT, _WINDOW, 0, b""
         ).transact({"from": buyer})
         assert escrow.functions.stateOf(tid).call() == 1, "expected Funded"
 
@@ -380,27 +418,21 @@ class TestTheOperatorRelaysButCannotDecide:
         escrow.functions.confirmReceipt(tid).transact({"from": arbiter})
         assert token.functions.balanceOf(seller).call() == _AMOUNT
 
-    def test_a_compromised_operator_can_still_drain_a_standing_allowance(self, chain):
-        """The limit of this split, pinned so it cannot be assumed away.
+    def test_a_compromised_operator_cannot_drain_a_standing_allowance(self, chain):
+        """The drain the operator split left open, now refused.
 
-        `deposit` lets the caller choose `buyer`, `seller`, `token` and `amount`,
-        and `TradeExists` only stops reuse of an id — it authorises no field. So
-        an operator that opens a trade against a victim's standing allowance,
-        naming *itself* as seller, can walk that trade to release without the
-        buyer or the seller ever agreeing, and without touching `resolveDispute`.
+        `deposit` used to let the operator choose `buyer`, `seller`, `token` and
+        `amount` with no consent, and `TradeExists` only stops reuse of an id.
+        An operator could open a trade against a victim's standing allowance,
+        name *itself* as seller, and walk it to release without touching
+        `resolveDispute`. The precondition — a standing approval — is "the
+        common integration".
 
-        The precondition is a standing approval to this contract, which
-        `deposit`'s own comment calls "the common integration".
-
-        This is NOT a regression: before the split `arbiter` held exactly this
-        power, and it is the same shape as the unguarded `deposit` fixed in #394.
-        What is new is the claim that the hot key is now bounded — it is bounded
-        away from disputes, not away from funds. Closing it needs buyer/seller
-        intent binding (EIP-712 with nonce + deadline), which is a contract
-        change, a rebuild and a re-audit: step 2, not this PR.
-
-        When that lands, this test flips to `expect_revert(...)`. Until then a
-        green run here is the honest statement of the residual risk.
+        It was, until 2026-11-01: the operator could open a deposit from any
+        approved buyer to a seller of its choosing, then deliver and confirm it
+        — three transactions, no consent. `deposit` now requires the buyer's
+        EIP-712 signature unless the buyer sends it, so the same sequence stops
+        at the first step and the buyer's allowance is untouched.
         """
         w3, escrow, token, arbiter, buyer, seller = chain
         op = self._operator(w3, escrow)
@@ -408,21 +440,110 @@ class TestTheOperatorRelaysButCannotDecide:
         victim = buyer                      # its allowance is the whole precondition
 
         assert token.functions.allowance(victim, escrow.address).call() >= _AMOUNT
-        before = token.functions.balanceOf(attacker_seller).call()
+        before = token.functions.balanceOf(victim).call()
 
-        tid = _deposit(escrow, token, victim, attacker_seller, op,
-                       trade_id=b"\x0e" * 32)
-        escrow.functions.deliverAsset(tid, b"\x00" * 32).transact({"from": op})
-        escrow.functions.confirmReceipt(tid).transact({"from": op})
+        with expect_revert("BadSignature"):
+            _deposit(escrow, token, victim, attacker_seller, op,
+                     trade_id=b"\x0e" * 32, sign=False)
+        assert token.functions.balanceOf(victim).call() == before
+        assert escrow.functions.stateOf(b"\x0e" * 32).call() == 0   # None
 
-        assert token.functions.balanceOf(attacker_seller).call() == before + _AMOUNT, (
-            "If this now fails, operator authorisation was tightened — good. "
-            "Rewrite this test as a refusal instead of deleting it."
-        )
+    def test_a_signature_for_one_seller_cannot_pay_another(self, chain):
+        """The buyer's consent names the seller; a relayer cannot swap it."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        op = self._operator(w3, escrow)
+        tid = b"\x0f" * 32
+        typed = _intent(escrow, tid, seller, token.address)
+        sig = _sign(typed, buyer)
+        with expect_revert("BadSignature"):
+            escrow.functions.deposit(
+                tid, buyer, w3.eth.accounts[5], token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], sig,
+            ).transact({"from": op})
 
     def test_a_stranger_is_still_refused_everywhere(self, chain):
         """Adding an allowed sender must not widen the door for anyone else."""
         w3, escrow, token, arbiter, buyer, seller = chain
         stranger = w3.eth.accounts[4]
-        with expect_revert("NotBuyer"):
-            _deposit(escrow, token, buyer, seller, stranger, trade_id=b"\x09" * 32)
+        with expect_revert("BadSignature"):
+            _deposit(escrow, token, buyer, seller, stranger, trade_id=b"\x09" * 32,
+                     sign=False)
+
+
+class TestBuyerIntent:
+    """`deposit` by anyone but the buyer needs the buyer's EIP-712 signature."""
+
+    def test_the_gateway_typed_data_is_the_digest_the_contract_checks(self, chain):
+        from eth_account.messages import _hash_eip191_message, encode_typed_data
+
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x21" * 32
+        typed = _intent(escrow, tid, seller, token.address, deadline=12345)
+        ours = _hash_eip191_message(encode_typed_data(full_message=typed))
+        theirs = escrow.functions.depositIntentDigest(
+            tid, seller, token.address, _AMOUNT, _WINDOW, 12345).call()
+        assert bytes(ours) == bytes(theirs)
+
+    def test_anyone_may_relay_a_valid_intent(self, chain):
+        """The signature is the authority; the relayer's identity grants nothing."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = _deposit(escrow, token, buyer, seller, w3.eth.accounts[7],
+                       trade_id=b"\x22" * 32)
+        assert escrow.functions.stateOf(tid).call() == 1   # Funded
+
+    def test_an_expired_intent_is_refused(self, chain):
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x23" * 32
+        typed = _intent(escrow, tid, seller, token.address, deadline=_now(w3) - 1)
+        with expect_revert("IntentExpired"):
+            escrow.functions.deposit(
+                tid, buyer, seller, token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], _sign(typed, buyer),
+            ).transact({"from": arbiter})
+
+    def test_a_signature_for_a_smaller_amount_cannot_take_more(self, chain):
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x24" * 32
+        typed = _intent(escrow, tid, seller, token.address, amount=1)
+        with expect_revert("BadSignature"):
+            escrow.functions.deposit(
+                tid, buyer, seller, token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], _sign(typed, buyer),
+            ).transact({"from": arbiter})
+
+    def test_a_signature_from_another_chain_is_refused(self, chain):
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x25" * 32
+        typed = _intent(escrow, tid, seller, token.address, chain_id=1)
+        with expect_revert("BadSignature"):
+            escrow.functions.deposit(
+                tid, buyer, seller, token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], _sign(typed, buyer),
+            ).transact({"from": arbiter})
+
+    def test_the_malleable_twin_of_a_valid_signature_is_refused(self, chain):
+        """(r, n - s, v ^ 1) recovers the same signer; it must not be accepted."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+        tid = b"\x26" * 32
+        typed = _intent(escrow, tid, seller, token.address)
+        sig = _sign(typed, buyer)
+        r, s_, v = sig[:32], int.from_bytes(sig[32:64], "big"), sig[64]
+        twin = r + (n - s_).to_bytes(32, "big") + bytes([55 - v if v >= 27 else 1 - v])
+        with expect_revert("BadSignature"):
+            escrow.functions.deposit(
+                tid, buyer, seller, token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], twin,
+            ).transact({"from": arbiter})
+
+    def test_one_intent_funds_one_trade(self, chain):
+        """Replaying the same signature hits the trade id it is bound to."""
+        w3, escrow, token, arbiter, buyer, seller = chain
+        tid = b"\x27" * 32
+        typed = _intent(escrow, tid, seller, token.address)
+        sig = _sign(typed, buyer)
+        args = (tid, buyer, seller, token.address, _AMOUNT, _WINDOW,
+                typed["message"]["deadline"], sig)
+        escrow.functions.deposit(*args).transact({"from": arbiter})
+        with expect_revert("TradeExists"):
+            escrow.functions.deposit(*args).transact({"from": arbiter})
