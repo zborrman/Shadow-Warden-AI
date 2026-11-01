@@ -68,7 +68,9 @@ def test_the_footer_does_not_claim_a_certification_we_do_not_hold():
     certification. The bare badge read as the latter."""
     layout = _LAYOUT.read_text(encoding="utf-8")
     for line in layout.splitlines():
-        if "label:" not in line or "SOC" not in line:
+        # "SOC 2" specifically: "Agentic SOC" (a security operations centre)
+        # is a product name, not a certification claim.
+        if "label:" not in line or not re.search(r"SOC\s*2", line):
             continue
         assert "readiness" in line or "self-attested" in line.lower(), (
             f"a SOC 2 label in the footer states no qualification: {line.strip()}"

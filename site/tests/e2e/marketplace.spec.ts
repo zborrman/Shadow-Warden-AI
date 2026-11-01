@@ -43,69 +43,67 @@ test.describe('Global Navigation', () => {
     await expect(page.locator('#navbar img[alt*="Shadow Warden"]')).toBeVisible();
   });
 
-  // ── Business Community dropdown ────────────────────────────────────────────
-  test('Business Community dropdown shows sub-items on hover', async ({ page }, testInfo) => {
+  // ── Protect hub ──────────────────────────────────────────────────────────────
+  test('Protect dropdown shows sub-items on hover', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Business Community');
+    const { dropdown } = await hoverNavItem(page, 'Protect');
     await expect(dropdown).toBeVisible();
-    // Verify known sub-items from roadmap.json
-    await expect(dropdown.locator('a', { hasText: 'Community & Collaboration' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Agentic Commerce' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Business Intelligence' })).toBeVisible();
-  });
-
-  test('Business Community → Agentic Commerce link has correct href', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Business Community');
-    await expect(dropdown).toBeVisible();
-    const link = dropdown.locator('a', { hasText: 'Agentic Commerce' });
-    await expect(link).toHaveAttribute('href', '/business-community/agentic-commerce');
-  });
-
-  // ── Cyber Security dropdown ────────────────────────────────────────────────
-  test('Cyber Security dropdown shows sub-items on hover', async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Cyber Security');
-    await expect(dropdown).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Security Pipeline' })).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'Agentic SOC' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Cryptography' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Compliance & Privacy' })).toBeVisible();
-    // Cyber Security also has a static "Trust Center" link
-    await expect(dropdown.locator('a', { hasText: 'Trust Center' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Playground' })).toBeVisible();
   });
 
-  test('Cyber Security → Agentic SOC link has correct href', async ({ page }, testInfo) => {
+  test('Protect → Agentic SOC link has correct href', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Cyber Security');
+    const { dropdown } = await hoverNavItem(page, 'Protect');
+    await expect(dropdown).toBeVisible();
     const link = dropdown.locator('a', { hasText: 'Agentic SOC' });
     await expect(link).toHaveAttribute('href', '/cyber-security/agentic-soc');
   });
 
-  // ── Tunnel dropdown ────────────────────────────────────────────────────────
-  test('Tunnel dropdown shows MASQUE Tunnels and Per-Tenant Routing', async ({ page }, testInfo) => {
+  // ── Govern hub ───────────────────────────────────────────────────────────────
+  test('Govern dropdown shows Trust Center and the live dashboards', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Tunnel');
+    const { dropdown } = await hoverNavItem(page, 'Govern');
     await expect(dropdown).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'MASQUE Tunnels' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Per-Tenant Routing' })).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Sovereign AI Cloud' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Trust Center' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Compliance & Privacy' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Live — Service Health' })).toBeVisible();
   });
 
-  test('Tunnel → MASQUE Tunnels link has correct href', async ({ page }, testInfo) => {
+  test('Govern → live dashboard links point at the public metrics host', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
-    const { dropdown } = await hoverNavItem(page, 'Tunnel');
+    const { dropdown } = await hoverNavItem(page, 'Govern');
+    const link = dropdown.locator('a', { hasText: 'Live — Service Health' });
+    await expect(link).toHaveAttribute('href', /^https:\/\/metrics\.shadow-warden-ai\.com\/public-dashboards\//);
+  });
+
+  // ── Trade hub ────────────────────────────────────────────────────────────────
+  test('Trade dropdown shows marketplace, community and tunnel', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
+    const { dropdown } = await hoverNavItem(page, 'Trade');
+    await expect(dropdown).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Agentic Commerce' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'Business Community' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'MASQUE Tunnels' })).toBeVisible();
+  });
+
+  test('Trade → MASQUE Tunnels link has correct href', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
+    const { dropdown } = await hoverNavItem(page, 'Trade');
     const link = dropdown.locator('a', { hasText: 'MASQUE Tunnels' });
     await expect(link).toHaveAttribute('href', '/tunnel/masque-tunnels');
   });
 
-  // ── Static nav links ───────────────────────────────────────────────────────
+  // ── Hub links ──────────────────────────────────────────────────────────────
   test('static nav links are present and have correct hrefs', async ({ page }) => {
     const nav = page.locator('#navbar nav');
     const checks: [string, string][] = [
-      ['Business Community', '/business-community'],
-      ['Cyber Security',     '/cyber-security'],
-      ['Tunnel',             '/tunnel'],
-      ['Dashboard',          '/dashboard'],
+      ['Protect', '/cyber-security'],
+      ['Govern',  '/trust'],
+      ['Trade',   '/agentic'],
+      ['Build',   '/doc'],
+      ['Account', '/price'],
     ];
     for (const [label, href] of checks) {
       await expect(nav.locator('a', { hasText: label }).first()).toHaveAttribute('href', href);
