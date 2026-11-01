@@ -63,8 +63,31 @@ the seller's payout address. The gateway is already the arbiter, so the
 `msg.sender` checks in `deposit` and `confirmReceipt` pass without further work.
 
 **Model B — non-custodial.** The buyer's own wallet holds the USDC and grants
-the escrow an ERC-20 allowance. The gateway relays `deposit` as arbiter, which
-the contract already permits by design. No custody at any point.
+the escrow an ERC-20 allowance. The gateway relays `deposit` with its operator
+key, carrying the buyer's EIP-712 `DepositIntent` signature. No custody at any
+point.
+
+> **Buyer consent (2026-11-01).** Until this date `deposit` accepted the
+> operator or arbiter for *any* buyer with no signature. Because the operator
+> may also call `deliverAsset` and `confirmReceipt`, a stolen operator key could
+> open a trade against any standing allowance, name itself as seller, and pay
+> itself out in three transactions. The off-chain per-trade cap did not help:
+> the attacker calls the contract directly. `deposit` now requires either
+> `msg.sender == buyer` or a `DepositIntent(tradeId, seller, token, amount,
+> deliveryWindowSeconds, deadline)` signature that recovers to `buyer`, under
+> the domain `ShadowWardenEscrow` / `1` / chain id / contract address. The
+> buyer fetches the typed data from `GET /marketplace/escrow/{id}/deposit-intent`
+> and sends the signature with `POST /marketplace/escrow/{id}/fund`; the
+> gateway recovers it before spending gas. This changed the ABI: **any instance
+> deployed before this date must be redeployed.**
+>
+> What the operator still can do: once a buyer has consented to a trade, the
+> operator relays `deliverAsset` and `confirmReceipt` for it, so a compromised
+> operator can release a consented trade to the seller the buyer chose before
+> delivery. It cannot choose the seller, the amount or the token, and cannot
+> open a trade nobody agreed to. An on-chain amount cap was considered and not
+> added: `token` is caller-chosen, so a cap in minor units has no fixed meaning,
+> and with consent required it bounds nothing a buyer did not sign.
 
 ### Recommendation: **Model B.**
 

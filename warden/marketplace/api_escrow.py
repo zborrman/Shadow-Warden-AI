@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from warden.auth_guard import require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -74,11 +75,50 @@ def _require_escrow(svc, escrow_id: str):  # noqa: ANN001, ANN202
     return esc
 
 
-@router.post("/escrow/{escrow_id}/fund", dependencies=_WRITE)
-async def fund_escrow(escrow_id: str) -> dict:
+class FundRequest(BaseModel):
+    """The buyer's EIP-712 consent, when the gateway relays the deposit.
+
+    Get the typed data from ``GET /escrow/{id}/deposit-intent``, sign it with
+    the buyer's wallet (``eth_signTypedData_v4``), and send the signature with
+    the same ``intent_deadline``. Not needed when the gateway's signer is the
+    buyer, or where settlement is not configured.
+    """
+    buyer_signature: str | None = Field(default=None, max_length=132)
+    intent_deadline: int | None = Field(default=None, ge=0, le=2**63 - 1)  # SQLite INTEGER
+
+
+_INTENT_MAX_SECONDS = 24 * 3600
+
+
+@router.get("/escrow/{escrow_id}/deposit-intent", dependencies=_WRITE)
+async def deposit_intent(
+    escrow_id: str,
+    valid_seconds: int = Query(default=900, ge=60, le=_INTENT_MAX_SECONDS),
+) -> dict:
+    """EIP-712 typed data the buyer signs to let the gateway relay its deposit."""
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
     _require_escrow(svc, escrow_id)
+    try:
+        typed = svc.deposit_intent(escrow_id, int(time.time()) + valid_seconds)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"escrow_id": escrow_id, "typed_data": typed}
+
+
+@router.post("/escrow/{escrow_id}/fund", dependencies=_WRITE)
+async def fund_escrow(escrow_id: str, body: FundRequest | None = None) -> dict:
+    from warden.marketplace.escrow import EscrowService
+    svc = EscrowService()
+    _require_escrow(svc, escrow_id)
+    if body is not None and body.buyer_signature:
+        if body.intent_deadline is None:
+            raise HTTPException(status_code=422, detail="intent_deadline is required "
+                                "with buyer_signature.")
+        if not svc.record_deposit_intent(escrow_id, body.buyer_signature,
+                                         body.intent_deadline):
+            raise HTTPException(status_code=422, detail="buyer_signature must be a "
+                                "65-byte hex signature on a pending escrow.")
     ok = svc.fund_escrow(escrow_id)
     if not ok:
         raise HTTPException(status_code=409, detail="Cannot fund escrow in current state.")

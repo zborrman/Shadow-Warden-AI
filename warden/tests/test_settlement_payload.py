@@ -26,6 +26,7 @@ from pathlib import Path
 import pytest
 
 from warden.marketplace.escrow import EscrowService
+from warden.tests.escrow_intent_helpers import BUYER, consent
 from warden.web3.chains import get_chain
 from warden.web3.settlement import (
     Preflight,
@@ -45,7 +46,7 @@ _INPUTS = {
     if f.get("type") == "function"
 }
 
-_BUYER = "0x24a0d27E8c216b6Ac42A4A7fe7FC9b230Fc1A605"
+_BUYER = BUYER  # a known key, so the sending path can carry a real signed intent
 _SELLER = "0x42Cb99A842a5bb6848Ef96b9f7070E348BD9b913"
 # Read from the chain table rather than pasted in, so the fixture cannot drift
 # from the address the gateway would actually settle against — and so a public
@@ -123,6 +124,7 @@ def escrow(tmp_path, monkeypatch):
 class TestEveryCallMatchesTheDeployedABI:
     def test_the_happy_path_sends_what_the_contract_declares(self, escrow, wire):
         svc, esc, db = escrow
+        consent(svc, esc.escrow_id, db)
         assert svc.fund_escrow(esc.escrow_id, db_path=db) is True
         assert svc.deliver_asset(esc.escrow_id, "0x" + "ab" * 32, db_path=db) is True
         assert svc.confirm_receipt(esc.escrow_id, db_path=db) is True
@@ -136,6 +138,7 @@ class TestEveryCallMatchesTheDeployedABI:
 
     def test_the_dispute_path_too(self, escrow, wire):
         svc, esc, db = escrow
+        consent(svc, esc.escrow_id, db)
         svc.fund_escrow(esc.escrow_id, db_path=db)
         assert svc.raise_dispute(esc.escrow_id, "not delivered", db_path=db) is True
         assert svc.resolve_dispute(esc.escrow_id, True, db_path=db) is True
@@ -157,7 +160,10 @@ class TestEveryCallMatchesTheDeployedABI:
         for name, inputs in _INPUTS.items():
             # Public getters, not trade operations. `operator` joined them when
             # the hot relay key was split out of the arbiter (2026-09-03).
-            if name in ("arbiter", "operator", "trades"):
+            # The EIP-712 helpers (2026-11-01) describe what a buyer signs;
+            # they take no trade because they do not act on one.
+            if name in ("arbiter", "operator", "trades", "domainSeparator",
+                        "DEPOSIT_INTENT_TYPEHASH"):
                 continue
             assert "tradeId" in inputs, name
 

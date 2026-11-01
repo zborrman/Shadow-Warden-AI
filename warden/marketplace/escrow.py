@@ -108,6 +108,8 @@ _ESCROW_DDL = """
         settle_tx        TEXT NOT NULL DEFAULT '',
         preflight_verdict TEXT NOT NULL DEFAULT '',
         preflight_at     TEXT NOT NULL DEFAULT '',
+        buyer_intent_sig      TEXT NOT NULL DEFAULT '',
+        buyer_intent_deadline INTEGER NOT NULL DEFAULT 0,
         created_at       TEXT NOT NULL,
         funded_at        TEXT,
         delivered_at     TEXT,
@@ -140,6 +142,12 @@ _ADDED_COLUMNS: tuple[tuple[str, str], ...] = (
     # integer: uint256 does not fit a float, and REAL is how `amount_usd` became
     # one.
     ("trade_id",       "TEXT NOT NULL DEFAULT ''"),
+    # The buyer's EIP-712 DepositIntent signature (0x-hex) and its deadline.
+    # Escrow.deposit refuses a relayed deposit without one: the gateway signs
+    # transactions with its own key, and that key alone must never be able to
+    # draw on a buyer's allowance.
+    ("buyer_intent_sig",      "TEXT NOT NULL DEFAULT ''"),
+    ("buyer_intent_deadline", "INTEGER NOT NULL DEFAULT 0"),
     ("token_address",  "TEXT NOT NULL DEFAULT ''"),
     ("token_decimals", "INTEGER NOT NULL DEFAULT 0"),
     ("amount_minor",   "TEXT NOT NULL DEFAULT ''"),
@@ -240,6 +248,8 @@ class Escrow:
     settle_tx:        str = ""
     preflight_verdict: str = ""
     preflight_at:     str = ""
+    buyer_intent_sig: str = ""
+    buyer_intent_deadline: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -282,6 +292,10 @@ def _row_to_escrow(row: sqlite3.Row) -> Escrow:
         settle_tx=row["settle_tx"] if "settle_tx" in keys else "",
         preflight_verdict=row["preflight_verdict"] if "preflight_verdict" in keys else "",
         preflight_at=row["preflight_at"] if "preflight_at" in keys else "",
+        buyer_intent_sig=row["buyer_intent_sig"] if "buyer_intent_sig" in keys else "",
+        buyer_intent_deadline=(
+            int(row["buyer_intent_deadline"] or 0) if "buyer_intent_deadline" in keys else 0
+        ),
     )
 
 
@@ -438,6 +452,108 @@ class EscrowService:
             record_failopen("escrow_preflight_record", Reason.BACKEND_ERROR, exc)
             return False
 
+    @staticmethod
+    def _intent_typed_data(esc: Escrow, pre: Any, deadline: int) -> dict:
+        from warden.web3.chains import get_chain
+        from warden.web3.settlement import (
+            deposit_intent_typed_data,
+            escrow_contract_address,
+        )
+
+        return deposit_intent_typed_data(
+            chain_id=get_chain(esc.chain)["chain_id"],
+            verifying_contract=escrow_contract_address(esc.contract_address, esc.chain),
+            trade_id=pre.trade_id,
+            seller=esc.seller_address,
+            token=pre.token_address,
+            amount_minor=int(pre.amount_minor),
+            window_seconds=_DELIVERY_TIMEOUT_HOURS * 3600,
+            deadline=deadline,
+        )
+
+    def _buyer_intent(self, esc: Escrow, pre: Any) -> tuple[int, bytes] | None:
+        """``(deadline, signature)`` for `deposit`, or None to refuse.
+
+        The gateway sends with its own key. Unless that key *is* the buyer's,
+        the contract needs the buyer's signed consent, and checking it here
+        costs nothing where a refused deposit costs gas and says less.
+        """
+        from warden.web3.settlement import recover_intent_signer
+
+        try:
+            from eth_account import Account
+            sender = Account.from_key(os.getenv("WEB3_SIGNER_KEY", "").strip()).address
+        except Exception:
+            sender = ""
+        if sender and sender.lower() == esc.buyer_address.lower():
+            return (0, b"")
+        if not esc.buyer_intent_sig:
+            log.error("escrow %s: no buyer deposit intent signature; not sending",
+                      esc.escrow_id)
+            return None
+        deadline = int(esc.buyer_intent_deadline)
+        if deadline <= int(datetime.now(UTC).timestamp()):
+            log.error("escrow %s: buyer deposit intent expired; not sending", esc.escrow_id)
+            return None
+        try:
+            sig = bytes.fromhex(esc.buyer_intent_sig.removeprefix("0x"))
+        except ValueError:
+            log.error("escrow %s: buyer deposit intent is not hex; not sending", esc.escrow_id)
+            return None
+        signer = recover_intent_signer(self._intent_typed_data(esc, pre, deadline), sig)
+        if not signer or signer.lower() != esc.buyer_address.lower():
+            log.error("escrow %s: deposit intent not signed by the buyer; not sending",
+                      esc.escrow_id)
+            return None
+        return (deadline, sig)
+
+    def deposit_intent(self, escrow_id: str, deadline: int,
+                       db_path: str | None = None) -> dict:
+        """EIP-712 typed data the buyer signs to consent to this escrow's deposit.
+
+        Raises LookupError for an unknown escrow and ValueError when the escrow
+        cannot be deposited (wrong state, or settlement preflight refused).
+        """
+        from warden.web3.settlement import settlement_preflight
+
+        esc = self._get(escrow_id, db_path)
+        if esc is None:
+            raise LookupError(escrow_id)
+        if esc.status != "pending_deposit":
+            raise ValueError(f"escrow is {esc.status}, not pending_deposit")
+        pre = settlement_preflight(
+            escrow_id=esc.escrow_id, amount_usd=esc.amount_usd,
+            buyer_address=esc.buyer_address, seller_address=esc.seller_address,
+            chain=esc.chain,
+        )
+        if not pre.ok:
+            raise ValueError(f"settlement preflight refused: {pre.reason}")
+        return self._intent_typed_data(esc, pre, int(deadline))
+
+    def record_deposit_intent(self, escrow_id: str, signature_hex: str, deadline: int,
+                              db_path: str | None = None) -> bool:
+        """Store the buyer's intent signature on a pending escrow.
+
+        Stored, not trusted: `_buyer_intent` recovers it against the trade's own
+        arguments before every send, so a wrong or forged signature only means
+        the deposit is refused.
+        """
+        body = (signature_hex or "").strip().removeprefix("0x")
+        if len(body) != 130:
+            return False
+        try:
+            bytes.fromhex(body)
+        except ValueError:
+            return False
+        with _db_lock, _conn(db_path) as con:
+            cur = con.execute(
+                "UPDATE marketplace_escrow SET buyer_intent_sig=?, buyer_intent_deadline=? "
+                "WHERE escrow_id=? AND status='pending_deposit'",
+                ("0x" + body.lower(), int(deadline), escrow_id),
+            )
+            con.commit()
+            return cur.rowcount == 1
+
     def _deposit_params(self, esc: Escrow, db_path: str | None = None) -> dict | None:
         """The arguments `deposit` has always wanted, or None to refuse.
 
@@ -494,10 +610,13 @@ class EscrowService:
                 esc.escrow_id, pre.reason, pre.detail,
             )
             return None
+        intent = self._buyer_intent(esc, pre)
+        if intent is None:
+            return None
         try:
             params = deposit_params(
                 pre, esc.buyer_address, esc.seller_address,
-                _DELIVERY_TIMEOUT_HOURS * 3600,
+                _DELIVERY_TIMEOUT_HOURS * 3600, *intent,
             )
         except SettlementRefused as exc:
             log.error("escrow %s: %s", esc.escrow_id, exc)

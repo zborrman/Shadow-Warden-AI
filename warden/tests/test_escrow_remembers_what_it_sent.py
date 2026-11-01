@@ -23,10 +23,11 @@ from contextlib import contextmanager
 import pytest
 
 from warden.marketplace.escrow import EscrowService
+from warden.tests.escrow_intent_helpers import BUYER, BUYER_KEY
 from warden.web3.settlement import Preflight, trade_id_for
 from warden.web3.smart_contract import EscrowCallResult, classify_call_failure
 
-_BUYER = "0x52908400098527886E0F7030069857D2E4169EE7"
+_BUYER = BUYER
 _SELLER = "0x8617E340B3D01FA5F11F306F4090FD50E238070D"
 _USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 
@@ -84,13 +85,14 @@ def _deposit_fn(evm, trade_id=b"\x01" * 32, amount=None):
     h = evm["h"]
     return evm["escrow"].functions.deposit(
         trade_id, evm["buyer"], evm["seller"], evm["token"].address,
-        amount if amount is not None else h._AMOUNT, h._WINDOW,
+        amount if amount is not None else h._AMOUNT, h._WINDOW, 0, b"",
     )
 
 
 def test_a_second_deposit_reverting_trade_exists_counts_as_funded(evm):
-    _deposit_fn(evm).transact({"from": evm["operator"]})
-    exc = _revert_of(lambda: _deposit_fn(evm).build_transaction({"from": evm["operator"]}))
+    # Sent by the buyer itself, the one caller that needs no signed intent.
+    _deposit_fn(evm).transact({"from": evm["buyer"]})
+    exc = _revert_of(lambda: _deposit_fn(evm).build_transaction({"from": evm["buyer"]}))
 
     result = classify_call_failure("deposit", exc, evm["abi"])
     assert result == EscrowCallResult(ok=True, error="TradeExists", already_funded=True)
@@ -98,8 +100,9 @@ def test_a_second_deposit_reverting_trade_exists_counts_as_funded(evm):
 
 def test_trade_exists_on_any_other_call_is_still_a_failure(evm):
     """Only `deposit` has TradeExists as its goal state."""
-    _deposit_fn(evm).transact({"from": evm["operator"]})
-    exc = _revert_of(lambda: _deposit_fn(evm).build_transaction({"from": evm["operator"]}))
+    # Sent by the buyer itself, the one caller that needs no signed intent.
+    _deposit_fn(evm).transact({"from": evm["buyer"]})
+    exc = _revert_of(lambda: _deposit_fn(evm).build_transaction({"from": evm["buyer"]}))
 
     assert classify_call_failure("confirmReceipt", exc, evm["abi"]).ok is False
 
@@ -113,8 +116,9 @@ def test_a_different_deposit_revert_is_never_read_as_funded(evm):
     h = evm["h"]
     fn = evm["escrow"].functions.deposit(
         b"\x09" * 32, poor_buyer, evm["seller"], evm["token"].address, h._AMOUNT, h._WINDOW,
+        0, b"",
     )
-    exc = _revert_of(lambda: fn.build_transaction({"from": evm["operator"]}))
+    exc = _revert_of(lambda: fn.build_transaction({"from": poor_buyer}))
 
     result = classify_call_failure("deposit", exc, evm["abi"])
     assert result.ok is False
@@ -151,6 +155,9 @@ def escrow(tmp_path, monkeypatch):
     escrow_mod.reset_escrow_column_memo()
     monkeypatch.setattr(EscrowService, "_payout_address",
                         staticmethod(lambda aid: _BUYER if "buyer" in aid else _SELLER))
+    # The buyer sends its own deposit, so no signed intent is involved: these
+    # tests are about what gets recorded, not about consent.
+    monkeypatch.setenv("WEB3_SIGNER_KEY", BUYER_KEY)
     db = str(tmp_path / "escrow.db")
     svc = EscrowService()
     esc = svc.create_escrow(

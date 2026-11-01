@@ -19,10 +19,11 @@ import json
 import pytest
 
 from warden.marketplace.escrow import EscrowService
+from warden.tests.escrow_intent_helpers import BUYER, BUYER_KEY
 from warden.web3.settlement import Preflight, trade_id_for
 from warden.web3.smart_contract import EscrowCallResult
 
-_BUYER = "0x52908400098527886E0F7030069857D2E4169EE7"
+_BUYER = BUYER
 _SELLER = "0x8617E340B3D01FA5F11F306F4090FD50E238070D"
 _USDC = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 
@@ -44,6 +45,8 @@ def _escrow(tmp_path, monkeypatch, *, seller=_SELLER, chain="base_sepolia"):
     escrow_mod.reset_escrow_column_memo()
     monkeypatch.setattr(EscrowService, "_payout_address",
                         staticmethod(lambda aid: _BUYER if "buyer" in aid else seller))
+    # The buyer sends its own deposit: this file is about phase gating, not consent.
+    monkeypatch.setenv("WEB3_SIGNER_KEY", BUYER_KEY)
     db = str(tmp_path / "escrow.db")
     svc = EscrowService()
     esc = svc.create_escrow(
