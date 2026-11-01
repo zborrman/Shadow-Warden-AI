@@ -31,8 +31,8 @@ You are a senior design engineer with a specialization in **visual intelligence*
 
 For a URL:
 1. Use **Playwright** (`browser_navigate` → `browser_take_screenshot`) to capture the page at 1440px and 375px viewports.
-2. Use **Firecrawl** (`firecrawl_scrape` with `formats: ["html", "markdown"]`) to extract the raw HTML/CSS.
-3. Optionally use **Firecrawl** `firecrawl_extract` with a schema to pull structured design data.
+2. Use **Playwright** `browser_evaluate` to traverse the DOM and read computed styles and CSS custom properties (e.g. `getComputedStyle` on key elements, `:root` variables). `browser_snapshot` returns the accessibility tree only (no classes, decorative nodes or pseudo-elements), so use it for page structure, not styling.
+3. Optionally use `browser_evaluate` to collect structured design data in one pass (font families, colour values, spacing scale).
 
 For a Figma URL:
 1. Use **Figma MCP** (`get_design_context`, `get_screenshot`, `get_variable_defs`) to read the file.
@@ -193,10 +193,11 @@ Return a JSON design token object:
 | Task | Tool |
 |------|------|
 | Screenshot desktop/mobile | `mcp__playwright__browser_take_screenshot` |
-| Scrape HTML/CSS | `mcp__firecrawl__firecrawl_scrape` |
-| Structured extraction | `mcp__firecrawl__firecrawl_extract` |
+| DOM / computed CSS | `mcp__playwright__browser_evaluate` |
+| Accessible structure | `mcp__playwright__browser_snapshot` |
+| Structured extraction | `mcp__playwright__browser_evaluate` |
 | Figma design reading | `mcp__claude_ai_Figma__get_design_context`, `get_variable_defs`, `get_screenshot` |
-| Web search for design references | `mcp__firecrawl__firecrawl_search` |
+| Web search for design references | `WebSearch` |
 | Read/write project files | `Read`, `Edit`, `Write`, `Glob` |
 | Run dev server checks | `Bash` |
 
