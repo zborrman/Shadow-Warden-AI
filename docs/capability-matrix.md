@@ -192,7 +192,7 @@ fail to start instead.
 | OpenTelemetry tracing, Jaeger, Grafana, Loki, ClickHouse | `LIVE` | All running; 12 dashboards, 31 alert rules | None |
 | Browser sandbox, visual patrol, `visual_assert_page`, `visual_diff` | `BUILT` | `BROWSER_ENABLED=false`; the Playwright base image was dropped for disk headroom | Do not list as available |
 | Multi-region / EU data residency | `BUILT` | `RegionMiddleware` and `docs/multi-region.md` exist; one region is deployed | Roadmap only |
-| Community & Tunnel pages (`/community/*`): communities, members, end-to-end encrypted tunnel | `SIMULATED` | Client-side only: every community, member and message lives in the browser's `localStorage` (key `sw_communities`); the E2EE key exchange is simulated in the page, no server holds or relays anything | Label as a demo on the pages; never sell as a feature |
+| Community & Tunnel pages (`/community/*`): communities, members, "end-to-end encrypted" tunnel | `SIMULATED` | Client-side only: every community, member and tunnel message lives in the browser's `localStorage` (key `sw_communities`) as **plaintext JSON**. No message encryption and no key exchange are implemented; the "E2EE" and "AES-256-GCM" labels in the community UI and README describe nothing the code does | Remove or mark those labels as simulated; never sell as a feature |
 
 ---
 
