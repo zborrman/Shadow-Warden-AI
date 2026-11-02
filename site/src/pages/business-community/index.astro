@@ -75,6 +75,51 @@ const modules = moduleConfig.map(m => ({
 }));
 
 const allBcJson = JSON.stringify(bcFeatures);
+
+// Module map for the "How the modules connect" section. Each module lists the
+// modules it feeds; the layout renders that as text, not as crossing lines, so
+// it stays readable at any width.
+const archGroups = [
+  { name: 'Core Protocols', color: '#80b4fd', modules: [
+    { id: 'SEP', icon: '◈', label: 'SEP / UECIID', desc: 'Cryptographic entity IDs, peering, STIX 2.1 audit chain, sovereign pods.' },
+    { id: 'PQC', icon: '🛡', label: 'Post-Quantum Crypto', desc: 'Ed25519+ML-DSA-65 HybridSigner, X25519+ML-KEM-768 HybridKEM.' },
+  ]},
+  { name: 'Governance & Risk', color: '#a78bfa', modules: [
+    { id: 'Charter', icon: '🏛', label: 'Charter & Intel', desc: 'Versioned charter lifecycle, OAuth agent discovery, community intelligence.' },
+    { id: 'Behavioral', icon: '📡', label: 'Anomaly Detection', desc: 'Z-score anomaly detection, 30-day baseline, NORMAL/ELEVATED/CRITICAL.' },
+  ]},
+  { name: 'SMB Suite', color: '#34d399', modules: [
+    { id: 'Vendor', icon: '🏢', label: 'Vendor Gov', desc: 'AI vendor DPA tracking, expiry alerts, risk tier classification.' },
+    { id: 'Cost', icon: '💰', label: 'Cost Allocation', desc: 'Per-dept/vendor spend tracking, monthly summaries.' },
+    { id: 'Budget', icon: '📈', label: 'Budget Dashboard', desc: 'Budget caps, threshold alerts, approval workflow.' },
+    { id: 'Incidents', icon: '⚠', label: 'Incident Register', desc: 'STIX-linked incident journal, auto-log from BLOCK events.' },
+    { id: 'Supplier', icon: '🔍', label: 'Supplier Risk', desc: '5-criteria composite scoring from peering data.' },
+    { id: 'Prompts', icon: '📚', label: 'Prompt Library', desc: 'UECIID provenance, injection screening before save, community sharing.' },
+    { id: 'Training', icon: '🎓', label: 'Training Records', desc: 'HMAC-SHA256 attestation, behavioral hooks, compliance report.' },
+  ]},
+  { name: 'Data & Secrets', color: '#fbbf24', modules: [
+    { id: 'Secrets', icon: '🔑', label: 'Secrets Gov', desc: 'Multi-vault connectors, SQLite inventory, lifecycle rotation.' },
+    { id: 'Obsidian', icon: '📔', label: 'Obsidian', desc: 'Auto-scan notes, data class inference, SEP share, XAI pipeline sidebar.' },
+  ]},
+  { name: 'Analytics & Commerce', color: '#38bdf8', modules: [
+    { id: 'BI', icon: '📊', label: 'Business Intel', desc: 'Eight analytics functions, OLS trend predictions, PDF report builder.' },
+    { id: 'Semantic', icon: '⬡', label: 'Semantic Layer', desc: 'Nine BI models, deterministic SQL, self-service catalog, Redis cache.' },
+    { id: 'Commerce', icon: '⚡', label: 'Agentic Commerce', desc: 'UCP/AP2/MCP protocols, multi-agent auction, FIDO2, Web3 mandate.' },
+    { id: 'DocIntel', icon: '📄', label: 'Doc Intelligence', desc: 'MarkItDown converter, 50 MB gate, SHA-256 Redis cache.' },
+    { id: 'Compliance', icon: '✅', label: 'Compliance', desc: '19 controls GDPR/SOC2/ISO27001/HIPAA, WebSocket push, gap manager.' },
+  ]},
+];
+const archEdges: [string, string][] = [
+  ['SEP', 'Charter'], ['SEP', 'PQC'], ['Vendor', 'BI'], ['Incidents', 'BI'],
+  ['Cost', 'Budget'], ['Prompts', 'Obsidian'], ['Training', 'Behavioral'],
+  ['Semantic', 'BI'], ['Semantic', 'Budget'], ['Commerce', 'Budget'],
+  ['DocIntel', 'Incidents'], ['Compliance', 'Vendor'], ['Compliance', 'Incidents'],
+  ['Charter', 'Behavioral'],
+];
+const archLabel = Object.fromEntries(archGroups.flatMap(g => g.modules.map(m => [m.id, m.label])));
+const archFeeds = (id: string) => archEdges.filter(([from]) => from === id).map(([, to]) => archLabel[to]);
+const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([from]) => archLabel[from]);
+
 ---
 
 <BaseLayout
@@ -121,10 +166,10 @@ const allBcJson = JSON.stringify(bcFeatures);
       <div class="mx-auto max-w-6xl px-4 lg:px-8">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-grid">
           {[
-            { id: 'members_count',     label: 'Active Members',      val: '1,240',  unit: 'users',   icon: '👥', color: '#BF5AF2' },
-            { id: 'monthly_transfers', label: 'SEP Transfers / Mo',  val: '8,340',  unit: 'tx',      icon: '⇄',  color: '#80b4fd' },
-            { id: 'published_ueciid',  label: 'Published UECIIDs',   val: '24,500', unit: 'records', icon: '◈',  color: '#06b6d4' },
-            { id: 'avg_reputation',    label: 'Avg. Reputation',     val: '4.7',    unit: '/ 5.0',   icon: '🏅', color: '#10b981' },
+            { id: 'members_count',     label: 'Active Members',      val: '—',  unit: 'users',   icon: '👥', color: '#BF5AF2' },
+            { id: 'monthly_transfers', label: 'SEP Transfers / Mo',  val: '—',  unit: 'tx',      icon: '⇄',  color: '#80b4fd' },
+            { id: 'published_ueciid',  label: 'Published UECIIDs',   val: '—', unit: 'records', icon: '◈',  color: '#06b6d4' },
+            { id: 'avg_reputation',    label: 'Avg. Reputation',     val: '—',    unit: '/ 5.0',   icon: '🏅', color: '#10b981' },
           ].map(s => (
             <div class="rounded-2xl p-6 stat-card" style="background:#111118">
               <div class="text-[20px] mb-3">{s.icon}</div>
@@ -134,8 +179,8 @@ const allBcJson = JSON.stringify(bcFeatures);
             </div>
           ))}
         </div>
-        <p class="text-center text-[11px] mt-4" style="color:#334155">
-          Production data · Updated every 5 minutes
+        <p id="stats-source" class="text-center text-[11px] mt-4" style="color:#64748b">
+          Loading live data…
         </p>
       </div>
     </section>
@@ -181,63 +226,38 @@ const allBcJson = JSON.stringify(bcFeatures);
             How the modules connect
           </h2>
           <p class="text-[14px] max-w-xl mx-auto" style="color:#94a3b8">
-            Click any node to jump to that module's detail section.
+            Eighteen modules in five groups. Each one lists what it feeds and what feeds it.
           </p>
         </div>
 
-        <div class="rounded-2xl p-6 overflow-x-auto" style="background:#0e0e18;border:1px solid rgba(255,255,255,0.08)">
-          <div id="mermaid-diagram" class="mermaid flex justify-center">
-graph TB
-    subgraph Core["Core Protocols"]
-        SEP["◈ SEP / UECIID"]
-        PQC["🛡 Post-Quantum Crypto"]
-    end
-    subgraph Gov["Governance & Risk"]
-        Charter["🏛 Charter & Intel"]
-        Behavioral["📡 Anomaly Detection"]
-    end
-    subgraph SMB["SMB Suite"]
-        Vendor["🏢 Vendor Gov"]
-        Cost["💰 Cost Allocation"]
-        Budget["📈 Budget Dashboard"]
-        Incidents["⚠ Incident Register"]
-        Supplier["🔍 Supplier Risk"]
-        Prompts["📚 Prompt Library"]
-        Training["🎓 Training Records"]
-    end
-    subgraph Data["Data & Secrets"]
-        Secrets["🔑 Secrets Gov"]
-        Obsidian["📔 Obsidian"]
-    end
-    subgraph Advanced["Analytics & Commerce"]
-        BI["📊 Business Intel"]
-        Semantic["⬡ Semantic Layer"]
-        Commerce["⚡ Agentic Commerce"]
-        DocIntel["📄 Doc Intelligence"]
-        Compliance["✅ Compliance"]
-    end
-    SEP --> Charter
-    SEP --> PQC
-    Vendor --> BI
-    Incidents --> BI
-    Cost --> Budget
-    Prompts --> Obsidian
-    Training --> Behavioral
-    Semantic --> BI
-    Semantic --> Budget
-    Commerce --> Budget
-    DocIntel --> Incidents
-    Compliance --> Vendor
-    Compliance --> Incidents
-    Charter --> Behavioral
-          </div>
-        </div>
-
-        <!-- Node tooltip -->
-        <div id="arch-tooltip" class="arch-tooltip fixed z-50 rounded-xl p-4 shadow-2xl max-w-xs"
-             style="background:#1e1e2a;border:1px solid rgba(128,180,253,0.3);pointer-events:none">
-          <div id="arch-tooltip-title" class="text-[14px] font-bold mb-1" style="color:#f1f5f9"></div>
-          <div id="arch-tooltip-desc" class="text-[12px]" style="color:#94a3b8"></div>
+        <div class="columns-1 md:columns-2 lg:columns-3 gap-5">
+          {archGroups.map(g => (
+            <div class="rounded-2xl p-5 mb-5 break-inside-avoid"
+                 style={`background:#0e0e18;border:1px solid rgba(255,255,255,0.08);border-top:2px solid ${g.color}`}>
+              <h3 class="text-[11px] uppercase tracking-widest font-bold mb-4" style={`color:${g.color}`}>{g.name}</h3>
+              <ul class="space-y-4">
+                {g.modules.map(m => (
+                  <li>
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="text-[15px]">{m.icon}</span>
+                      <span class="text-[14px] font-semibold" style="color:#f1f5f9">{m.label}</span>
+                    </div>
+                    <p class="text-[12.5px] leading-relaxed mt-1" style="color:#94a3b8">{m.desc}</p>
+                    {archFeeds(m.id).length > 0 && (
+                      <p class="text-[12px] mt-1.5" style="color:#cbd5e1">
+                        <span aria-hidden="true" style={`color:${g.color}`}>→ </span>feeds {archFeeds(m.id).join(', ')}
+                      </p>
+                    )}
+                    {archFedBy(m.id).length > 0 && (
+                      <p class="text-[12px] mt-0.5" style="color:#94a3b8">
+                        <span aria-hidden="true">← </span>fed by {archFedBy(m.id).join(', ')}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -319,21 +339,6 @@ graph TB
       </div>
     </section>
 
-    <!-- ── Activity Chart ── -->
-    <section class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
-      <div class="mx-auto max-w-5xl px-4 lg:px-8">
-        <div class="text-center mb-10">
-          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#10b981">Activity</p>
-          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-black mb-3" style="color:#f1f5f9">
-            Community growth
-          </h2>
-          <p class="text-[14px]" style="color:#94a3b8">New members, SEP transfers, and incidents — last 6 months.</p>
-        </div>
-        <div class="rounded-2xl p-6" style="background:#0e0e18;border:1px solid rgba(255,255,255,0.08)">
-          <canvas id="activity-chart" height="280"></canvas>
-        </div>
-      </div>
-    </section>
 
     <!-- ── Portal Links ── -->
     <section class="py-20">
@@ -418,86 +423,6 @@ graph TB
   window.__BC_FEATURES__ = JSON.parse(allBcJson);
 </script>
 
-<!-- ── Mermaid architecture diagram ── -->
-<script type="module">
-  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  mermaid.initialize({
-    startOnLoad: true,
-    theme: 'dark',
-    themeVariables: {
-      background: '#0e0e18',
-      primaryColor: '#1e1e2a',
-      primaryBorderColor: '#3f3f5a',
-      primaryTextColor: '#e2e8f0',
-      lineColor: '#38bdf8',
-      edgeLabelBackground: '#111118',
-      clusterBkg: '#14141e',
-      clusterBorder: '#2d2d44',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontSize: '13px',
-    },
-    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
-  });
-
-  const nodeDescriptions = {
-    SEP: 'Cryptographic entity IDs, peering, STIX 2.1 audit chain, sovereign pods.',
-    PQC: 'Ed25519+ML-DSA-65 HybridSigner, X25519+ML-KEM-768 HybridKEM.',
-    Charter: 'Versioned charter lifecycle, OAuth agent discovery, community intelligence.',
-    Behavioral: 'Z-score anomaly detection, 30-day baseline, NORMAL/ELEVATED/CRITICAL.',
-    Vendor: 'AI vendor DPA tracking, expiry alerts, risk tier classification.',
-    Cost: 'Per-dept/vendor spend tracking, monthly summaries.',
-    Budget: 'Budget caps, threshold alerts, approval workflow.',
-    Incidents: 'STIX-linked incident journal, auto-log from BLOCK events.',
-    Supplier: '5-criteria composite scoring from peering data.',
-    Prompts: 'UECIID provenance, injection screening before save, community sharing.',
-    Training: 'HMAC-SHA256 attestation, behavioral hooks, compliance report.',
-    Secrets: 'Multi-vault connectors, SQLite inventory, lifecycle rotation.',
-    Obsidian: 'Auto-scan notes, data class inference, SEP share, XAI pipeline sidebar.',
-    BI: 'Eight analytics functions, OLS trend predictions, PDF report builder.',
-    Semantic: 'Nine BI models, deterministic SQL, self-service catalog, Redis cache.',
-    Commerce: 'UCP/AP2/MCP protocols, multi-agent auction, FIDO2, Web3 mandate.',
-    DocIntel: 'MarkItDown converter, 50 MB gate, SHA-256 Redis cache.',
-    Compliance: '19 controls GDPR/SOC2/ISO27001/HIPAA, WebSocket push, gap manager.',
-  };
-
-  const tooltip = document.getElementById('arch-tooltip');
-  const ttTitle = document.getElementById('arch-tooltip-title');
-  const ttDesc  = document.getElementById('arch-tooltip-desc');
-
-  function attachTooltips() {
-    document.querySelectorAll('#mermaid-diagram .node').forEach(node => {
-      const textEl = node.querySelector('text,span');
-      const raw    = textEl ? textEl.textContent.trim() : '';
-      const key    = raw.replace(/[^\w]/g, '').replace(/^.*?([A-Z][a-zA-Z]+).*$/, '$1');
-      const desc   = nodeDescriptions[key];
-      if (!desc) return;
-
-      node.style.cursor = 'pointer';
-      node.addEventListener('mousemove', e => {
-        ttTitle.textContent = raw;
-        ttDesc.textContent  = desc;
-        tooltip.style.left  = (e.clientX + 16) + 'px';
-        tooltip.style.top   = (e.clientY - 40) + 'px';
-        tooltip.classList.add('visible');
-      });
-      node.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
-      node.addEventListener('click', () => {
-        const sec = document.getElementById(key.toLowerCase());
-        if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    });
-  }
-
-  // Wait for mermaid render then attach handlers
-  const observer = new MutationObserver(() => {
-    if (document.querySelector('#mermaid-diagram svg')) {
-      observer.disconnect();
-      attachTooltips();
-    }
-  });
-  observer.observe(document.getElementById('mermaid-diagram'), { childList: true, subtree: true });
-</script>
-
 <!-- ── Feature search ── -->
 <script>
   const input     = document.getElementById('feature-search');
@@ -557,83 +482,12 @@ graph TB
   });
 </script>
 
-<!-- ── Chart.js activity chart ── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
-<script>
-  window.addEventListener('load', () => {
-    const ctx = document.getElementById('activity-chart');
-    if (!ctx || !window.Chart) return;
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: months,
-        datasets: [
-          {
-            label: 'New Members',
-            data: [120, 195, 280, 390, 510, 650],
-            borderColor: '#BF5AF2',
-            backgroundColor: 'rgba(191,90,242,0.08)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointBackgroundColor: '#BF5AF2',
-          },
-          {
-            label: 'SEP Transfers',
-            data: [340, 720, 1100, 2300, 4800, 8340],
-            borderColor: '#80b4fd',
-            backgroundColor: 'rgba(128,180,253,0.05)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointBackgroundColor: '#80b4fd',
-          },
-          {
-            label: 'Incidents Logged',
-            data: [4, 7, 12, 9, 18, 23],
-            borderColor: '#f59e0b',
-            backgroundColor: 'rgba(245,158,11,0.05)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointBackgroundColor: '#f59e0b',
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12 } },
-          tooltip: {
-            backgroundColor: '#1e1e2a',
-            borderColor: 'rgba(255,255,255,0.1)',
-            borderWidth: 1,
-            titleColor: '#f1f5f9',
-            bodyColor: '#94a3b8',
-            padding: 12,
-          },
-        },
-        scales: {
-          x: { ticks: { color: '#64748b', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#64748b', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
-        },
-      },
-    });
-  });
-</script>
-
 <!-- ── Live stats fetch ── -->
 <script>
   async function fetchStats() {
     try {
       const r = await fetch('/api/public/community', { signal: AbortSignal.timeout(3000) });
-      if (!r.ok) return;
+      if (!r.ok) throw new Error(String(r.status));
       const d = await r.json();
       const map = {
         members_count:     d.members_count,
@@ -647,8 +501,10 @@ graph TB
           ? val.toLocaleString()
           : String(val);
       });
+      document.getElementById('stats-source').textContent = 'Live data · /api/public/community';
     } catch {
-      // fail-open: static values remain
+      // No fallback figures: an unreachable API shows dashes, not invented numbers.
+      document.getElementById('stats-source').textContent = 'Live data unavailable';
     }
   }
   fetchStats();
@@ -704,20 +560,10 @@ graph TB
   }
   .search-chip:active { transform: scale(0.97); }
 
-  /* ── Mermaid tooltip — opacity-based (never pops from nothing) ── */
-  .arch-tooltip {
-    opacity: 0;
-    transform: scale(0.95) translateY(4px);
-    transition: opacity 125ms cubic-bezier(0.23,1,0.32,1), transform 125ms cubic-bezier(0.23,1,0.32,1);
-  }
-  .arch-tooltip.visible {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
 
   /* ── Reduced motion ── */
   @media (prefers-reduced-motion: reduce) {
-    .stat-card, .module-card, .btn-primary, .btn-ghost, .search-chip, .arch-tooltip {
+    .stat-card, .module-card, .btn-primary, .btn-ghost, .search-chip {
       transition: opacity 200ms ease !important;
     }
     .stat-card:hover, .module-card:hover { transform: none !important; }
