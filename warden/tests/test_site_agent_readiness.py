@@ -820,3 +820,20 @@ class TestOneLayout:
             if "layouts/BaseLayout.astro" not in _read(p)
         )
         assert missing == [], f"pages without the site navigation: {missing}"
+
+    def test_no_page_draws_a_second_header_or_trail(self):
+        """
+        BaseLayout owns the header and the breadcrumb. A page that also rendered
+        the old Navbar component got two fixed headers (the second covering the
+        first once the banner was dismissed); a page with its own "Home /" trail
+        showed two trails.
+        """
+        pages = _SITE / "src" / "pages"
+        offenders = sorted(
+            str(p.relative_to(pages)).replace("\\", "/")
+            for p in pages.rglob("*.astro")
+            if "components/Navbar" in _read(p)
+            or '<span style="color:#1e1e2a">/</span>' in _read(p)
+        )
+        assert offenders == [], f"second header or trail: {offenders}"
+        assert not (_SITE / "src" / "components" / "Navbar.astro").exists()

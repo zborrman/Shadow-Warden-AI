@@ -560,13 +560,13 @@ if (breadcrumbs && currentPath !== '/') {
   <main>
     {crumbs.length > 0 && (
       <nav aria-label="Breadcrumb" class="mx-auto max-w-7xl px-4 lg:px-8 pt-4">
-        <ol class="flex flex-wrap items-center gap-1.5 text-[12px]" style="color:#64748b">
+        <ol class="flex flex-wrap items-center gap-1.5 text-[12px]" style="color:#94a3b8">
           {crumbs.map((c, i) => (
             <li class="flex items-center gap-1.5">
-              {i > 0 && <span aria-hidden="true" style="color:#334155">›</span>}
+              {i > 0 && <span aria-hidden="true" style="color:#475569">›</span>}
               {c.href
                 ? <a href={c.href} class="transition-colors hover:text-white">{c.label}</a>
-                : <span aria-current="page" style="color:#94a3b8">{c.label}</span>}
+                : <span aria-current="page" style="color:#cbd5e1">{c.label}</span>}
             </li>
           ))}
         </ol>
