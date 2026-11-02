@@ -125,6 +125,10 @@ updates:
       # cap - lift with the web3 7 -> 8 migration.
       - dependency-name: "websockets"
         versions: [">=16"]
+      # python-dateutil 3 (#655): botocore 1.43 declares python-dateutil<3.0.0.
+      # Capped by the boto3/botocore group above - lift when botocore accepts 3.
+      - dependency-name: "python-dateutil"
+        versions: [">=3"]
       # av 19 requires Python >=3.12 (#622; faster-whisper accepts any av>=11).
       - dependency-name: "av"
         versions: [">=19"]
