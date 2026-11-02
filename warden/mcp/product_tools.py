@@ -119,7 +119,7 @@ async def _call_filter(api_key: str | None, arguments: dict) -> dict:
             "detail": (
                 "filter_text runs against your own gateway quota. Send your Shadow "
                 "Warden API key in the X-API-Key header of the MCP request. "
-                "Get one at https://shadow-warden-ai.com/pricing"
+                "Get one at https://shadow-warden-ai.com/price"
             ),
         }
 
@@ -187,7 +187,7 @@ async def _call_pricing(_api_key: str | None, _arguments: dict) -> dict:
         "currency": "USD",
         "annual_discount": ANNUAL_DISCOUNT,
         "plans": plans,
-        "details": "https://shadow-warden-ai.com/pricing",
+        "details": "https://shadow-warden-ai.com/price",
     }
 
 

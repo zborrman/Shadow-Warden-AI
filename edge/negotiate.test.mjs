@@ -91,10 +91,11 @@ test("q-values are clamped to the 0..1 range", () => {
 
 test("routes resolve regardless of trailing slash or case", () => {
   assert.equal(markdownPathFor("/"), "/index.md");
-  assert.equal(markdownPathFor("/pricing"), "/pricing.md");
-  assert.equal(markdownPathFor("/pricing/"), "/pricing.md");
-  assert.equal(markdownPathFor("/Pricing"), "/pricing.md");
   assert.equal(markdownPathFor("/price"), "/pricing.md");
+  assert.equal(markdownPathFor("/price/"), "/pricing.md");
+  assert.equal(markdownPathFor("/Price"), "/pricing.md");
+  // /pricing is a 308 to /price, not a page; it has no markdown twin of its own.
+  assert.equal(markdownPathFor("/pricing"), null);
   assert.equal(normalizePath(""), "/");
 });
 

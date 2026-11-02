@@ -20,7 +20,6 @@
  */
 export const MARKDOWN_ROUTES = Object.freeze({
   "/": "/index.md",
-  "/pricing": "/pricing.md",
   "/price": "/pricing.md",
   "/doc": "/doc.md",
   "/sdk": "/sdk.md",

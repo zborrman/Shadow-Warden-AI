@@ -6,6 +6,7 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/docs", "destination": "/doc", "permanent": true },
+    { "source": "/pricing", "destination": "/price", "permanent": true },
     { "source": "/developer", "destination": "/developers", "permanent": true },
     { "source": "/api-docs", "destination": "/doc/api-reference", "permanent": true },
     { "source": "/api-reference", "destination": "/doc/api-reference", "permanent": true },

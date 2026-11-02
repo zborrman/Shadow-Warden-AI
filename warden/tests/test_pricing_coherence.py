@@ -244,22 +244,6 @@ class TestSitePricesMatchTheTable:
             assert monthly == TIER_PRICE_USD_MONTH[tier], f"{name} monthly price is stale"
             assert yearly == annual_price_usd(tier), f"{name} annual price is stale"
 
-    def test_pricing_page_tier_prices(self):
-        src = self._read("src/pages/pricing.astro")
-        if src is None:
-            pytest.skip("site/ not present in this checkout")
-        found = {
-            m.group("id"): float(m.group("p"))
-            for m in re.finditer(
-                r"id:\s*'(?P<id>[a-z_]+)',\s*\n\s*name:\s*'[^']*',\s*\n\s*price:\s*(?P<p>[\d.]+),",
-                src,
-            )
-        }
-        assert found, "pricing.astro tier block no longer parses — update this guard"
-        for tier, price in found.items():
-            if tier in TIER_PRICE_USD_MONTH:
-                assert price == TIER_PRICE_USD_MONTH[tier], f"{tier} price is stale on /pricing"
-
     def test_pricing_component_tier_prices(self):
         src = self._read("src/components/Pricing.astro")
         if src is None:
@@ -474,3 +458,24 @@ class TestPublishedSiteIsCurrent:
                 f"landing/price/ still carries the retired {retired!r} — "
                 "the published build predates the canonical price list."
             )
+
+
+def test_pricing_is_one_page_and_the_old_url_redirects():
+    """
+    /price and /pricing were two pricing pages: /price stopped at Pro and called
+    Enterprise "custom pricing", /pricing listed Enterprise at $249. /pricing now
+    308s to /price on both surfaces, and nothing links the old URL.
+    """
+    if not (_SITE / "src/pages/price.astro").exists():
+        pytest.skip("site/ not present in this checkout")
+    root = _SITE.parent
+    assert not (_SITE / "src/pages/pricing.astro").exists()
+    vercel = (root / "vercel.json").read_text(encoding="utf-8")
+    assert '"source": "/pricing", "destination": "/price"' in vercel
+    assert "redir /pricing /price 308" in (root / "docker/Caddyfile").read_text(encoding="utf-8")
+    price = (_SITE / "src/pages/price.astro").read_text(encoding="utf-8")
+    assert "name: 'Enterprise'" in price and 'id="calculator"' in price
+    old_url = re.compile(r"href=[\"'](https://shadow-warden-ai\.com)?/pricing\b")
+    stale = [str(f.relative_to(_SITE)) for f in (_SITE / "src").rglob("*.astro")
+             if old_url.search(f.read_text(encoding="utf-8"))]
+    assert not stale, f"links to the retired /pricing URL: {stale}"

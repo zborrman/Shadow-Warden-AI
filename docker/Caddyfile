@@ -357,6 +357,8 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 		# Predictable names for the developer resources. An agent that guesses
 		# /docs or /api-reference should land on the page, not a 404.
 		redir /docs /doc 301
+		redir /pricing /price 308
+		redir /pricing/ /price 308
 		redir /developer /developers 301
 		redir /api-docs /doc/api-reference 301
 		redir /api-reference /doc/api-reference 301
@@ -383,7 +385,7 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 			header Accept *text/markdown*
 			not header Accept *text/markdown;q=0*
 			not header Accept "*text/markdown; q=0*"
-			path /pricing /pricing/ /price /price/
+			path /price /price/
 		}
 		rewrite @md_pricing /pricing.md
 		@md_doc {
