@@ -305,7 +305,10 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 
 	# Landing page: Astro static HTML with inline scripts — REPLACE snippet CSP (> prefix overwrites)
 	# without this the browser receives two CSP headers and enforces the most restrictive of both
-	header >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'"
+	# Same policy as vercel.json serves on www - test_site_csp.py keeps the two equal.
+	# This copy had fallen behind: no Lemon Squeezy (checkout script + iframe), no
+	# Google Fonts, no api./billing. connect-src.
+	header >Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://app.lemonsqueezy.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.shadow-warden-ai.com https://billing.shadow-warden-ai.workers.dev; frame-src 'self' https://app.lemonsqueezy.com; upgrade-insecure-requests"
 
 	# Cache static assets aggressively
 	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
