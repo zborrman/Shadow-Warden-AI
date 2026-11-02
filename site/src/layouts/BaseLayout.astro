@@ -502,8 +502,9 @@ if (breadcrumbs && currentPath !== '/') {
     </div>
   </header>
 
-  <!-- Mobile menu — z-50 so it sits above content but below navbar (which is also z-50 and renders later) -->
-  <div id="mobile-menu" class="hidden fixed inset-0 z-50 xl:hidden flex-col pt-14"
+  <!-- Mobile menu — z-40: above content, below the z-50 navbar. It renders after the
+       navbar, so at an equal z-index it covered the navbar's close toggle. -->
+  <div id="mobile-menu" class="hidden fixed inset-0 z-40 xl:hidden flex-col pt-14"
        style="background:rgba(10,10,15,0.98);backdrop-filter:blur(24px)">
     <div class="flex-1 overflow-y-auto px-4 py-6 space-y-1">
       {categories.map(cat => (
