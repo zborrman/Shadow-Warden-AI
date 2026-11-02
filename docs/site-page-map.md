@@ -23,8 +23,10 @@ page wins.
 ## Decisions
 
 `keep` stays as is. `merge → X` folds the content into X and leaves a 308.
-`app` is a signed-in or interactive surface, kept but taken out of the
-sitemap and marked `noindex` in S3. `utility` is a flow page (errors,
+`app` is a signed-in workflow or a per-user client-side workspace (account,
+settings, the `/community/*` demo), kept but taken out of the sitemap and
+marked `noindex` in S3. Public interactive pages anyone can try without an
+account (`/playground`, `/fraud-score`) are `keep`: they are product pages. `utility` is a flow page (errors,
 confirmations), same treatment. `redirect` already answers with a redirect.
 
 "In" is the number of links to the page from elsewhere in `site/src`.
@@ -68,7 +70,7 @@ confirmations), same treatment. `redirect` already answers with a redirect.
 | Route | Lines | In | Decision |
 |---|---:|---:|---|
 | `/agentic` | 888 | 12 | keep — hub |
-| `/marketplace` | 357 | 5 | keep (live listings read from the API; `/agentic` is the product page) |
+| `/marketplace` | 357 | 5 | keep (renders request-time listing data from the API; `/agentic` is the product page) |
 | `/business-community` | 726 | 8 | keep |
 | `/business-community/agentic-commerce` | slug | nav | merge → `/business-community` (nav item goes in S3) |
 | `/business-community/business-intelligence` | slug | 0 | merge → `/business-community` |
@@ -90,8 +92,8 @@ confirmations), same treatment. `redirect` already answers with a redirect.
 | `/community/portal` | 589 | 0 | merge → `/community/view` |
 
 The `/community/*` pages keep their data in `localStorage` and simulate the
-E2EE key exchange; they are a demo surface and must stay labelled as such
-(capability matrix: SIMULATED).
+E2EE key exchange; they are a demo surface and must stay labelled as such.
+Capability matrix §7, row "Community & Tunnel pages": `SIMULATED`.
 
 ### Build
 
@@ -171,7 +173,7 @@ Every redirect is a 308, added in **both** `vercel.json` (www) and
 |---|---|
 | `/pricing` | `/price` |
 | `/developers` | `/doc` |
-| `/developer` | `/doc` (today `/developer` → `/developers`; collapse the chain) |
+| `/developer` | `/doc` — **edit** the existing 301 rule (`vercel.json`, `docker/Caddyfile`) to point at `/doc` as a 308; do not add a second rule |
 | `/doc/testing-quality` | `/trust` |
 | `/analytics` | `/dashboard` |
 | `/dashboard/analytics` | `/dashboard` |
