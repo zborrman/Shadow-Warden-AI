@@ -1,5 +1,5 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 
 const ALL_COLOR  = '#30D158';
 const PRO_COLOR  = '#BF5AF2';
@@ -56,39 +56,20 @@ const methods = [
 ];
 ---
 
-<Layout
+<BaseLayout
   title="Shadow Warden AI SDK, CLI & API"
   description="Official Python and TypeScript SDKs for the Shadow Warden AI security gateway. Filter LLM traffic, run autonomous agents, and manage the M2M marketplace from your code."
   markdown="/sdk.md"
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
-  <!-- Top bar -->
-  <header class="fixed top-0 left-0 right-0 z-50 h-14 border-b border-white/[0.07]"
-          style="background:rgba(3,5,15,0.95);backdrop-filter:blur(20px)">
-    <div class="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <a href="/" class="flex items-center gap-2">
-          <img src="/logo.png" alt="Shadow Warden AI" style="height:28px;width:auto;border-radius:6px;display:block" />
-          <span class="text-[13px] font-bold">Shadow Warden</span>
-        </a>
-        <div class="w-px h-4 bg-white/[0.12]"></div>
-        <span class="text-[12px] font-bold text-[#30D158]">Developer SDK</span>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 uppercase tracking-[1.5px]">v1.1.0</span>
-        <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
-        <a href="/pricing" class="text-[11px] px-3 py-1.5 rounded-lg bg-[#30D158] text-black font-bold hover:-translate-y-0.5 transition-all">Get API Key</a>
-      </div>
-    </div>
-  </header>
-
-  <div class="max-w-[1100px] mx-auto px-6 pt-24 pb-20">
+  <div class="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
 
     <!-- Hero -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
         <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[#30D158]/10 text-[#30D158] border border-[#30D158]/20 uppercase tracking-[1.5px]">Public SDK</span>
+        <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 uppercase tracking-[1.5px]">v1.1.0</span>
       </div>
       <h1 class="text-[42px] font-bold tracking-tight mb-4 leading-[1.1]">Build secure AI,<br/>from your first line of code.</h1>
       <p class="text-[#8E8E9E] text-[17px] max-w-[580px] leading-relaxed">
@@ -309,4 +290,4 @@ asyncio.run(main())</pre>
 
   </div>
 </div>
-</Layout>
+</BaseLayout>

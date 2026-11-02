@@ -1,37 +1,16 @@
 ﻿---
 import { PRODUCT } from '../data/product';
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<Layout
+<BaseLayout
   title={`Enterprise Integration & Deployment Guide ${PRODUCT.display} — Shadow Warden AI`}
   description="Complete enterprise deployment guide for Shadow Warden AI. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
   <!-- Top bar -->
-  <header class="fixed top-0 left-0 right-0 z-50 h-14 border-b border-white/[0.07]"
-          style="background:rgba(3,5,15,0.95);backdrop-filter:blur(20px)">
-    <div class="max-w-[1100px] mx-auto px-6 h-full flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <a href="/" class="flex items-center gap-2">
-          <img src="/logo.png" alt="Shadow Warden AI" style="height:28px;width:auto;border-radius:6px;display:block" />
-          <span class="text-[13px] font-bold">Shadow Warden</span>
-        </a>
-        <div class="w-px h-4 bg-white/[0.12]"></div>
-        <span class="text-[12px] text-[#8E8E9E]">Docs</span>
-        <span class="text-[#48485A]">/</span>
-        <span class="text-[12px] font-bold">Enterprise Guide</span>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">{PRODUCT.display}</span>
-        <a href="/" class="text-[12px] text-[#8E8E9E] hover:text-white transition-colors">← Back</a>
-        <button onclick="window.print()" class="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-[#8E8E9E] hover:text-white hover:border-white/20 transition-colors">Save PDF</button>
-      </div>
-    </div>
-  </header>
-
-  <div class="max-w-[1100px] mx-auto px-6 pt-24 pb-20">
+  <div class="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
 
     <!-- Cover -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
@@ -655,4 +634,4 @@ curl http://localhost:8001/health
     section { page-break-inside: avoid; }
   }
 </style>
-</Layout>
+</BaseLayout>
