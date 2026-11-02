@@ -4,7 +4,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
 <BaseLayout breadcrumbs={false}
   title="Community Portal — Shadow Warden AI"
-  description="Secure community collaboration with end-to-end encrypted tunnel, member management, and GDPR controls."
+  description="Demo community workspace stored in your browser: members, a simulated tunnel, and GDPR export."
 >
 <div class="comm-portal pt-14">
 
@@ -169,7 +169,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     </div>
 
     <div class="tunnel-sub-line">
-      End-to-end encrypted · AES-256-GCM · keys never leave clients
+      Demo · messages are stored unencrypted in this browser
     </div>
 
     <!-- Auto-delete banner -->
@@ -910,9 +910,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     // Seed tunnel messages for COMM-1024
     const msgs = [
-      {id:'msg001',sender:'USR-0014',senderName:'Elena Wójcik',ts:now-4.9*3600000,text:'Pushed the new `OBFUSCATION_DECODE` rule to staging. Catches 87% of base64-wrapped jailbreaks in the eval set.',nonce:'f3a91c'},
-      {id:'msg002',sender:'USR-0018',senderName:'Devon Rojas', ts:now-3*3600000,  text:'Nice. Did the streaming-endpoint p99 hold after that change? Want to make sure we don\'t regress.',nonce:'b81cf4'},
-      {id:'msg003',sender:'USR-0001',senderName:'Zach Borrman',ts:now-30*60000,   text:'Confirmed — p99 held on staging. Approving promotion to prod after 24h soak. Activity log entry on the way.',nonce:'de2701'},
+      {id:'msg001',sender:'USR-0014',senderName:'Elena Wójcik',ts:now-4.9*3600000,text:'Pushed the new `OBFUSCATION_DECODE` rule to staging for review.',nonce:'f3a91c'},
+      {id:'msg002',sender:'USR-0018',senderName:'Devon Rojas', ts:now-3*3600000,  text:'Thanks. Can you check the streaming endpoint still behaves after that change?',nonce:'b81cf4'},
+      {id:'msg003',sender:'USR-0001',senderName:'Zach Borrman',ts:now-30*60000,   text:'Checked on staging. Approving promotion after a 24h soak. Activity log entry on the way.',nonce:'de2701'},
     ];
     saveMsgs('COMM-1024', msgs);
     if (!localStorage.getItem(USER_KEY)) localStorage.setItem(USER_KEY,'USR-0001');
@@ -976,7 +976,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <div class="card-stats">
             <span>👥 ${mc}</span>
             <span>💬 ${msgs}</span>
-            <span class="e2ee-chip">E2EE</span>
+            <span class="e2ee-chip">Demo</span>
           </div>
         </div>`;
     }).join('');
@@ -1185,7 +1185,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       msgsEl.innerHTML=`<div style="text-align:center;padding:60px 20px">
         <div style="font-size:48px;margin-bottom:12px">🔒</div>
         <div style="color:#475569;font-size:14px">No messages yet</div>
-        <div style="color:#334155;font-size:12px;margin-top:6px">End-to-end encrypted · AES-256-GCM · keys never leave this browser</div>
+        <div style="color:#334155;font-size:12px;margin-top:6px">Demo · messages are stored unencrypted in this browser</div>
       </div>`;
     } else {
       msgsEl.innerHTML=msgs.map((m:any)=>{
@@ -1215,7 +1215,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                 ${roleLabel?`<span class="tmsg-role">${roleLabel}</span>`:''}
               </div>
               <div class="tbubble tbubble-mine">${proc(m.text)}</div>
-              <div class="tmsg-meta">🔒 AES-256-GCM · nonce ${nonce}${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
+              <div class="tmsg-meta">Demo · unencrypted${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
             </div>
           </div>`;
         return `
@@ -1228,7 +1228,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                 <span class="tmsg-time">${timeStr} · ${relTime(m.ts)}</span>
               </div>
               <div class="tbubble tbubble-other">${proc(m.text)}</div>
-              <div class="tmsg-meta">🔒 AES-256-GCM · 256-bit · nonce ${nonce}${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
+              <div class="tmsg-meta">Demo · unencrypted${ttl?` · <span class="meta-ttl">⏱ ${ttl}</span>`:''}</div>
             </div>
           </div>`;
       }).join('');
@@ -1253,7 +1253,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     // Export public key
     document.getElementById('export-pubkey-btn')?.addEventListener('click',()=>{
-      const content=`-----BEGIN SHADOW WARDEN PUBLIC KEY-----\nCommunity: ${communityId}\nAlgorithm: AES-256-GCM / Ed25519\nFingerprint: ${fp}\n\nSW-PUB-${fp}:7c:2e:09:11:fd:33:48:5a:8e:c0\n-----END SHADOW WARDEN PUBLIC KEY-----`;
+      const content=`-----BEGIN SHADOW WARDEN PUBLIC KEY-----\nCommunity: ${communityId}\nAlgorithm: none (demo identifier, not a key)\nFingerprint: ${fp}\n\nSW-PUB-${fp}:7c:2e:09:11:fd:33:48:5a:8e:c0\n-----END SHADOW WARDEN PUBLIC KEY-----`;
       const a=document.createElement('a');
       a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'}));
       a.download=`public-${myUserId}.asc`; a.click(); URL.revokeObjectURL(a.href);

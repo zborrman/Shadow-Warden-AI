@@ -27,7 +27,7 @@
           ${n.description?`<p class="card-desc">${p(n.description)}</p>`:""}
           <div class="card-stats">
             ${c>0?`<span>💬 ${c} message${c!==1?"s":""}</span>`:""}
-            <span class="e2ee-pill">🔐 E2EE</span>
+            <span class="e2ee-pill">Demo</span>
           </div>
           <div class="card-actions" onclick="event.stopPropagation()">
             <a href="/community/view?id=${encodeURIComponent(n.id)}" class="card-btn-main">Open Portal →</a>

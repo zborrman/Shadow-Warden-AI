@@ -344,7 +344,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <div class="toggle-row">
             <div class="toggle-info">
-              <div class="toggle-label">End-to-End Encryption</div>
+              <div class="toggle-label">End-to-End Encryption (simulated)</div>
               <div class="toggle-desc">All messages encrypted with community keypair</div>
             </div>
             <label class="toggle-sw"><input type="checkbox" id="t-e2e" checked
@@ -544,7 +544,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
 
           <div class="info-note">
-            🔐 Community data is stored in your browser. Tunnel messages use end-to-end encrypted channels. No data is sent to external servers without your explicit action.
+            Demo: community data, including tunnel messages, is stored unencrypted in this browser (localStorage). No encryption or key exchange is performed, and nothing is sent to a server.
           </div>
           <div class="nav-row">
             <button class="btn-back" id="back-5">← Back</button>
@@ -841,7 +841,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const tips: string[] = [];
         if (!chk('t-sova'))     tips.push('Enable SOVA Agent (−30 pts)');
         if (!chk('t-pqc'))      tips.push('Enable Post-Quantum Cryptography in Step 3 (−25 pts, Enterprise)');
-        if (!chk('t-e2e'))      tips.push('Enable End-to-End Encryption (−15 pts)');
+        if (!chk('t-e2e'))      tips.push('Enable the (simulated) end-to-end encryption setting (−15 pts)');
         if (!chk('t-approval')) tips.push('Require Join Approval (−15 pts)');
         if (!chk('t-slack'))    tips.push('Enable Slack Alerts (−5 pts)');
         if (score > 20 && tips.length) {
