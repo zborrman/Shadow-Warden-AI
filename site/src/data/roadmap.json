@@ -1685,10 +1685,10 @@
   {
     "id": "M2M-01",
     "category": "Business Community",
-    "subcategory": "Agentic Commerce",
+    "subcategory": "M2M Commerce Store",
     "feature": "M2M Commerce Store",
     "version": "v5.2",
-    "tier": "Enterprise",
+    "tier": "All",
     "status": "shipped",
     "description": "Full seller-side architecture for AI agents to trade autonomously. Dynamic pricing, Redis reservations, AP2 payments, STIX audit, budget guardian integration."
   },

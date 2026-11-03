@@ -359,6 +359,7 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 		redir /docs /doc 301
 		redir /pricing /price 308
 		redir /pricing/ /price 308
+		redir /business-community/agentic-commerce /business-community/m2m-store 308
 		redir /developer /developers 301
 		redir /api-docs /doc/api-reference 301
 		redir /api-reference /doc/api-reference 301

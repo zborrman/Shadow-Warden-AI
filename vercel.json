@@ -7,6 +7,7 @@
   "redirects": [
     { "source": "/docs", "destination": "/doc", "permanent": true },
     { "source": "/pricing", "destination": "/price", "permanent": true },
+    { "source": "/business-community/agentic-commerce", "destination": "/business-community/m2m-store", "permanent": true },
     { "source": "/developer", "destination": "/developers", "permanent": true },
     { "source": "/api-docs", "destination": "/doc/api-reference", "permanent": true },
     { "source": "/api-reference", "destination": "/doc/api-reference", "permanent": true },

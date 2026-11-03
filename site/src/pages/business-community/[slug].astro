@@ -5,7 +5,10 @@ import roadmap from '../../data/roadmap.json';
 
 export function getStaticPaths() {
   const features = roadmap.filter(r => r.category === 'Business Community');
-  const subcats = [...new Set(features.map(r => r.subcategory))];
+  // M2M Commerce Store has its own page (m2m-store.astro); a generated
+  // feature list beside it would be a second URL for the same product.
+  const subcats = [...new Set(features.map(r => r.subcategory))]
+    .filter(s => s !== 'M2M Commerce Store');
   function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
   return subcats.map(sub => ({ params: { slug: slugify(sub) }, props: { sub } }));
 }
