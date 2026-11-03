@@ -128,10 +128,19 @@ def validate_fido2_token(token: str, agent_id: str) -> dict[str, Any]:
         result = verify_assertion(token, agent_id)
         return {"valid": bool(result.get("verified")), "reason": result.get("reason", "")}
     except (ImportError, AttributeError):
-        # FIDO2 module not fully initialized — accept token in dev mode
-        if os.getenv("ENV", "production") == "development":
-            log.debug("FIDO2 not available — accepting token in dev mode")
-            return {"valid": True, "reason": "dev_mode_bypass"}
+        # warden.auth.fido has no verify_assertion, so this branch is the one
+        # that always runs. It used to accept any token when ENV=development —
+        # and docker-compose defaults the warden service to ENV=development,
+        # so production accepted any string as a payment assertion. It now
+        # fails CLOSED: the bypass needs FIDO_ALLOW_STUB=true outside prod,
+        # the same opt-in warden.auth.fido uses for its own stub.
+        try:
+            from warden.auth.fido import _stub_allowed
+            if _stub_allowed():
+                log.debug("FIDO2 verifier unavailable; stub explicitly allowed")
+                return {"valid": True, "reason": "stub_allowed"}
+        except Exception as exc:  # noqa: BLE001
+            log.debug("FIDO2 stub policy unavailable: %s", exc)
         return {"valid": False, "reason": "fido2_unavailable"}
     except Exception as exc:
         log.warning("FIDO2 validation error: %s", exc)

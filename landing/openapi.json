@@ -25074,7 +25074,7 @@
           "M2M Store"
         ],
         "summary": "Add Product",
-        "description": "Admin endpoint — add a product to the catalog.",
+        "description": "Create a product owned by the caller's tenant, or update one it owns.\n\nCatalog text is read by other tenants' buying agents, so it is screened\nfor injection patterns before it is stored.",
         "operationId": "add_product_m2m_store_products_post",
         "requestBody": {
           "content": {
@@ -28429,6 +28429,68 @@
         ]
       }
     },
+    "/marketplace/escrow/{escrow_id}/deposit-intent": {
+      "get": {
+        "tags": [
+          "Marketplace Escrow"
+        ],
+        "summary": "Deposit Intent",
+        "description": "EIP-712 typed data the buyer signs to let the gateway relay its deposit.",
+        "operationId": "deposit_intent_marketplace_escrow__escrow_id__deposit_intent_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "escrow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Escrow Id"
+            }
+          },
+          {
+            "name": "valid_seconds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 86400,
+              "minimum": 60,
+              "default": 900,
+              "title": "Valid Seconds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Deposit Intent Marketplace Escrow  Escrow Id  Deposit Intent Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/marketplace/escrow/{escrow_id}/fund": {
       "post": {
         "tags": [
@@ -28452,6 +28514,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FundRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -39698,6 +39777,38 @@
         ],
         "title": "FrameworkIn"
       },
+      "FundRequest": {
+        "properties": {
+          "buyer_signature": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 132
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer Signature"
+          },
+          "intent_deadline": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9.223372036854776e+18,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent Deadline"
+          }
+        },
+        "type": "object",
+        "title": "FundRequest",
+        "description": "The buyer's EIP-712 consent, when the gateway relays the deposit.\n\nGet the typed data from ``GET /escrow/{id}/deposit-intent``, sign it with\nthe buyer's wallet (``eth_signTypedData_v4``), and send the signature with\nthe same ``intent_deadline``. Not needed when the gateway's signer is the\nbuyer, or where settlement is not configured."
+      },
       "GovernanceReport": {
         "properties": {
           "tenant_id": {
@@ -41871,6 +41982,11 @@
             "title": "Id",
             "default": ""
           },
+          "tenant_id": {
+            "type": "string",
+            "title": "Tenant Id",
+            "default": ""
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -41885,10 +42001,28 @@
             "title": "Category",
             "default": "general"
           },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "USD"
+          },
+          "price_minor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Minor"
+          },
           "price_base": {
             "type": "number",
             "minimum": 0.0,
-            "title": "Price Base"
+            "title": "Price Base",
+            "default": 0.0
           },
           "stock": {
             "type": "integer",
@@ -41920,8 +42054,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "price_base"
+          "name"
         ],
         "title": "Product"
       },
