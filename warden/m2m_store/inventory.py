@@ -167,6 +167,17 @@ class InventoryManager:
             )
         return cur.rowcount == 1
 
+    def delete_product(self, product_id: str, tenant_id: str) -> bool:
+        """Soft-delete a product the tenant owns: it leaves the catalog, its orders stay."""
+        with _db_lock, _conn() as con:
+            cur = con.execute(
+                "UPDATE m2m_products SET data_json=json_set(data_json,'$.active',json('false'),"
+                "'$.deleted_at',?) WHERE id=? AND json_extract(data_json,'$.tenant_id')=?"
+                " AND COALESCE(json_extract(data_json,'$.deleted_at'),'')=''",
+                (_now_iso(), product_id, tenant_id),
+            )
+        return cur.rowcount == 1
+
     # ── Reservations ──────────────────────────────────────────────────────────
 
     def reserve(self, product_id: str, qty: int, ttl_seconds: int = 45) -> str | None:
