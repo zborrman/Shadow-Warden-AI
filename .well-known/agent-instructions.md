@@ -132,7 +132,7 @@ directly by appending `.md`:
 | URL | Markdown |
 |---|---|
 | `/` | `/index.md` |
-| `/pricing`, `/price` | `/pricing.md` |
+| `/price` | `/pricing.md` |
 | `/doc` | `/doc.md` |
 | `/sdk` | `/sdk.md` |
 | `/agentic` | `/agentic.md` |
