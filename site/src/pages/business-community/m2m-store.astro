@@ -64,15 +64,16 @@ POST /m2m-store/offers          →   StoreAgent.generate_offer()
                                      ├─ demand_factor (stock level)
                                      └─ loyalty_factor (order history)
                                          ↓
-                                    InventoryManager.reserve()   ← Redis 45s TTL
+                                    InventoryManager.reserve()   ← SQLite, 45s TTL
 
 POST /m2m-store/orders          →   security.validate_fido2_token()
   {offer_id, mandate_id,             ↓
    payment_token}                   semantic_budget.check_budget()   ← Semantic Layer
                                          ↓ allowed
+                                    InventoryManager.commit_stock()  ← stock before money
+                                         ↓
                                     AP2Processor.execute_payment()
-                                         ↓ success
-                                    InventoryManager.update_stock()
+                                         ↓ success (failure restocks)
                                     stix_audit.append_transfer()
                                     Order(status=PAID) → SQLite
         `}</pre>
@@ -116,8 +117,8 @@ POST /m2m-store/orders          →   security.validate_fido2_token()
       <div class="grid sm:grid-cols-3 gap-4">
         {[
           { icon: '🛡️', title: 'Prompt Injection Guard', desc: 'All request strings validated against injection patterns (SQL, template, script). Fields exceeding 500 chars rejected. Pydantic strict schema — extra fields ignored.' },
-          { icon: '⏱️', title: 'Rate Limiter', desc: 'Redis sliding window: 100 req/min per agent_id. Returns 429 with Retry-After. Falls back to in-process counter when Redis unavailable.' },
-          { icon: '🔐', title: 'FIDO2 Auth', desc: 'Order creation and finalization require FIDO2 assertion token. Agent public keys registered in StoreConfig. Dev mode bypass for local testing.' },
+          { icon: '⏱️', title: 'Rate Limiter', desc: 'Redis sliding window: 100 req/min per agent_id. Returns 429. Falls back to in-process counter when Redis unavailable.' },
+          { icon: '🔐', title: 'FIDO2 Auth', desc: 'Order creation requires a FIDO2 assertion token and fails closed: until an assertion verifier is wired in, orders are refused. A local stub needs FIDO_ALLOW_STUB=true and never runs in production.' },
         ].map(s => (
           <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(255,255,255,0.02)">
             <div class="text-2xl mb-3">{s.icon}</div>

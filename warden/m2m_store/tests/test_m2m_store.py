@@ -32,6 +32,8 @@ def clean_db(tmp_path):
     cat_mod._catalog = cat_mod.AICatalog()
     agent_mod._agent = agent_mod.StoreAgent()
     yield
+    from warden.db.connect import close_cached_connections
+    close_cached_connections()  # an open handle blocks the delete on Windows
     if os.path.exists(db):
         os.remove(db)
 
@@ -169,10 +171,14 @@ def test_rate_limit_allows_under_threshold():
         assert check_rate_limit("agent-rl-test") is True
 
 
-def test_fido2_dev_mode_bypass():
+def test_fido2_refuses_without_explicit_stub(monkeypatch):
+    """ENV=development alone no longer accepts any token (compose defaults to it)."""
     from warden.m2m_store.security import validate_fido2_token
-    result = validate_fido2_token("any-token", "agent-1")
-    assert result["valid"] is True  # dev mode bypass
+    monkeypatch.setenv("ENV", "development")
+    monkeypatch.delenv("FIDO_ALLOW_STUB", raising=False)
+    assert validate_fido2_token("any-token", "agent-1")["valid"] is False
+    monkeypatch.setenv("FIDO_ALLOW_STUB", "true")
+    assert validate_fido2_token("any-token", "agent-1")["valid"] is True
 
 
 # ── 5. Budget guardian integration ───────────────────────────────────────────

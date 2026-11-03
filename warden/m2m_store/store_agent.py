@@ -16,10 +16,11 @@ import os
 import time
 import uuid
 from datetime import UTC, datetime
+from decimal import ROUND_HALF_EVEN, Decimal
 
 from warden.m2m_store.catalog import get_catalog
 from warden.m2m_store.inventory import get_inventory
-from warden.m2m_store.models import Offer, Order, StoreConfig
+from warden.m2m_store.models import Offer, Order, StoreConfig, from_minor
 
 log = logging.getLogger("warden.m2m_store.agent")
 
@@ -46,10 +47,15 @@ def _get_config(tenant_id: str) -> StoreConfig:
         return _DEFAULT_CONFIG
 
 
-def _purchase_history(agent_id: str) -> int:
-    """Rough order count for loyalty discount — reads from inventory SQLite."""
+def _purchase_history(agent_id: str, tenant_id: str) -> int:
+    """
+    Paid-order count for the loyalty discount, within the buyer's tenant.
+
+    agent_id is a caller-supplied string: counted across tenants, any tenant
+    could claim another's agent id and inherit its discount.
+    """
     try:
-        orders = get_inventory().list_orders(agent_id=agent_id, limit=200)
+        orders = get_inventory().list_orders(agent_id=agent_id, limit=200, tenant_id=tenant_id)
         return len([o for o in orders if o.status in ("PAID", "SHIPPED")])
     except Exception:
         return 0
@@ -83,11 +89,16 @@ class StoreAgent:
         demand_factor = 1.0 + (1.0 - stock_pct) * 0.20
 
         # ── Loyalty factor (discount for repeat buyers) ───────────────────────
-        history = _purchase_history(agent_id)
+        history = _purchase_history(agent_id, tenant_id)
         loyalty_discount_pct = min(history * 2.0, cfg.max_discount)
         loyalty_factor = 1.0 - loyalty_discount_pct / 100.0
 
-        price_final = round(product.price_base * demand_factor * loyalty_factor * qty, 2)
+        base_minor = (product.price_minor or 0) * qty
+        final_minor = int(
+            (Decimal(base_minor) * Decimal(str(demand_factor)) * Decimal(str(loyalty_factor)))
+            .quantize(Decimal(1), ROUND_HALF_EVEN)
+        )
+        price_final = from_minor(final_minor, product.currency)
         discount_pct = round(max(0, (1 - loyalty_factor) * 100), 1)
 
         # ── Optional LLM explanation (Haiku, non-blocking) ───────────────────
@@ -100,12 +111,17 @@ class StoreAgent:
             product_id=product_id,
             agent_id=agent_id,
             qty=qty,
-            price_base=product.price_base * qty,
+            currency=product.currency,
+            price_base_minor=base_minor,
+            price_final_minor=final_minor,
+            price_base=from_minor(base_minor, product.currency),
             price_final=price_final,
             discount_percent=discount_pct,
             valid_until=int(time.time()) + cfg.default_ttl_seconds,
             explanation=explanation,
             tenant_id=tenant_id,
+            seller_tenant_id=product.tenant_id,
+            product_name=product.name,
         )
         log.info(
             "Offer generated agent=%s product=%s qty=%d price=%.2f discount=%.1f%%",
@@ -152,6 +168,14 @@ class StoreAgent:
         except Exception as exc:
             log.warning("Budget check failed (fail-open): %s", exc)
 
+        # ── Stock before money ────────────────────────────────────────────────
+        # The sale takes its units first, in one conditional statement. The old
+        # order paid first and deducted after, so a lapsed reservation or a
+        # concurrent buyer could leave a paid order for stock that was gone.
+        inv = get_inventory()
+        if not inv.commit_stock(offer.product_id, offer.qty, offer.reservation_id):
+            return {"success": False, "reason": "out_of_stock"}
+
         # ── AP2 payment execution ─────────────────────────────────────────────
         try:
             from warden.business_community.agentic_commerce.ap2 import AP2Processor
@@ -164,15 +188,12 @@ class StoreAgent:
                 order_ref=offer.id,
             )
             if not payment.get("success"):
+                inv.update_stock(offer.product_id, offer.qty)
                 return {"success": False, "reason": payment.get("reason", "payment_failed")}
         except Exception as exc:
             log.error("AP2 payment failed: %s", exc)
+            inv.update_stock(offer.product_id, offer.qty)
             return {"success": False, "reason": "payment_error"}
-
-        # ── Deduct stock + create order ───────────────────────────────────────
-        get_inventory().update_stock(offer.product_id, -offer.qty)
-        if offer.reservation_id:
-            get_inventory().release(offer.reservation_id)
 
         order = Order(
             id=str(uuid.uuid4()),
@@ -181,12 +202,16 @@ class StoreAgent:
             product_id=offer.product_id,
             mandate_id=mandate_id,
             qty=offer.qty,
-            total=offer.price_final,
+            currency=offer.currency,
+            unit_price_minor=offer.price_final_minor // offer.qty,
+            total_minor=offer.price_final_minor,
+            product_name=offer.product_name,
             status="PAID",
             payment_token=payment_token,
             reservation_id=offer.reservation_id,
             created_at=datetime.now(UTC).isoformat(),
             tenant_id=tenant_id,
+            seller_tenant_id=offer.seller_tenant_id,
         )
 
         # STIX audit
