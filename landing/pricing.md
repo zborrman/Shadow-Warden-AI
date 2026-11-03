@@ -1,7 +1,7 @@
 # Pricing — Shadow Warden AI
 
-Serves both <https://shadow-warden-ai.com/pricing> and
-<https://shadow-warden-ai.com/price>. Monthly list prices in USD. Annual plans
+Serves <https://shadow-warden-ai.com/price> (`/pricing` redirects there).
+Monthly list prices in USD. Annual plans
 are derived from the monthly price, never typed by hand — see the pricing page
 for the current annual figure.
 
@@ -42,5 +42,4 @@ Checkout is handled by Lemon Squeezy as merchant of record. Purchase of a paid
 plan is not yet validated end to end against the live payment rail; treat the
 published prices as the list, not as a completed purchase path.
 
-- Human page: <https://shadow-warden-ai.com/price>
-- Comparison and add-on calculator: <https://shadow-warden-ai.com/pricing>
+- Human page, with the add-on cost calculator: <https://shadow-warden-ai.com/price>

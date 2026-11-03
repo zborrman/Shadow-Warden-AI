@@ -62,7 +62,24 @@ const tiers = [
     addons: ['Shadow AI Discovery add-on available'],
     missing: ['PQC / Sovereign Cloud'],
   },
+  {
+    key: 'enterprise',
+    name: 'Enterprise',
+    price_monthly: 249,
+    price_annual: 2539.80,
+    color: '#bf5af2',
+    tint: 'rgba(191,90,242,0.08)',
+    tag: 'Regulated Industries',
+    highlight: false,
+    cta: 'Contact Sales',
+    features: ['Unlimited requests','Everything in Pro','Post-Quantum Crypto (ML-DSA-65 + ML-KEM-768)','Sovereign AI Cloud routing','ISO 27001 Annex A control mapping','SAML / OIDC SSO'],
+  },
 ];
+
+// Add-on availability by tier, for the cost calculator. Rank = index in `tiers`.
+const ADDON_MIN_RANK: Record<string, number> = {
+  'Individual+': 1, 'Community Biz+': 2, 'Pro+': 3, 'Enterprise+': 4,
+};
 
 const addons = [
   // ── Individual+ ──────────────────────────────────────────────────────────
@@ -129,7 +146,7 @@ const addons = [
     <!-- Tier cards -->
     <section class="pb-20">
       <div class="mx-auto max-w-7xl px-4 lg:px-8">
-        <div class="grid md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {tiers.map(t => {
             const varId    = VARIANT_IDS[t.key];
             const monthlyId = varId?.monthly ?? varId?.once ?? '';
@@ -142,7 +159,7 @@ const addons = [
               : checkoutUrl(annualId, { embed: true });
 
             return (
-              <div class={`tier-card relative rounded-2xl p-5 flex flex-col${t.highlight ? ' highlight' : ''}`}
+              <div id={t.key} class={`tier-card relative rounded-2xl p-5 flex flex-col${t.highlight ? ' highlight' : ''}`}
                    style={`border:1px solid ${t.highlight ? t.color + '50' : 'rgba(255,255,255,0.07)'};background:${t.highlight ? t.tint : 'rgba(255,255,255,0.02)'}`}>
 
                 {t.tag && (
@@ -225,11 +242,10 @@ const addons = [
              style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2)">
           <div>
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#06b6d4">Enterprise</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold" style="color:#06b6d4;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25)">Custom Contract</span>
+              <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#06b6d4">Beyond the list price</span>
             </div>
-            <p class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">Unlimited requests · Post-Quantum Crypto · Sovereign AI Cloud · 24/7 SLA</p>
-            <p class="text-[12px]" style="color:#64748b">Custom pricing, SAML/OIDC SSO, dedicated support, and on-prem deployment. Not a self-serve subscription — contact us for a custom quote.</p>
+            <p class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">On-prem deployment, negotiated SLA terms or volume pricing</p>
+            <p class="text-[12px]" style="color:#94a3b8">Enterprise is $249/mo at list. Contracts that change those terms are arranged with sales.</p>
           </div>
           <a href="mailto:sales@shadow-warden-ai.com"
              class="flex-shrink-0 px-6 py-3 rounded-xl text-[13px] font-semibold text-white whitespace-nowrap"
@@ -323,6 +339,64 @@ const addons = [
               </div>
             );
           })}
+        </div>
+      </div>
+    </section>
+
+    <!-- Cost calculator -->
+    <section id="calculator" class="pb-24 border-t" style="border-color:rgba(128,180,253,0.15)">
+      <div class="mx-auto max-w-3xl px-4 pt-16">
+        <div class="text-center mb-8">
+          <h2 class="text-[22px] font-bold mb-1" style="color:#f1f5f9">Cost Calculator</h2>
+          <p class="text-[13px]" style="color:#64748b">Pick a plan and add-ons. Add-ons a plan cannot take are disabled. Follows the Monthly / Annual toggle above.</p>
+        </div>
+
+        <div class="rounded-2xl p-6 space-y-5" style="background:#0a0d18;border:1px solid rgba(128,180,253,0.2)">
+          <div>
+            <label for="calc-tier" class="text-[11px] font-semibold tracking-widest uppercase block mb-2" style="color:#94a3b8">Base plan</label>
+            <select id="calc-tier"
+                    class="w-full rounded-xl px-4 py-3 text-[13px] font-medium cursor-pointer"
+                    style="background:#03050f;border:1px solid rgba(128,180,253,0.25);color:#f1f5f9;outline:none">
+              {tiers.map((t, i) => (
+                <option value={t.key} data-price={t.price_monthly} data-rank={i} selected={t.key === 'pro'}>
+                  {t.name} — {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}/mo`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <fieldset>
+            <legend class="text-[11px] font-semibold tracking-widest uppercase block mb-2" style="color:#94a3b8">Add-ons</legend>
+            <div class="space-y-2">
+              {addons.filter(a => !a.planned).map(a => (
+                <label class="calc-addon flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer"
+                       style="border:1px solid rgba(255,255,255,0.07)"
+                       data-min-rank={ADDON_MIN_RANK[a.tier] ?? 0}>
+                  <span class="flex items-center gap-2.5">
+                    <input type="checkbox" class="calc-addon-check w-3.5 h-3.5" data-price={a.price} data-name={a.name} style="accent-color:#80b4fd" />
+                    <span class="text-[12px]" style="color:#cbd5e1">{a.name}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="color:#f97316;background:rgba(249,115,22,0.08)">{a.tier}</span>
+                  </span>
+                  <span class="text-[12px] font-bold shrink-0" style="color:#f97316">+${a.price}/mo</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div class="rounded-xl p-5" style="background:rgba(128,180,253,0.06);border:1px solid rgba(128,180,253,0.2)">
+            <div class="flex items-end justify-between gap-4 mb-3">
+              <div>
+                <div class="text-[11px] font-semibold tracking-widest uppercase mb-1" style="color:#94a3b8">Per month</div>
+                <div id="calc-monthly" class="text-[36px] font-black leading-none" style="color:#f1f5f9" aria-live="polite">—</div>
+              </div>
+              <div class="text-right">
+                <div class="text-[11px] font-semibold tracking-widest uppercase mb-1" style="color:#94a3b8">Per year</div>
+                <div id="calc-yearly" class="text-[22px] font-black" style="color:#10b981">—</div>
+                <div id="calc-basis" class="text-[10px]" style="color:#64748b">billed monthly</div>
+              </div>
+            </div>
+            <div id="calc-breakdown" class="mt-4 pt-4 border-t space-y-1.5 text-[12px]" style="border-color:rgba(255,255,255,0.06);color:#94a3b8"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -871,5 +945,56 @@ const addons = [
       }
     });
   });
+})();
+</script>
+
+<script>
+(function () {
+  // Prices are list prices from warden/billing/pricing.py; annual = monthly × 12 × 0.85.
+  const ANNUAL_DISCOUNT = 0.15;
+  const select = document.getElementById('calc-tier') as HTMLSelectElement | null;
+  if (!select) return;
+  const annualBtn = document.getElementById('billing-annual')!;
+  const checks = Array.from(document.querySelectorAll<HTMLInputElement>('.calc-addon-check'));
+  const money = (n: number) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
+
+  function recalc() {
+    const annual = annualBtn.classList.contains('active');
+    const opt = select!.options[select!.selectedIndex];
+    const rank = Number(opt.dataset.rank ?? 0);
+    const base = Number(opt.dataset.price ?? 0);
+    const rows: Array<[string, number]> = [[opt.text.split(' —')[0], base]];
+
+    checks.forEach(c => {
+      const row = c.closest<HTMLElement>('.calc-addon')!;
+      const allowed = rank >= Number(row.dataset.minRank ?? 0);
+      c.disabled = !allowed;
+      if (!allowed) c.checked = false;
+      row.style.opacity = allowed ? '1' : '0.4';
+      row.style.cursor = allowed ? 'pointer' : 'not-allowed';
+      if (c.checked) rows.push([c.dataset.name ?? '', Number(c.dataset.price ?? 0)]);
+    });
+
+    const factor = annual ? 1 - ANNUAL_DISCOUNT : 1;
+    const listMonthly = rows.reduce((sum, [, p]) => sum + p, 0);
+    document.getElementById('calc-monthly')!.textContent = money(listMonthly * factor);
+    document.getElementById('calc-yearly')!.textContent = money(listMonthly * 12 * factor);
+    document.getElementById('calc-basis')!.textContent = annual ? 'billed annually (−15%)' : 'billed monthly';
+    document.getElementById('calc-breakdown')!.replaceChildren(...rows.map(([name, p]) => {
+      const line = document.createElement('div');
+      line.className = 'flex justify-between';
+      const a = document.createElement('span'); a.textContent = name;
+      const b = document.createElement('span'); b.textContent = `${money(p * factor)}/mo`;
+      b.style.color = '#f1f5f9';
+      line.append(a, b);
+      return line;
+    }));
+  }
+
+  select.addEventListener('change', recalc);
+  checks.forEach(c => c.addEventListener('change', recalc));
+  document.getElementById('billing-monthly')!.addEventListener('click', recalc);
+  annualBtn.addEventListener('click', recalc);
+  recalc();
 })();
 </script>

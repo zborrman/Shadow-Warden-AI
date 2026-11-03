@@ -117,7 +117,7 @@ Capability matrix §7, row "Community & Tunnel pages": `SIMULATED`.
 | Route | Lines | In | Decision |
 |---|---:|---:|---|
 | `/price` | 875 | 22 | keep — hub |
-| `/pricing` | 596 | 8 | merge → `/price` (S1 tail). Both pages carry a cost calculator; port anything `/price` lacks before the redirect. `pricing.md` already answers both URLs. |
+| `/pricing` | 596 | 8 | **done** — merged into `/price` (Enterprise card + add-on cost calculator ported), 308 on both surfaces. |
 | `/signup` | 351 | 3 | app |
 | `/login` | 292 | 2 | app |
 | `/account` | 279 | 9 | app |
