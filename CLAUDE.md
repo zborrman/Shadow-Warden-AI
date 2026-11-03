@@ -6,6 +6,10 @@
 
 ## Language Rule
 - **All project content is English-only.** Every page, UI string, comment, label, and copy on the site (`site/`), dashboard (`dashboard/`), and portal (`portal/`) must be written in English. Never write Russian, Hebrew, or any other language in project files.
+- **One owner-approved exception (2026-11-03):** the M2M Commerce Store *storefront*
+  UI (plan stage M4) ships in English, French, German, Spanish and Italian — EN is the
+  source, FR/DE/ES/IT are translation catalogs of it. Nothing else on `site/`, `portal/`
+  or `dashboard/` is in scope, and no other language may be added without the owner.
 
 ## Feature Freeze — active since 2026-08-18 (P0)
 The launch programme (`docs/launch-program.md`, phase P0) froze the growth of
