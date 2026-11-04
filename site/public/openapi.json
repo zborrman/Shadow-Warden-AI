@@ -25112,7 +25112,7 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ]
       }
@@ -25392,7 +25392,7 @@
         "operationId": "delete_product_m2m_store_products__product_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25432,7 +25432,7 @@
         "operationId": "set_prices_m2m_store_products__product_id__prices_put",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25498,7 +25498,7 @@
         "operationId": "set_translation_m2m_store_products__product_id__translations__locale__put",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25583,7 +25583,7 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ]
       },
@@ -25629,7 +25629,7 @@
         },
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ]
       }
@@ -25643,7 +25643,7 @@
         "operationId": "patch_store_m2m_store_stores__store_id__patch",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25700,7 +25700,7 @@
         "operationId": "delete_store_m2m_store_stores__store_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25740,7 +25740,7 @@
         "operationId": "create_category_m2m_store_stores__store_id__categories_post",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25799,7 +25799,7 @@
         "operationId": "patch_category_m2m_store_categories__category_id__patch",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25856,7 +25856,7 @@
         "operationId": "delete_category_m2m_store_categories__category_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25896,7 +25896,7 @@
         "operationId": "create_zone_m2m_store_stores__store_id__shipping_zones_post",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -25953,7 +25953,7 @@
         "operationId": "list_zones_m2m_store_stores__store_id__shipping_zones_get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -26005,7 +26005,7 @@
         "operationId": "delete_zone_m2m_store_shipping_zones__zone_id__delete",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
@@ -26021,6 +26021,186 @@
         ],
         "responses": {
           "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/products": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "List Store Products",
+        "operationId": "list_store_products_m2m_store_stores__store_id__products_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Store Products M2M Store Stores  Store Id  Products Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/products/{product_id}/images": {
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Upload Image",
+        "description": "Body: the raw image (JPEG, PNG or WebP). It is re-encoded, which strips EXIF and GPS.",
+        "operationId": "upload_image_m2m_store_products__product_id__images_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Upload Image M2M Store Products  Product Id  Images Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/images/{image_id}": {
+      "delete": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Delete Image",
+        "operationId": "delete_image_m2m_store_images__image_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Get Image",
+        "operationId": "get_image_m2m_store_images__image_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "Successful Response"
           },
           "422": {

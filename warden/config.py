@@ -950,6 +950,10 @@ class Settings:
     s3_bucket_logs: str = field(
         default_factory=lambda: _env("S3_BUCKET_LOGS", "warden-logs")
     )
+    # M2M Store product photos: seller-uploaded, re-encoded without metadata.
+    s3_bucket_store_media: str = field(
+        default_factory=lambda: _env("S3_BUCKET_STORE_MEDIA", "warden-store-media")
+    )
     # Required by the SDK even for MinIO.
     s3_region: str = field(
         default_factory=lambda: _env("S3_REGION", "us-east-1")

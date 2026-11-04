@@ -29,6 +29,12 @@ Store builder (plan stage M2) — owner routes act on the caller's own rows only
   PUT          /m2m-store/products/{id}/prices
   PUT          /m2m-store/products/{id}/translations/{locale}
 
+Store builder (plan stage M3) — owner routes also accept a portal session token
+  GET          /m2m-store/stores/{store_id}/products  — owner listing, with images
+  POST         /m2m-store/products/{id}/images        — raw image body, re-encoded
+  DELETE       /m2m-store/images/{image_id}
+  GET          /m2m-store/images/{image_id}           — the stored photo
+
 Storefront (buyer view of an active store)
   GET /m2m-store/storefront/{slug}                 — store + category tree
   GET /m2m-store/storefront/{slug}/catalog/ucp     — per-store UCP feed
@@ -41,9 +47,11 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.m2m_store import media
 from warden.m2m_store import storefront as sf
 from warden.m2m_store.catalog import get_catalog
 from warden.m2m_store.inventory import OwnershipError, get_inventory
@@ -73,6 +81,36 @@ log = logging.getLogger("warden.m2m_store.api")
 
 router = APIRouter(prefix="/m2m-store", tags=["M2M Store"])
 AuthDep = Depends(require_api_key)
+_bearer = HTTPBearer(auto_error=False)
+# Portal roles that may change a store. A token without a role is the
+# account's owner (portal_router.require_portal_user defaults it the same way).
+_WRITER_ROLES = frozenset({"owner", "admin"})
+
+
+async def require_store_owner(
+    request: Request,
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> AuthResult:
+    """
+    The seller behind an owner route: a portal session or an API key.
+
+    The portal's own server holds one gateway key, so a portal request that
+    authenticated with that key would act as one tenant for every user. A
+    portal session token carries the user's own tenant, and it is checked
+    first: a present but invalid token is a 401, never a fall-through to the
+    key, so a broken session cannot land on another tenant's rows.
+    """
+    if creds is not None:
+        from warden.portal_router import require_portal_user
+
+        user = await require_portal_user(creds)
+        if user.role not in _WRITER_ROLES:
+            raise HTTPException(status_code=403, detail="Store changes need an owner or admin")
+        return AuthResult(api_key="", tenant_id=user.tenant_id)
+    return require_api_key(request.headers.get("X-API-Key"))
+
+
+OwnerDep = Depends(require_store_owner)
 
 # Fields only the owner may see. The catalog is shared across sellers; the
 # seller's tenant id is not part of what a buyer is shown.
@@ -101,6 +139,8 @@ def _store_errors() -> Iterator[None]:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except sf.StoreInvalidError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except media.MediaUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def _rate_guard(agent_id: str) -> None:
@@ -146,7 +186,7 @@ async def get_product(product_id: str, auth: AuthResult = AuthDep):
 
 
 @router.post("/products", response_model=dict, status_code=201)
-async def add_product(product: Product, auth: AuthResult = AuthDep):
+async def add_product(product: Product, auth: AuthResult = OwnerDep):
     """
     Create a product owned by the caller's tenant, or update one it owns.
 
@@ -295,13 +335,13 @@ async def get_order(order_id: str, auth: AuthResult = AuthDep):
 
 
 @router.delete("/products/{product_id}", status_code=204)
-async def delete_product(product_id: str, auth: AuthResult = AuthDep):
+async def delete_product(product_id: str, auth: AuthResult = OwnerDep):
     if not get_inventory().delete_product(product_id, auth.tenant_id):
         raise HTTPException(status_code=404, detail="Product not found")
 
 
 @router.put("/products/{product_id}/prices", response_model=list[dict])
-async def set_prices(product_id: str, prices: list[PriceIn], auth: AuthResult = AuthDep):
+async def set_prices(product_id: str, prices: list[PriceIn], auth: AuthResult = OwnerDep):
     if not prices or len(prices) > 32:
         raise HTTPException(status_code=422, detail="between 1 and 32 prices")
     with _store_errors():
@@ -310,7 +350,7 @@ async def set_prices(product_id: str, prices: list[PriceIn], auth: AuthResult = 
 
 @router.put("/products/{product_id}/translations/{locale}", response_model=dict)
 async def set_translation(product_id: str, locale: str, body: TranslationIn,
-                          auth: AuthResult = AuthDep):
+                          auth: AuthResult = OwnerDep):
     _screen(body.name, body.description)
     with _store_errors():
         return sf.set_translation(product_id, auth.tenant_id, locale, body)
@@ -319,68 +359,117 @@ async def set_translation(product_id: str, locale: str, body: TranslationIn,
 # ── Store builder ─────────────────────────────────────────────────────────────
 
 @router.post("/stores", response_model=dict, status_code=201)
-async def create_store(body: StoreIn, auth: AuthResult = AuthDep):
+async def create_store(body: StoreIn, auth: AuthResult = OwnerDep):
     _screen(body.name, body.description)
     with _store_errors():
         return sf.create_store(auth.tenant_id, body)
 
 
 @router.get("/stores", response_model=list[dict])
-async def list_stores(auth: AuthResult = AuthDep):
+async def list_stores(auth: AuthResult = OwnerDep):
     return sf.list_stores(auth.tenant_id)
 
 
 @router.patch("/stores/{store_id}", response_model=dict)
-async def patch_store(store_id: str, body: StorePatch, auth: AuthResult = AuthDep):
+async def patch_store(store_id: str, body: StorePatch, auth: AuthResult = OwnerDep):
     _screen(body.name or "", body.description or "")
     with _store_errors():
         return sf.patch_store(store_id, auth.tenant_id, body)
 
 
 @router.delete("/stores/{store_id}", status_code=204)
-async def delete_store(store_id: str, auth: AuthResult = AuthDep):
+async def delete_store(store_id: str, auth: AuthResult = OwnerDep):
     with _store_errors():
         sf.delete_store(store_id, auth.tenant_id)
 
 
 @router.post("/stores/{store_id}/categories", response_model=dict, status_code=201)
-async def create_category(store_id: str, body: CategoryIn, auth: AuthResult = AuthDep):
+async def create_category(store_id: str, body: CategoryIn, auth: AuthResult = OwnerDep):
     _screen(body.name)
     with _store_errors():
         return sf.create_category(store_id, auth.tenant_id, body)
 
 
 @router.patch("/categories/{category_id}", response_model=dict)
-async def patch_category(category_id: str, body: CategoryPatch, auth: AuthResult = AuthDep):
+async def patch_category(category_id: str, body: CategoryPatch, auth: AuthResult = OwnerDep):
     _screen(body.name or "")
     with _store_errors():
         return sf.patch_category(category_id, auth.tenant_id, body)
 
 
 @router.delete("/categories/{category_id}", status_code=204)
-async def delete_category(category_id: str, auth: AuthResult = AuthDep):
+async def delete_category(category_id: str, auth: AuthResult = OwnerDep):
     with _store_errors():
         sf.delete_category(category_id, auth.tenant_id)
 
 
 @router.post("/stores/{store_id}/shipping-zones", response_model=dict, status_code=201)
-async def create_zone(store_id: str, body: ShippingZoneIn, auth: AuthResult = AuthDep):
+async def create_zone(store_id: str, body: ShippingZoneIn, auth: AuthResult = OwnerDep):
     _screen(body.name)
     with _store_errors():
         return sf.create_zone(store_id, auth.tenant_id, body)
 
 
 @router.get("/stores/{store_id}/shipping-zones", response_model=list[dict])
-async def list_zones(store_id: str, auth: AuthResult = AuthDep):
+async def list_zones(store_id: str, auth: AuthResult = OwnerDep):
     with _store_errors():
         sf.get_store(store_id, auth.tenant_id)
         return sf.list_zones(store_id)
 
 
 @router.delete("/shipping-zones/{zone_id}", status_code=204)
-async def delete_zone(zone_id: str, auth: AuthResult = AuthDep):
+async def delete_zone(zone_id: str, auth: AuthResult = OwnerDep):
     with _store_errors():
         sf.delete_zone(zone_id, auth.tenant_id)
+
+
+@router.get("/stores/{store_id}/products", response_model=list[dict])
+async def list_store_products(store_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        products = sf.list_store_products(store_id, auth.tenant_id)
+    return [p | {"images": media.list_images(p["id"])} for p in products]
+
+
+async def _read_capped(request: Request, limit: int) -> bytes:
+    """The request body, refused as soon as it passes ``limit`` — not after it is all in memory."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise HTTPException(status_code=413, detail="image too large")
+    buf = bytearray()
+    async for chunk in request.stream():
+        buf.extend(chunk)
+        if len(buf) > limit:
+            raise HTTPException(status_code=413, detail="image too large")
+    return bytes(buf)
+
+
+@router.post("/products/{product_id}/images", response_model=dict, status_code=201)
+async def upload_image(product_id: str, request: Request, auth: AuthResult = OwnerDep):
+    """Body: the raw image (JPEG, PNG or WebP). It is re-encoded, which strips EXIF and GPS."""
+    if not request.headers.get("content-type", "").lower().startswith("image/"):
+        raise HTTPException(status_code=415, detail="send the image itself with an image/* type")
+    data = await _read_capped(request, media.MAX_IMAGE_BYTES)
+    with _store_errors():
+        return media.add_image(product_id, auth.tenant_id, data)
+
+
+@router.delete("/images/{image_id}", status_code=204)
+async def delete_image(image_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        media.delete_image(image_id, auth.tenant_id)
+
+
+@router.get("/images/{image_id}", response_class=Response)
+async def get_image(image_id: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        data, content_type = media.get_image(image_id)
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"X-Content-Type-Options": "nosniff",
+                 "Content-Security-Policy": "default-src 'none'",
+                 "Cache-Control": "private, max-age=3600"},
+    )
 
 
 # ── Storefront ────────────────────────────────────────────────────────────────

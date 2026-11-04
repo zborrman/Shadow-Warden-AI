@@ -126,6 +126,11 @@ def _ensure_buckets(client: Any) -> None:
                 raise
 
 
+def object_client() -> Any | None:
+    """The shared boto3 client for callers that need synchronous reads and writes, or None."""
+    return _get_client()
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def save_bundle(session_id: str, bundle: dict) -> None:
