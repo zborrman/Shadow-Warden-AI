@@ -288,3 +288,32 @@ def test_no_object_store_is_a_503_not_a_silent_drop(client, monkeypatch):
     a = _token("tenant-a")
     pid = _product(client, a, _store(client, a)["id"])
     assert _upload(client, a, pid, _png()).status_code == 503
+
+
+# ── Builder reads (M3b) ───────────────────────────────────────────────────────
+
+def test_the_owner_reads_the_category_tree_of_an_inactive_store(client):
+    a = _token("tenant-a")
+    store = _store(client, a)
+    client.patch(f"{API}/stores/{store['id']}", json={"active": False}, headers=a)
+    root = client.post(f"{API}/stores/{store['id']}/categories",
+                       json={"slug": "tools", "name": "Tools"}, headers=a).json()
+    client.post(f"{API}/stores/{store['id']}/categories",
+                json={"slug": "saws", "name": "Saws", "parent_id": root["id"]}, headers=a)
+    tree = client.get(f"{API}/stores/{store['id']}/categories", headers=a).json()
+    assert [(n["slug"], [c["slug"] for c in n["children"]]) for n in tree] == [("tools", ["saws"])]
+    assert client.get(f"{API}/stores/{store['id']}/categories",
+                      headers=_token("tenant-b")).status_code == 404
+
+
+def test_a_portal_session_can_preview_its_own_photo(client, s3):
+    a = _token("tenant-a")
+    pid = _product(client, a, _store(client, a)["id"])
+    img = _upload(client, a, pid, _png()).json()
+    assert client.get(img["url"], headers=a).status_code == 200
+
+
+def test_cors_allows_put_for_prices_and_translations():
+    from warden.main import app
+    cors = next(m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+    assert "PUT" in cors.kwargs["allow_methods"]

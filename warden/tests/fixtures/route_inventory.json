@@ -775,6 +775,7 @@
     "GET /m2m-store/storefront/{slug}/catalog/ucp",
     "GET /m2m-store/storefront/{slug}/shipping/quote",
     "GET /m2m-store/stores",
+    "GET /m2m-store/stores/{store_id}/categories",
     "GET /m2m-store/stores/{store_id}/products",
     "GET /m2m-store/stores/{store_id}/shipping-zones",
     "PATCH /m2m-store/categories/{category_id}",

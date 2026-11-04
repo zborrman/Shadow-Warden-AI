@@ -25788,6 +25788,57 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "List Categories",
+        "description": "The owner's category tree, readable while the store is still inactive.",
+        "operationId": "list_categories_m2m_store_stores__store_id__categories_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Categories M2M Store Stores  Store Id  Categories Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/m2m-store/categories/{category_id}": {
@@ -26185,7 +26236,7 @@
         "operationId": "get_image_m2m_store_images__image_id__get",
         "security": [
           {
-            "APIKeyHeader": []
+            "HTTPBearer": []
           }
         ],
         "parameters": [
