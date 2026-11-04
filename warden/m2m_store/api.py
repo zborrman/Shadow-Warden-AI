@@ -31,6 +31,7 @@ Store builder (plan stage M2) — owner routes act on the caller's own rows only
 
 Store builder (plan stage M3) — owner routes also accept a portal session token
   GET          /m2m-store/stores/{store_id}/products  — owner listing, with images
+  GET          /m2m-store/stores/{store_id}/categories — owner category tree
   POST         /m2m-store/products/{id}/images        — raw image body, re-encoded
   DELETE       /m2m-store/images/{image_id}
   GET          /m2m-store/images/{image_id}           — the stored photo
@@ -390,6 +391,14 @@ async def create_category(store_id: str, body: CategoryIn, auth: AuthResult = Ow
         return sf.create_category(store_id, auth.tenant_id, body)
 
 
+@router.get("/stores/{store_id}/categories", response_model=list[dict])
+async def list_categories(store_id: str, auth: AuthResult = OwnerDep):
+    """The owner's category tree, readable while the store is still inactive."""
+    with _store_errors():
+        sf.get_store(store_id, auth.tenant_id)
+        return sf.category_tree(store_id)
+
+
 @router.patch("/categories/{category_id}", response_model=dict)
 async def patch_category(category_id: str, body: CategoryPatch, auth: AuthResult = OwnerDep):
     _screen(body.name or "")
@@ -460,7 +469,9 @@ async def delete_image(image_id: str, auth: AuthResult = OwnerDep):
 
 
 @router.get("/images/{image_id}", response_class=Response)
-async def get_image(image_id: str, auth: AuthResult = AuthDep):
+async def get_image(image_id: str, auth: AuthResult = OwnerDep):
+    # Photos are public product media; OwnerDep only lets a portal session fetch
+    # them for the builder preview. An API key still works, through its fallback.
     with _store_errors():
         data, content_type = media.get_image(image_id)
     return Response(
