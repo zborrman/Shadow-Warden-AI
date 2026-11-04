@@ -163,7 +163,8 @@ class OfferRequest(BaseModel):
 class OrderRequest(BaseModel):
     offer_id: str = Field(..., max_length=120)
     mandate_id: str = Field(..., max_length=120)
-    payment_token: str = Field(..., max_length=512)
+    # A WebAuthn assertion as JSON (see security.validate_fido2_token).
+    payment_token: str = Field(..., max_length=8192)
 
 
 # ── Store builder (plan stage M2) ─────────────────────────────────────────────

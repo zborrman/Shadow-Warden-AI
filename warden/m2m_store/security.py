@@ -8,6 +8,7 @@ M2M Store security layer:
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -62,7 +63,8 @@ def validate_order_request(offer_id: str, mandate_id: str, payment_token: str) -
     """Validate OrderRequest fields for injection."""
     validate_content_string(offer_id, "offer_id")
     validate_content_string(mandate_id, "mandate_id")
-    validate_content_string(payment_token, "payment_token")
+    # payment_token is a WebAuthn assertion: parsed and verified by signature,
+    # never read as text, so a content heuristic on its base64 adds nothing.
 
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
@@ -115,33 +117,37 @@ def check_rate_limit(agent_id: str) -> bool:
 
 # ── FIDO2 token validation ────────────────────────────────────────────────────
 
-def validate_fido2_token(token: str, agent_id: str) -> dict[str, Any]:
+def order_challenge_purpose(offer_id: str) -> str:
+    return f"m2m_order:{offer_id}"
+
+
+def issue_order_challenge(tenant_id: str, offer_id: str) -> dict[str, Any]:
+    """WebAuthn options whose challenge authorises exactly one order on one offer."""
+    from warden.auth.fido import FIDOProvider
+    return FIDOProvider().issue_bound_challenge(tenant_id, order_challenge_purpose(offer_id))
+
+
+def validate_fido2_token(token: str, tenant_id: str, offer_id: str) -> dict[str, Any]:
     """
-    Validate a FIDO2 assertion token for the given agent.
-    Returns {"valid": True/False, "reason": "..."}.
-    Calls warden/auth/fido.py verify_assertion() if available.
+    The buyer's passkey approval of one offer: ``token`` is the WebAuthn
+    assertion (JSON) answering the challenge from ``issue_order_challenge``.
+    Returns {"valid": bool, "reason": str}. Fails CLOSED on every error.
+
+    This used to look up ``warden.auth.fido.verify_assertion``, which never
+    existed, so no token could pass in production (and before M1, every token
+    passed). The challenge is bound to the offer and single-use, so one
+    approval cannot be replayed onto another offer or onto the same one twice.
     """
-    if not token or not agent_id:
-        return {"valid": False, "reason": "missing_token_or_agent"}
+    if not token or not tenant_id or not offer_id:
+        return {"valid": False, "reason": "missing_token"}
     try:
-        from warden.auth.fido import verify_assertion  # type: ignore[attr-defined]
-        result = verify_assertion(token, agent_id)
-        return {"valid": bool(result.get("verified")), "reason": result.get("reason", "")}
-    except (ImportError, AttributeError):
-        # warden.auth.fido has no verify_assertion, so this branch is the one
-        # that always runs. It used to accept any token when ENV=development —
-        # and docker-compose defaults the warden service to ENV=development,
-        # so production accepted any string as a payment assertion. It now
-        # fails CLOSED: the bypass needs FIDO_ALLOW_STUB=true outside prod,
-        # the same opt-in warden.auth.fido uses for its own stub.
-        try:
-            from warden.auth.fido import _stub_allowed
-            if _stub_allowed():
-                log.debug("FIDO2 verifier unavailable; stub explicitly allowed")
-                return {"valid": True, "reason": "stub_allowed"}
-        except Exception as exc:  # noqa: BLE001
-            log.debug("FIDO2 stub policy unavailable: %s", exc)
-        return {"valid": False, "reason": "fido2_unavailable"}
+        assertion = json.loads(token)
+    except (TypeError, ValueError):
+        return {"valid": False, "reason": "malformed_assertion"}
+    try:
+        from warden.auth.fido import FIDOProvider
+        result = FIDOProvider().verify_bound(tenant_id, order_challenge_purpose(offer_id), assertion)
     except Exception as exc:
-        log.warning("FIDO2 validation error: %s", exc)
-        return {"valid": False, "reason": str(exc)}
+        log.warning("FIDO2 validation error: %s", type(exc).__name__)
+        return {"valid": False, "reason": "fido2_error"}
+    return {"valid": bool(result.get("verified")), "reason": result.get("reason", "")}

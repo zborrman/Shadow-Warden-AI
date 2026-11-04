@@ -69,6 +69,15 @@ _KNOWN_OPEN: frozenset[str] = frozenset({
     # unconditionally when the key will not resolve. See the comment on the
     # handler itself.
     "POST /business-community/commerce/webhooks/ap2",
+
+    # M2M Store plan stage M5: a human buyer on a public storefront has no
+    # account and no key, so placing an order request is anonymous like a
+    # contact form. No money moves; the server reprices everything, a per-IP
+    # limit and a per-store cap on unanswered requests bound abuse, and the
+    # seller decides. Cancelling needs the request's own secret token, which
+    # is checked in-handler (constant-time, hash-at-rest).
+    "POST /m2m-store/storefront/{slug}/order-requests",
+    "POST /m2m-store/storefront/{slug}/order-requests/{request_id}/cancel",
 })
 
 # Dependency callables that constitute authentication. A rate limiter and a
