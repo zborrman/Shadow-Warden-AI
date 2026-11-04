@@ -760,15 +760,31 @@
     "POST /gsam/lease/{lease_id}/redeem"
   ],
   "warden.m2m_store.api": [
+    "DELETE /m2m-store/categories/{category_id}",
+    "DELETE /m2m-store/products/{product_id}",
+    "DELETE /m2m-store/shipping-zones/{zone_id}",
+    "DELETE /m2m-store/stores/{store_id}",
     "GET /m2m-store/catalog",
     "GET /m2m-store/catalog/ucp",
     "GET /m2m-store/catalog/{product_id}",
     "GET /m2m-store/orders/history",
     "GET /m2m-store/orders/{order_id}",
+    "GET /m2m-store/storefront/{slug}",
+    "GET /m2m-store/storefront/{slug}/catalog/ucp",
+    "GET /m2m-store/storefront/{slug}/shipping/quote",
+    "GET /m2m-store/stores",
+    "GET /m2m-store/stores/{store_id}/shipping-zones",
+    "PATCH /m2m-store/categories/{category_id}",
+    "PATCH /m2m-store/stores/{store_id}",
     "POST /m2m-store/offers",
     "POST /m2m-store/offers/{offer_id}/reserve",
     "POST /m2m-store/orders",
-    "POST /m2m-store/products"
+    "POST /m2m-store/products",
+    "POST /m2m-store/stores",
+    "POST /m2m-store/stores/{store_id}/categories",
+    "POST /m2m-store/stores/{store_id}/shipping-zones",
+    "PUT /m2m-store/products/{product_id}/prices",
+    "PUT /m2m-store/products/{product_id}/translations/{locale}"
   ],
   "warden.main": [
     "GET /.well-known/acp.json",

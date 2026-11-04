@@ -16,19 +16,49 @@ Routes
   POST /m2m-store/orders                  — create order (budget check + AP2 payment)
   GET  /m2m-store/orders/{id}             — order status
   GET  /m2m-store/orders/history          — agent order history
-  POST /m2m-store/products                — add product to catalog (admin)
+  POST /m2m-store/products                — create a product, or update one you own
+  DELETE /m2m-store/products/{id}         — soft-delete a product you own
+
+Store builder (plan stage M2) — owner routes act on the caller's own rows only
+  POST/GET     /m2m-store/stores
+  PATCH/DELETE /m2m-store/stores/{store_id}
+  POST         /m2m-store/stores/{store_id}/categories
+  PATCH/DELETE /m2m-store/categories/{category_id}
+  POST/GET     /m2m-store/stores/{store_id}/shipping-zones
+  DELETE       /m2m-store/shipping-zones/{zone_id}
+  PUT          /m2m-store/products/{id}/prices
+  PUT          /m2m-store/products/{id}/translations/{locale}
+
+Storefront (buyer view of an active store)
+  GET /m2m-store/storefront/{slug}                 — store + category tree
+  GET /m2m-store/storefront/{slug}/catalog/ucp     — per-store UCP feed
+  GET /m2m-store/storefront/{slug}/shipping/quote  — shipping + duty estimate
 """
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.m2m_store import storefront as sf
 from warden.m2m_store.catalog import get_catalog
 from warden.m2m_store.inventory import OwnershipError, get_inventory
-from warden.m2m_store.models import OfferRequest, OrderRequest, Product
+from warden.m2m_store.models import (
+    CategoryIn,
+    CategoryPatch,
+    OfferRequest,
+    OrderRequest,
+    PriceIn,
+    Product,
+    ShippingZoneIn,
+    StoreIn,
+    StorePatch,
+    TranslationIn,
+)
 from warden.m2m_store.security import (
     PromptInjectionError,
     check_rate_limit,
@@ -50,6 +80,27 @@ _PRIVATE = {"tenant_id"}
 # A seller can read an order for its product; the buyer's payment token is
 # not part of that.
 _ORDER_PRIVATE = {"payment_token"}
+
+
+def _screen(*texts: str) -> None:
+    """Catalog text is read by other tenants' buying agents: screen it before it is stored."""
+    try:
+        for text in texts:
+            validate_content_string(text or "", "text")
+    except PromptInjectionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@contextmanager
+def _store_errors() -> Iterator[None]:
+    try:
+        yield
+    except sf.StoreNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"{exc} not found") from exc
+    except sf.StoreConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except sf.StoreInvalidError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def _rate_guard(agent_id: str) -> None:
@@ -87,9 +138,11 @@ async def ucp_catalog(auth: AuthResult = AuthDep):
 @router.get("/catalog/{product_id}", response_model=dict)
 async def get_product(product_id: str, auth: AuthResult = AuthDep):
     p = get_catalog().get_product(product_id)
-    if p is None:
+    if p is None or p.deleted_at:
         raise HTTPException(status_code=404, detail="Product not found")
-    return p.model_dump(exclude=_PRIVATE)
+    return p.model_dump(exclude=_PRIVATE) | {
+        "prices": sf.get_prices(p.id), "translations": sf.get_translations(p.id),
+    }
 
 
 @router.post("/products", response_model=dict, status_code=201)
@@ -100,11 +153,14 @@ async def add_product(product: Product, auth: AuthResult = AuthDep):
     Catalog text is read by other tenants' buying agents, so it is screened
     for injection patterns before it is stored.
     """
-    try:
-        for field in ("name", "description", "category", "unit"):
-            validate_content_string(getattr(product, field), field)
-    except PromptInjectionError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _screen(product.name, product.description, product.category, product.unit)
+    product.deleted_at = ""
+    if product.id:
+        existing = get_inventory().get_product(product.id)
+        if existing is not None and existing.deleted_at:
+            raise HTTPException(status_code=409, detail="Product was deleted")
+    with _store_errors():
+        sf.check_placement(auth.tenant_id, product.store_id, product.category_id)
     try:
         saved = get_inventory().add_product(product, tenant_id=auth.tenant_id)
     except OwnershipError as exc:
@@ -236,3 +292,119 @@ async def get_order(order_id: str, auth: AuthResult = AuthDep):
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     return order.model_dump(exclude=_ORDER_PRIVATE)
+
+
+@router.delete("/products/{product_id}", status_code=204)
+async def delete_product(product_id: str, auth: AuthResult = AuthDep):
+    if not get_inventory().delete_product(product_id, auth.tenant_id):
+        raise HTTPException(status_code=404, detail="Product not found")
+
+
+@router.put("/products/{product_id}/prices", response_model=list[dict])
+async def set_prices(product_id: str, prices: list[PriceIn], auth: AuthResult = AuthDep):
+    if not prices or len(prices) > 32:
+        raise HTTPException(status_code=422, detail="between 1 and 32 prices")
+    with _store_errors():
+        return sf.set_prices(product_id, auth.tenant_id, prices)
+
+
+@router.put("/products/{product_id}/translations/{locale}", response_model=dict)
+async def set_translation(product_id: str, locale: str, body: TranslationIn,
+                          auth: AuthResult = AuthDep):
+    _screen(body.name, body.description)
+    with _store_errors():
+        return sf.set_translation(product_id, auth.tenant_id, locale, body)
+
+
+# ── Store builder ─────────────────────────────────────────────────────────────
+
+@router.post("/stores", response_model=dict, status_code=201)
+async def create_store(body: StoreIn, auth: AuthResult = AuthDep):
+    _screen(body.name, body.description)
+    with _store_errors():
+        return sf.create_store(auth.tenant_id, body)
+
+
+@router.get("/stores", response_model=list[dict])
+async def list_stores(auth: AuthResult = AuthDep):
+    return sf.list_stores(auth.tenant_id)
+
+
+@router.patch("/stores/{store_id}", response_model=dict)
+async def patch_store(store_id: str, body: StorePatch, auth: AuthResult = AuthDep):
+    _screen(body.name or "", body.description or "")
+    with _store_errors():
+        return sf.patch_store(store_id, auth.tenant_id, body)
+
+
+@router.delete("/stores/{store_id}", status_code=204)
+async def delete_store(store_id: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        sf.delete_store(store_id, auth.tenant_id)
+
+
+@router.post("/stores/{store_id}/categories", response_model=dict, status_code=201)
+async def create_category(store_id: str, body: CategoryIn, auth: AuthResult = AuthDep):
+    _screen(body.name)
+    with _store_errors():
+        return sf.create_category(store_id, auth.tenant_id, body)
+
+
+@router.patch("/categories/{category_id}", response_model=dict)
+async def patch_category(category_id: str, body: CategoryPatch, auth: AuthResult = AuthDep):
+    _screen(body.name or "")
+    with _store_errors():
+        return sf.patch_category(category_id, auth.tenant_id, body)
+
+
+@router.delete("/categories/{category_id}", status_code=204)
+async def delete_category(category_id: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        sf.delete_category(category_id, auth.tenant_id)
+
+
+@router.post("/stores/{store_id}/shipping-zones", response_model=dict, status_code=201)
+async def create_zone(store_id: str, body: ShippingZoneIn, auth: AuthResult = AuthDep):
+    _screen(body.name)
+    with _store_errors():
+        return sf.create_zone(store_id, auth.tenant_id, body)
+
+
+@router.get("/stores/{store_id}/shipping-zones", response_model=list[dict])
+async def list_zones(store_id: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        sf.get_store(store_id, auth.tenant_id)
+        return sf.list_zones(store_id)
+
+
+@router.delete("/shipping-zones/{zone_id}", status_code=204)
+async def delete_zone(zone_id: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        sf.delete_zone(zone_id, auth.tenant_id)
+
+
+# ── Storefront ────────────────────────────────────────────────────────────────
+
+@router.get("/storefront/{slug}", response_model=dict)
+async def storefront(slug: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        store = sf.get_public_store(slug)
+        return store | {"categories": sf.category_tree(store["id"])}
+
+
+@router.get("/storefront/{slug}/catalog/ucp", response_model=dict)
+async def storefront_ucp(slug: str, auth: AuthResult = AuthDep):
+    with _store_errors():
+        return sf.store_ucp_catalog(slug)
+
+
+@router.get("/storefront/{slug}/shipping/quote", response_model=dict)
+async def shipping_quote(
+    slug: str,
+    country: str = Query(..., min_length=2, max_length=2),
+    currency: str = Query(..., min_length=3, max_length=3),
+    subtotal_minor: int = Query(default=0, ge=0, le=10**12),
+    auth: AuthResult = AuthDep,
+):
+    with _store_errors():
+        return sf.quote_shipping(slug, country, currency, subtotal_minor)

@@ -14,10 +14,19 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# Currencies the store accepts, with their minor-unit exponent. USD only for
-# now: the Budget Guardian and the AP2 mandate both count in USD, and nothing
-# converts between currencies. Per-currency prices are plan stage M2.
-MINOR_DIGITS: dict[str, int] = {"USD": 2}
+# Currencies a seller may price in, with their ISO 4217 minor-unit exponent.
+# The seller sets each price; nothing converts between currencies.
+MINOR_DIGITS: dict[str, int] = {
+    "USD": 2, "EUR": 2, "GBP": 2, "CHF": 2, "CAD": 2, "AUD": 2, "JPY": 0,
+}
+
+# Currencies an agent order can settle in. The Budget Guardian and the AP2
+# mandate both count in USD, so every product carries a USD price and agent
+# offers are always made from it.
+SETTLEMENT_CURRENCIES: frozenset[str] = frozenset({"USD"})
+
+# Storefront UI locales (owner decision 2026-11-03; CLAUDE.md Language Rule).
+STORE_LOCALES: frozenset[str] = frozenset({"en", "fr", "de", "es", "it"})
 
 
 def to_minor(amount: float | str | Decimal, currency: str) -> int:
@@ -38,11 +47,21 @@ def _check_currency(value: str) -> str:
     return code
 
 
+def _check_settlement(value: str) -> str:
+    code = _check_currency(value)
+    if code not in SETTLEMENT_CURRENCIES:
+        raise ValueError(f"a product's base price must be in {sorted(SETTLEMENT_CURRENCIES)}")
+    return code
+
+
 class Product(BaseModel):
     id: str = ""
     # Seller tenant. Set by the server from the caller's API key, never
     # trusted from the request body.
     tenant_id: str = ""
+    store_id: str = ""
+    category_id: str = ""
+    deleted_at: str = ""
     name: str
     description: str = ""
     category: str = "general"
@@ -58,7 +77,7 @@ class Product(BaseModel):
     @field_validator("currency")
     @classmethod
     def _currency(cls, value: str) -> str:
-        return _check_currency(value)
+        return _check_settlement(value)
 
     @model_validator(mode="after")
     def _derive_money(self) -> Product:
@@ -145,3 +164,113 @@ class OrderRequest(BaseModel):
     offer_id: str = Field(..., max_length=120)
     mandate_id: str = Field(..., max_length=120)
     payment_token: str = Field(..., max_length=512)
+
+
+# ── Store builder (plan stage M2) ─────────────────────────────────────────────
+
+_SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$"
+
+
+class StoreIn(BaseModel):
+    slug: str = Field(..., pattern=_SLUG)
+    name: str = Field(..., min_length=1, max_length=120)
+    description: str = Field(default="", max_length=2000)
+    default_currency: str = "USD"
+    currencies: list[str] = Field(default_factory=lambda: ["USD"], max_length=len(MINOR_DIGITS))
+    locales: list[str] = Field(default_factory=lambda: ["en"], max_length=len(STORE_LOCALES))
+
+    @field_validator("default_currency")
+    @classmethod
+    def _default(cls, value: str) -> str:
+        return _check_currency(value)
+
+    @field_validator("currencies")
+    @classmethod
+    def _currencies(cls, value: list[str]) -> list[str]:
+        codes = sorted({_check_currency(c) for c in value})
+        if not set(codes) >= SETTLEMENT_CURRENCIES:
+            raise ValueError(f"currencies must include {sorted(SETTLEMENT_CURRENCIES)}")
+        return codes
+
+    @field_validator("locales")
+    @classmethod
+    def _locales(cls, value: list[str]) -> list[str]:
+        codes = sorted({c.lower() for c in value})
+        bad = [c for c in codes if c not in STORE_LOCALES]
+        if bad or not codes:
+            raise ValueError(f"locales must be a non-empty subset of {sorted(STORE_LOCALES)}")
+        return codes
+
+    @model_validator(mode="after")
+    def _default_listed(self) -> StoreIn:
+        if self.default_currency not in self.currencies:
+            raise ValueError("default_currency must be one of currencies")
+        return self
+
+
+class StorePatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    active: bool | None = None
+
+
+class CategoryIn(BaseModel):
+    slug: str = Field(..., pattern=_SLUG)
+    name: str = Field(..., min_length=1, max_length=120)
+    parent_id: str = ""
+    position: int = Field(default=0, ge=0, le=10_000)
+
+
+class CategoryPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    parent_id: str | None = None      # "" moves the category to the root
+    position: int | None = Field(default=None, ge=0, le=10_000)
+
+
+class PriceIn(BaseModel):
+    currency: str
+    amount_minor: int = Field(..., ge=0, le=10**12)
+
+    @field_validator("currency")
+    @classmethod
+    def _currency(cls, value: str) -> str:
+        return _check_currency(value)
+
+
+class TranslationIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5000)
+
+
+class ShippingZoneIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    # ISO 3166-1 alpha-2 codes; "*" is the rest of the world.
+    countries: list[str] = Field(..., min_length=1, max_length=250)
+    currency: str
+    rate_minor: int = Field(..., ge=0, le=10**10)
+    free_over_minor: int | None = Field(default=None, ge=0, le=10**12)
+    # A rate the seller typed in, in basis points. It is shown to buyers as an
+    # estimate: nothing here knows a tariff schedule.
+    duty_estimate_bps: int = Field(default=0, ge=0, le=10_000)
+    min_days: int = Field(default=1, ge=0, le=365)
+    max_days: int = Field(default=7, ge=0, le=365)
+
+    @field_validator("currency")
+    @classmethod
+    def _currency(cls, value: str) -> str:
+        return _check_currency(value)
+
+    @field_validator("countries")
+    @classmethod
+    def _countries(cls, value: list[str]) -> list[str]:
+        codes = sorted({c.strip().upper() for c in value})
+        bad = [c for c in codes if c != "*" and not (len(c) == 2 and c.isascii() and c.isalpha())]
+        if bad:
+            raise ValueError(f"not ISO 3166-1 alpha-2 codes: {bad}")
+        return codes
+
+    @model_validator(mode="after")
+    def _days(self) -> ShippingZoneIn:
+        if self.min_days > self.max_days:
+            raise ValueError("min_days must not exceed max_days")
+        return self
