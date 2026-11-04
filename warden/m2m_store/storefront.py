@@ -452,6 +452,19 @@ def get_translations(product_id: str) -> dict[str, dict[str, str]]:
     return {r["locale"]: {"name": r["name"], "description": r["description"]} for r in rows}
 
 
+def list_store_products(store_id: str, tenant_id: str) -> list[dict[str, Any]]:
+    """The owner's view of a store's products: inactive ones included, deleted ones not."""
+    get_store(store_id, tenant_id)
+    products = [p for p in get_inventory().list_products(active_only=False)
+                if p.store_id == store_id and p.tenant_id == tenant_id and not p.deleted_at]
+    return [
+        p.model_dump(exclude={"tenant_id", "deleted_at", "price_base"})
+        | {"available": p.available, "prices": get_prices(p.id),
+           "translations": get_translations(p.id)}
+        for p in sorted(products, key=lambda p: p.name.lower())
+    ]
+
+
 # ── Shipping zones ────────────────────────────────────────────────────────────
 
 def _zone_row(r: sqlite3.Row) -> dict[str, Any]:

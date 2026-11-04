@@ -47,6 +47,8 @@ def client():
         return AuthResult(api_key="k", tenant_id=tenant)
 
     app.dependency_overrides[require_api_key] = _auth
+    from warden.m2m_store.api import require_store_owner
+    app.dependency_overrides[require_store_owner] = _auth
     return TestClient(app)
 
 
