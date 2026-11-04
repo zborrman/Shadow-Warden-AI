@@ -78,7 +78,11 @@ _KNOWN_OPEN: frozenset[str] = frozenset({
 # above the default tier). That is not authentication: it establishes no
 # identity, so the handler still cannot tell one entitled tenant from another,
 # and an entitlement change would silently become an access change.
-_AUTH_CALLABLES = ("require_api_key", "require_ext_auth", "_require_admin")
+# require_store_owner (m2m_store/api.py) authenticates a portal session token
+# or, without one, calls require_api_key itself; it cannot list the key check as
+# a sub-dependency because a session request carries no X-API-Key.
+_AUTH_CALLABLES = ("require_api_key", "require_ext_auth", "_require_admin",
+                   "require_store_owner")
 
 _CHILD = r'''
 import json, logging, sys
