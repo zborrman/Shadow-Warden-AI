@@ -52,6 +52,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.limiter import limiter as _limiter
 from warden.m2m_store import media
 from warden.m2m_store import storefront as sf
 from warden.m2m_store.catalog import get_catalog
@@ -484,27 +485,53 @@ async def get_image(image_id: str, auth: AuthResult = OwnerDep):
 
 
 # ── Storefront ────────────────────────────────────────────────────────────────
+# A buyer's browser holds no API key, so these reads are anonymous. They only
+# ever return what the seller published: an active store's live products, and
+# never an owner field. The limit is per client IP (``tenant_key`` falls back to
+# ``get_client_ip``), so one scraper cannot exhaust it for everyone.
+
+_PUBLIC_READ_LIMIT = "120/minute"
+_PUBLIC_IMAGE_LIMIT = "600/minute"
+
 
 @router.get("/storefront/{slug}", response_model=dict)
-async def storefront(slug: str, auth: AuthResult = AuthDep):
+@_limiter.limit(_PUBLIC_READ_LIMIT)
+async def storefront(request: Request, slug: str):
     with _store_errors():
         store = sf.get_public_store(slug)
         return store | {"categories": sf.category_tree(store["id"])}
 
 
 @router.get("/storefront/{slug}/catalog/ucp", response_model=dict)
-async def storefront_ucp(slug: str, auth: AuthResult = AuthDep):
+@_limiter.limit(_PUBLIC_READ_LIMIT)
+async def storefront_ucp(request: Request, slug: str):
     with _store_errors():
         return sf.store_ucp_catalog(slug)
 
 
 @router.get("/storefront/{slug}/shipping/quote", response_model=dict)
+@_limiter.limit(_PUBLIC_READ_LIMIT)
 async def shipping_quote(
+    request: Request,
     slug: str,
     country: str = Query(..., min_length=2, max_length=2),
     currency: str = Query(..., min_length=3, max_length=3),
     subtotal_minor: int = Query(default=0, ge=0, le=10**12),
-    auth: AuthResult = AuthDep,
 ):
     with _store_errors():
         return sf.quote_shipping(slug, country, currency, subtotal_minor)
+
+
+@router.get("/storefront/{slug}/images/{image_id}", response_class=Response)
+@_limiter.limit(_PUBLIC_IMAGE_LIMIT)
+async def storefront_image(request: Request, slug: str, image_id: str):
+    with _store_errors():
+        data, content_type = media.get_public_image(slug, image_id)
+    # An image id is never reused (a new upload is a new id), so it can be cached for good.
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"X-Content-Type-Options": "nosniff",
+                 "Content-Security-Policy": "default-src 'none'",
+                 "Cache-Control": "public, max-age=31536000, immutable"},
+    )

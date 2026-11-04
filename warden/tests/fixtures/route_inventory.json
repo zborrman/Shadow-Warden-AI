@@ -789,7 +789,8 @@
     "POST /m2m-store/stores/{store_id}/categories",
     "POST /m2m-store/stores/{store_id}/shipping-zones",
     "PUT /m2m-store/products/{product_id}/prices",
-    "PUT /m2m-store/products/{product_id}/translations/{locale}"
+    "PUT /m2m-store/products/{product_id}/translations/{locale}",
+    "GET /m2m-store/storefront/{slug}/images/{image_id}"
   ],
   "warden.main": [
     "GET /.well-known/acp.json",
