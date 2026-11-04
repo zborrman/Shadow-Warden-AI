@@ -26274,11 +26274,6 @@
         ],
         "summary": "Storefront",
         "operationId": "storefront_m2m_store_storefront__slug__get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "slug",
@@ -26323,11 +26318,6 @@
         ],
         "summary": "Storefront Ucp",
         "operationId": "storefront_ucp_m2m_store_storefront__slug__catalog_ucp_get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "slug",
@@ -26372,11 +26362,6 @@
         ],
         "summary": "Shipping Quote",
         "operationId": "shipping_quote_m2m_store_storefront__slug__shipping_quote_get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "slug",
@@ -26434,6 +26419,50 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/storefront/{slug}/images/{image_id}": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Storefront Image",
+        "operationId": "storefront_image_m2m_store_storefront__slug__images__image_id__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "image_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",

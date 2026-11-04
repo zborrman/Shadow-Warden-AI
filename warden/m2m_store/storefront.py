@@ -545,7 +545,9 @@ def quote_shipping(slug: str, country: str, currency: str, subtotal_minor: int) 
 # ── Feed ──────────────────────────────────────────────────────────────────────
 
 def store_ucp_catalog(slug: str) -> dict[str, Any]:
-    """UCP feed for one store: live products with every price and translation."""
+    """UCP feed for one store: live products with every price, translation and photo."""
+    from .media import public_images
+
     store = get_public_store(slug)
     products = [p for p in get_inventory().list_products(active_only=True)
                 if p.store_id == store["id"] and not p.deleted_at and p.available > 0]
@@ -562,6 +564,7 @@ def store_ucp_catalog(slug: str) -> dict[str, Any]:
                 "id": p.id, "name": p.name, "description": p.description,
                 "category_id": p.category_id, "unit": p.unit, "available": p.available,
                 "prices": get_prices(p.id), "translations": get_translations(p.id),
+                "images": public_images(store["slug"], p.id),
             }
             for p in products
         ],

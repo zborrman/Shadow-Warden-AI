@@ -184,6 +184,38 @@ def delete_image(image_id: str, tenant_id: str) -> None:
         _remove_object(_client(), r["object_key"])
 
 
+def public_image_url(slug: str, image_id: str) -> str:
+    return f"/m2m-store/storefront/{slug}/images/{image_id}"
+
+
+def public_images(slug: str, product_id: str) -> list[dict[str, Any]]:
+    """A product's photos as a buyer fetches them: through the store's own address."""
+    return [img | {"url": public_image_url(slug, img["id"])} for img in list_images(product_id)]
+
+
+def get_public_image(slug: str, image_id: str) -> tuple[bytes, str]:
+    """
+    A photo as the storefront serves it: only while the store is open and the
+    product is on sale in it. A photo of a hidden or deleted product, or one
+    asked for under another store's address, is a 404 like a missing one.
+    """
+    from .inventory import get_inventory
+    from .storefront import get_public_store
+
+    store = get_public_store(slug)
+    with _db_lock, _conn() as con:
+        r = con.execute(
+            "SELECT product_id FROM m2m_product_images WHERE id=? AND deleted_at=''",
+            (image_id,),
+        ).fetchone()
+    if r is None:
+        raise StoreNotFoundError("image")
+    p = get_inventory().get_product(r["product_id"])
+    if p is None or p.deleted_at or not p.active or p.store_id != store["id"]:
+        raise StoreNotFoundError("image")
+    return get_image(image_id)
+
+
 def get_image(image_id: str) -> tuple[bytes, str]:
     """A live image of a live product, as (bytes, content_type)."""
     from .inventory import get_inventory
