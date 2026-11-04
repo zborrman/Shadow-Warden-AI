@@ -171,14 +171,14 @@ def test_rate_limit_allows_under_threshold():
         assert check_rate_limit("agent-rl-test") is True
 
 
-def test_fido2_refuses_without_explicit_stub(monkeypatch):
-    """ENV=development alone no longer accepts any token (compose defaults to it)."""
+def test_fido2_refuses_a_token_that_is_not_an_assertion(monkeypatch):
+    """Not even the explicit dev stub turns an arbitrary string into an approval."""
     from warden.m2m_store.security import validate_fido2_token
     monkeypatch.setenv("ENV", "development")
     monkeypatch.delenv("FIDO_ALLOW_STUB", raising=False)
-    assert validate_fido2_token("any-token", "agent-1")["valid"] is False
+    assert validate_fido2_token("any-token", "tenant-1", "offer-1")["valid"] is False
     monkeypatch.setenv("FIDO_ALLOW_STUB", "true")
-    assert validate_fido2_token("any-token", "agent-1")["valid"] is True
+    assert validate_fido2_token("any-token", "tenant-1", "offer-1")["valid"] is False
 
 
 # ── 5. Budget guardian integration ───────────────────────────────────────────

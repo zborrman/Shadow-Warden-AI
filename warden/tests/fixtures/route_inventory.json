@@ -790,7 +790,13 @@
     "POST /m2m-store/stores/{store_id}/shipping-zones",
     "PUT /m2m-store/products/{product_id}/prices",
     "PUT /m2m-store/products/{product_id}/translations/{locale}",
-    "GET /m2m-store/storefront/{slug}/images/{image_id}"
+    "GET /m2m-store/storefront/{slug}/images/{image_id}",
+    "POST /m2m-store/offers/{offer_id}/challenge",
+    "POST /m2m-store/storefront/{slug}/order-requests",
+    "GET /m2m-store/storefront/{slug}/order-requests/{request_id}",
+    "POST /m2m-store/storefront/{slug}/order-requests/{request_id}/cancel",
+    "GET /m2m-store/stores/{store_id}/order-requests",
+    "PATCH /m2m-store/order-requests/{request_id}"
   ],
   "warden.main": [
     "GET /.well-known/acp.json",

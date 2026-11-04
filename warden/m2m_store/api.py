@@ -47,13 +47,25 @@ import logging
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from decimal import Decimal
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from warden.auth_guard import AuthResult, require_api_key
 from warden.limiter import limiter as _limiter
 from warden.m2m_store import media
+from warden.m2m_store import order_requests as orq
 from warden.m2m_store import storefront as sf
 from warden.m2m_store.catalog import get_catalog
 from warden.m2m_store.inventory import OwnershipError, get_inventory
@@ -72,6 +84,7 @@ from warden.m2m_store.models import (
 from warden.m2m_store.security import (
     PromptInjectionError,
     check_rate_limit,
+    issue_order_challenge,
     validate_content_string,
     validate_fido2_token,
     validate_offer_request,
@@ -142,6 +155,8 @@ def _store_errors() -> Iterator[None]:
     except sf.StoreInvalidError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except media.MediaUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except orq.OrderRequestUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
@@ -259,7 +274,42 @@ async def extend_reservation(
     return {"offer_id": offer_id, "valid_until": valid_until}
 
 
+@router.post("/offers/{offer_id}/challenge", response_model=dict)
+async def offer_challenge(offer_id: str, auth: AuthResult = AuthDep):
+    """WebAuthn options for the buyer's passkey to approve this offer."""
+    offer = get_inventory().get_offer(offer_id, auth.tenant_id)
+    if offer is None:
+        raise HTTPException(status_code=404, detail="Offer not found or expired")
+    if int(time.time()) > offer.valid_until:
+        raise HTTPException(status_code=410, detail="Offer expired")
+    return issue_order_challenge(auth.tenant_id, offer_id)
+
+
 # ── Orders ────────────────────────────────────────────────────────────────────
+
+def _authorize(tenant_id: str, offer: Any, mandate_id: str) -> None:
+    """
+    The FT-6 money chokepoint, like marketplace listing and clearing. A broken
+    import of it must not brick an order flow nobody has opted into, so a
+    failure to *call* it proceeds and is counted; a verdict is always obeyed.
+    """
+    amount_usd = float(Decimal(offer.price_final_minor) / 100)
+    try:
+        from warden.payments.authorize import authorize_payment
+        result = authorize_payment(tenant_id, offer.agent_id, "purchase", amount_usd,
+                                   merchant=offer.seller_tenant_id or "m2m-store",
+                                   mandate_id=mandate_id or None)
+    except Exception as exc:
+        from warden.observability import Reason, record_failopen
+        log.warning("m2m_store: authorize_payment call failed, order proceeds: %s", type(exc).__name__)
+        record_failopen("payments_authorize", Reason.BACKEND_ERROR, exc)
+        return
+    if result.verdict == "DENY":
+        raise HTTPException(status_code=403, detail={"verdict": "DENY", "reasons": result.reasons})
+    if result.verdict == "REQUIRE_APPROVAL":
+        raise HTTPException(status_code=402, detail={"verdict": "REQUIRE_APPROVAL",
+                                                     "reasons": result.reasons})
+
 
 @router.post("/orders", response_model=dict, status_code=201)
 async def create_order(body: OrderRequest, auth: AuthResult = AuthDep):
@@ -278,10 +328,13 @@ async def create_order(body: OrderRequest, auth: AuthResult = AuthDep):
 
     _rate_guard(offer.agent_id)
 
-    # FIDO2 validation for state-changing endpoint
-    fido_result = validate_fido2_token(body.payment_token, offer.agent_id)
+    # The buyer's passkey approves this one offer (challenge from
+    # POST /offers/{id}/challenge, single-use, bound to the offer id).
+    fido_result = validate_fido2_token(body.payment_token, auth.tenant_id, body.offer_id)
     if not fido_result["valid"]:
         raise HTTPException(status_code=401, detail=f"FIDO2 validation failed: {fido_result['reason']}")
+
+    _authorize(auth.tenant_id, offer, body.mandate_id)
 
     # One order per offer, across workers. A failed order hands it back.
     if not inv.claim_offer(body.offer_id, auth.tenant_id):
@@ -535,3 +588,55 @@ async def storefront_image(request: Request, slug: str, image_id: str):
                  "Content-Security-Policy": "default-src 'none'",
                  "Cache-Control": "public, max-age=31536000, immutable"},
     )
+
+
+# ── Order requests (M5) ───────────────────────────────────────────────────────
+# A human buyer asks; the seller answers. No money moves until M7. The create
+# route is anonymous like the rest of the storefront, so it is held to a tight
+# per-IP limit and the module caps unanswered requests per store.
+
+@router.post("/storefront/{slug}/order-requests", response_model=dict, status_code=201)
+@_limiter.limit("5/minute")
+async def create_order_request(request: Request, slug: str, body: orq.OrderRequestIn,
+                               background_tasks: BackgroundTasks):
+    with _store_errors():
+        view, token, seller_tenant = orq.create_request(slug, body)
+    from warden.webhook_dispatch import dispatch_tenant_event
+    background_tasks.add_task(
+        dispatch_tenant_event, tenant_id=seller_tenant,
+        event_type="m2m_store.order_request.created", data=orq.webhook_summary(view, slug),
+    )
+    # The token is shown once; it is the buyer's only way back to the request.
+    return view | {"buyer_token": token}
+
+
+@router.get("/storefront/{slug}/order-requests/{request_id}", response_model=dict)
+@_limiter.limit(_PUBLIC_READ_LIMIT)
+async def get_order_request(request: Request, slug: str, request_id: str,
+                            x_order_token: str = Header(default="", max_length=128)):
+    # The token travels in a header, not the query string, so access logs never hold it.
+    with _store_errors():
+        return orq.get_for_buyer(slug, request_id, x_order_token)
+
+
+@router.post("/storefront/{slug}/order-requests/{request_id}/cancel", response_model=dict)
+@_limiter.limit("10/minute")
+async def cancel_order_request(request: Request, slug: str, request_id: str,
+                               x_order_token: str = Header(default="", max_length=128)):
+    with _store_errors():
+        return orq.buyer_cancel(slug, request_id, x_order_token)
+
+
+@router.get("/stores/{store_id}/order-requests", response_model=list[dict])
+async def list_order_requests(store_id: str, status: str = Query(default="", max_length=20),
+                              auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return orq.list_for_seller(store_id, auth.tenant_id, status.upper())
+
+
+@router.patch("/order-requests/{request_id}", response_model=dict)
+async def answer_order_request(request_id: str, body: orq.StatusChangeIn,
+                               auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return orq.seller_move(request_id, auth.tenant_id, body)
+

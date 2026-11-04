@@ -77,8 +77,41 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
+def _b64url_decode(text: str) -> bytes:
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
 def _random_challenge() -> str:
     return _b64url(os.urandom(32))
+
+
+# An assertion must answer a challenge issued for it within this window.
+CHALLENGE_TTL_S = 300
+
+
+def _client_challenge(assertion: dict[str, Any]) -> str:
+    """The challenge the authenticator signed, read from its own clientDataJSON."""
+    try:
+        raw = assertion["response"]["clientDataJSON"]
+        return str(json.loads(_b64url_decode(raw))["challenge"])
+    except Exception:
+        return ""
+
+
+def _take_challenge(con: sqlite3.Connection, challenge: str, tenant_id: str, purpose: str) -> bool:
+    """
+    Consume one live challenge, or report that there is none. A single DELETE,
+    so four workers cannot accept the same assertion twice: a passkey whose
+    sign counter stays at 0 (most synced passkeys) is otherwise replayable.
+    """
+    if not challenge:
+        return False
+    oldest = datetime.fromtimestamp(datetime.now(UTC).timestamp() - CHALLENGE_TTL_S, UTC).isoformat()
+    cur = con.execute(
+        "DELETE FROM fido_challenges WHERE challenge=? AND tenant_id=? AND purpose=? AND created_at>=?",
+        (challenge, tenant_id, purpose, oldest),
+    )
+    return cur.rowcount == 1
 
 
 class FIDOProvider:
@@ -153,9 +186,12 @@ class FIDOProvider:
 
         try:
             from webauthn import verify_registration_response as _verify
-            from webauthn.helpers.structs import RegistrationCredential
+            from webauthn.helpers import parse_registration_credential_json
             try:
-                parsed = RegistrationCredential.model_validate_json(json.dumps(credential))
+                # py_webauthn 3.x structs are dataclasses: there is no
+                # model_validate_json, and calling it sent every real
+                # registration down the refusal path below.
+                parsed = parse_registration_credential_json(json.dumps(credential))
             except Exception:
                 # Credential cannot be parsed as a real WebAuthn response — use stub path
                 raise ImportError from None  # falls to stub handler below
@@ -165,7 +201,9 @@ class FIDOProvider:
                 expected_rp_id=_RP_ID,
                 expected_origin=_ORIGIN,
             )
-            cred_id = str(result.credential_id)
+            # The id an assertion names its credential by is base64url; str() of
+            # the bytes stored "b'...'", so no registered key could ever sign in.
+            cred_id = _b64url(result.credential_id)
             pub_key = base64.b64encode(result.credential_public_key).decode()
             self._store_credential(tenant_id, cred_id, pub_key, result.sign_count)
             return {"verified": True, "credential_id": cred_id}
@@ -209,50 +247,78 @@ class FIDOProvider:
         tenant_id: str,
         assertion: dict[str, Any],
     ) -> dict[str, Any]:
+        return self.verify_bound(tenant_id, "authentication", assertion)
+
+    def issue_bound_challenge(self, tenant_id: str, purpose: str) -> dict[str, Any]:
+        """Authentication options whose challenge is valid only for ``purpose``."""
+        challenge = _random_challenge()
         with _db_lock, _conn() as con:
-            row = con.execute(
-                "SELECT challenge FROM fido_challenges WHERE tenant_id=? AND purpose='authentication' "
-                "ORDER BY created_at DESC LIMIT 1",
-                (tenant_id,),
-            ).fetchone()
+            con.execute(
+                "INSERT INTO fido_challenges(challenge, tenant_id, purpose, created_at)"
+                " VALUES(?,?,?,?)",
+                (challenge, tenant_id, purpose, datetime.now(UTC).isoformat()),
+            )
+            creds = con.execute(
+                "SELECT credential_id FROM fido_credentials WHERE tenant_id=?", (tenant_id,),
+            ).fetchall()
+        return {
+            "challenge": challenge,
+            "timeout": CHALLENGE_TTL_S * 1000,
+            "rpId": _RP_ID,
+            "allowCredentials": [{"type": "public-key", "id": r["credential_id"]} for r in creds],
+            "userVerification": "required",
+        }
+
+    def verify_bound(self, tenant_id: str, purpose: str, assertion: dict[str, Any]) -> dict[str, Any]:
+        """
+        Verify a WebAuthn assertion that answers a challenge issued to this
+        tenant for this purpose. The challenge is consumed before the signature
+        is checked, so a failed attempt cannot be retried with the same one.
+        Fails CLOSED: no py_webauthn, no stub opt-in, no verification.
+        """
+        if not isinstance(assertion, dict):
+            return {"verified": False, "reason": "malformed_assertion"}
+        challenge = _client_challenge(assertion)
+        with _db_lock, _conn() as con:
+            if not _take_challenge(con, challenge, tenant_id, purpose):
+                return {"verified": False, "reason": "no_challenge"}
             cred_row = con.execute(
                 "SELECT * FROM fido_credentials WHERE tenant_id=? AND credential_id=?",
                 (tenant_id, assertion.get("id", "")),
             ).fetchone()
-
-        if not row:
-            return {"verified": False, "reason": "no_challenge"}
         if not cred_row:
             # An assertion naming a credential this tenant never registered is
-            # never a successful authentication. This previously returned
-            # verified=True, so any tenant_id authenticated with any assertion
-            # and no enrolment at all.
+            # never a successful authentication.
             return {"verified": False, "reason": "unknown_credential"}
 
         try:
             from webauthn import verify_authentication_response as _verify
-            from webauthn.helpers.structs import AuthenticationCredential
-            result = _verify(
-                credential=AuthenticationCredential.model_validate_json(json.dumps(assertion)),
-                expected_challenge=row["challenge"].encode(),
-                expected_rp_id=_RP_ID,
-                expected_origin=_ORIGIN,
-                credential_public_key=base64.b64decode(cred_row["public_key"]),
-                credential_current_sign_count=cred_row["sign_count"],
-            )
-            with _db_lock, _conn() as con:
-                con.execute(
-                    "UPDATE fido_credentials SET sign_count=?, last_used=? WHERE id=?",
-                    (result.new_sign_count, datetime.now(UTC).isoformat(), cred_row["id"]),
-                )
-            return {"verified": True, "tenant_id": tenant_id}
+            from webauthn.helpers import parse_authentication_credential_json
         except ImportError:
             if not _stub_allowed():
                 log.warning("fido: authentication refused — webauthn verification unavailable")
                 return {"verified": False, "reason": "webauthn_unavailable"}
             return {"verified": True, "tenant_id": tenant_id, "_stub": True}
+        try:
+            result = _verify(
+                credential=parse_authentication_credential_json(json.dumps(assertion)),
+                # The options carry the challenge base64url-encoded; the client
+                # signs its decoded bytes, and py_webauthn compares bytes.
+                expected_challenge=_b64url_decode(challenge),
+                expected_rp_id=_RP_ID,
+                expected_origin=_ORIGIN,
+                credential_public_key=base64.b64decode(cred_row["public_key"]),
+                credential_current_sign_count=cred_row["sign_count"],
+                require_user_verification=True,
+            )
         except Exception as exc:
-            return {"verified": False, "reason": str(exc)}
+            return {"verified": False, "reason": type(exc).__name__}
+        with _db_lock, _conn() as con:
+            con.execute(
+                "UPDATE fido_credentials SET sign_count=?, last_used=? WHERE id=?",
+                (result.new_sign_count, datetime.now(UTC).isoformat(), cred_row["id"]),
+            )
+        return {"verified": True, "tenant_id": tenant_id}
 
     def _store_credential(self, tenant_id: str, cred_id: str, pub_key: str, sign_count: int) -> None:
         with _db_lock, _conn() as con:

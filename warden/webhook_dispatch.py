@@ -221,6 +221,39 @@ async def dispatch_bypass_event(
     await _deliver(cfg["url"], body, sig)
 
 
+async def dispatch_tenant_event(
+    *,
+    tenant_id: str,
+    event_type: str,
+    data: dict,
+    store: WebhookStore | None = None,
+) -> None:
+    """POST a business event (e.g. a new store order request) to the tenant's webhook.
+
+    The caller is responsible for ``data`` carrying identifiers and amounts
+    only — never personal data or content. min_risk does not apply: this is
+    not a security event. Runs as a BackgroundTask; every error is swallowed.
+    """
+    try:
+        if store is None:
+            from warden.runtime import runtime as _runtime
+            store = _runtime.get("webhook_store") or WebhookStore()
+        cfg = store._get_with_secret(tenant_id)
+        if cfg is None:
+            return
+        event: dict = {
+            "event_id":   str(uuid.uuid4()),
+            "event_type": event_type,
+            "tenant_id":  tenant_id,
+            "timestamp":  datetime.now(UTC).isoformat(),
+            "data":       data,
+        }
+        body = json.dumps(event, separators=(",", ":")).encode()
+        await _deliver(cfg["url"], body, _sign(body, cfg["secret"]))
+    except Exception as exc:
+        log.warning("webhook: %s delivery failed: %s", event_type, type(exc).__name__)
+
+
 def _sign(body: bytes, secret: str) -> str:
     """Return 'sha256=<hex>' HMAC-SHA256 signature."""
     mac = hmac.new(secret.encode(), body, "sha256")

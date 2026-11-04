@@ -26,5 +26,5 @@ export const PRODUCT = {
   /** docker-compose.yml, count of top-level `services:` keys. */
   services: 24,
   /** site/public/openapi.json, count of `paths` — regenerate with scripts/export_openapi.py. */
-  endpoints: 680,
+  endpoints: 686,
 } as const;

@@ -25223,6 +25223,56 @@
         }
       }
     },
+    "/m2m-store/offers/{offer_id}/challenge": {
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Offer Challenge",
+        "description": "WebAuthn options for the buyer's passkey to approve this offer.",
+        "operationId": "offer_challenge_m2m_store_offers__offer_id__challenge_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Offer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Offer Challenge M2M Store Offers  Offer Id  Challenge Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/m2m-store/orders": {
       "post": {
         "tags": [
@@ -26463,6 +26513,310 @@
         "responses": {
           "200": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/storefront/{slug}/order-requests": {
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Create Order Request",
+        "operationId": "create_order_request_m2m_store_storefront__slug__order_requests_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Create Order Request M2M Store Storefront  Slug  Order Requests Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/storefront/{slug}/order-requests/{request_id}": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Get Order Request",
+        "operationId": "get_order_request_m2m_store_storefront__slug__order_requests__request_id__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "",
+              "title": "X-Order-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Order Request M2M Store Storefront  Slug  Order Requests  Request Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/storefront/{slug}/order-requests/{request_id}/cancel": {
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Cancel Order Request",
+        "operationId": "cancel_order_request_m2m_store_storefront__slug__order_requests__request_id__cancel_post",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "x-order-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "default": "",
+              "title": "X-Order-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Cancel Order Request M2M Store Storefront  Slug  Order Requests  Request Id  Cancel Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/order-requests": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "List Order Requests",
+        "operationId": "list_order_requests_m2m_store_stores__store_id__order_requests_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "default": "",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Order Requests M2M Store Stores  Store Id  Order Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/order-requests/{request_id}": {
+      "patch": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Answer Order Request",
+        "operationId": "answer_order_request_m2m_store_order_requests__request_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusChangeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Answer Order Request M2M Store Order Requests  Request Id  Patch"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -39712,6 +40066,66 @@
         ],
         "title": "CompletionCreateRequest"
       },
+      "ContactIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "pattern": "^[^@\\s]{1,64}@[^@\\s]{1,255}\\.[^@\\s]{2,63}$",
+            "title": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Phone",
+            "default": ""
+          },
+          "address_line1": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Address Line1"
+          },
+          "address_line2": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Address Line2",
+            "default": ""
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "City"
+          },
+          "postal_code": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Postal Code",
+            "default": ""
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Region",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "address_line1",
+          "city"
+        ],
+        "title": "ContactIn"
+      },
       "ContactRequest": {
         "properties": {
           "name": {
@@ -41597,6 +42011,28 @@
         ],
         "title": "IssueTokenRequest"
       },
+      "ItemIn": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Product Id"
+          },
+          "qty": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Qty"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "qty"
+        ],
+        "title": "ItemIn"
+      },
       "JoinIn": {
         "properties": {
           "tenant_id": {
@@ -42543,7 +42979,7 @@
           },
           "payment_token": {
             "type": "string",
-            "maxLength": 512,
+            "maxLength": 8192,
             "title": "Payment Token"
           }
         },
@@ -42554,6 +42990,60 @@
           "payment_token"
         ],
         "title": "OrderRequest"
+      },
+      "OrderRequestIn": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemIn"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 3,
+            "minLength": 3,
+            "title": "Currency"
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactIn"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Note",
+            "default": ""
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 5,
+            "title": "Locale",
+            "default": "en"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Timezone",
+            "default": "UTC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "currency",
+          "country",
+          "contact"
+        ],
+        "title": "OrderRequestIn"
       },
       "OutcomeListingCreate": {
         "properties": {
@@ -45106,6 +45596,26 @@
         },
         "type": "object",
         "title": "SponsorRequest"
+      },
+      "StatusChangeIn": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Status"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "StatusChangeIn"
       },
       "StatusUpdateRequest": {
         "properties": {

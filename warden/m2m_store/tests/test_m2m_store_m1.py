@@ -63,6 +63,9 @@ def paid(monkeypatch):
 
     from warden.business_community.agentic_commerce import ap2
     monkeypatch.setattr(ap2.AP2Processor, "execute_payment", _pay)
+    # The buyer's passkey approved the offer (test_m2m_store_m5 covers the real check).
+    monkeypatch.setattr("warden.m2m_store.api.validate_fido2_token",
+                        lambda token, tenant_id, offer_id: {"valid": True, "reason": ""})
     return calls
 
 
@@ -189,6 +192,8 @@ def test_failed_payment_returns_stock_and_offer(client, monkeypatch):
     from warden.business_community.agentic_commerce import ap2
     monkeypatch.setattr(ap2.AP2Processor, "execute_payment",
                         lambda self, **kw: {"success": False, "reason": "mandate_revoked"})
+    monkeypatch.setattr("warden.m2m_store.api.validate_fido2_token",
+                        lambda token, tenant_id, offer_id: {"valid": True, "reason": ""})
     pid = _product(client, stock=3)
     offer = _offer(client, pid, qty=2)
     assert _order(client, offer["id"]).status_code == 400
@@ -250,6 +255,8 @@ def test_order_snapshots_name_and_seller(client, paid):
 # ── D6 ───────────────────────────────────────────────────────────────────────
 
 def test_order_refused_without_a_verifiable_payment_token(client, paid, monkeypatch):
+    from warden.m2m_store import security
+    monkeypatch.setattr("warden.m2m_store.api.validate_fido2_token", security.validate_fido2_token)
     monkeypatch.delenv("FIDO_ALLOW_STUB", raising=False)
     monkeypatch.setenv("ENV", "development")   # the docker-compose default
     pid = _product(client)
