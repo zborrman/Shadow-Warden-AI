@@ -56,7 +56,7 @@ export function CartView({ feed }: { feed: Feed }) {
   if (leaving) {
     return (
       <div className="flex justify-center py-16" role="status">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-500" aria-hidden />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-hidden />
       </div>
     )
   }
@@ -90,13 +90,13 @@ export function CartView({ feed }: { feed: Feed }) {
                   {img
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={imageSrc(img.url)} alt="" loading="lazy" className="h-full w-full object-cover" />
-                    : <div className="flex h-full items-center justify-center text-slate-600"><Package className="h-6 w-6" aria-hidden /></div>}
+                    : <div className="flex h-full items-center justify-center text-slate-400"><Package className="h-6 w-6" aria-hidden /></div>}
                 </div>
                 <div className="min-w-0 flex-1">
                   <Link href={`${base}/p/${l.id}/`} className="block truncate text-sm font-semibold text-slate-100 hover:underline">
                     {name}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     {l.unitMinor !== null
                       ? `${money(l.unitMinor, currency)}${l.product.unit ? ` ${fmt(t.perUnit, { unit: l.product.unit })}` : ''}`
                       : <span className="text-amber-400">{fmt(t.missingCurrency, { cur: currency })}</span>}
@@ -113,7 +113,7 @@ export function CartView({ feed }: { feed: Feed }) {
                   {l.unitMinor !== null ? money(l.unitMinor * l.qty, currency) : '—'}
                 </span>
                 <button type="button" onClick={() => cart.remove(l.id)} aria-label={`${t.remove}: ${name}`}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400
                                    hover:bg-white/[0.05] hover:text-red-400">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -140,7 +140,7 @@ export function CartView({ feed }: { feed: Feed }) {
                       <dt className="text-slate-200">{t.total}</dt>
                       <dd className="font-mono text-slate-100">{money(subtotal + q.shipping_minor, currency)}</dd></div>
                     {q.duty_estimate_minor > 0 && (
-                      <div className="flex justify-between text-xs"><dt className="text-slate-500">{t.dutyEstimate}</dt>
+                      <div className="flex justify-between text-xs"><dt className="text-slate-400">{t.dutyEstimate}</dt>
                         <dd className="font-mono text-slate-400">≈ {money(q.duty_estimate_minor, currency)}</dd></div>
                     )}
                   </>
@@ -155,7 +155,7 @@ export function CartView({ feed }: { feed: Feed }) {
                          className="mt-1 h-10 w-full rounded-lg border border-white/10 bg-dark-900 px-3 font-mono
                                     text-sm uppercase text-slate-100 focus:outline-none
                                     focus-visible:ring-2 focus-visible:ring-brand-400" />
-                  <span className="mt-1 block font-normal text-slate-500">{t.countryHint}</span>
+                  <span className="mt-1 block font-normal text-slate-400">{t.countryHint}</span>
                 </label>
                 <button type="submit" disabled={!countryOk || quote.kind === 'loading'}
                         className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border
@@ -170,7 +170,7 @@ export function CartView({ feed }: { feed: Feed }) {
                   {quote.kind === 'error' && <p className="text-red-400">{t.loadFailed}</p>}
                   {q && <p className="text-slate-400">{fmt(t.delivery, { min: q.min_days, max: q.max_days })}</p>}
                   {q && q.duty_estimate_minor > 0 && (
-                    <p className="mt-1 text-slate-500">{t.dutyExcluded} {t.dutyNote}</p>
+                    <p className="mt-1 text-slate-400">{t.dutyExcluded} {t.dutyNote}</p>
                   )}
                 </div>
               </form>
@@ -183,7 +183,7 @@ export function CartView({ feed }: { feed: Feed }) {
                             country={quote.country}
                             onPlaced={() => { setLeaving(true); cart.clear() }} />
             ) : (
-              <p className="text-xs text-slate-500">{t.quoteFirst}</p>
+              <p className="text-xs text-slate-400">{t.quoteFirst}</p>
             )}
           </div>
         </aside>

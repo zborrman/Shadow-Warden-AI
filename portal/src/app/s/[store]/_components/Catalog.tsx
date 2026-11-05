@@ -49,15 +49,15 @@ export function ProductCard({ product }: { product: FeedProduct }) {
             <img src={imageSrc(img.url)} alt={fmt(t.photoOf, { name })} width={img.width} height={img.height}
                  loading="lazy" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full items-center justify-center text-slate-600">
+            <div className="flex h-full items-center justify-center text-slate-400">
               <Package className="h-10 w-10" aria-hidden />
             </div>
           )}
         </div>
         <div className="flex flex-1 flex-col gap-1.5 p-3">
-          <h3 className="line-clamp-2 text-sm font-semibold text-slate-100">{name}</h3>
+          <h2 className="line-clamp-2 text-sm font-semibold text-slate-100">{name}</h2>
           <Price product={product} />
-          <p className={soldOut ? 'text-xs text-red-400' : 'text-xs text-slate-500'}>
+          <p className={soldOut ? 'text-xs text-red-400' : 'text-xs text-slate-400'}>
             {soldOut ? t.outOfStock : fmt(t.available, { n: product.available })}
           </p>
         </div>
@@ -109,11 +109,11 @@ export function Catalog({ feed }: { feed: Feed }) {
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-[200px] flex-1 sm:max-w-sm">
           <span className="sr-only">{t.search}</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
                   aria-hidden />
           <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search}
                  className="h-10 w-full rounded-lg border border-white/10 bg-dark-800 pl-9 pr-3 text-sm
-                            text-slate-100 placeholder:text-slate-500 focus:outline-none
+                            text-slate-100 placeholder:text-slate-400 focus:outline-none
                             focus-visible:ring-2 focus-visible:ring-brand-400" />
         </label>
         <label className="flex items-center gap-2 text-sm text-slate-300">
@@ -124,7 +124,7 @@ export function Catalog({ feed }: { feed: Feed }) {
       </div>
 
       {shown.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-slate-400">
           {t.noProducts}
         </p>
       ) : (

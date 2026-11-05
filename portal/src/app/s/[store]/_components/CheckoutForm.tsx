@@ -74,7 +74,7 @@ export function CheckoutForm(
   const input = `mt-1 h-10 w-full rounded-lg border border-white/10 bg-dark-900 px-3 text-sm text-slate-100
                  focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400`
   const label = 'block text-xs font-semibold text-slate-400'
-  const opt = <span className="font-normal text-slate-500"> ({t.optional})</span>
+  const opt = <span className="font-normal text-slate-400"> ({t.optional})</span>
 
   return (
     <form onSubmit={submit} className="space-y-3">
@@ -116,7 +116,7 @@ export function CheckoutForm(
                   className={`${input} h-auto py-2`} />
       </label>
 
-      <p className="text-xs text-slate-500">{t.requestIntro}</p>
+      <p className="text-xs text-slate-400">{t.requestIntro}</p>
       <button type="submit" disabled={!valid || busy}
               className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-500 text-sm
                          font-bold text-dark-950 hover:brightness-110 disabled:opacity-40">

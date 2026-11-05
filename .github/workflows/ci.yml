@@ -287,6 +287,65 @@ jobs:
         run: npx tsc --noEmit
         working-directory: portal
 
+  # ── Storefront audit (M2M plan M6): WCAG 2.1 AA + Lighthouse floors ─────────
+  # Builds the portal against e2e/mock-gateway.mjs, which replays a fixture
+  # recorded from the real m2m_store router (pytest test_storefront_fixture.py
+  # fails when the router's shapes drift from it), then walks a buyer's whole
+  # path with axe-core and checks Lighthouse floors on the catalog and product.
+  storefront-audit:
+    name: Storefront Audit (a11y + Lighthouse)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - name: Install portal dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        working-directory: portal
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: portal
+
+      - name: Build portal against the stand-in gateway
+        run: npm run build
+        working-directory: portal
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:18011
+
+      - name: Start stand-in gateway and portal
+        working-directory: portal
+        env:
+          WARDEN_INTERNAL_URL: http://127.0.0.1:18011
+        run: |
+          nohup node e2e/mock-gateway.mjs > /tmp/mock-gateway.log 2>&1 &
+          nohup npx next start -p 3017 -H 127.0.0.1 > /tmp/portal.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:3017/s/alpine/ && exit 0
+            sleep 1
+          done
+          cat /tmp/mock-gateway.log /tmp/portal.log
+          exit 1
+
+      - name: Accessibility, JSON-LD, sitemap and robots.txt
+        run: node e2e/storefront-audit.mjs
+        working-directory: portal
+        env:
+          PORTAL_URL: http://127.0.0.1:3017
+
+      - name: Lighthouse floors
+        run: node e2e/lighthouse.mjs
+        working-directory: portal
+        env:
+          PORTAL_URL: http://127.0.0.1:3017
+
   # ── SOC Dashboard Build (Next.js 14, TypeScript) ────────────────────────────
   dashboard-build:
     name: Dashboard Build (Next.js)

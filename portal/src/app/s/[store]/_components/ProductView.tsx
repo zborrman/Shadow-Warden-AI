@@ -34,7 +34,7 @@ export function ProductView({ product }: { product: FeedProduct }) {
               <img src={imageSrc(img.url)} alt={fmt(t.photoOf, { name })} width={img.width} height={img.height}
                    className="h-full w-full object-contain" />
             ) : (
-              <div className="flex h-full items-center justify-center text-slate-600">
+              <div className="flex h-full items-center justify-center text-slate-400">
                 <Package className="h-16 w-16" aria-hidden />
               </div>
             )}
