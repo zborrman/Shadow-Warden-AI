@@ -39,7 +39,10 @@ _CONFIG = _ROOT / ".gitleaks.toml"
 #: Findings triaged on 2026-08-31 against run 33384506909. Raising this number
 #: means a human read the new match in its commit and decided it is not a
 #: credential. It is not a knob to turn when CI is inconvenient.
-BASELINE_FINDINGS = 22
+#: 2026-11-05 (+1, #674): commit 7201d509, scripts/storefront_fixture.py:37 —
+#: a placeholder PORTAL_JWT_SECRET for a throwaway fixture recording, signing
+#: nothing outside that process; replaced by secrets.token_urlsafe() in 8c6df6cf.
+BASELINE_FINDINGS = 23
 
 _FINGERPRINT = re.compile(r"^[0-9a-f]{40}:[^:\s]+:[a-z0-9.\-]+:\d+$")
 
