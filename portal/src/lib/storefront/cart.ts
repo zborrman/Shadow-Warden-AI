@@ -72,5 +72,6 @@ export function useCart(slug: string) {
                           : cur.filter(l => l.id !== id))
     },
     remove: (id: string) => write(slug, read(slug).filter(l => l.id !== id)),
+    clear: () => write(slug, []),
   }
 }

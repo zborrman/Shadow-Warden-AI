@@ -63,3 +63,42 @@ export interface ShippingQuote {
   min_days: number
   max_days: number
 }
+
+export type OrderRequestStatus =
+  | 'PENDING_MERCHANT' | 'ACCEPTED' | 'REJECTED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED'
+
+export interface OrderRequestLine {
+  product_id: string
+  name: string
+  unit: string
+  qty: number
+  unit_minor: number
+  line_minor: number
+}
+
+export interface OrderRequestEvent {
+  status: OrderRequestStatus
+  at: string
+  by: 'buyer' | 'seller'
+  note?: string
+}
+
+/** What the buyer sees. Contact details are never in it: the link alone opens it. */
+export interface OrderRequestView {
+  id: string
+  status: OrderRequestStatus
+  currency: string
+  subtotal_minor: number
+  shipping_minor: number
+  /** Separate from the total: the seller's estimate, set by customs. */
+  duty_estimate_minor: number
+  duty_is_estimate: boolean
+  total_minor: number
+  country: string
+  locale: string
+  buyer_tz: string
+  items: OrderRequestLine[]
+  history: OrderRequestEvent[]
+  created_at: string
+  updated_at: string
+}

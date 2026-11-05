@@ -5,6 +5,7 @@ import { Loader2, Package, Trash2, Truck } from 'lucide-react'
 import { MAX_QTY, useCart } from '@/lib/storefront/cart'
 import { fmt } from '@/lib/storefront/i18n'
 import type { Feed, ShippingQuote } from '@/lib/storefront/types'
+import { CheckoutForm } from './CheckoutForm'
 import { imageSrc, PUBLIC_API } from './Price'
 import { useStorefront } from './StorefrontProvider'
 
@@ -13,13 +14,15 @@ type QuoteState =
   | { kind: 'loading' }
   | { kind: 'none' }
   | { kind: 'error' }
-  | { kind: 'ok'; quote: ShippingQuote }
+  | { kind: 'ok'; quote: ShippingQuote; country: string }
 
 export function CartView({ feed }: { feed: Feed }) {
   const { t, base, store, currency, money, nameOf, country: initialCountry } = useStorefront()
   const cart = useCart(store.slug)
   const [country, setCountry] = useState(initialCountry)
   const [quote, setQuote] = useState<QuoteState>({ kind: 'idle' })
+  // Set once a request is placed: the cart empties while the page navigates away.
+  const [leaving, setLeaving] = useState(false)
 
   const byId = new Map(feed.products.map(p => [p.id, p]))
   const lines = cart.lines.flatMap(l => {
@@ -32,21 +35,30 @@ export function CartView({ feed }: { feed: Feed }) {
   const subtotal = priced ? lines.reduce((s, l) => s + (l.unitMinor ?? 0) * l.qty, 0) : null
   const countryOk = /^[A-Za-z]{2}$/.test(country.trim())
 
-  // A quote is for one subtotal in one currency; any change makes it stale.
-  useEffect(() => { setQuote({ kind: 'idle' }) }, [subtotal, currency])
+  // A quote is for one subtotal, currency and country; any change makes it stale.
+  useEffect(() => { setQuote({ kind: 'idle' }) }, [subtotal, currency, country])
 
   async function calculate() {
     if (subtotal === null || !countryOk) return
     setQuote({ kind: 'loading' })
-    const qs = new URLSearchParams({ country: country.trim().toUpperCase(), currency, subtotal_minor: String(subtotal) })
+    const dest = country.trim().toUpperCase()
+    const qs = new URLSearchParams({ country: dest, currency, subtotal_minor: String(subtotal) })
     try {
       const res = await fetch(`${PUBLIC_API}/m2m-store/storefront/${store.slug}/shipping/quote?${qs}`)
       if (res.status === 404) return setQuote({ kind: 'none' })
       if (!res.ok) return setQuote({ kind: 'error' })
-      setQuote({ kind: 'ok', quote: await res.json() })
+      setQuote({ kind: 'ok', quote: await res.json(), country: dest })
     } catch {
       setQuote({ kind: 'error' })
     }
+  }
+
+  if (leaving) {
+    return (
+      <div className="flex justify-center py-16" role="status">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-500" aria-hidden />
+      </div>
+    )
   }
 
   if (lines.length === 0) {
@@ -124,15 +136,13 @@ export function CartView({ feed }: { feed: Feed }) {
                       <dd className="font-mono text-slate-100">
                         {q.shipping_minor === 0 ? t.free : money(q.shipping_minor, currency)}
                       </dd></div>
-                    {q.duty_estimate_minor > 0 && (
-                      <div className="flex justify-between"><dt className="text-slate-400">{t.dutyEstimate}</dt>
-                        <dd className="font-mono text-slate-100">≈ {money(q.duty_estimate_minor, currency)}</dd></div>
-                    )}
                     <div className="flex justify-between border-t border-white/[0.06] pt-2 font-semibold">
                       <dt className="text-slate-200">{t.total}</dt>
-                      <dd className="font-mono text-slate-100">
-                        {money(subtotal + q.shipping_minor + q.duty_estimate_minor, currency)}
-                      </dd></div>
+                      <dd className="font-mono text-slate-100">{money(subtotal + q.shipping_minor, currency)}</dd></div>
+                    {q.duty_estimate_minor > 0 && (
+                      <div className="flex justify-between text-xs"><dt className="text-slate-500">{t.dutyEstimate}</dt>
+                        <dd className="font-mono text-slate-400">≈ {money(q.duty_estimate_minor, currency)}</dd></div>
+                    )}
                   </>
                 )}
               </dl>
@@ -159,18 +169,22 @@ export function CartView({ feed }: { feed: Feed }) {
                   {quote.kind === 'none' && <p className="text-amber-400">{fmt(t.noZone, { cur: currency })}</p>}
                   {quote.kind === 'error' && <p className="text-red-400">{t.loadFailed}</p>}
                   {q && <p className="text-slate-400">{fmt(t.delivery, { min: q.min_days, max: q.max_days })}</p>}
-                  {q && q.duty_estimate_minor > 0 && <p className="mt-1 text-slate-500">{t.dutyNote}</p>}
+                  {q && q.duty_estimate_minor > 0 && (
+                    <p className="mt-1 text-slate-500">{t.dutyExcluded} {t.dutyNote}</p>
+                  )}
                 </div>
               </form>
             </>
           )}
 
-          <div className="space-y-2 border-t border-white/[0.06] pt-4">
-            <button type="button" disabled
-                    className="h-10 w-full cursor-not-allowed rounded-lg bg-white/[0.06] text-sm font-semibold text-slate-500">
-              {t.orderingClosed}
-            </button>
-            <p className="text-xs text-slate-500">{t.orderingNote}</p>
+          <div className="border-t border-white/[0.06] pt-4">
+            {quote.kind === 'ok' && subtotal !== null ? (
+              <CheckoutForm items={lines.map(l => ({ product_id: l.id, qty: l.qty }))}
+                            country={quote.country}
+                            onPlaced={() => { setLeaving(true); cart.clear() }} />
+            ) : (
+              <p className="text-xs text-slate-500">{t.quoteFirst}</p>
+            )}
           </div>
         </aside>
       </div>
