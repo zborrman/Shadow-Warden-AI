@@ -75,7 +75,7 @@ export function OrderView({ id }: { id: string }) {
   if (state.kind === 'loading') {
     return (
       <div className="flex justify-center py-16" role="status">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-500" aria-hidden />
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-hidden />
       </div>
     )
   }
@@ -100,7 +100,7 @@ export function OrderView({ id }: { id: string }) {
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-bold text-slate-100">{t.orderRequest}</h1>
-        <span className="font-mono text-xs text-slate-500">{o.id}</span>
+        <span className="font-mono text-xs text-slate-400">{o.id}</span>
         <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${TONE[o.status]}`}>
           {t.statuses[o.status]}
         </span>
@@ -127,7 +127,7 @@ export function OrderView({ id }: { id: string }) {
             {o.items.map(i => (
               <li key={i.product_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
                 <span className="min-w-0 flex-1 truncate text-slate-100">{i.name}</span>
-                <span className="font-mono text-xs text-slate-500">
+                <span className="font-mono text-xs text-slate-400">
                   {i.qty} × {money(i.unit_minor, o.currency)}{i.unit ? ` / ${i.unit}` : ''}
                 </span>
                 <span className="w-24 text-right font-mono text-slate-100">{money(i.line_minor, o.currency)}</span>
@@ -146,9 +146,9 @@ export function OrderView({ id }: { id: string }) {
               <dd className="font-mono text-slate-100">{money(o.total_minor, o.currency)}</dd></div>
             {o.duty_estimate_minor > 0 && (
               <>
-                <div className="flex justify-between text-xs"><dt className="text-slate-500">{t.dutyEstimate}</dt>
+                <div className="flex justify-between text-xs"><dt className="text-slate-400">{t.dutyEstimate}</dt>
                   <dd className="font-mono text-slate-400">≈ {money(o.duty_estimate_minor, o.currency)}</dd></div>
-                <p className="text-xs text-slate-500">{t.dutyExcluded} {t.dutyNote}</p>
+                <p className="text-xs text-slate-400">{t.dutyExcluded} {t.dutyNote}</p>
               </>
             )}
           </dl>
@@ -160,14 +160,14 @@ export function OrderView({ id }: { id: string }) {
             {o.history.map((h, n) => (
               <li key={`${h.at}-${n}`} className="border-l-2 border-white/10 pl-3 text-sm">
                 <p className="font-semibold text-slate-200">{t.statuses[h.status]}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   <time dateTime={h.at}>{at(h.at)}</time> · {h.by === 'buyer' ? t.byBuyer : t.bySeller}
                 </p>
                 {h.note && <p className="mt-1 whitespace-pre-line text-xs text-slate-400">{h.note}</p>}
               </li>
             ))}
           </ol>
-          <p className="font-mono text-[11px] text-slate-600">{o.buyer_tz}</p>
+          <p className="font-mono text-xs text-slate-400">{o.buyer_tz}</p>
           {o.status === 'PENDING_MERCHANT' && (
             <button type="button" onClick={cancel} disabled={busy}
                     className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-400/30

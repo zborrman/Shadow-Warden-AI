@@ -108,7 +108,7 @@ function CategoryNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
       {store.categories.length > 0 && (
         <>
           {!collapsed && (
-            <p className="mb-1 mt-5 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+            <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
               {t.categories}
             </p>
           )}
@@ -171,7 +171,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <button type="button" onClick={() => setSidebar(collapsed ? 'expanded' : 'collapsed')}
                   aria-label={collapsed ? t.expandMenu : t.collapseMenu} aria-expanded={!collapsed}
-                  className={cn('m-3 flex h-9 items-center gap-2 rounded-lg text-xs text-slate-500',
+                  className={cn('m-3 flex h-9 items-center gap-2 rounded-lg text-xs text-slate-400',
                                 'hover:bg-white/[0.04] hover:text-slate-200',
                                 collapsed ? 'justify-center' : 'px-3')}>
             {collapsed ? <ChevronsRight className="h-4 w-4" />

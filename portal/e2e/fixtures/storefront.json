@@ -1,0 +1,218 @@
+{
+  "_comment": "Recorded by scripts/storefront_fixture.py from the real m2m_store router. Do not edit by hand.",
+  "slug": "alpine",
+  "store": {
+    "id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+    "slug": "alpine",
+    "name": "Alpine Pantry",
+    "description": "Cheese, honey and tea from the Alps.",
+    "default_currency": "EUR",
+    "currencies": [
+      "CHF",
+      "EUR",
+      "USD"
+    ],
+    "locales": [
+      "de",
+      "en",
+      "es",
+      "fr",
+      "it"
+    ],
+    "active": true,
+    "created_at": "2026-11-05T06:02:25.195173+00:00",
+    "categories": [
+      {
+        "id": "f598e50d-c575-4831-b1f7-cf307cabf1e7",
+        "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+        "parent_id": "",
+        "slug": "cheese",
+        "name": "Cheese",
+        "position": 0,
+        "children": [
+          {
+            "id": "86cf5cf3-de51-4793-8547-b8bf51ca3515",
+            "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+            "parent_id": "f598e50d-c575-4831-b1f7-cf307cabf1e7",
+            "slug": "hard",
+            "name": "Hard cheese",
+            "position": 0,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "5391262c-48a8-4748-abdf-8b6ecf0dfe34",
+        "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+        "parent_id": "",
+        "slug": "tea",
+        "name": "Tea",
+        "position": 0,
+        "children": []
+      }
+    ]
+  },
+  "feed": {
+    "version": "1.1",
+    "store": "alpine",
+    "name": "Alpine Pantry",
+    "default_currency": "EUR",
+    "settlement_currencies": [
+      "USD"
+    ],
+    "locales": [
+      "de",
+      "en",
+      "es",
+      "fr",
+      "it"
+    ],
+    "categories": [
+      {
+        "id": "f598e50d-c575-4831-b1f7-cf307cabf1e7",
+        "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+        "parent_id": "",
+        "slug": "cheese",
+        "name": "Cheese",
+        "position": 0,
+        "children": [
+          {
+            "id": "86cf5cf3-de51-4793-8547-b8bf51ca3515",
+            "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+            "parent_id": "f598e50d-c575-4831-b1f7-cf307cabf1e7",
+            "slug": "hard",
+            "name": "Hard cheese",
+            "position": 0,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "5391262c-48a8-4748-abdf-8b6ecf0dfe34",
+        "store_id": "1d1935a6-431a-44a7-965f-7b02d5c37340",
+        "parent_id": "",
+        "slug": "tea",
+        "name": "Tea",
+        "position": 0,
+        "children": []
+      }
+    ],
+    "products": [
+      {
+        "id": "4a94d662-6c7f-46f5-91c9-d3e019e9e326",
+        "name": "Gruyère AOP",
+        "description": "Gruyère AOP, made in the Alps.",
+        "category_id": "86cf5cf3-de51-4793-8547-b8bf51ca3515",
+        "unit": "kg",
+        "available": 12,
+        "prices": [
+          {
+            "currency": "EUR",
+            "amount_minor": 3250
+          },
+          {
+            "currency": "USD",
+            "amount_minor": 3490
+          }
+        ],
+        "translations": {
+          "de": {
+            "name": "Greyerzer AOP",
+            "description": "Greyerzer AOP aus den Alpen."
+          }
+        },
+        "images": [
+          {
+            "id": "adf3b08450564689a422cceb39db5f34",
+            "url": "/m2m-store/storefront/alpine/images/adf3b08450564689a422cceb39db5f34",
+            "content_type": "image/png",
+            "bytes": 138,
+            "width": 64,
+            "height": 64,
+            "created_at": "2026-11-05T06:02:25.303636+00:00"
+          }
+        ]
+      },
+      {
+        "id": "7c160217-4818-4667-bee5-849674e0e15c",
+        "name": "Alpine herb tea",
+        "description": "Alpine herb tea, made in the Alps.",
+        "category_id": "5391262c-48a8-4748-abdf-8b6ecf0dfe34",
+        "unit": "piece",
+        "available": 40,
+        "prices": [
+          {
+            "currency": "EUR",
+            "amount_minor": 920
+          },
+          {
+            "currency": "USD",
+            "amount_minor": 990
+          }
+        ],
+        "translations": {
+          "de": {
+            "name": "Alpenkräutertee",
+            "description": "Alpenkräutertee aus den Alpen."
+          }
+        },
+        "images": [
+          {
+            "id": "45a6db2218124705b962e33772535cbe",
+            "url": "/m2m-store/storefront/alpine/images/45a6db2218124705b962e33772535cbe",
+            "content_type": "image/png",
+            "bytes": 138,
+            "width": 64,
+            "height": 64,
+            "created_at": "2026-11-05T06:02:25.343678+00:00"
+          }
+        ]
+      }
+    ],
+    "count": 2
+  },
+  "quote": {
+    "zone_id": "46a067b3-c3d7-4149-8d2f-a2dad041a499",
+    "zone": "DACH",
+    "country": "DE",
+    "currency": "EUR",
+    "shipping_minor": 690,
+    "duty_estimate_minor": 0,
+    "duty_is_estimate": true,
+    "min_days": 2,
+    "max_days": 5
+  },
+  "order_request": {
+    "id": "9617649197ad438fb392744e2380b0cb",
+    "status": "PENDING_MERCHANT",
+    "currency": "EUR",
+    "subtotal_minor": 6500,
+    "shipping_minor": 690,
+    "duty_estimate_minor": 0,
+    "duty_is_estimate": true,
+    "total_minor": 7190,
+    "country": "DE",
+    "locale": "en",
+    "buyer_tz": "Europe/Berlin",
+    "items": [
+      {
+        "product_id": "4a94d662-6c7f-46f5-91c9-d3e019e9e326",
+        "name": "Gruyère AOP",
+        "unit": "kg",
+        "qty": 2,
+        "unit_minor": 3250,
+        "line_minor": 6500
+      }
+    ],
+    "history": [
+      {
+        "status": "PENDING_MERCHANT",
+        "at": "2026-11-05T06:02:25.446790+00:00",
+        "by": "buyer"
+      }
+    ],
+    "created_at": "2026-11-05T06:02:25.446790+00:00",
+    "updated_at": "2026-11-05T06:02:25.446790+00:00",
+    "store": "alpine"
+  }
+}

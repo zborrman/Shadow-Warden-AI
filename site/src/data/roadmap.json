@@ -1690,7 +1690,7 @@
     "version": "v5.2",
     "tier": "All",
     "status": "shipped",
-    "description": "Full seller-side architecture for AI agents to trade autonomously. Dynamic pricing, Redis reservations, AP2 payments, STIX audit, budget guardian integration."
+    "description": "Shop builder for one storefront that people and AI agents can buy from: per-currency prices, five languages, shipping zones, order requests, passkey-approved agent orders with mandate spend accounting and a STIX audit entry. No payments are taken on the platform."
   },
   {
     "id": "FE-50-0",

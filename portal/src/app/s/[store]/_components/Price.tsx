@@ -20,13 +20,13 @@ export function Price({ product, size = 'md' }: { product: FeedProduct; size?: '
       <p className={cn('font-mono font-bold text-slate-100', size === 'lg' ? 'text-2xl' : 'text-base')}>
         {money(price.amountMinor, price.currency)}
         {product.unit && (
-          <span className="ml-1 font-sans text-xs font-normal text-slate-500">
+          <span className="ml-1 font-sans text-xs font-normal text-slate-400">
             {fmt(t.perUnit, { unit: product.unit })}
           </span>
         )}
       </p>
       {other && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           {t.approx} {money(other.amountMinor, price.currency)} {fmt(t.perUnit, { unit: other.unit })}
         </p>
       )}
