@@ -114,3 +114,6 @@ badf4f5564d206223ef8fe079cf7d88146cef0fe:warden/tests/test_webhook_dispatch.py:g
 # --------------------------------------------------------------------------
 # the module-level HMAC key read with a literal dev fallback
 b0bc3847be61b3fd0f859ee894476a32afd931a8:warden/payments/l402.py:generic-api-key:42
+# a placeholder JWT signing key in the storefront fixture recorder (M6, #674);
+# replaced by secrets.token_urlsafe() in the next commit, never a real key
+7201d509bac1c7a5971a77c67802a38a679f5bfb:scripts/storefront_fixture.py:generic-api-key:37

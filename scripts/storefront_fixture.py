@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import secrets
 import sys
 import tempfile
 from pathlib import Path
@@ -34,7 +35,8 @@ def _env() -> None:
         "ANTHROPIC_API_KEY": "",
         "ALLOW_UNAUTHENTICATED": "true",
         "WARDEN_API_KEY": "",
-        "PORTAL_JWT_SECRET": "fixture-secret-fixture-secret-0123456789",
+        # Random per run: the recording needs a signing key, never a committed one.
+        "PORTAL_JWT_SECRET": secrets.token_urlsafe(32),
     })
     # A throwaway key: the recorded request's contact details are sealed with it
     # and never leave this process.
