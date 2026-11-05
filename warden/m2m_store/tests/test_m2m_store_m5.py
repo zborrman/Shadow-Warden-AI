@@ -385,7 +385,9 @@ def test_the_seller_webhook_carries_no_personal_data(client, monkeypatch):
     assert sent and sent[0]["tenant_id"] == "seller"
     assert sent[0]["event_type"] == "m2m_store.order_request.created"
     blob = json.dumps(sent[0]["data"])
-    assert "ada" not in blob.lower() and "Lyon" not in blob and "buyer_token" not in blob
+    # Whole values, not fragments: ids are random hex, and "ada" is three hex digits.
+    for value in (*CONTACT.values(), "buyer_token"):
+        assert value not in blob, value
 
 
 # ── Portal mirror ──────────────────────────────────────────────────────────────
