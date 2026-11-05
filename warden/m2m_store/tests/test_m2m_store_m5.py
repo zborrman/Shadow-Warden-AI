@@ -386,3 +386,27 @@ def test_the_seller_webhook_carries_no_personal_data(client, monkeypatch):
     assert sent[0]["event_type"] == "m2m_store.order_request.created"
     blob = json.dumps(sent[0]["data"])
     assert "ada" not in blob.lower() and "Lyon" not in blob and "buyer_token" not in blob
+
+
+# ── Portal mirror ──────────────────────────────────────────────────────────────
+
+def test_portal_seller_moves_mirror_the_state_machine():
+    """The portal offers only the buttons the gateway accepts (M5b).
+
+    `SELLER_MOVES` in portal/src/lib/storeApi.ts is a hand copy; a move the
+    gateway refuses would show the seller a button that always fails.
+    """
+    import pathlib
+    import re
+
+    from warden.m2m_store import order_requests as orq
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    src = (root / "portal" / "src" / "lib" / "storeApi.ts").read_text(encoding="utf-8")
+    block = re.search(r"SELLER_MOVES[^=]*=\s*\{(.*?)\n\}", src, re.S)
+    assert block, "SELLER_MOVES not found in storeApi.ts"
+    portal = {
+        k: tuple(re.findall(r"'([A-Z_]+)'", v))
+        for k, v in re.findall(r"(\w+):\s*\[([^\]]*)\]", block.group(1))
+    }
+    assert portal == {k: tuple(v) for k, v in orq.SELLER_MOVES.items()}

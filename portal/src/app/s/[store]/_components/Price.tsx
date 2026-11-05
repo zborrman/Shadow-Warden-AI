@@ -1,11 +1,12 @@
 'use client'
 import { fmt } from '@/lib/storefront/i18n'
+import { PUBLIC_API } from '@/lib/storefront/orders'
 import type { FeedProduct } from '@/lib/storefront/types'
 import { convertUnitPrice } from '@/lib/storefront/units'
 import { cn } from '@/lib/utils'
 import { useStorefront } from './StorefrontProvider'
 
-export const PUBLIC_API = process.env.NEXT_PUBLIC_API_URL || 'https://api.shadow-warden-ai.com'
+export { PUBLIC_API }
 export const imageSrc = (url: string) => `${PUBLIC_API}${url}`
 
 /** The seller's price per unit, plus the other unit system marked approximate. */

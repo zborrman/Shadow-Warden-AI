@@ -9,6 +9,7 @@
  */
 import { api, API_URL } from './api'
 import type { Price } from './money'
+import type { OrderRequestStatus, OrderRequestView } from './storefront/types'
 
 const BASE = `${API_URL}/m2m-store`
 
@@ -84,6 +85,25 @@ export {
   MAX_IMAGE_BYTES, toMinor, fromMinor, formatMoney,
 } from './money'
 
+export type { OrderRequestStatus } from './storefront/types'
+
+/** The seller's view of an order request: the buyer's view plus their contact details. */
+export interface SellerOrderRequest extends OrderRequestView {
+  store_id: string
+  note: string
+  contact: {
+    name: string; email: string; phone: string; address_line1: string; address_line2: string
+    city: string; postal_code: string; region: string
+  }
+}
+
+/** Moves the seller may make from each status; mirrors SELLER_MOVES in order_requests.py. */
+export const SELLER_MOVES: Partial<Record<OrderRequestStatus, OrderRequestStatus[]>> = {
+  PENDING_MERCHANT: ['ACCEPTED', 'REJECTED'],
+  ACCEPTED: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['COMPLETED'],
+}
+
 // ── Errors ────────────────────────────────────────────────────────────────────
 
 /** The gateway's own message (FastAPI `detail`), readable for a toast. */
@@ -143,4 +163,9 @@ export const storeApi = {
   createZone: (storeId: string, body: Omit<ShippingZone, 'id' | 'store_id'>) =>
     send<ShippingZone>('post', `/stores/${storeId}/shipping-zones`, body),
   deleteZone: (id: string) => del(`/shipping-zones/${id}`),
+
+  orderRequests: (storeId: string, status = '') =>
+    get<SellerOrderRequest[]>(`/stores/${storeId}/order-requests${status ? `?status=${status}` : ''}`),
+  answerOrderRequest: (id: string, body: { status: OrderRequestStatus; note: string }) =>
+    send<SellerOrderRequest>('patch', `/order-requests/${id}`, body),
 }
