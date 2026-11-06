@@ -412,3 +412,143 @@ def test_portal_seller_moves_mirror_the_state_machine():
         for k, v in re.findall(r"(\w+):\s*\[([^\]]*)\]", block.group(1))
     }
     assert portal == {k: tuple(v) for k, v in orq.SELLER_MOVES.items()}
+
+
+# ── Seller's payment link (M6.5) ──────────────────────────────────────────────
+
+STRIPE = "https://buy.stripe.com/test_abc123"
+
+
+def _accepted(client):
+    _, pids, h = _shop(client)
+    placed = _request(client, pids).json()
+    rid = placed["id"]
+    assert client.patch(f"{API}/order-requests/{rid}", headers=h,
+                        json={"status": "ACCEPTED"}).status_code == 200
+    return rid, {"X-Order-Token": placed["buyer_token"]}, h
+
+
+def _buyer_sees(client, rid, buyer):
+    return client.get(f"{API}/storefront/acme/order-requests/{rid}", headers=buyer).json()
+
+
+def _set_link(client, rid, h, url):
+    return client.put(f"{API}/order-requests/{rid}/payment-link", headers=h, json={"url": url})
+
+
+def _status(client, rid, h, status):
+    return client.patch(f"{API}/order-requests/{rid}", headers=h, json={"status": status})
+
+
+def test_the_buyer_gets_the_link_only_while_payment_is_awaited(client):
+    rid, buyer, h = _accepted(client)
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+    r = _set_link(client, rid, h, STRIPE)
+    assert r.status_code == 200, r.text
+    assert r.json()["payment_url"] == STRIPE
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == STRIPE
+
+    assert _status(client, rid, h, "PAID").status_code == 200
+    seen = _buyer_sees(client, rid, buyer)
+    assert seen["status"] == "PAID" and seen["payment_url"] == ""
+
+
+def test_a_cancelled_request_stops_offering_the_link(client):
+    rid, buyer, h = _accepted(client)
+    _set_link(client, rid, h, STRIPE)
+    assert _status(client, rid, h, "CANCELLED").status_code == 200
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+
+@pytest.mark.parametrize("url", [
+    "http://buy.stripe.com/x",                 # not https
+    "https://evil.test/x",                     # not a provider
+    "https://buy.stripe.com.evil.test/x",      # provider as a prefix
+    "https://evil.buy.stripe.com/x",           # subdomain of a provider
+    "https://buy.stripe.com@evil.test/x",      # provider as userinfo
+    "https://evil.test@buy.stripe.com/x",      # userinfo on a provider
+    "https://evil.test\\@buy.stripe.com/x",    # the browser opens evil.test
+    "https://buy.stripe.com:8443/x",           # another port
+    "https://buy.stripe.com/x\ty",             # urlsplit would drop the tab
+    "https://buy.stripe.com/x y",              # whitespace
+    "https://buy.stripe.com",                  # no payment page
+    "https://buy.stripe.com/",                 # no payment page
+    "javascript:alert(1)",
+    "//buy.stripe.com/x",
+    "https://bуy.stripe.com/x",           # Cyrillic homoglyph
+])
+def test_a_link_that_is_not_a_providers_https_page_is_refused(client, url):
+    rid, buyer, h = _accepted(client)
+    r = _set_link(client, rid, h, url)
+    assert r.status_code == 422, f"{url}: {r.status_code}"
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+
+def test_replacing_the_link_keeps_a_trace_the_buyer_does_not_see(client):
+    import json
+
+    from warden.m2m_store.inventory import _conn
+
+    rid, buyer, h = _accepted(client)
+    _set_link(client, rid, h, STRIPE)
+    new = "https://www.paypal.me/seller/10"
+    _set_link(client, rid, h, new)
+
+    seen = _buyer_sees(client, rid, buyer)
+    assert seen["payment_url"] == new
+    assert STRIPE not in json.dumps(seen), "the replaced link must not reach the buyer"
+    assert all("event" not in e for e in seen["history"])
+
+    with _conn() as con:
+        raw = con.execute("SELECT history_json FROM m2m_order_requests WHERE id=?",
+                          (rid,)).fetchone()[0]
+    assert [e["url"] for e in json.loads(raw) if e.get("event") == "payment_link"] == [STRIPE, new]
+
+
+def test_clearing_the_link_stops_offering_it(client):
+    rid, buyer, h = _accepted(client)
+    _set_link(client, rid, h, STRIPE)
+    assert _set_link(client, rid, h, "").status_code == 200
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+
+def test_only_an_accepted_request_takes_a_link(client):
+    _, pids, h = _shop(client)
+    rid = _request(client, pids).json()["id"]
+    assert _set_link(client, rid, h, STRIPE).status_code == 422
+
+
+def test_another_seller_cannot_set_the_link(client):
+    rid, buyer, _ = _accepted(client)
+    assert _set_link(client, rid, _token("mallory"), STRIPE).status_code == 404
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+
+def test_the_link_route_needs_an_owner(client):
+    # Tests run with ALLOW_UNAUTHENTICATED, where no credentials means another tenant.
+    rid, buyer, _ = _accepted(client)
+    r = client.put(f"{API}/order-requests/{rid}/payment-link", json={"url": STRIPE})
+    assert r.status_code in (401, 403, 404)
+    assert _buyer_sees(client, rid, buyer)["payment_url"] == ""
+
+
+def test_cancelling_a_paid_request_returns_its_stock(client):
+    import json
+
+    from warden.m2m_store.inventory import _conn, get_inventory
+
+    rid, _, h = _accepted(client)
+    assert _status(client, rid, h, "PAID").status_code == 200
+    with _conn() as con:
+        line = json.loads(con.execute("SELECT items_json FROM m2m_order_requests WHERE id=?",
+                                      (rid,)).fetchone()[0])[0]
+    before = get_inventory().get_product(line["product_id"]).available
+    assert _status(client, rid, h, "CANCELLED").status_code == 200
+    assert get_inventory().get_product(line["product_id"]).available == before + line["qty"]
+
+
+def test_an_unpaid_request_can_still_ship(client):
+    """Invoice and cash on delivery: PAID is not a gate on shipping."""
+    rid, _, h = _accepted(client)
+    assert _status(client, rid, h, "SHIPPED").status_code == 200

@@ -1,9 +1,14 @@
 """
 warden/m2m_store/order_requests.py
 ───────────────────────────────────
-Plan stage M5: a human buyer's order request. No money moves (live payments
-are M7, blocked); the buyer asks, the seller accepts or rejects, and the
+Plan stage M5: a human buyer's order request. The platform moves no money (live
+payments are M7, blocked); the buyer asks, the seller accepts or rejects, and the
 request carries an immutable snapshot of what was asked for at what price.
+
+Stage M6.5: an accepted request can carry the seller's own payment link. The
+buyer pays the seller directly and the seller marks the request PAID, so PAID
+means "the seller says so" and is never evidence that money moved. The platform
+fetches nothing from the link; it only decides whether to show it to the buyer.
 
 * Prices, shipping and duty are recomputed here from the seller's own data.
   Nothing the browser sends is trusted except product ids and quantities.
@@ -24,6 +29,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -65,16 +71,19 @@ register("m2m_store", "order_requests", _DDL)
 
 PENDING = "PENDING_MERCHANT"
 ACCEPTED = "ACCEPTED"
+PAID = "PAID"
 REJECTED = "REJECTED"
 SHIPPED = "SHIPPED"
 COMPLETED = "COMPLETED"
 CANCELLED = "CANCELLED"
-STATUSES = (PENDING, ACCEPTED, REJECTED, SHIPPED, COMPLETED, CANCELLED)
+STATUSES = (PENDING, ACCEPTED, PAID, REJECTED, SHIPPED, COMPLETED, CANCELLED)
 
 # Who may move a request from which status to which.
 SELLER_MOVES: dict[str, tuple[str, ...]] = {
     PENDING: (ACCEPTED, REJECTED),
-    ACCEPTED: (SHIPPED, CANCELLED),
+    # SHIPPED stays reachable from ACCEPTED: invoice and cash on delivery ship unpaid.
+    ACCEPTED: (PAID, SHIPPED, CANCELLED),
+    PAID: (SHIPPED, CANCELLED),
     SHIPPED: (COMPLETED,),
 }
 BUYER_MOVES: dict[str, tuple[str, ...]] = {PENDING: (CANCELLED,)}
@@ -83,6 +92,16 @@ BUYER_MOVES: dict[str, tuple[str, ...]] = {PENDING: (CANCELLED,)}
 # is anonymous, and a flood must not bury the seller's real ones.
 MAX_PENDING_PER_STORE = 200
 MAX_ITEMS = 50
+
+# Hosts a payment link may point at. A seller-supplied link shown on a page we
+# serve is a phishing vector, so this is an allowlist of payment providers and
+# the comparison is exact: never a suffix match, which subdomains would defeat.
+PAYMENT_LINK_HOSTS = frozenset({
+    "buy.stripe.com", "invoice.stripe.com",
+    "paypal.me", "www.paypal.me", "www.paypal.com",
+    "revolut.me", "wise.com", "square.link",
+})
+_PAYMENT_LINK_EVENT = "payment_link"
 
 
 class OrderRequestUnavailableError(RuntimeError):
@@ -132,6 +151,10 @@ class OrderRequestIn(BaseModel):
 class StatusChangeIn(BaseModel):
     status: str = Field(..., max_length=20)
     note: str = Field(default="", max_length=500)
+
+
+class PaymentLinkIn(BaseModel):
+    url: str = Field(default="", max_length=500)
 
 
 # ── Personal data ─────────────────────────────────────────────────────────────
@@ -235,23 +258,93 @@ def create_request(slug: str, body: OrderRequestIn) -> tuple[dict[str, Any], str
     return _buyer_view(row, store["slug"]), token, row["seller_tenant_id"]
 
 
+# ── Payment link ──────────────────────────────────────────────────────────────
+
+def clean_payment_url(raw: str) -> str:
+    """The link as given, or "" to clear it. Anything else about it is refused.
+
+    A browser and ``urlsplit`` disagree on some spellings: a backslash ends the
+    authority for the browser only, so ``https://evil.test\\@buy.stripe.com/x``
+    parses here as Stripe and opens evil.test there. ``urlsplit`` also removes
+    tabs and newlines before parsing, which hides the same kind of trick. Both
+    are refused first. Requiring the authority to be exactly the host rules out
+    userinfo and ports in one comparison.
+    """
+    url = raw.strip()
+    if not url:
+        return ""
+    refused = sf.StoreInvalidError("the payment link must be an https link to a supported provider")
+    if (not url.isascii() or "\\" in url
+            or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in url)):
+        raise refused
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+    except ValueError as exc:
+        raise refused from exc
+    if (parts.scheme != "https" or host not in PAYMENT_LINK_HOSTS
+            or parts.netloc.lower() != host or parts.path in ("", "/")):
+        raise refused
+    return url
+
+
+def _current_payment_url(history: list[dict[str, Any]]) -> str:
+    links = [h for h in history if h.get("event") == _PAYMENT_LINK_EVENT]
+    return str(links[-1].get("url", "")) if links else ""
+
+
+def set_payment_link(request_id: str, tenant_id: str, raw_url: str) -> dict[str, Any]:
+    """Each change is appended to the history, so an edited link leaves a trace."""
+    url = clean_payment_url(raw_url)
+    with _db_lock, _conn() as con:
+        r = con.execute(
+            "SELECT * FROM m2m_order_requests WHERE id=? AND seller_tenant_id=?",
+            (request_id, tenant_id),
+        ).fetchone()
+        if r is None:
+            raise sf.StoreNotFoundError("order request")
+        if r["status"] != ACCEPTED:
+            raise sf.StoreInvalidError("only an accepted request can carry a payment link")
+        now = _now()
+        history = json.loads(r["history_json"])
+        history.append({"event": _PAYMENT_LINK_EVENT, "url": url, "at": now, "by": "seller"})
+        # updated_at guards the history: two saves must not lose each other's entry.
+        cur = con.execute(
+            "UPDATE m2m_order_requests SET history_json=?, updated_at=?"
+            " WHERE id=? AND status=? AND updated_at=?",
+            (json.dumps(history), now, request_id, ACCEPTED, r["updated_at"]),
+        )
+        if cur.rowcount != 1:
+            raise sf.StoreConflictError("the request changed meanwhile; reload it")
+        row = con.execute("SELECT * FROM m2m_order_requests WHERE id=?", (request_id,)).fetchone()
+    return _seller_view(row)
+
+
 # ── Views ─────────────────────────────────────────────────────────────────────
 
 def _base_view(r: Any) -> dict[str, Any]:
+    history = json.loads(r["history_json"])
     return {
         "id": r["id"], "status": r["status"], "currency": r["currency"],
         "subtotal_minor": r["subtotal_minor"], "shipping_minor": r["shipping_minor"],
         "duty_estimate_minor": r["duty_estimate_minor"], "duty_is_estimate": True,
         "total_minor": r["total_minor"], "country": r["country"], "locale": r["locale"],
         "buyer_tz": r["buyer_tz"], "items": json.loads(r["items_json"]),
-        "history": json.loads(r["history_json"]),
+        # Link changes are the seller's audit trail, not status events.
+        "history": [h for h in history if "event" not in h],
+        "payment_url": _current_payment_url(history),
         "created_at": r["created_at"], "updated_at": r["updated_at"],
     }
 
 
 def _buyer_view(r: Any, slug: str) -> dict[str, Any]:
     # No contact details: whoever holds the link sees the order, not the address.
-    return _base_view(r) | {"store": slug}
+    view = _base_view(r) | {"store": slug}
+    # Only an accepted request is waiting for money: a declined, cancelled or
+    # already paid one must not offer a way to pay.
+    if r["status"] != ACCEPTED:
+        view["payment_url"] = ""
+    return view
 
 
 def _seller_view(r: Any) -> dict[str, Any]:
@@ -348,7 +441,7 @@ def seller_move(request_id: str, tenant_id: str, body: StatusChangeIn) -> dict[s
             raise
     else:
         r = _move(r, new, "seller", body.note)
-        if new == CANCELLED:  # only reachable from ACCEPTED, which took the stock
+        if new == CANCELLED:  # only reachable after ACCEPTED, which took the stock
             _return_stock(items)
     return _seller_view(r)
 

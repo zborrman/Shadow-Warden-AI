@@ -591,7 +591,8 @@ async def storefront_image(request: Request, slug: str, image_id: str):
 
 
 # ── Order requests (M5) ───────────────────────────────────────────────────────
-# A human buyer asks; the seller answers. No money moves until M7. The create
+# A human buyer asks; the seller answers. The platform moves no money: since M6.5
+# the seller may attach their own payment link, and the buyer pays them. The create
 # route is anonymous like the rest of the storefront, so it is held to a tight
 # per-IP limit and the module caps unanswered requests per store.
 
@@ -639,4 +640,11 @@ async def answer_order_request(request_id: str, body: orq.StatusChangeIn,
                                auth: AuthResult = OwnerDep):
     with _store_errors():
         return orq.seller_move(request_id, auth.tenant_id, body)
+
+
+@router.put("/order-requests/{request_id}/payment-link", response_model=dict)
+async def set_order_payment_link(request_id: str, body: orq.PaymentLinkIn,
+                                 auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return orq.set_payment_link(request_id, auth.tenant_id, body.url)
 
