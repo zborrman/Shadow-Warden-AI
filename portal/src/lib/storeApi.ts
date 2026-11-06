@@ -100,7 +100,8 @@ export interface SellerOrderRequest extends OrderRequestView {
 /** Moves the seller may make from each status; mirrors SELLER_MOVES in order_requests.py. */
 export const SELLER_MOVES: Partial<Record<OrderRequestStatus, OrderRequestStatus[]>> = {
   PENDING_MERCHANT: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['SHIPPED', 'CANCELLED'],
+  ACCEPTED: ['PAID', 'SHIPPED', 'CANCELLED'],
+  PAID: ['SHIPPED', 'CANCELLED'],
   SHIPPED: ['COMPLETED'],
 }
 
@@ -168,4 +169,6 @@ export const storeApi = {
     get<SellerOrderRequest[]>(`/stores/${storeId}/order-requests${status ? `?status=${status}` : ''}`),
   answerOrderRequest: (id: string, body: { status: OrderRequestStatus; note: string }) =>
     send<SellerOrderRequest>('patch', `/order-requests/${id}`, body),
+  setPaymentLink: (id: string, url: string) =>
+    send<SellerOrderRequest>('put', `/order-requests/${id}/payment-link`, { url }),
 }

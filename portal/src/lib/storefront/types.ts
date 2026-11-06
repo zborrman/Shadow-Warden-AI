@@ -65,7 +65,7 @@ export interface ShippingQuote {
 }
 
 export type OrderRequestStatus =
-  | 'PENDING_MERCHANT' | 'ACCEPTED' | 'REJECTED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED'
+  | 'PENDING_MERCHANT' | 'ACCEPTED' | 'PAID' | 'REJECTED' | 'SHIPPED' | 'COMPLETED' | 'CANCELLED'
 
 export interface OrderRequestLine {
   product_id: string
@@ -99,6 +99,8 @@ export interface OrderRequestView {
   buyer_tz: string
   items: OrderRequestLine[]
   history: OrderRequestEvent[]
+  /** The seller's own payment page. To the buyer it is "" unless the request is ACCEPTED. */
+  payment_url: string
   created_at: string
   updated_at: string
 }

@@ -87,6 +87,21 @@ async function run(viewport, label) {
   await axe(page, at('order request'))
   await noHorizontalScroll(page, at('order request'))
 
+  // The same page once the seller has accepted and attached their payment link.
+  const PAY_URL = 'https://buy.stripe.com/audit'
+  await page.route(/\/order-requests\/[^/]+$/, async route => {
+    const res = await route.fetch()
+    await route.fulfill({ response: res, json: { ...(await res.json()), status: 'ACCEPTED', payment_url: PAY_URL } })
+  })
+  await page.reload()
+  const pay = page.getByRole('link', { name: /go to payment/i })
+  await pay.waitFor()
+  if ((await pay.getAttribute('href')) !== PAY_URL) fail(at('payment link'), 'wrong href')
+  if (!/noopener/.test((await pay.getAttribute('rel')) ?? '')) fail(at('payment link'), 'no rel=noopener')
+  await axe(page, at('order with payment link'))
+  await noHorizontalScroll(page, at('order with payment link'))
+  await page.unroute(/\/order-requests\/[^/]+$/)
+
   // German, to catch a translation that overflows or loses a label.
   await ctx.addCookies([{ name: 'sf_lang', value: 'de', url: `${BASE}/s/` }])
   await page.goto(`${BASE}/s/${SLUG}/`)

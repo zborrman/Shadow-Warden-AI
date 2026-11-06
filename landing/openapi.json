@@ -26831,6 +26831,65 @@
         }
       }
     },
+    "/m2m-store/order-requests/{request_id}/payment-link": {
+      "put": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Set Order Payment Link",
+        "operationId": "set_order_payment_link_m2m_store_order_requests__request_id__payment_link_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentLinkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Order Payment Link M2M Store Order Requests  Request Id  Payment Link Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tax/calculate": {
       "post": {
         "tags": [
@@ -43247,6 +43306,18 @@
         },
         "type": "object",
         "title": "PatchSubRequest"
+      },
+      "PaymentLinkIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Url",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "PaymentLinkIn"
       },
       "PayoutAddressRequest": {
         "properties": {

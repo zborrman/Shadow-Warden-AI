@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Check, Copy, Loader2, XCircle } from 'lucide-react'
+import { Check, Copy, ExternalLink, Loader2, XCircle } from 'lucide-react'
 import {
   cancelOrderRequest, formatAt, getOrderRequest, OrderRequestError, tokenFromHash, type OrderError,
 } from '@/lib/storefront/orders'
@@ -12,6 +12,7 @@ import { useStorefront } from './StorefrontProvider'
 const TONE: Record<OrderRequestStatus, string> = {
   PENDING_MERCHANT: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
   ACCEPTED: 'border-brand-400/30 bg-brand-500/10 text-brand-300',
+  PAID: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300',
   SHIPPED: 'border-cyan-400/30 bg-cyan-400/10 text-cyan-300',
   COMPLETED: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300',
   REJECTED: 'border-red-400/30 bg-red-400/10 text-red-300',
@@ -22,6 +23,16 @@ type State =
   | { kind: 'loading' }
   | { kind: 'error'; error: OrderError }
   | { kind: 'ok'; order: OrderRequestView }
+
+/** The host a payment link opens, or "" if the gateway ever sent something unusable. */
+function paymentHost(url: string): string {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' ? u.hostname : ''
+  } catch {
+    return ''
+  }
+}
 
 export function OrderView({ id }: { id: string }) {
   const { t, store, base, locale, money } = useStorefront()
@@ -96,6 +107,7 @@ export function OrderView({ id }: { id: string }) {
 
   const o = state.order
   const at = (iso: string) => formatAt(iso, locale, o.buyer_tz)
+  const payHost = paymentHost(o.payment_url)
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -117,6 +129,26 @@ export function OrderView({ id }: { id: string }) {
           </button>
         </div>
       )}
+
+      {o.status === 'ACCEPTED' && (payHost ? (
+        <section aria-labelledby="pay-h" className="space-y-3 rounded-xl border border-brand-400/30 bg-brand-500/[0.06] p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="pay-h" className="text-sm font-bold text-slate-100">{t.payTitle}</h2>
+            <span className="font-mono text-sm font-semibold text-slate-100">{money(o.total_minor, o.currency)}</span>
+          </div>
+          <p className="text-sm text-slate-300">
+            {t.payDirect} <span className="font-mono text-slate-100">{payHost}</span>
+          </p>
+          <a href={o.payment_url} target="_blank" rel="noopener noreferrer nofollow"
+             className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-sm font-bold
+                        text-dark-950 hover:brightness-110">
+            {t.payButton}
+            <ExternalLink className="h-4 w-4" aria-hidden />
+          </a>
+        </section>
+      ) : (
+        <p className="rounded-xl border border-white/10 bg-dark-800 p-3 text-sm text-slate-300">{t.payAwaiting}</p>
+      ))}
 
       <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
         <section aria-labelledby="items-h" className="rounded-xl border border-white/10 bg-dark-800">
