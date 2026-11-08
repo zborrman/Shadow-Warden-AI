@@ -141,7 +141,7 @@ export function OrderView({ id }: { id: string }) {
           </p>
           <a href={o.payment_url} target="_blank" rel="noopener noreferrer nofollow"
              className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-sm font-bold
-                        text-dark-950 hover:brightness-110">
+                        text-dark-950 transition-[filter,transform] hover:brightness-110 active:scale-[.97]">
             {t.payButton}
             <ExternalLink className="h-4 w-4" aria-hidden />
           </a>
