@@ -27,6 +27,30 @@ be installed on whatever machine is running the session.
 | `shadow-warden-design` | Writing any UI — the canonical dark/indigo token set and component patterns. Read before hand-rolling CSS. |
 | `ui-ux-pro-max` | Designing or reworking a page/component so it reads as professional rather than templated — styles, palettes, font pairings, UX rules, per-stack guidelines. Vendored from [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (v2.15.0, commit 4f2dbb67, MIT); `scripts/search.py` queries the local CSV database, no network. Pair with `shadow-warden-design` so the tokens stay ours. |
 
+### Web UI and motion (vendored)
+
+From [emilkowalski/skills](https://github.com/emilkowalski/skills) (commit `c8a79627`, MIT; see
+`LICENSE.emilkowalski-skills`). Markdown only, with no scripts. Anchor: `portal/src/`, `dashboard/src/`
+and `site/src/`. Keep `shadow-warden-design` as the source of tokens: these skills advise on craft,
+not on our palette. `write-swift`, `animate-expo`, `mobile-native` and `apple-design` were left out
+because this repo has no mobile or Apple app.
+
+| Skill | Use when |
+|-------|----------|
+| `emil-design-eng` | Polishing a component: the reasoning behind animation and interaction decisions. |
+| `review-animations` | Reviewing motion code against a high bar. Cite its `STANDARDS.md`. |
+| `improve-animations` | Auditing a whole surface's motion and planning the fixes. |
+| `find-animation-opportunities` | Looking for missing motion. Read-only, and rejects most candidates. |
+| `remove-animations` | Removing motion an interface does not need. |
+| `animate` | Building one animation from scratch. |
+| `choreograph` | Coordinating several elements that move together. |
+| `animation-performance` | Keeping motion inside the frame budget. |
+| `animation-vocabulary` | Turning a vague description of an effect into its exact term. |
+| `break-ui` | Feeding a component worst-case data: long names, missing fields, huge counts. |
+| `prototype` | Trying several versions of a UI piece behind a picker. |
+| `pick-ui-library` | Choosing a frontend library. A new dependency still needs the usual review. |
+| `ask-sonner` | Working with the Sonner toast library. The portal uses `react-hot-toast` today, so this has no anchor until that changes. |
+
 ## Core toolkit
 
 | Skill | Anchor | Use when |

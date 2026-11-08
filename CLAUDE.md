@@ -130,12 +130,14 @@ claude --print "$(cat workflows/autonomous-security-loop.md)"
 
 ## Skills (canonical: `.claude/skills/README.md`)
 
-Five project skills are tracked in `.claude/skills/` and travel with a checkout:
+Eighteen project skills are tracked in `.claude/skills/` and travel with a checkout:
 `run-warden` (verify a change against the live gateway), `site-health-check`
 (frontend audit of `site/`), `design-recon` + `shadow-warden-design` (design
 system), `ui-ux-pro-max` (vendored design-intelligence database — styles,
 palettes, font pairings, per-stack rules; queried via `scripts/search.py`,
-offline). Everything else is machine-scoped — plugins and built-ins that must be
+offline), and thirteen web UI and motion skills vendored from `emilkowalski/skills`
+(`review-animations`, `break-ui`, `emil-design-eng` and others; listed in the README).
+Everything else is machine-scoped — plugins and built-ins that must be
 installed per machine.
 
 Reach for these by area, before writing code:
