@@ -51,6 +51,8 @@ async function jsonLd(page, where, type) {
   }
 }
 
+const VIEWPORTS_DESKTOP = { width: 1280, height: 900 }
+
 async function run(viewport, label) {
   const browser = await chromium.launch()
   const ctx = await browser.newContext({ viewport, locale: 'en-US' })
@@ -112,6 +114,44 @@ async function run(viewport, label) {
   await browser.close()
 }
 
+// A visitor who asks for less motion gets it through the accessibility widget, and
+// everyone else keeps the animation.
+async function reducedMotion() {
+  const browser = await chromium.launch()
+  const probe = async reducedMotion => {
+    const ctx = await browser.newContext({ viewport: VIEWPORTS_DESKTOP, locale: 'en-US', reducedMotion })
+    const page = await ctx.newPage()
+    await page.goto(`${BASE}/s/${SLUG}/`)
+    await page.waitForLoadState('networkidle')
+    await page.locator('aside').first().waitFor()
+    // public/accessibility-widget.js applies the preference once it has loaded.
+    if (reducedMotion === 'reduce') {
+      await page.waitForFunction(() => /-reduce-motion\b/.test(document.body.className))
+    }
+    const out = await page.evaluate(() => {
+      const spinner = document.createElement('div')
+      spinner.className = 'animate-spin'
+      document.body.append(spinner)
+      const s = getComputedStyle(spinner)
+      return {
+        sidebar: parseFloat(getComputedStyle(document.querySelector('aside')).transitionDuration),
+        scroll: getComputedStyle(document.documentElement).scrollBehavior,
+        spinIterations: s.animationIterationCount,
+      }
+    })
+    await ctx.close()
+    return out
+  }
+  const reduced = await probe('reduce')
+  const normal = await probe('no-preference')
+  await browser.close()
+  console.log('  reduced motion:', JSON.stringify({ reduced, normal }))
+  if (reduced.sidebar > 0.001) fail('reduced motion', `sidebar still transitions for ${reduced.sidebar}s`)
+  if (reduced.scroll !== 'auto') fail('reduced motion', `scroll-behavior is ${reduced.scroll}`)
+  if (reduced.spinIterations !== 'infinite') fail('reduced motion', 'the loading spinner stopped')
+  if (normal.sidebar < 0.1) fail('reduced motion', 'the rule also removed motion for everyone else')
+}
+
 async function crawlFiles() {
   const sm = await fetch(`${BASE}/s/${SLUG}/sitemap.xml`)
   if (sm.status !== 200) return fail('sitemap', `status ${sm.status}`)
@@ -130,6 +170,7 @@ async function crawlFiles() {
 
 await run({ width: 1280, height: 900 }, 'desktop')
 await run({ width: 375, height: 800 }, 'phone')
+await reducedMotion()
 await crawlFiles()
 
 if (failures.length) {

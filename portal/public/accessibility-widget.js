@@ -285,6 +285,12 @@
       transition-duration:.001ms !important;
       scroll-behavior:auto !important;
     }
+    html:has(body.${NS}-reduce-motion){scroll-behavior:auto !important;}
+    /* A frozen spinner reads as a hung page: it is the only sign of loading. */
+    body.${NS}-reduce-motion .animate-spin{
+      animation-duration:1s !important;
+      animation-iteration-count:infinite !important;
+    }
 
     body.${NS}-enhanced-focus *:focus,
     body.${NS}-enhanced-focus *:focus-visible{
