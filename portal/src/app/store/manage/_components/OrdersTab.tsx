@@ -41,6 +41,20 @@ const ACTION: Partial<Record<OrderRequestStatus, string>> = {
   COMPLETED: 'Mark completed',
 }
 
+// Neither move can be undone, and the buyer sees the result at once.
+function confirmText(next: OrderRequestStatus, o: SellerOrderRequest): string | null {
+  const total = formatMoney(o.total_minor, o.currency)
+  if (next === 'PAID') {
+    return `Mark this order as paid? Do this only once ${total} has reached you. The buyer will see it as confirmed by you, and it cannot be undone.`
+  }
+  if (next === 'CANCELLED') {
+    return o.status === 'PAID'
+      ? `Cancel this paid order? The items go back into stock and the buyer is told. Refunding ${total} is up to you: this platform does not hold the payment. This cannot be undone.`
+      : 'Cancel this order? The items go back into stock and the buyer is told. This cannot be undone.'
+  }
+  return null
+}
+
 const FILTERS: { value: '' | OrderRequestStatus; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'PENDING_MERCHANT', label: 'Awaiting you' },
@@ -238,7 +252,10 @@ function OrderCard({ order: o, storeId, ownName }: {
                 <div className="flex flex-wrap gap-2">
                   {moves.map((m, n) => (
                     <Button key={m} size="sm" variant={n === 0 ? 'primary' : 'outline'} disabled={answer.isPending}
-                            onClick={() => answer.mutate(m)}>
+                            onClick={() => {
+                              const question = confirmText(m, o)
+                              if (!question || window.confirm(question)) answer.mutate(m)
+                            }}>
                       {answer.isPending && answer.variables === m && <Loader2 className="animate-spin" />}
                       {ACTION[m] ?? LABEL[m]}
                     </Button>
