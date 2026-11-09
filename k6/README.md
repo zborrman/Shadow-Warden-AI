@@ -15,7 +15,7 @@
 
 | Script | Purpose | Duration |
 |--------|---------|---------|
-| `smoke_test.js` | CI pre-deploy gate — 1 VU | 30 s |
+| `smoke_test.js` | CI post-deploy check, no API key needed — 1 VU | 30 s |
 | `load_test.js`  | Full load + spike + soak scenarios | up to 45 min |
 
 ---
