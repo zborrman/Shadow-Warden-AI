@@ -7,8 +7,8 @@
 fastapi>=0.162.0
 starlette>=1.10.0
 uvicorn[standard]>=0.54.0
-pydantic>=2.14.2
-python-multipart>=0.0.9
+pydantic>=2.14.3
+python-multipart>=0.0.33
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 # slowapi wraps limits.io for FastAPI; uses Redis as the shared state store
@@ -72,7 +72,7 @@ cryptography>=50.0.2
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
-anthropic>=2.3.0
+anthropic>=2.6.0
 
 # ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
 # Install to enable Jaeger tracing across filter pipeline stages.
@@ -92,7 +92,7 @@ onnxscript>=0.7.2            # required by torch.onnx.export in PyTorch 2.x
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
 # asyncpg  — async driver for FastAPI / SQLAlchemy async engine
 # psycopg2 — sync driver for migration scripts and CLI tools
-sqlalchemy[asyncio]>=2.1.6
+sqlalchemy[asyncio]>=2.1.8
 asyncpg>=0.32.0
 alembic>=1.20.1
 psycopg2-binary>=2.9.13
@@ -106,7 +106,7 @@ playwright>=1.44.0
 # ── Analytics Dashboard ───────────────────────────────────────────────────────
 # Streamlit — `streamlit run warden/analytics/dashboard.py`
 # Plotly — Threat Radar (Scatterpolar) + Attack Timeline (area chart)
-streamlit>=1.66.1
+streamlit>=1.67.0
 plotly>=7.1.0
 
 # ── Dashboard authentication ──────────────────────────────────────────────────
@@ -153,13 +153,13 @@ PyJWT>=2.15.1
 # faiss-cpu>=1.8.0
 
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
-cachetools>=7.2.7
+cachetools>=7.3.0
 
 # ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
 # clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
 # Import is guarded: when missing or GSAM_CLICKHOUSE_ENABLED=false the collector
 # spools to NDJSON and the app runs normally (fail-open).
-clickhouse-connect>=1.11.0
+clickhouse-connect>=1.12.0
 
 # ── WebAuthn / FIDO2 passkey authentication ───────────────────────────────────
 # py-webauthn — server-side WebAuthn library for FIDO2 passkey registration and
