@@ -130,6 +130,15 @@ def test_a_bad_token_is_refused_not_downgraded_to_the_key(client, monkeypatch):
     assert r.status_code == 401
 
 
+@pytest.mark.parametrize("header", ["Bearer", "Basic dXNlcjpwYXNz", "Token abc"])
+def test_an_unparseable_session_is_refused_not_downgraded_to_the_key(client, monkeypatch, header):
+    # HTTPBearer(auto_error=False) yields None for these; falling through to the
+    # key would act as the key's (shared) tenant. CodeRabbit on #669.
+    _keyed(monkeypatch)
+    r = client.get(f"{API}/stores", headers={"Authorization": header, "X-API-Key": "k"})
+    assert r.status_code == 401
+
+
 def test_a_refresh_token_is_not_a_session(client, monkeypatch):
     from warden.portal_router import _issue_refresh_token
     _keyed(monkeypatch)

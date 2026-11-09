@@ -114,8 +114,10 @@ class TestTenantKeyFunc:
         req.client.host = "10.0.0.1"
         return req
 
-    def test_returns_api_key_when_present(self):
+    def test_returns_api_key_when_present(self, monkeypatch):
+        import warden.limiter as lim
         from warden.main import _tenant_key
+        monkeypatch.setattr(lim, "resolve_tenant_id", lambda k: "t")
         req = self._make_request({"x-api-key": "my-key-123"})
         assert _tenant_key(req) == "my-key-123"
 

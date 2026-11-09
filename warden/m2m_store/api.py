@@ -122,6 +122,12 @@ async def require_store_owner(
         if user.role not in _WRITER_ROLES:
             raise HTTPException(status_code=403, detail="Store changes need an owner or admin")
         return AuthResult(api_key="", tenant_id=user.tenant_id)
+    # HTTPBearer(auto_error=False) yields None for a header it cannot parse
+    # ("Bearer" with no token, another scheme). The caller still tried to send a
+    # session, so falling through to the key would act as the key's tenant — the
+    # portal server's shared one. A session that is present but unusable is 401.
+    if request.headers.get("Authorization", "").strip():
+        raise HTTPException(status_code=401, detail="Malformed Authorization header")
     return require_api_key(request.headers.get("X-API-Key"))
 
 
@@ -142,6 +148,19 @@ def _screen(*texts: str) -> None:
             validate_content_string(text or "", "text")
     except PromptInjectionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _strings_in(value: Any) -> Iterator[str]:
+    """Every string inside a JSON-shaped value, dict keys included."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            yield from _strings_in(k)
+            yield from _strings_in(v)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _strings_in(item)
 
 
 @contextmanager
@@ -210,7 +229,10 @@ async def add_product(product: Product, auth: AuthResult = OwnerDep):
     Catalog text is read by other tenants' buying agents, so it is screened
     for injection patterns before it is stored.
     """
-    _screen(product.name, product.description, product.category, product.unit)
+    # `metadata` is returned to other tenants' buying agents by /catalog just like
+    # the named fields, so an unscreened dict was a way around this screen.
+    _screen(product.name, product.description, product.category, product.unit,
+            *_strings_in(product.metadata))
     product.deleted_at = ""
     if product.id:
         existing = get_inventory().get_product(product.id)

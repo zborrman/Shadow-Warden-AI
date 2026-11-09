@@ -168,11 +168,25 @@ class TestLimiterKeying:
         b = tenant_key(_req("172.18.0.5", **{"cf-connecting-ip": "198.51.100.2"}))
         assert a != b
 
-    def test_api_key_still_wins_over_ip(self):
-        from warden.limiter import tenant_key
+    def test_api_key_still_wins_over_ip(self, monkeypatch):
+        import warden.limiter as lim
 
+        monkeypatch.setattr(lim, "resolve_tenant_id", lambda k: "t" if k == "k-123" else None)
         req = _req("172.18.0.5", **{"x-api-key": "k-123", "cf-connecting-ip": "198.51.100.1"})
-        assert tenant_key(req) == "k-123"
+        assert lim.tenant_key(req) == "k-123"
+
+    def test_unissued_key_header_does_not_buy_a_bucket(self, monkeypatch):
+        """Rotating a made-up X-API-Key must not escape the per-IP limit on
+        anonymous routes (CodeRabbit on #671)."""
+        import warden.limiter as lim
+
+        monkeypatch.setattr(lim, "resolve_tenant_id", lambda k: None)
+        buckets = {
+            lim.tenant_key(_req("172.18.0.5", **{"x-api-key": f"rand-{i}",
+                                                "cf-connecting-ip": "198.51.100.1"}))
+            for i in range(5)
+        }
+        assert buckets == {"198.51.100.1"}
 
 
 class TestMarketplaceBucketKey:
