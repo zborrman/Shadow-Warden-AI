@@ -143,6 +143,33 @@ _HEAD = "from fastapi import APIRouter, Depends, Header, Query\nrouter = APIRout
             raise ValueError
         return load(tenant_id)
     """,
+    # a comparison with no rejection behind it binds nothing (CodeRabbit on #588)
+    """
+    @router.get("/x/{tenant_id}")
+    async def x(tenant_id: str, auth: AuthResult = Depends(require_api_key)):
+        if auth.tenant_id != tenant_id:
+            pass
+        return load(tenant_id)
+    """,
+    # the comparison only logs; nothing stops the read
+    """
+    @router.get("/x/{tenant_id}")
+    async def x(tenant_id: str, auth: AuthResult = Depends(require_api_key)):
+        mismatch = auth.tenant_id != tenant_id
+        log.info("mismatch=%s", mismatch)
+        return load(tenant_id)
+    """,
+    # a helper that raises only sometimes is not a rejection
+    """
+    def _maybe(flag):
+        if flag:
+            raise HTTPException(403)
+    @router.get("/x/{tenant_id}")
+    async def x(tenant_id: str, auth: AuthResult = Depends(require_api_key)):
+        if auth.tenant_id != tenant_id:
+            _maybe(False)
+        return load(tenant_id)
+    """,
 ])
 def test_scanner_catches_a_claimed_tenant(body: str) -> None:
     assert scan_source(_HEAD + textwrap.dedent(body), "x.py"), "not caught"
@@ -188,9 +215,51 @@ def test_scanner_catches_a_claimed_tenant(body: str) -> None:
     def helper(tenant_id: str = "default"):
         return tenant_id
     """,
+    # rejection through a module helper that always raises (communities_v2._403)
+    """
+    def _403(msg="no"):
+        raise HTTPException(403, msg)
+    @router.get("/member/{tenant_id}")
+    async def mine(tenant_id: str, auth: AuthResult = Depends(require_api_key)):
+        if tenant_id != auth.tenant_id:
+            _403("own only")
+        return load(auth.tenant_id)
+    """,
 ])
 def test_scanner_spares_a_bound_tenant(body: str) -> None:
     assert not scan_source(_HEAD + textwrap.dedent(body), "x.py")
+
+
+def test_every_route_decorator_is_judged_on_its_own() -> None:
+    """An admin dependency on the first registration must not cover a second,
+    unprotected one on the same handler (CodeRabbit on #588)."""
+    src = _HEAD + textwrap.dedent("""
+    @router.get("/admin/{tenant_id}", dependencies=[Depends(require_admin)])
+    @router.get("/public/{tenant_id}")
+    async def both(tenant_id: str):
+        return load(tenant_id)
+    """)
+    findings = scan_source(src, "x.py")
+    assert [f.route for f in findings] == ["GET /public/{tenant_id}"]
+
+
+def test_a_new_url_on_a_baselined_handler_is_a_new_finding() -> None:
+    """The key names the route, so adding a URL to a handler already in the
+    baseline cannot ride on the existing entry (CodeRabbit on #588)."""
+    one = _HEAD + textwrap.dedent("""
+    @router.get("/a/{tenant_id}")
+    async def h(tenant_id: str):
+        return load(tenant_id)
+    """)
+    two = _HEAD + textwrap.dedent("""
+    @router.get("/a/{tenant_id}")
+    @router.post("/b/{tenant_id}")
+    async def h(tenant_id: str):
+        return load(tenant_id)
+    """)
+    baseline = {f.key for f in scan_source(one, "x.py")}
+    new = [f for f in scan_source(two, "x.py") if f.key not in baseline]
+    assert [f.route for f in new] == ["POST /b/{tenant_id}"]
 
 
 def test_router_level_admin_dependency_binds_every_route() -> None:
