@@ -240,11 +240,15 @@ def test_pipeline_health_deep_runs_canary(client: TestClient, monkeypatch) -> No
     async def _fake_canary() -> dict:
         return {"available": True, "healthy": False}
 
+    from warden.observability import reset_canary_cache
+
+    reset_canary_cache()
     with patch("warden.observability.run_pipeline_canary", _fake_canary), \
          patch("warden.api.system.event_logger.journal_stats", return_value={"bounded": True}):
         resp = client.get("/health/pipeline", params={"deep": "true"})
+    reset_canary_cache()
     body = resp.json()
-    assert body["canary"] == {"available": True, "healthy": False}
+    assert body["canary"] == {"available": True, "healthy": False, "age_s": 0.0}
     assert "canary" in body["degraded_stages"]
     assert body["status"] == "degraded"
 

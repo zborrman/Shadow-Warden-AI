@@ -176,6 +176,8 @@ async def health_pipeline(deep: bool = False) -> dict:
     With ``?deep=true`` it additionally fires the live canary corpus through the
     real pipeline (sub-second) and folds a missed jailbreak / false-positive into
     the ``degraded`` verdict — a load-balancer probe should use the cheap default.
+    The canary verdict is shared per worker for up to 60 s; ``canary.age_s``
+    says how old it is.
     """
     stages: dict[str, dict] = {}
 
@@ -229,8 +231,11 @@ async def health_pipeline(deep: bool = False) -> dict:
     canary: dict | None = None
     if deep:
         try:
-            from warden.observability import run_pipeline_canary  # noqa: PLC0415
-            canary = await run_pipeline_canary()
+            # Shared, single-flight verdict: this route is anonymous and
+            # unlimited, so an uncached corpus run per call is free CPU for
+            # anyone who asks. See observability.cached_pipeline_canary.
+            from warden.observability import cached_pipeline_canary  # noqa: PLC0415
+            canary = await cached_pipeline_canary()
             if canary.get("available") and not canary["healthy"]:
                 degraded.append("canary")
         except Exception as _cn_err:  # noqa: BLE001
