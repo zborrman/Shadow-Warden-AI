@@ -10,7 +10,7 @@ const releases = [
         icon: '🔐',
         title: 'Tenant Isolation, Enforced',
         tier: 'All Plans',
-        desc: 'A route may no longer take the tenant it acts on from the request. The guard is now blocking, and the first fixes closed a key-rotation takeover, cross-tenant spend caps, and billing reads that answered without a key.',
+        desc: 'A route may no longer take the tenant it acts on from the request. The guard now blocks any new route that does; 153 existing routes are baselined and being fixed one by one. The first fixes closed a key-rotation takeover, cross-tenant spend caps, and billing reads that answered without a key.',
         tags: ['Security', 'Multi-Tenant', 'Auth'],
       },
       {

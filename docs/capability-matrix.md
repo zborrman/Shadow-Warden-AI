@@ -271,4 +271,13 @@ no chargebacks
 escrow-backed
 # Regulatory posture overstated as a product feature.
 HIPAA compliance built in
+# The community tunnel is SIMULATED: plaintext JSON in localStorage, no key exchange.
+Encrypted Tunnel —
+E2EE messaging
+encrypted with community keypair
+End-to-end encryption using the community
+# The LIVE row is "content is never logged". Anonymized derivatives of blocked
+# requests are stored for evolution (brain/dataset.py), so "stored" overclaims.
+content never stored
+Built for GDPR: content is never stored
 ```
