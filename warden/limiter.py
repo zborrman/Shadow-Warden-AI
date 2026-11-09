@@ -17,7 +17,7 @@ import os
 from fastapi import Request
 from slowapi import Limiter
 
-from warden.auth_guard import get_rate_limit
+from warden.auth_guard import get_rate_limit, resolve_tenant_id
 from warden.client_ip import get_client_ip
 
 # Default fallback limit (used by get_rate_limit for unrecognised / IP keys).
@@ -34,8 +34,17 @@ def tenant_key(request: Request) -> str:
     that is one constant value for the whole internet, so every anonymous caller
     would share a single bucket. ``get_client_ip`` unwraps the forwarded headers
     when (and only when) the peer is a trusted proxy.
+
+    The header is only a bucket when it is a key we issued. Anonymous routes
+    (the storefront, catalog, image and order-request routes) share this
+    limiter, and an unvalidated header is a value the caller picks: a fresh
+    ``X-API-Key: <random>`` per request bought a fresh bucket every time, so
+    the per-IP limit on anonymous order creation limited nothing.
     """
-    return request.headers.get("x-api-key") or get_client_ip(request) or "anonymous"
+    api_key = request.headers.get("x-api-key")
+    if api_key and resolve_tenant_id(api_key) is not None:
+        return api_key
+    return get_client_ip(request) or "anonymous"
 
 
 def tenant_limit(key: str) -> str:
