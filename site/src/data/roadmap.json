@@ -784,7 +784,7 @@
     "category": "Cyber Security",
     "subcategory": "Compliance & Privacy",
     "feature": "GDPR Export & Purge APIs",
-    "description": "Art. 17 right-to-erasure. Export/purge endpoints. Metadata-only logging — content never stored.",
+    "description": "Art. 17 right-to-erasure. Export/purge endpoints. Metadata-only logging — content never logged.",
     "version": "v3.0",
     "tier": "All",
     "status": "shipped"
@@ -1257,7 +1257,7 @@
     "category": "Settings",
     "subcategory": "GDPR",
     "feature": "GDPR Export API",
-    "description": "Export all tenant data on request. Metadata-only logging enforced — raw content never stored.",
+    "description": "Export all tenant data on request. Metadata-only logging enforced — raw content never logged.",
     "version": "v3.0",
     "tier": "All",
     "status": "shipped"
