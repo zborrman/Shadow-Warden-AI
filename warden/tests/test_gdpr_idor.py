@@ -37,6 +37,24 @@ class TestTenantOwnerOrAdmin:
             require_tenant_owner_or_admin("victim", auth=_auth("attacker"), x_admin_key="")
         assert exc.value.status_code == 403
 
+    def test_denial_log_carries_no_identifier(self, monkeypatch, caplog):
+        """The claimed id is caller-typed (an email on /onboard/{email}); neither it
+        nor the caller's raw tenant may reach the log. CodeRabbit on #590."""
+        import hashlib
+        import logging
+
+        monkeypatch.delenv("ADMIN_KEY", raising=False)
+        with caplog.at_level(logging.WARNING, logger="warden.api.gdpr"), \
+                pytest.raises(HTTPException):
+            require_tenant_owner_or_admin(
+                "alice@example.com", auth=_auth("tenant-attacker"), x_admin_key="")
+        text = caplog.text
+        assert "IDOR blocked" in text
+        assert "alice@example.com" not in text
+        assert "tenant-attacker" not in text
+        # Still correlatable: the caller's fingerprint is logged.
+        assert hashlib.sha256(b"tenant-attacker").hexdigest()[:16] in text
+
     def test_cross_tenant_allowed_with_admin_key(self, monkeypatch):
         monkeypatch.setenv("ADMIN_KEY", "s3cret-admin")
         require_tenant_owner_or_admin("victim", auth=_auth("attacker"), x_admin_key="s3cret-admin")

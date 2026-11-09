@@ -16,6 +16,7 @@ All write operations are logged to the GDPR audit trail (in-memory + optional S3
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import logging
@@ -57,8 +58,14 @@ def require_tenant_owner_or_admin(
     if _is_admin(x_admin_key):
         return
     if auth.tenant_id != tenant_id:
+        # Neither identifier goes to the log. The path value is whatever the
+        # caller typed — `/onboard/alice@example.com` put an email address into
+        # Loki, MinIO and the SIEM — and the denial fires precisely when someone
+        # probes other tenants. A fingerprint of the caller keeps repeat probes
+        # correlatable (the same SHA-256[:16] form as AuthResult.entity_key).
+        caller = hashlib.sha256(auth.tenant_id.encode()).hexdigest()[:16]
         log.warning(
-            "GDPR IDOR blocked: key-tenant=%s attempted tenant=%s", auth.tenant_id, tenant_id
+            "GDPR IDOR blocked: caller_fp=%s claimed_len=%d", caller, len(tenant_id)
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
