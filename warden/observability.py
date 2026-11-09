@@ -15,8 +15,10 @@ GDPR (FAILOPEN-03): nothing here ever receives or logs request content — only
 """
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -31,6 +33,8 @@ __all__ = [
     "record_failopen",
     "failopen_guard",
     "run_pipeline_canary",
+    "cached_pipeline_canary",
+    "reset_canary_cache",
     "enforce_canary_gate",
 ]
 
@@ -169,6 +173,57 @@ async def run_pipeline_canary() -> dict:
     except Exception as exc:  # noqa: BLE001 — the self-test must never crash the app
         record_failopen("pipeline_canary", Reason.BACKEND_ERROR, exc)
         return verdict
+
+
+# ── Shared canary verdict for the anonymous health endpoint ──────────────────
+# `GET /health/pipeline?deep=true` is anonymous and has no rate limit at either
+# layer (the zone's one free Cloudflare rate-limit slot guards login/signup).
+# Each uncached call runs the corpus — four full pipeline passes with MiniLM on
+# CPU, ~1.25 s — so any caller could buy that much CPU per request. A per-IP
+# limit is bypassed by rotating addresses; sharing one verdict is not: however
+# many callers arrive, each worker runs the corpus at most once per TTL, and
+# concurrent callers wait on the run in flight instead of starting their own.
+CANARY_CACHE_TTL_S = 60.0
+
+_canary_cache: tuple[float, dict] | None = None
+# An asyncio.Lock binds to the loop it first waits on, so keep one per loop.
+# Production has one loop per worker; tests start several.
+_canary_lock: asyncio.Lock | None = None
+_canary_lock_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _canary_lock_for_loop() -> asyncio.Lock:
+    global _canary_lock, _canary_lock_loop
+    loop = asyncio.get_running_loop()
+    if _canary_lock is None or _canary_lock_loop is not loop:
+        _canary_lock, _canary_lock_loop = asyncio.Lock(), loop
+    return _canary_lock
+
+
+def reset_canary_cache() -> None:
+    """Forget the shared verdict (tests; never needed in production)."""
+    global _canary_cache
+    _canary_cache = None
+
+
+async def cached_pipeline_canary(ttl_s: float = CANARY_CACHE_TTL_S) -> dict:
+    """:func:`run_pipeline_canary`, single-flight and shared for ``ttl_s``.
+
+    The result carries ``age_s`` — how old the verdict is — so a caller never
+    mistakes a cached verdict for a fresh run. A verdict with
+    ``available: False`` (orchestrator not yet published) is not cached, so the
+    first call after startup completes runs the corpus for real.
+    """
+    global _canary_cache
+    async with _canary_lock_for_loop():
+        cached = _canary_cache
+        if cached is not None and time.monotonic() - cached[0] < ttl_s:
+            ran_at, verdict = cached
+        else:
+            verdict = await run_pipeline_canary()
+            ran_at = time.monotonic()
+            _canary_cache = (ran_at, verdict) if verdict.get("available") else None
+    return {**verdict, "age_s": round(time.monotonic() - ran_at, 1)}
 
 
 def enforce_canary_gate(verdict: dict, failclosed: bool) -> bool:
