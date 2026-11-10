@@ -48,13 +48,16 @@ from typing import Any
 
 import httpx
 
-from warden.config import data_path
+from warden.config import data_path, settings
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
 
 log = logging.getLogger("warden.agent.healer")
 
-_BASE    = "http://localhost:8001"
+# The gateway as seen from THIS container. localhost:8001 is right only inside
+# the gateway; SOVA's scheduled jobs and the healer run in arq-worker, where it
+# is nothing. compose sets WARDEN_INTERNAL_URL=http://warden:8001 there.
+_BASE    = settings.warden_internal_url
 _TIMEOUT = 10.0
 
 # Trend analysis parameters

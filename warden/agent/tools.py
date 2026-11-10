@@ -30,7 +30,10 @@ from warden.config import settings
 
 log = logging.getLogger("warden.agent.tools")
 
-_BASE      = "http://localhost:8001"
+# The gateway as seen from THIS container. localhost:8001 is right only inside
+# the gateway; SOVA's scheduled jobs and the healer run in arq-worker, where it
+# is nothing. compose sets WARDEN_INTERNAL_URL=http://warden:8001 there.
+_BASE      = settings.warden_internal_url
 _API_KEY   = settings.warden_api_key
 _TIMEOUT   = 30.0
 
