@@ -71,12 +71,12 @@ blinker==1.9.0
 boto3==1.43.125
 botocore==1.43.125
 cachetools==7.3.0
-cbor2==6.2.0.post2
+cbor2==6.2.1
 certifi==2026.10.23
 cffi==2.1.1
 charset-normalizer==3.5.2
 ckzg==2.1.8
-click==8.5.0
+click==8.5.1
 clickhouse-connect==1.12.0
 coverage==7.17.2
 cryptography==50.0.2
@@ -106,7 +106,7 @@ eth-rlp==3.0.0
 eth-typing==6.0.0
 eth-utils==6.0.0
 eth_abi==6.0.0
-fastapi==0.162.0
+fastapi==0.162.2
 faster-whisper==1.2.1
 filelock==4.2.9
 flatbuffers==25.12.19
@@ -146,7 +146,7 @@ ipfshttpclient==0.8.0a2
 isodate==0.7.2
 itsdangerous==2.2.0
 Jinja2==3.1.6
-jiter==0.18.0
+jiter==0.19.0
 jmespath==1.1.0
 joblib==1.6.0
 jsonschema==4.26.0
@@ -244,7 +244,7 @@ pyunormalize==18.0.0
 PyYAML==6.0.3
 redis==5.3.1
 referencing==0.37.0
-regex==2026.9.29
+regex==2026.11.7
 requests==2.34.2
 rich==15.0.0
 rlp==5.0.0
@@ -288,10 +288,10 @@ tokenizers==0.23.3
 toml==0.10.2
 toolz==1.2.0
 tqdm==4.70.1
-transformers==5.22.1
+transformers==5.22.2
 trio==0.35.0
 trio-typing==0.10.0
-typer==0.27.3
+typer==0.28.0
 types-PyYAML==6.0.12.20261103
 types-requests==2.33.0.20261030
 typing-inspection==0.4.5
