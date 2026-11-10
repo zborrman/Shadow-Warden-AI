@@ -18,9 +18,10 @@ re-running only ever touches rows still pending — safe to run on a
 schedule, safe under a concurrent run, safe to call ad hoc.
 
 Fail-soft per row: one corrupt/locked row is skipped and counted in
-`errors`; the rest of the batch still settles. A read failure (e.g. the
-DB file doesn't exist yet — no x402 activity so far) returns an empty
-summary rather than raising.
+`errors`; the rest of the batch still settles. A read failure returns an
+empty summary rather than raising. No x402 activity yet (no DB file, or a
+file without the table) is the normal idle state and logs at DEBUG; only a
+genuine read failure logs a WARNING.
 
 Environment variables
 ──────────────────────
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -71,6 +73,14 @@ def settle_pending_deductions(db_path: str = _DB_PATH) -> SettlementSummary:
     Returns a SettlementSummary for logging/reconciliation. Never raises.
     """
     summary = SettlementSummary()
+    # No x402 activity yet is the normal state, not a failure: the gate creates
+    # the file and its table on the first deduction. Reporting it as a WARNING
+    # on every run buried any real read failure under identical noise, and
+    # connecting to a missing path created an empty file nothing else owns.
+    if not os.path.exists(db_path):
+        log.debug("x402_settlement: no x402 DB yet at %s; nothing to settle", db_path)
+        return summary
+    con = None
     try:
         con = sqlite3.connect(db_path)
         _ensure_schema(con)
@@ -79,7 +89,12 @@ def settle_pending_deductions(db_path: str = _DB_PATH) -> SettlementSummary:
             "WHERE status = 'pending'"
         ).fetchall()
     except Exception as exc:
-        log.warning("x402_settlement: read failed: %s", exc)
+        if con is not None:
+            con.close()
+        if isinstance(exc, sqlite3.OperationalError) and "no such table" in str(exc):
+            log.debug("x402_settlement: no deductions table yet; nothing to settle")
+        else:
+            log.warning("x402_settlement: read failed: %s", exc)
         return summary
 
     if not rows:

@@ -40,6 +40,31 @@ class TestSettlePendingDeductions:
         summary = s.settle_pending_deductions(db_path=str(tmp_path / "nope.db"))
         assert summary.settled_count == 0
 
+    def test_missing_db_file_is_not_created(self, tmp_path):
+        """Connecting to a missing path created an empty file nothing owns;
+        in prod that 0-byte file sat in /warden/data since July."""
+        path = tmp_path / "nope.db"
+        s.settle_pending_deductions(db_path=str(path))
+        assert not path.exists()
+
+    def test_idle_states_do_not_warn(self, tmp_path, caplog):
+        """No x402 activity yet is normal. In prod it logged a WARNING on every
+        run, which buries a real read failure under identical noise."""
+        empty = tmp_path / "empty.db"
+        sqlite3.connect(empty).close()  # file exists, table does not
+        with caplog.at_level("DEBUG", logger="warden.workers.x402_settlement"):
+            s.settle_pending_deductions(db_path=str(tmp_path / "nope.db"))
+            s.settle_pending_deductions(db_path=str(empty))
+        assert not [r for r in caplog.records if r.levelname == "WARNING"]
+
+    def test_a_real_read_failure_still_warns(self, tmp_path, caplog):
+        bad = tmp_path / "corrupt.db"
+        bad.write_bytes(b"this is not a sqlite database" * 64)
+        with caplog.at_level("WARNING", logger="warden.workers.x402_settlement"):
+            summary = s.settle_pending_deductions(db_path=str(bad))
+        assert summary.settled_count == 0
+        assert any("read failed" in r.getMessage() for r in caplog.records)
+
     @pytest.mark.asyncio
     async def test_settles_pending_rows_and_sums_correctly(self, db):
         await _seed("agent-a", "0.5")
