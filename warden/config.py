@@ -311,6 +311,12 @@ class Settings:
     image_guard_enabled: bool = field(
         default_factory=lambda: _bool("IMAGE_GUARD_ENABLED", False)
     )
+    # The runtime image is python:3.11-slim with no Chromium (see CLAUDE.md,
+    # "Base image"). Anything that launches the browser sandbox must check this
+    # first; the nightly visual patrol did not, and logged an ERROR every run.
+    browser_enabled: bool = field(
+        default_factory=lambda: _bool("BROWSER_ENABLED", False)
+    )
     image_guard_threshold: float = field(
         default_factory=lambda: _float("IMAGE_GUARD_THRESHOLD", 0.28)
     )
