@@ -537,6 +537,13 @@ async def sova_visual_patrol(ctx: dict) -> dict:
       • Dashboard    — Streamlit analytics (if DASHBOARD_URL is set)
       • PATROL_URLS  — comma-separated extra URLs
     """
+    if not settings.browser_enabled:
+        # No Chromium in the runtime image. Launching anyway failed with
+        # "Executable doesn't exist" and logged an ERROR every night, which made
+        # a disabled feature look like a broken one.
+        log.info("sova: visual patrol skipped — BROWSER_ENABLED is false [%s]", _ts())
+        return {"status": "skipped", "reason": "browser_disabled"}
+
     log.info("sova: visual patrol starting [%s]", _ts())
 
     from datetime import datetime  # noqa: PLC0415
