@@ -128,6 +128,9 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - DYNAMIC_RULES_PATH=/warden/data/dynamic_rules.json
       - WARDEN_API_KEY=${WARDEN_API_KEY:-}
+      # Basic auth for /docs, /redoc, /openapi.json. It sat in .env for months and
+      # never reached the container, because only keys listed here do (no env_file).
+      - DOCS_PASSWORD=${DOCS_PASSWORD:-}
       - ALLOW_UNAUTHENTICATED=${ALLOW_UNAUTHENTICATED:-false}
       # MP-1b / decision D-3. Turns marketplace offer-signature verification from
       # observe-and-count into reject. Default stays `false` so no other

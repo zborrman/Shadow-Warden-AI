@@ -156,7 +156,7 @@ def _live_paths(client) -> set[str]:
     Read from the deployed OpenAPI rather than the source tree, because the
     question is what this gateway can sell, not what the repository contains.
     """
-    r = client.get("/openapi.json")
+    r = client.get("/openapi-public.json")
     if r.status_code != 200:
         return set()
     return set(r.json().get("paths", {}))
@@ -218,7 +218,7 @@ def main() -> int:
 
     live = _live_paths(client)
     if not live:
-        return _fail("could not read /openapi.json — cannot verify any capability, "
+        return _fail("could not read /openapi-public.json — cannot verify any capability, "
                      "so nothing will be listed")
     print(f"  gateway serves {len(live)} paths")
 

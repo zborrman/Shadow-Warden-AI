@@ -26,7 +26,7 @@ Create `autogpt-plugins/shadow-warden/plugin.json`:
   },
   "api": {
     "type": "openapi",
-    "url": "https://api.shadow-warden-ai.com/openapi.json"
+    "url": "https://api.shadow-warden-ai.com/openapi-public.json"
   },
   "logo_url": "https://shadow-warden-ai.com/logo.png",
   "contact_email": "security@shadow-warden-ai.com",
