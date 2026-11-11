@@ -52,8 +52,6 @@ if [ -n "${PROMETHEUS_MULTIPROC_DIR:-}" ]; then
     mkdir -p "${PROMETHEUS_MULTIPROC_DIR}"
     rm -f "${PROMETHEUS_MULTIPROC_DIR}"/*.db 2>/dev/null || true
     chown -R wardenuser:warden "${PROMETHEUS_MULTIPROC_DIR}"
-elif [ "${WORKERS}" -gt 1 ]; then
-    echo "[entrypoint] WARNING: ${WORKERS} uvicorn workers but PROMETHEUS_MULTIPROC_DIR is unset —"          "/metrics will report a single arbitrary worker's registry"
 fi
 
 # ── Pass-through: if a command was given (e.g. docker run ... python3 foo.py),
@@ -84,6 +82,13 @@ if [ "${ARQ_MODE:-0}" = "1" ]; then
 fi
 
 # ── Start uvicorn as wardenuser via gosu ──────────────────────────────────────
+# The missing-multiproc warning belongs here, after the pass-through and ARQ
+# exits: only uvicorn forks $WORKERS processes. It used to sit above them, so
+# arq-worker (which never runs uvicorn) printed it on every boot.
+if [ -z "${PROMETHEUS_MULTIPROC_DIR:-}" ] && [ "${WORKERS}" -gt 1 ]; then
+    echo "[entrypoint] WARNING: ${WORKERS} uvicorn workers but PROMETHEUS_MULTIPROC_DIR is unset —"          "/metrics will report a single arbitrary worker's registry"
+fi
+
 if [ "${MTLS_ENABLED:-false}" = "true" ] && [ -f /certs/warden.crt ]; then
     echo "[entrypoint] mTLS enabled — starting uvicorn with TLS (CERT_REQUIRED)"
     exec gosu wardenuser uvicorn warden.main:app \

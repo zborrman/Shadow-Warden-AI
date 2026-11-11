@@ -145,3 +145,23 @@ def test_the_gauge_parser_actually_matches_something() -> None:
     assert len(found) == 1, f"the Gauge parser matched {len(found)} blocks, expected 1"
     assert found[0].group("symbol") == "SOME_GAUGE"
     assert "multiprocess_mode" not in found[0].group("body")
+
+
+def test_the_missing_dir_warning_is_only_for_uvicorn() -> None:
+    """arq-worker runs this entrypoint too, but never forks uvicorn workers.
+
+    The warning sat above the pass-through and ARQ_MODE exits, so production
+    arq-worker logged "2 uvicorn workers but PROMETHEUS_MULTIPROC_DIR is unset"
+    on every boot — a false alarm about a process that does not exist.
+    """
+    script = _ENTRYPOINT.read_text(encoding="utf-8")
+    warn_at = script.find("PROMETHEUS_MULTIPROC_DIR is unset")
+    assert warn_at != -1, "the missing-multiproc warning was removed entirely"
+    for exit_marker in ('exec gosu wardenuser "$@"', "exec gosu wardenuser arq "):
+        exit_at = script.find(exit_marker)
+        assert exit_at != -1, f"entrypoint.sh no longer contains {exit_marker!r}"
+        assert exit_at < warn_at, (
+            f"the warning runs before {exit_marker!r}, so a process that never "
+            "starts uvicorn reports a uvicorn worker misconfiguration"
+        )
+    assert warn_at < script.find("exec gosu wardenuser uvicorn")
