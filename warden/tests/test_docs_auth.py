@@ -201,3 +201,6 @@ def test_compose_passes_docs_password_to_the_gateway() -> None:
     )
     warden = compose.split("\n  warden:", 1)[1].split("\n  arq-worker:", 1)[0]
     assert "- DOCS_PASSWORD=${DOCS_PASSWORD" in warden
+    # The username travels with it: a non-default one in .env would otherwise
+    # be rejected by the gateway, which falls back to "warden".
+    assert "- DOCS_USERNAME=${DOCS_USERNAME:-warden}" in warden
