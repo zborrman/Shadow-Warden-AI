@@ -185,3 +185,22 @@ def test_openapi_public_serves_the_same_schema_as_the_gated_one() -> None:
         gated = client.get("/openapi.json").json()
         public = client.get("/openapi-public.json").json()
         assert gated == public
+
+
+def test_compose_passes_docs_password_to_the_gateway() -> None:
+    """compose has no env_file, so a key reaches the container only if listed.
+
+    DOCS_PASSWORD was set in the production .env but absent from the warden
+    service, so /docs, /redoc and /openapi.json served without auth while the
+    boot log warned about it on every start.
+    """
+    from pathlib import Path
+
+    compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text(
+        encoding="utf-8"
+    )
+    warden = compose.split("\n  warden:", 1)[1].split("\n  arq-worker:", 1)[0]
+    assert "- DOCS_PASSWORD=${DOCS_PASSWORD" in warden
+    # The username travels with it: a non-default one in .env would otherwise
+    # be rejected by the gateway, which falls back to "warden".
+    assert "- DOCS_USERNAME=${DOCS_USERNAME:-warden}" in warden
