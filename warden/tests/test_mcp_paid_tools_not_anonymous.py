@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from warden.mcp.pricing import MCP_EXPOSED_TOOLS  # noqa: E402
 from warden.mcp.product_tools import FREE_TOOLS  # noqa: E402
 
-_KEY = "test-operator-key-0123456789"
+_KEY = "operator-" + "x" * 24
 
 
 def _rpc(method: str, params: dict | None = None) -> dict:
@@ -94,6 +94,41 @@ def test_the_refusal_does_not_say_the_tool_exists(client):
     assert real.json()["error"]["message"].replace("get_ticket", "X") == (
         fake.json()["error"]["message"].replace("no_such_tool", "X")
     )
+
+
+@pytest.fixture()
+def dpi_spy(monkeypatch):
+    """A DPI that blocks everything, and records whose arguments it was shown."""
+    from warden.mcp import gateway
+
+    seen: list[str] = []
+
+    def _block(req_id, tool_name, arguments, version=None):
+        seen.append(tool_name)
+        return gateway._err(req_id, gateway._INVALID_PARAMS, "blocked", version=version)
+
+    monkeypatch.setattr(gateway, "_dpi_scan", _block)
+    return seen
+
+
+def test_a_stranger_is_refused_before_the_arguments_are_inspected(client, dpi_spy):
+    """A DPI block is its own error; reaching it would confirm the tool exists."""
+    r = client.post(
+        "/mcp/",
+        json=_rpc("tools/call", {"name": "get_ticket", "arguments": {"ticket_id": "x"}}),
+    )
+    assert r.json()["error"]["code"] == -32601
+    assert dpi_spy == []
+
+
+def test_an_operator_call_is_still_inspected(client, dpi_spy):
+    r = client.post(
+        "/mcp/",
+        json=_rpc("tools/call", {"name": "get_ticket", "arguments": {"ticket_id": "x"}}),
+        headers={"X-API-Key": _KEY},
+    )
+    assert r.json()["error"]["code"] == -32602
+    assert dpi_spy == ["get_ticket"]
 
 
 def test_an_operator_key_still_reaches_the_paid_tools(client, handler_spy):

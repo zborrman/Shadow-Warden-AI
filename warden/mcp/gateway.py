@@ -552,6 +552,15 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
                     "isError": True,
                 }, version)
 
+        # Gate off: a stranger is refused before anything inspects the arguments.
+        # DPI answers a blocked argument with its own error, which would tell a
+        # stranger the tool exists; an invented name never reaches DPI.
+        if not payment_gate_enabled() and _operator_tenant(request) is None:
+            return _err(
+                req_id, _NOT_FOUND, f"Tool not found or not exposed: {tool_name}",
+                version=version,
+            )
+
         # DPI: scan argument strings for injection / obfuscation before payment
         dpi_err = _dpi_scan(req_id, tool_name, arguments, version)
         if dpi_err is not None:
