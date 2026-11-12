@@ -97,7 +97,7 @@ def build_mcp_descriptor(
     implements — ``warden/tests/test_mcp_manifest.py`` holds the two in
     agreement.
     """
-    from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS
+    from warden.mcp.gateway import SUPPORTED_PROTOCOL_VERSIONS, payment_gate_enabled
     from warden.mcp.pricing import MCP_EXPOSED_TOOLS, price_for
     from warden.mcp.product_tools import FREE_TOOLS
 
@@ -105,10 +105,14 @@ def build_mcp_descriptor(
     tools = [
         {"name": t, "endpoint": endpoint, "method": "POST", "price_usd": "0"}
         for t in sorted(FREE_TOOLS)
-    ] + [
-        {"name": t, "endpoint": endpoint, "method": "POST", "price_usd": str(price_for(t))}
-        for t in sorted(MCP_EXPOSED_TOOLS)
     ]
+    # With the payment gate off the paid tools are an operator-only surface and
+    # a stranger cannot call them, so the public descriptor does not list them.
+    if payment_gate_enabled():
+        tools += [
+            {"name": t, "endpoint": endpoint, "method": "POST", "price_usd": str(price_for(t))}
+            for t in sorted(MCP_EXPOSED_TOOLS)
+        ]
 
     return {
         "schema_version": SUPPORTED_PROTOCOL_VERSIONS[0],

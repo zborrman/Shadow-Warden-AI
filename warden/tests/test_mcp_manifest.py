@@ -108,9 +108,16 @@ class TestDescriptor:
     def test_the_url_is_the_endpoint_that_answers(self, client):
         assert build_mcp_descriptor()["url"].endswith("/mcp/")
 
-    def test_it_lists_every_callable_tool(self):
+    def test_it_lists_every_callable_tool(self, monkeypatch):
+        monkeypatch.setenv("X402_GATE_ENABLED", "true")
         listed = {t["name"] for t in build_mcp_descriptor()["tools"]}
         assert listed == set(MCP_EXPOSED_TOOLS) | set(FREE_TOOLS)
+
+    def test_it_lists_no_paid_tool_a_stranger_cannot_call(self, monkeypatch):
+        """Gate off: the paid tools are operator-only, so the descriptor omits them."""
+        monkeypatch.setenv("X402_GATE_ENABLED", "false")
+        listed = {t["name"] for t in build_mcp_descriptor()["tools"]}
+        assert listed == set(FREE_TOOLS)
 
     def test_the_free_tools_are_priced_at_zero_and_named_as_free(self):
         doc = build_mcp_descriptor()

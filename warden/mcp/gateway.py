@@ -32,7 +32,7 @@ import os
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from warden import __version__ as _warden_version
@@ -88,6 +88,31 @@ def _ensure_mcp_boundary(principal: str) -> None:
     )
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
+
+
+# ── Who may reach the paid tools ─────────────────────────────────────────────
+# The payment gate is a deliberate posture flag and is off in production. Off
+# used to mean "every caller passes as `dev`", so the twelve priced staff tools
+# were listed to, and run for, anyone on the internet at no charge. Off now
+# means the paid tools are an operator surface: they are offered and executed
+# only for a caller holding a valid gateway API key. A stranger sees the free
+# product tools and nothing else. With the gate on, payment decides as before.
+def payment_gate_enabled() -> bool:
+    return os.getenv("X402_GATE_ENABLED", "false").lower() == "true"
+
+
+def _operator_tenant(request: Request) -> str | None:
+    """The tenant behind the caller's gateway API key, or None for a stranger."""
+    from warden.auth_guard import require_api_key  # noqa: PLC0415
+
+    try:
+        return require_api_key(request.headers.get("x-api-key")).tenant_id
+    except HTTPException:
+        return None
+
+
+def paid_tools_offered(request: Request) -> bool:
+    return payment_gate_enabled() or _operator_tenant(request) is not None
 
 # Protocol revisions this endpoint answers, newest first.
 #
@@ -231,13 +256,20 @@ async def _check_payment(
     """Gate the call. Returns (agent_id, None) on success, (None, error_response) on deny.
 
     Priority:
-      0. X402_GATE_ENABLED=false → pass through (dev/test mode)
+      0. X402_GATE_ENABLED=false → operator API key required, never anonymous
       1. Flex Credits balance ≥ 1 → deduct 1 credit, allow
       2. x402 USDC balance ≥ price → queue deduction, allow
       3. Otherwise → 402 JSON-RPC error
     """
-    if os.getenv("X402_GATE_ENABLED", "false").lower() != "true":
-        return "dev", None
+    if not payment_gate_enabled():
+        tenant = _operator_tenant(request)
+        if tenant is None:
+            # Same answer an unknown tool gets: an unpaid stranger is not told
+            # which tools exist behind the gate.
+            return None, _err(
+                None, _NOT_FOUND, f"Tool not found or not exposed: {tool_name}", version=version
+            )
+        return f"operator:{tenant}", None
 
     try:
         from warden.marketplace.x402_gate import (  # noqa: PLC0415
@@ -405,7 +437,7 @@ async def mcp_info(request: Request) -> JSONResponse:
         "endpoint": "POST /mcp/",
         "manifest": "/.well-known/mcp.json",
         "documentation": "https://shadow-warden-ai.com/mcp",
-        "tools_count": len(MCP_EXPOSED_TOOLS) + len(FREE_TOOLS),
+        "tools_count": len(FREE_TOOLS) + (len(MCP_EXPOSED_TOOLS) if payment_gate_enabled() else 0),
         "free_tools": sorted(FREE_TOOLS),
         "billing": {
             "model":        "per-call, on paid tools only",
@@ -485,9 +517,9 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
         from warden.staff.tools import STAFF_TOOLS  # noqa: PLC0415
         # Product tools first: an agent that truncates the list must still see
         # the ones that do what this product does.
-        exposed = list(PRODUCT_TOOL_SCHEMAS) + [
-            _tool_schema(t) for t in STAFF_TOOLS if t["name"] in MCP_EXPOSED_TOOLS
-        ]
+        exposed = list(PRODUCT_TOOL_SCHEMAS)
+        if paid_tools_offered(request):
+            exposed += [_tool_schema(t) for t in STAFF_TOOLS if t["name"] in MCP_EXPOSED_TOOLS]
         return _ok(req_id, {"tools": exposed}, version)
 
     # ── Paid: tools/call ───────────────────────────────────────────────────────
@@ -527,6 +559,11 @@ async def mcp_endpoint(request: Request) -> JSONResponse:
 
         agent_id, pay_err = await _check_payment(request, tool_name, version)
         if pay_err is not None:
+            if not payment_gate_enabled():
+                return _err(
+                    req_id, _NOT_FOUND, f"Tool not found or not exposed: {tool_name}",
+                    version=version,
+                )
             return pay_err
 
         try:
