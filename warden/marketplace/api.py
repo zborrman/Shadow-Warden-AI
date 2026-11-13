@@ -1507,10 +1507,19 @@ async def purchase_credits_endpoint(
     request: Request,
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
-    """Purchase a credit package. In production, redirects to Lemon Squeezy checkout.
+    """Grant a credit package to a tenant. Requires ``X-Admin-Key``.
 
-    For direct testing (integration tests, webhook simulation), grants credits immediately.
-    Returns new balance and package details.
+    This endpoint grants credits; it takes no payment and checks none. Audit
+    S-3: it used to say it "redirects to Lemon Squeezy checkout" and did no such
+    thing, so any holder of an ordinary API key granted itself spendable
+    credits for free, as often as it had fresh idempotency keys. No provider
+    webhook calls this path either, so nothing ever stood between the request
+    and the grant.
+
+    It is now the operator's grant: the caller must also hold ``X-Admin-Key``
+    (fail-closed, 503 when no key is configured). The operator, or a payment
+    webhook handler once one exists, names the tenant in ``X-Tenant-ID`` after
+    the payment is confirmed.
 
     Requires an ``Idempotency-Key`` header (FT-3): without one, a retried Lemon
     Squeezy webhook or a double-submitted checkout call granted credits TWICE —
@@ -1519,7 +1528,10 @@ async def purchase_credits_endpoint(
     """
     from fastapi import HTTPException  # noqa: PLC0415
 
+    from warden.marketplace.admin_guard import require_admin_key  # noqa: PLC0415
     from warden.marketplace.credits import CREDIT_PACKAGES, purchase_credits  # noqa: PLC0415
+
+    require_admin_key(request.headers.get("X-Admin-Key"))
 
     idempotency_key = request.headers.get("Idempotency-Key", "").strip()
     if not idempotency_key:
@@ -1538,23 +1550,11 @@ async def purchase_credits_endpoint(
                     "valid_packages": list(CREDIT_PACKAGES.keys())},
         )
 
-    # MP-1a: credits are directly spendable, so the tenant they are granted to is
-    # a security decision, not a routing hint. The authenticated tenant wins.
-    # Previously this endpoint had no auth dependency at all and fell back to a
-    # caller-supplied ``X-Tenant-ID`` header — an anonymous POST minted 1000
-    # spendable credits to any tenant id the caller named, for free.
-    #
-    # The header is honoured only in dev/air-gapped mode (no API key configured
-    # at all, where require_api_key resolves every caller to "default"), so local
-    # and test ergonomics are unchanged while production has no bypass.
-    tenant_id = auth.tenant_id
-    if tenant_id == "default":
-        state = getattr(request, "state", None)
-        tenant_obj = getattr(state, "tenant", None)
-        if isinstance(tenant_obj, dict):
-            tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or tenant_id
-        else:
-            tenant_id = request.headers.get("X-Tenant-ID", tenant_id)
+    # The admin key is what authorises the grant, so the operator may name the
+    # tenant it is for. Without the header the grant goes to the operator's own
+    # authenticated tenant. (MP-1a: an anonymous caller could once name any
+    # tenant here; that caller no longer gets past the admin check above.)
+    tenant_id = request.headers.get("X-Tenant-ID", "").strip() or auth.tenant_id
 
     new_balance = purchase_credits(tenant_id, body.package_id, idempotency_key=idempotency_key)
     return {
