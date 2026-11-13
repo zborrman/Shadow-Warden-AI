@@ -265,7 +265,16 @@ jobs:
           OUT=$(claude --print --dangerously-skip-permissions "Reply with exactly: AUTH_OK" 2>&1 || true)
           echo "auth probe output: $OUT"
           if ! echo "$OUT" | grep -q "AUTH_OK"; then
-            echo "::error::Claude Code is not authenticated in CI (got: $OUT). Check ANTHROPIC_API_KEY and the customApiKeyResponses seeding."
+            # A credentials problem and an exhausted account are different
+            # faults with different owners, and this step reported both as
+            # "not authenticated" — which sent six nights of investigation
+            # toward the key seeding while the real answer was "Credit balance
+            # is too low". Name what the CLI actually said.
+            if echo "$OUT" | grep -qiE "credit balance|insufficient credit|quota|billing"; then
+              echo "::error::The Anthropic account behind ANTHROPIC_API_KEY cannot spend (got: $OUT). The key is valid; top up the account or swap the secret. This is an owner action, not a CI fix."
+            else
+              echo "::error::Claude Code is not authenticated in CI (got: $OUT). Check ANTHROPIC_API_KEY and the customApiKeyResponses seeding."
+            fi
             exit 1
           fi
           echo "Claude Code auth verified."
@@ -516,3 +525,50 @@ jobs:
             /tmp/checker-output.txt
             FIX_SUMMARY.md
           retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Alert — the loop's own failure is the thing nobody was watching
+  # ───────────────────────────────────────────────────────────────────────────
+  # The nightly cycle failed six nights running (2026-11-08 … 11-13) and no
+  # signal left GitHub. The audit of 2026-11-11 recorded it as its own finding:
+  # an audit loop that stops auditing, silently, is worse than no loop, because
+  # the green "no new PRs" reads as "nothing to fix". Nothing here can fix the
+  # loop; this job only makes its death audible.
+  alert:
+    name: Alert on loop failure
+    runs-on: ubuntu-latest
+    needs: [heartbeat, fix-loop]
+    if: >-
+      always() &&
+      (needs.heartbeat.result == 'failure' || needs.fix-loop.result == 'failure')
+    steps:
+      - name: Announce the failure
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HEARTBEAT: ${{ needs.heartbeat.result }}
+          FIX_LOOP: ${{ needs.fix-loop.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          WHICH="heartbeat=$HEARTBEAT fix-loop=$FIX_LOOP"
+          echo "### Autonomous loop failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- $WHICH" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [run log]($RUN_URL)" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+            # A no-op alerter is the defect this job exists to end, so say so
+            # on the run page rather than exiting 0 in silence.
+            echo "::warning::No SLACK_WEBHOOK_URL configured — this loop failure was not announced anywhere."
+            exit 0
+          fi
+
+          TEXT="🚨 *Autonomous security loop failed* — $WHICH. <$RUN_URL|run log>"
+          CODE=$(curl -s -o /tmp/slack_body -w '%{http_code}' -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{\"attachments\":[{\"color\":\"danger\",\"text\":\"$TEXT\"}]}")
+          echo "slack response: $CODE $(head -c 200 /tmp/slack_body)"
+          if [ "$CODE" != "200" ]; then
+            # A dead webhook is the same silence in a different place.
+            echo "::error::Slack rejected the alert (HTTP $CODE). The loop failure is unannounced."
+            exit 1
+          fi

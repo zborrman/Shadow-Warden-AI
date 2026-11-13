@@ -83,7 +83,12 @@ test.describe('Global Navigation', () => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Trade');
     await expect(dropdown).toBeVisible();
-    await expect(dropdown.locator('a', { hasText: 'Agentic Commerce' })).toBeVisible();
+    // Labels follow BaseLayout.astro's Trade menu. "Agentic Commerce" was
+    // renamed to "Agentic Marketplace" when the M2M Commerce Store got its own
+    // entry (M0, #666) and this expectation was left behind — it has failed
+    // against production every night since.
+    await expect(dropdown.locator('a', { hasText: 'Agentic Marketplace' })).toBeVisible();
+    await expect(dropdown.locator('a', { hasText: 'M2M Commerce Store' })).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'Business Community' })).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'MASQUE Tunnels' })).toBeVisible();
   });
@@ -304,7 +309,7 @@ test.describe('Community Creation Wizard', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Agentic Marketplace Dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    // /marketplace 301s to /agentic
+    // /agentic is the dashboard; /marketplace is the storefront (section 4)
     await page.goto('/agentic');
     // mk-hero is the first/only hero section on the redesigned marketplace page
     await expect(page.locator('section.mk-hero')).toBeVisible({ timeout: 10_000 });
@@ -371,12 +376,18 @@ test.describe('Agentic Marketplace Dashboard', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. /marketplace redirect → /agentic
+// 4. /marketplace — the storefront, not a redirect
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Redirects', () => {
-  test('/marketplace redirects to /agentic', async ({ page }) => {
+test.describe('Routes', () => {
+  test('/marketplace is its own page, not a redirect to /agentic', async ({ page }) => {
+    // R3 gave the M2M marketplace a public surface; before that `/marketplace`
+    // was a 301 to `/agentic` and the product had no storefront at all. This
+    // test still asserted the 301, so it contradicted
+    // warden/tests/test_site_marketplace_storefront.py, which asserts the
+    // opposite — two suites in one repo disagreeing about one URL.
     await page.goto('/marketplace');
-    await expect(page).toHaveURL(/\/agentic/);
+    await expect(page).toHaveURL(/\/marketplace\/?$/);
+    await expect(page.locator('#listings-body')).toBeAttached();
   });
 
   test('/community redirects or loads community page', async ({ page }) => {
