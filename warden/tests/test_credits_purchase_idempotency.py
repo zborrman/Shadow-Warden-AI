@@ -21,6 +21,11 @@ from warden.marketplace import credits
 @pytest.fixture()
 def iso(tmp_path, monkeypatch):
     monkeypatch.setattr(credits, "_DB_PATH", str(tmp_path / "mkt.db"))
+    # The purchase endpoint needs X-Admin-Key (audit S-3). These tests are about
+    # idempotency, so they run in the dev posture where the admin guard lets the
+    # caller through. Stated here because other tests leave ADMIN_KEY set.
+    monkeypatch.delenv("ADMIN_KEY", raising=False)
+    monkeypatch.setenv("ALLOW_UNAUTHENTICATED", "true")
 
 
 class TestPurchaseCreditsIdempotency:
