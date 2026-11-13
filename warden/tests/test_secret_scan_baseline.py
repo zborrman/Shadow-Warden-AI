@@ -42,7 +42,11 @@ _CONFIG = _ROOT / ".gitleaks.toml"
 #: 2026-11-05 (+1, #674): commit 7201d509, scripts/storefront_fixture.py:37 —
 #: a placeholder PORTAL_JWT_SECRET for a throwaway fixture recording, signing
 #: nothing outside that process; replaced by secrets.token_urlsafe() in 8c6df6cf.
-BASELINE_FINDINGS = 23
+#: 2026-11-12 (+1, #698): commit df839671,
+#: warden/tests/test_mcp_paid_tools_not_anonymous.py:28 - a made-up operator
+#: key monkeypatched into auth_guard for one test, valid on no deployment;
+#: built without a literal in fa301847.
+BASELINE_FINDINGS = 24
 
 _FINGERPRINT = re.compile(r"^[0-9a-f]{40}:[^:\s]+:[a-z0-9.\-]+:\d+$")
 

@@ -33,8 +33,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 _TOOL = "screen_sanctions_list"
 _ARGS = {"subject_name": "Acme Corp", "list_name": "OFAC_SDN"}
-# X402_GATE_ENABLED=false makes _check_payment return "dev" for every caller.
-_PRINCIPAL = "mcp:dev"
+# With the payment gate off a caller must hold a gateway API key; the test
+# environment runs unauthenticated, so the caller resolves to tenant "default".
+_PRINCIPAL = "mcp:operator:default"
 
 
 def _call(client: TestClient) -> dict:

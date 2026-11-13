@@ -117,3 +117,6 @@ b0bc3847be61b3fd0f859ee894476a32afd931a8:warden/payments/l402.py:generic-api-key
 # a placeholder JWT signing key in the storefront fixture recorder (M6, #674);
 # replaced by secrets.token_urlsafe() in the next commit, never a real key
 7201d509bac1c7a5971a77c67802a38a679f5bfb:scripts/storefront_fixture.py:generic-api-key:37
+# a made-up operator key in the MCP paid-tools test (#698); replaced by a
+# non-literal value in the next commit, never a real key
+df83967139865f629861635a812adb8b93449430:warden/tests/test_mcp_paid_tools_not_anonymous.py:generic-api-key:28
