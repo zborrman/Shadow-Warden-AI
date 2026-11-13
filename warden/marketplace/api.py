@@ -33,6 +33,7 @@ from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.admin_guard import require_admin_key
 from warden.marketplace.analytics import agent_trade_totals, get_agent_leaderboard
 from warden.marketplace.service import VALID_ASSET_TYPES
 from warden.marketplace.sybil_guard import SybilGuard
@@ -1102,11 +1103,18 @@ async def marketplace_volume_series(
     return get_volume_series(tenant_id=tenant_id, community_id=community_id, period_days=period_days)
 
 
-@router.get("/analytics/fairness")
+@router.get("/analytics/fairness", dependencies=[Depends(require_api_key)])
 async def marketplace_fairness_stats(
     period_days: int = Query(default=7, ge=1, le=90),
 ) -> dict:
-    """First-Proposal Bias metrics — avg alternatives evaluated per purchase."""
+    """First-Proposal Bias metrics — avg alternatives evaluated per purchase.
+
+    Authenticated (audit S-6). The figures are derived from settled trades —
+    how many alternatives were weighed per purchase — so publishing them
+    anonymously publishes the shape of the trading itself. The aggregates the
+    marketing site renders are ``/analytics/summary``, ``/chart-data`` and
+    ``/recent-trades``; this one has no public caller.
+    """
     from warden.marketplace.analytics import fairness_stats
     return fairness_stats(period_days=period_days)
 
@@ -1488,7 +1496,6 @@ async def revoke_agent_kya(agent_id: str, body: KYARevokeRequest, request: Reque
     could revoke any agent's KYA status. It now fails closed (503 when no key is
     configured) and compares in constant time.
     """
-    from warden.marketplace.admin_guard import require_admin_key
     require_admin_key(request.headers.get("X-Admin-Key"))
     from warden.marketplace.kya import revoke_agent  # noqa: PLC0415
     revoke_agent(agent_id, reason=body.reason)
@@ -1528,7 +1535,6 @@ async def purchase_credits_endpoint(
     """
     from fastapi import HTTPException  # noqa: PLC0415
 
-    from warden.marketplace.admin_guard import require_admin_key  # noqa: PLC0415
     from warden.marketplace.credits import CREDIT_PACKAGES, purchase_credits  # noqa: PLC0415
 
     require_admin_key(request.headers.get("X-Admin-Key"))
@@ -1567,16 +1573,37 @@ async def purchase_credits_endpoint(
 
 
 @router.get("/credits/balance")
-async def get_credits_balance(request: Request) -> dict:
-    """Return current credit balance and package catalog for the requesting tenant."""
+async def get_credits_balance(
+    request: Request,
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Current credit balance and package catalog for the authenticated tenant.
+
+    Audit S-6: this answered 200 without credentials and took the tenant from
+    an ``X-Tenant-ID`` header, so anyone could read any tenant's spendable
+    balance by naming it — and, with #699's grant path, watch the effect of
+    their own requests on someone else's funds. The balance now comes from the
+    authenticated key.
+
+    ``X-Tenant-ID`` is still honoured for an operator holding ``X-Admin-Key``
+    (support, reconciliation); from anyone else, naming another tenant is a
+    403 rather than a silently ignored header.
+    """
     from warden.marketplace.credits import CREDIT_PACKAGES, get_balance  # noqa: PLC0415
 
-    state = getattr(request, "state", None)
-    tenant_obj = getattr(state, "tenant", None)
-    if isinstance(tenant_obj, dict):
-        tenant_id = tenant_obj.get("tenant_id") or tenant_obj.get("id") or "unknown"
-    else:
-        tenant_id = request.headers.get("X-Tenant-ID", "unknown")
+    tenant_id = auth.tenant_id
+    requested = request.headers.get("X-Tenant-ID", "").strip()
+    if requested and requested != tenant_id:
+        admin_key = request.headers.get("X-Admin-Key")
+        if not admin_key:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "tenant_mismatch",
+                        "message": "X-Tenant-ID names another tenant. Reading another "
+                                   "tenant's balance requires X-Admin-Key."},
+            )
+        require_admin_key(admin_key)
+        tenant_id = requested
 
     balance = get_balance(tenant_id)
     catalog = [

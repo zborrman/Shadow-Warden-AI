@@ -719,6 +719,24 @@ def list_purchases(
     limit: int = 50,
     db_path: str | None = None,
 ) -> list[Purchase]:
+    """List purchase records, optionally narrowed to one tenant's own trades.
+
+    ``tenant_id`` was accepted and then ignored — the SQL never referenced it,
+    so every caller that passed one got the whole table back believing it had
+    asked for a slice of it (audit S-6: ``GET /marketplace/purchases`` served
+    every agent's trades to an anonymous caller). It now filters, three ways,
+    because a purchase names its tenant in three places and only the newest
+    rows carry all of them:
+
+      * ``tenant_id`` on the row — written by the FT-6 order mirror only, so it
+        is NULL on every row ``record_purchase()`` writes;
+      * the buyer's agent, resolved through ``marketplace_agents.tenant_id``;
+      * the seller's agent, the same way.
+
+    A tenant is party to the trade in any of those cases, so all three are in
+    scope. Filtering on the row column alone would silently return an empty
+    list for the marketplace's own purchases.
+    """
     query = "SELECT * FROM marketplace_purchases WHERE 1=1"
     params: list = []
     if buyer_agent:
@@ -727,6 +745,13 @@ def list_purchases(
     if seller_agent:
         query += " AND seller_agent=?"
         params.append(seller_agent)
+    if tenant_id:
+        query += (
+            " AND (tenant_id=?"
+            "      OR buyer_agent IN (SELECT agent_id FROM marketplace_agents WHERE tenant_id=?)"
+            "      OR seller_agent IN (SELECT agent_id FROM marketplace_agents WHERE tenant_id=?))"
+        )
+        params.extend([tenant_id, tenant_id, tenant_id])
     query += " ORDER BY purchased_at DESC LIMIT ?"
     params.append(limit)
     with _conn(db_path) as con:
