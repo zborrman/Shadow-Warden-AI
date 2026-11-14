@@ -5,7 +5,8 @@
     "without credentials; remove an entry by gating the route, not by editing this file.",
     "executes_anonymously: the handler ran for a caller with no credentials (2xx).",
     "inconclusive: neither 2xx nor 401/403 - the handler may have run and rejected the",
-    "input, so these are NOT a clean bill of health. Each carries a reason."
+    "input, so these are NOT a clean bill of health. Each carries a reason.",
+    "2026-11-14: seven entries removed by gating, not by editing -- /integrations/* (4), /agents/packs deploy+analyze, /billing/referral/redeem."
   ],
   "measured_at": "2026-11-14",
   "executes_anonymously": {
@@ -25,19 +26,12 @@
     "POST /threat/neutralizer/assess": "Free product surface; left public by decision in PR #248."
   },
   "inconclusive": {
-    "POST /agents/packs/{name}/analyze": "OPEN WRITE. 404 only because the probe names a pack that does not exist. No auth dependency.",
-    "POST /agents/packs/{name}/deploy": "OPEN WRITE. Registers an edge agent pack as a marketplace agent in a caller-named community; 404 only because the pack name is fake. No auth dependency.",
     "POST /auth/login": "Public by design; rejects before auth can apply.",
     "POST /auth/saml/acs": "SAML assertion consumer: the signed assertion is the credential, so no API key applies. 503 because SAML is unconfigured here.",
     "POST /auth/signup": "Public by design.",
-    "POST /billing/referral/redeem": "Bearer-code design: a valid referral code is the credential. The caller does name the crediting tenant in the body - worth a second look.",
     "POST /billing/webhook": "Provider webhook; authenticity is the provider signature, not an API key.",
     "POST /demo/filter": "Free product surface (#248). The 500 is the probe environment (no model), not the handler.",
     "POST /filter/file": "Free product surface; multipart, so the JSON probe cannot reach the handler.",
-    "POST /integrations/jira/issue": "OPEN WRITE, latent. No auth dependency; 502 only because JIRA_* is unset here and in production. Configure Jira and an anonymous caller files Jira issues.",
-    "POST /integrations/notion/page": "OPEN WRITE, latent - same shape (NOTION_API_TOKEN unset).",
-    "POST /integrations/teams/notify": "OPEN WRITE, latent - same shape (TEAMS_WEBHOOK_URL unset).",
-    "POST /integrations/zapier/event": "OPEN WRITE, latent - same shape (ZAPIER/MAKE webhook unset).",
     "POST /kya/register": "First-contact DID registration; rejected on DID format.",
     "POST /kya/verify/{did}": "First-contact protocol; answers a challenge, 404 for an unregistered DID.",
     "POST /m2m-store/storefront/{slug}/order-requests": "Anonymous buyer path by design (M5a); rejected on body validation here.",

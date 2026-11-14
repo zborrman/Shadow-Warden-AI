@@ -336,11 +336,27 @@ class TestBillingRouter:
         assert "share_url" in data
 
     def test_referral_redeem_invalid_code(self, client):
+        # The body no longer names the credited tenant - it comes from the key.
         resp = client.post(
             "/billing/referral/redeem",
-            json={"code": "REF-INVALID0", "new_tenant_id": "new-t"},
+            json={"code": "REF-INVALID0"},
         )
         assert resp.status_code == 422
+
+    def test_referral_redeem_rejects_a_body_naming_another_tenant(self, client, monkeypatch):
+        """The body used to be the only thing choosing who got the credit.
+
+        With no key required, an anonymous holder of a code could credit any
+        tenant. A stale client that still sends new_tenant_id must be told, not
+        silently retargeted.
+        """
+        monkeypatch.setenv("ADMIN_KEY", "lemon-test-admin")
+        resp = client.post(
+            "/billing/referral/redeem",
+            json={"code": "REF-INVALID0", "new_tenant_id": "someone-else"},
+            headers={"X-Tenant-ID": "me", "X-Admin-Key": "lemon-test-admin"},
+        )
+        assert resp.status_code == 403
 
     def test_referral_redeem_valid_code(self, client, monkeypatch):
         import warden.billing.referral as ref_mod
@@ -355,10 +371,13 @@ class TestBillingRouter:
         assert gen_resp.status_code == 200
         code = gen_resp.json()["code"]
 
-        # Redeem it
+        # Redeem it as the new tenant - the operator acting on its behalf, so
+        # the credited tenant is named by X-Tenant-ID + X-Admin-Key, never by
+        # the body.
         redeem_resp = client.post(
             "/billing/referral/redeem",
-            json={"code": code, "new_tenant_id": "brand-new-tenant"},
+            json={"code": code},
+            headers={"X-Tenant-ID": "brand-new-tenant", "X-Admin-Key": "lemon-test-admin"},
         )
         assert redeem_resp.status_code == 200
         data = redeem_resp.json()
