@@ -215,6 +215,13 @@ class StorePatch(BaseModel):
     active: bool | None = None
 
 
+class PlanGrantIn(BaseModel):
+    """Operator grant of a store plan. ``days=None`` is open-ended."""
+    plan: str = Field(..., max_length=40)
+    source: str = Field(default="admin", max_length=20)
+    days: int | None = Field(default=None, ge=1)
+
+
 class CategoryIn(BaseModel):
     slug: str = Field(..., pattern=_SLUG)
     name: str = Field(..., min_length=1, max_length=120)
