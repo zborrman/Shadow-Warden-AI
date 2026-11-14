@@ -29,7 +29,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 from warden.config import settings
 
 try:
@@ -1074,8 +1074,27 @@ from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
 
 
 @router.post("/evidence/generate")
-async def generate_evidence_bundle_endpoint(tenant_id: str = "default") -> dict:
-    """Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)"""
+async def generate_evidence_bundle_endpoint(
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)
+
+    Two defects, found by the R0 anonymous-write probe (2026-11-14):
+
+    * it carried no auth dependency at all, while *every* sibling in this
+      router does, so an anonymous caller could generate a SOC 2 evidence
+      bundle and receive a download URL for it;
+    * ``tenant_id`` was a query parameter defaulting to ``"default"``, bound to
+      nothing, so the caller chose whose compliance evidence to export. Same
+      shape as the ``/compliance/frameworks/{tenant_id}`` hole closed in #248 --
+      that audit fixed the path-param case in this file and missed this one.
+
+    The tenant now comes from the presented key and cannot be named by the
+    caller. There is no operator override because nothing calls this route
+    cross-tenant; add one deliberately (admin key, like the marketplace reads)
+    if that changes.
+    """
+    tenant_id = auth.tenant_id
     try:
         from warden.compliance.evidence_bundle import generate_evidence_bundle  # noqa: PLC0415
         result = await generate_evidence_bundle(tenant_id)

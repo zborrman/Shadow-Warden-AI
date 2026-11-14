@@ -1,5 +1,5 @@
 {
-  "total": 153,
+  "total": 152,
   "routes": [
     "warden/agentic/router.py::get_activity::tenant_id::GET /agents/activity",
     "warden/agentic/router.py::list_agents::tenant_id::GET /agents",
@@ -39,7 +39,6 @@
     "warden/api/compliance_report.py::compliance_gaps::tenant_id::GET /posture/gaps",
     "warden/api/compliance_report.py::compliance_recalculate::tenant_id::POST /posture/recalculate",
     "warden/api/compliance_report.py::compliance_ws::tenant_id::WEBSOCKET /ws",
-    "warden/api/compliance_report.py::generate_evidence_bundle_endpoint::tenant_id::POST /evidence/generate",
     "warden/api/config_api.py::get_settings::tenant_id::GET ",
     "warden/api/cost_allocation.py::get_departments::tenant_id::GET /departments",
     "warden/api/cost_allocation.py::get_summary::tenant_id::GET /summary",
