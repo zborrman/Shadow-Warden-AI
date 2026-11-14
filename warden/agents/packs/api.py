@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 # Trigger pack registration by importing the concrete packs
@@ -20,6 +20,7 @@ import warden.agents.packs.crop_health_monitor
 import warden.agents.packs.disease_detector
 import warden.agents.packs.yield_optimizer  # noqa: F401
 from warden.agents.packs.base import get_pack, list_packs
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.agents.packs.api")
 router = APIRouter(prefix="/agents", tags=["Edge Agent Packs"])
@@ -40,9 +41,15 @@ def list_agent_packs():
     return {"packs": list_packs(), "count": len(list_packs())}
 
 
-@router.post("/packs/{name}/deploy")
+@router.post("/packs/{name}/deploy", dependencies=[Depends(require_api_key)])
 def deploy_pack(name: str, body: DeployRequest):
-    """Register an edge agent pack as a marketplace agent in a community."""
+    """Register an edge agent pack as a marketplace agent in a community.
+
+    Gated since the R0 anonymous-write probe (2026-11-14) found it open: it
+    registers a marketplace agent in a community the *caller* names, and read
+    as a harmless 404 only because the probe used a pack name that does not
+    exist. Listing packs stays public, like the rest of marketplace discovery.
+    """
     pack_cls = get_pack(name)
     if not pack_cls:
         raise HTTPException(status_code=404, detail=f"Pack {name!r} not found.")
@@ -58,9 +65,12 @@ def deploy_pack(name: str, body: DeployRequest):
     }
 
 
-@router.post("/packs/{name}/analyze")
+@router.post("/packs/{name}/analyze", dependencies=[Depends(require_api_key)])
 async def run_pack_analysis(name: str, body: AnalyzeRequest):
-    """Run a pack's analyze + recommend_action pipeline on sensor data."""
+    """Run a pack's analyze + recommend_action pipeline on sensor data.
+
+    Gated for the same reason: it runs compute on caller-supplied input.
+    """
     pack_cls = get_pack(name)
     if not pack_cls:
         raise HTTPException(status_code=404, detail=f"Pack {name!r} not found.")
