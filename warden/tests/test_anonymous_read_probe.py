@@ -5,8 +5,8 @@ Ratchet: no read route answers an anonymous caller unless it is on the list.
 GET, and the first time anyone measured (security audit, 2026-11-14) 67 read
 routes answered 2xx with no credentials - the unpatched-CVE feed, open pentest
 findings, the healer's state, any tenant's compliance frameworks, any tenant's
-subscription plan and the customer-portal URL that manages it. Twenty-five of
-those were closed in the change that added this file; the 42 that remain are
+subscription plan and the customer-portal URL that manages it. Twenty-four of
+those were closed in the change that added this file; the 43 that remain are
 public on purpose and each says why in ``anonymous_read_baseline.json``.
 
 The measurement reuses the write probe's child process and environment, for
@@ -45,7 +45,7 @@ _CLOSED = (
     "GET /compliance/hipaa", "GET /compliance/nis2", "GET /kya/list",
     "GET /streams/state/{community_id}", "GET /api/stats",
     "GET /sep/model-bundles", "GET /marketplace/escrows",
-    "GET /marketplace/autonomy/{agent_id}", "GET /marketplace/maestro/flags",
+    "GET /marketplace/maestro/flags",
     "GET /marketplace/agents/{agent_id}/maestro-report",
     "GET /obsidian/feed", "GET /obsidian/reputation",
     "GET /subscription/status", "GET /subscription/portal",

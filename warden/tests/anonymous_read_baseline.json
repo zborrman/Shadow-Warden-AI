@@ -25,6 +25,7 @@
     "GET /marketplace/analytics/summary": "Aggregate marketplace statistics shown on the public site. recent-trades should be re-reviewed when a real trade exists.",
     "GET /marketplace/analytics/volume": "Aggregate marketplace statistics shown on the public site. recent-trades should be re-reviewed when a real trade exists.",
     "GET /marketplace/assets": "Public asset catalogue (discovery).",
+    "GET /marketplace/autonomy/{agent_id}": "A counterparty reads an agent's autonomy level before dealing with it; kept public as discovery by docs/anonymous-route-audit-2026-07-29.md and pinned by test_money_writes_auth.py.",
     "GET /marketplace/listings": "Marketplace discovery - an agent must find goods before it has a relationship with us (asserted public in #701).",
     "GET /marketplace/proposals": "Governance proposals are public by design; nothing tenant-scoped.",
     "GET /marketplace/protocol": "Marketplace protocol description; public by decision in #701.",
