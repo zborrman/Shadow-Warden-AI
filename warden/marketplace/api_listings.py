@@ -10,9 +10,10 @@ import time
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
+from warden.marketplace.admin_guard import require_admin_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -177,9 +178,38 @@ async def list_purchases(
     buyer_agent:  str | None = Query(default=None),
     seller_agent: str | None = Query(default=None),
     limit:        int        = Query(default=50, le=100),
+    auth:         AuthResult = Depends(require_api_key),
+    x_admin_key:  str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> list[dict]:
+    """Purchases the caller's tenant is party to, as buyer or as seller.
+
+    Audit S-6: this answered 200 to an anonymous caller and returned every
+    agent's trades — price paid, counterparty and asset — with
+    ``?buyer_agent=`` enough to single out one agent's buying history. Browsing
+    *listings* is open by design (that is how agents find each other); a
+    settled trade is commercial data that belongs to its two parties.
+
+    An operator holding ``X-Admin-Key`` still reads the whole table, so
+    support and reconciliation keep working without a per-tenant loop. The
+    admin guard is fail-closed: with no ``ADMIN_KEY`` configured, presenting
+    the header is a 503, not a free pass.
+    """
     from warden.marketplace.listing import list_purchases as _list
-    return [p.to_dict() for p in _list(buyer_agent=buyer_agent, seller_agent=seller_agent, limit=limit)]
+
+    tenant_scope: str | None = auth.tenant_id
+    if x_admin_key is not None:
+        require_admin_key(x_admin_key)
+        tenant_scope = None
+
+    return [
+        p.to_dict()
+        for p in _list(
+            buyer_agent=buyer_agent,
+            seller_agent=seller_agent,
+            tenant_id=tenant_scope,
+            limit=limit,
+        )
+    ]
 
 
 class SponsorRequest(BaseModel):

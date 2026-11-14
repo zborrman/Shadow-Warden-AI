@@ -249,6 +249,29 @@ Three access tiers for marketplace participation:
    record says what would block the first real trade, not just "not configured".
    `ESCROW_SETTLE_CHAINS` has an explicit compose passthrough (warden has no `env_file`).
 
+32. **Browsing is public; a settled trade is not (audit S-6).** The open-by-design
+   surface is *discovery* — `/listings`, `/protocol`, `/agents/{id}/trust`,
+   `/readiness/{id}`: an agent must be able to find goods and judge a counterparty
+   before it has any relationship with us. Everything downstream of a trade is
+   commercial data belonging to its parties, and three reads published it to anyone:
+   `GET /purchases` (price paid, counterparty and asset for every agent, with
+   `?buyer_agent=` enough to single out one agent's history), `GET /credits/balance`
+   (any tenant's spendable balance, named in an `X-Tenant-ID` header the handler
+   trusted), `GET /analytics/fairness`. All three now take `require_api_key`;
+   `/purchases` is scoped to the trades the caller's tenant is party to and
+   `/credits/balance` reads the tenant off the key, not the header. **An operator
+   still reads across tenants with `X-Admin-Key`** (fail-closed per rule #19 — no
+   `ADMIN_KEY`, 503), which is what keeps support and reconciliation possible
+   without reopening the route. Two traps this closed, both worth not repeating:
+   `list_purchases()` *accepted* a `tenant_id` argument and ignored it — the SQL
+   never referenced it, so every caller that asked for a slice silently got the
+   whole table; and scoping on the row's own `tenant_id` column alone returns an
+   empty list, because only the FT-6 order mirror writes it — `record_purchase()`
+   never has, so tenancy must be resolved through `marketplace_agents.tenant_id`
+   for the buyer *and* the seller. Guarded by
+   `warden/tests/test_marketplace_commercial_reads_auth.py`, which also asserts
+   discovery stays open, so a later reflex cannot gate it.
+
 24. **Every marketplace write route carries an authentication dependency.** `POST`/`PUT`/`PATCH`/`DELETE` under `/marketplace/*` must depend on `require_api_key` (`warden/auth_guard.py`), in addition to — never instead of — `marketplace_rate_limit`. Enforced by the ratchet `warden/tests/test_marketplace_route_auth.py`, whose baseline of known-unauthenticated routes **may only shrink**. There is no global auth middleware in `main.py`, so a router that omits this is genuinely open to the internet. Adding a route without the dependency fails CI.
 25. **An API key authenticates a tenant, not an agent.** `require_api_key` proves *who is calling*, not *which agent an action is attributed to*. Any endpoint that accepts an agent identifier in its body (`from_agent_id`, `seller_agent_id`, …) and acts on it must additionally verify the caller controls that agent. For offers the mechanism is the Ed25519 signature (rule #1 / MP-1b): `agent_id` is **derived from** the public key — `did:shadow:{base62(sha256(pubkey))}`, see `agent.py::pubkey_to_agent_id()` — so a signature verifying against the registered `marketplace_agents.public_key` *is* proof of the claimed identity. Never trust a body-supplied agent id on its own.
 
