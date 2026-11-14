@@ -140,11 +140,28 @@ api.shadow-warden-ai.com {
 	}
 }
 
+# ── Next.js image optimizer: refused at the edge of every Next.js vhost ──────
+# /_next/image is an anonymous endpoint that fetches and decodes a file the
+# caller names. The 14.x line carries unfixed critical advisories against it
+# (GHSA-2464-fhr4-w9xw, GHSA-2xp9-vwfh-vxw4, GHSA-p293-qw3h-jr36) and neither
+# app renders through next/image, so the path has no legitimate caller. Both
+# apps also set images.unoptimized; this is the second lock, so a config
+# regression in either does not reopen it.
+(no_next_image) {
+	@nextImage path /_next/image /_next/image/*
+	# `handle`, not a bare `respond`: the vhost's catch-all `handle` is ordered
+	# before `respond`, so a bare one would never run.
+	handle @nextImage {
+		respond 404
+	}
+}
+
 # ── Tenant Portal (Next.js) ───────────────────────────────────────────────────
 app.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
+	import no_next_image
 
 	handle {
 		reverse_proxy portal:3001 {
@@ -171,6 +188,7 @@ portal.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
+	import no_next_image
 
 	# Next.js immutable static chunks — overwrite any upstream cache header
 	@nextStatic path /_next/static/*
@@ -195,6 +213,7 @@ dash.shadow-warden-ai.com {
 	tls /etc/caddy/ssl/cert.pem /etc/caddy/ssl/key.pem
 
 	import security_headers
+	import no_next_image
 
 	handle {
 		reverse_proxy dashboard:3002 {

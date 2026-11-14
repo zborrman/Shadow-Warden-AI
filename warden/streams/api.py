@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from warden.admin_guard import require_admin_key
+from warden.auth_guard import require_api_key
 from warden.streams.agent_runner import get_runner
 from warden.streams.event_bus import TOPICS, get_event_bus
 
@@ -70,7 +71,7 @@ def replay_topic(topic: str, body: ReplayRequest, request: Request):
     }
 
 
-@router.get("/state/{community_id}")
+@router.get("/state/{community_id}", dependencies=[Depends(require_api_key)])
 def community_runner_state(community_id: str):
     """Return the FlinkAgentRunner state counters for a community."""
     runner = get_runner()

@@ -20,11 +20,17 @@ import time
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
+
+from warden.auth_guard import require_api_key
 
 log = logging.getLogger("warden.api.soc_dashboard")
 
 router = APIRouter(prefix="/soc", tags=["soc"])
+
+# Healer state, bypass metrics and posture describe how the gateway is
+# failing right now. /soc/health stays open like /health.
+_READ = [Depends(require_api_key)]
 
 _WARDEN_BASE = os.getenv("WARDEN_INTERNAL_URL", "http://localhost:8001")
 _TIMEOUT     = 5.0
@@ -84,7 +90,7 @@ async def soc_health():
     }
 
 
-@router.get("/healer")
+@router.get("/healer", dependencies=_READ)
 async def soc_healer():
     """Last WardenHealer diagnostic report — issues, actions, trend prediction."""
     try:
@@ -103,7 +109,7 @@ async def soc_healer():
         return {"error": str(exc)}
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=_READ)
 async def soc_metrics():
     """Key Prometheus counters in JSON form (avoids Grafana dependency for SOC quick-view)."""
     stats = await _get_stats()
@@ -119,7 +125,7 @@ async def soc_metrics():
     }
 
 
-@router.get("/posture")
+@router.get("/posture", dependencies=_READ)
 async def soc_posture():
     """Security posture badge — thin proxy to /security/posture for SOC sidebar."""
     from warden.api.security_hub import _compute_posture

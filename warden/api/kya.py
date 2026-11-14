@@ -26,6 +26,7 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
+from warden.auth_guard import require_api_key
 from warden.kya.did import is_valid_did, sign_trust_assertion, verify_signature
 from warden.kya.profile import (
     get_profile,
@@ -147,7 +148,7 @@ async def verify_challenge(did: str, req: VerifyRequest) -> dict:
     return {"did": did, "verified": ok}
 
 
-@router.get("/list", response_model=list)
+@router.get("/list", response_model=list, dependencies=[Depends(require_api_key)])
 async def list_agents(
     owner: str | None = Query(None),
     min_trust: float = Query(0.0, ge=0.0, le=1.0),

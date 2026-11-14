@@ -1672,7 +1672,7 @@ async def set_autonomy_policy(
     return result.to_dict()
 
 
-@router.get("/autonomy/{agent_id}")
+@router.get("/autonomy/{agent_id}", dependencies=[Depends(require_api_key)])
 async def get_autonomy_policy(agent_id: str) -> dict:
     """Return current autonomy policy for an agent."""
     from warden.marketplace.autonomy import get_policy  # noqa: PLC0415
