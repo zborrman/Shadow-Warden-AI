@@ -136,14 +136,14 @@ async def require_store_owner(
 OwnerDep = Depends(require_store_owner)
 
 
-def _require_admin_key(
+def _require_admin(
     x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
 ) -> None:
     """The operator, and nobody else. 503 when ADMIN_KEY is unset, never open."""
     require_admin_key(x_admin_key)
 
 
-AdminDep = Depends(_require_admin_key)
+AdminDep = Depends(_require_admin)
 
 # Fields only the owner may see. The catalog is shared across sellers; the
 # seller's tenant id is not part of what a buyer is shown.
