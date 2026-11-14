@@ -158,7 +158,7 @@ async def share_note(
     }
 
 
-@router.get("/feed")
+@router.get("/feed", dependencies=[Depends(require_api_key)])
 async def community_feed(
     community_id: str,
     limit: int = 20,
@@ -212,7 +212,7 @@ async def ai_filter(
     }
 
 
-@router.get("/reputation")
+@router.get("/reputation", dependencies=[Depends(require_api_key)])
 async def obsidian_reputation(tenant_id: str = Depends(_get_tenant)):
     """Return community reputation for the requesting tenant (for Obsidian sidebar)."""
     try:

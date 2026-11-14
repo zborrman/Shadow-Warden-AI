@@ -89,7 +89,9 @@ class GenerateReferralRequest(BaseModel):
 
 class RedeemReferralRequest(BaseModel):
     code:          str
-    new_tenant_id: str
+    # Deprecated: the credited tenant comes from the API key. Kept so an older
+    # client gets a 403 naming the mismatch instead of a confusing 422.
+    new_tenant_id: str | None = None
 
 
 # ── Tier catalog ──────────────────────────────────────────────────────────────
@@ -623,13 +625,36 @@ async def generate_referral(
     "/referral/redeem",
     summary="Redeem a referral code for a new tenant",
 )
-async def redeem_referral(body: RedeemReferralRequest):
-    if not body.code or not body.new_tenant_id:
-        raise HTTPException(status_code=400, detail="code and new_tenant_id are required.")
+async def redeem_referral(
+    body: RedeemReferralRequest,
+    tenant_id: str = Depends(_caller_tenant),
+):
+    """Redeem a referral code for the calling tenant.
+
+    The code is a bearer credential, but ``new_tenant_id`` in the body was the
+    only thing naming *who gets the credit*, with no key required at all - so
+    an anonymous holder of a code could credit any tenant it liked. Found by
+    the R0 anonymous-write probe (2026-11-14); the same shape H-5 closed across
+    the rest of this router in #597, which this route escaped because it takes
+    its tenant from a body field rather than the ``X-Tenant-ID`` header that
+    audit grepped for.
+
+    The credited tenant now comes from the presented key (``_caller_tenant``,
+    which still honours ``X-Tenant-ID`` alongside a valid ``X-Admin-Key`` for
+    the operator). A body field that disagrees is an error rather than being
+    silently ignored, so a stale client is told instead of quietly retargeted.
+    """
+    if not body.code:
+        raise HTTPException(status_code=400, detail="code is required.")
+    if body.new_tenant_id and body.new_tenant_id != tenant_id:
+        raise HTTPException(
+            status_code=403,
+            detail="new_tenant_id does not match the tenant this key resolves to.",
+        )
 
     try:
         from warden.billing.referral import redeem_referral_code
-        result = redeem_referral_code(body.code, body.new_tenant_id)
+        result = redeem_referral_code(body.code, tenant_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

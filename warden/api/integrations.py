@@ -19,13 +19,29 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.integrations")
 
-router = APIRouter(prefix="/integrations", tags=["integrations"])
+# Auth at the router, not per route: every endpoint here either performs an
+# outbound write on the operator's behalf (Jira issue, Teams card, Notion page,
+# Zapier event) or discloses whether that integration is configured. None of
+# them is a deliberate public read, so there is nothing for a router-level
+# dependency to reverse.
+#
+# The R0 anonymous-write probe (2026-11-14) found all eight open. They read as
+# harmless because the probe gets 502/503 -- but that is the *credentials*
+# being unset, here and in production, not a gate. The day someone sets
+# JIRA_BASE_URL this becomes an anonymous Jira writer, and nothing would have
+# said so. A latent hole is still a hole; it just fails loudly later.
+router = APIRouter(
+    prefix="/integrations",
+    tags=["integrations"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 # ── Jira (IN-16) ──────────────────────────────────────────────────────────────

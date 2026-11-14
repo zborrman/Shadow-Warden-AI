@@ -10,10 +10,11 @@ Slash commands registered in your Slack App:
   /warden help               — command reference
 
 Security: HMAC-SHA256 signature verification (SLACK_SIGNING_SECRET).
+Fail CLOSED: without that secret the route answers 503, it does not accept.
 Slack expects a response within 3 s — all work is synchronous-fast.
 
 Environment variables:
-  SLACK_SIGNING_SECRET   Slack app signing secret (required for sig verification)
+  SLACK_SIGNING_SECRET   Slack app signing secret (REQUIRED; no secret, no service)
   WARDEN_API_KEY         internal API key for localhost:8001 calls
 """
 from __future__ import annotations
@@ -32,17 +33,51 @@ from fastapi import APIRouter, HTTPException, Request, Response
 router = APIRouter(tags=["slack"])
 log = logging.getLogger("warden.api.slack_commands")
 
-_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "")
-_BASE           = "http://localhost:8001"
-_API_KEY        = os.getenv("WARDEN_API_KEY", "")
-_TIMEOUT        = 12.0
+_BASE    = "http://localhost:8001"
+_TIMEOUT = 12.0
+
+
+def _signing_secret() -> str:
+    """Read Slack's signing secret per call.
+
+    Never snapshot it at import: this module is imported during app startup,
+    before compose/.env values are necessarily in the environment, so a
+    module-level read can capture "" for the life of the process even when the
+    secret is configured. Same import-time-binding trap as the raw signing keys
+    CLAUDE.md's Phase 7 rule covers.
+    """
+    return os.getenv("SLACK_SIGNING_SECRET", "")
+
+
+def _internal_api_key() -> str:
+    """Per call, for the same reason."""
+    return os.getenv("WARDEN_API_KEY", "")
 
 
 # ── Signature verification ────────────────────────────────────────────────────
 
 def _verify(body: bytes, timestamp: str, signature: str) -> bool:
-    if not _SIGNING_SECRET:
-        return True  # dev mode — skip
+    """Verify Slack's v0 signature. Fail CLOSED when there is no secret.
+
+    This used to read:
+
+        if not _SIGNING_SECRET:
+            return True  # dev mode - skip
+
+    which is the signature bypass CLAUDE.md's Phase 7 rule names explicitly
+    ("never os.getenv(...) plus skip-the-check-when-empty"). It was not
+    theoretical: SLACK_SIGNING_SECRET is passed to no container in
+    docker-compose.yml, and `warden` carries no `env_file`, so the secret has
+    never reached production. Every anonymous POST to /slack/command therefore
+    verified, including `/warden approve <token>` -- the human-in-the-loop gate
+    on MasterAgent's high-impact actions.
+
+    An unresolvable key denies. The route answers 503 (see the handler), so an
+    unconfigured instance says so instead of silently accepting.
+    """
+    secret = _signing_secret()
+    if not secret:
+        return False
     try:
         if abs(time.time() - float(timestamp)) > 300:
             return False  # replay-attack window
@@ -50,7 +85,7 @@ def _verify(body: bytes, timestamp: str, signature: str) -> bool:
         return False
     sig_base = f"v0:{timestamp}:{body.decode()}"
     expected = "v0=" + hmac.new(
-        _SIGNING_SECRET.encode(), sig_base.encode(), hashlib.sha256
+        secret.encode(), sig_base.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature)
 
@@ -70,6 +105,15 @@ def _resp(text: str, *, ephemeral: bool = True) -> Response:
 @router.post("/slack/command")
 async def slack_command(request: Request) -> Response:
     """Handle /warden slash commands dispatched from Slack."""
+    if not _signing_secret():
+        # Distinguish "this instance has no Slack integration" from "your
+        # signature is wrong" -- the owner needs to know which one they have.
+        raise HTTPException(
+            status_code=503,
+            detail="Slack integration is not configured on this instance "
+                   "(SLACK_SIGNING_SECRET unset).",
+        )
+
     body      = await request.body()
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
     signature = request.headers.get("X-Slack-Signature", "")
@@ -106,7 +150,7 @@ async def _cmd_scan(text: str) -> Response:
             r = await c.post(
                 f"{_BASE}/obsidian/ai-filter",
                 json={"prompt": text},
-                headers={"X-API-Key": _API_KEY, "X-Tenant-ID": "default"},
+                headers={"X-API-Key": _internal_api_key(), "X-Tenant-ID": "default"},
             )
             data = r.json()
     except Exception as exc:
@@ -127,7 +171,7 @@ async def _cmd_scan(text: str) -> Response:
 async def _cmd_status() -> Response:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as c:
-            r = await c.get(f"{_BASE}/health", headers={"X-API-Key": _API_KEY})
+            r = await c.get(f"{_BASE}/health", headers={"X-API-Key": _internal_api_key()})
             data = r.json()
     except Exception as exc:
         return _resp(f"⚠️ Health check error: {exc}")
@@ -150,7 +194,7 @@ async def _cmd_approve(token: str) -> Response:
             r = await c.post(
                 f"{_BASE}/agent/approve/{token}",
                 params={"action": "approve"},
-                headers={"X-API-Key": _API_KEY},
+                headers={"X-API-Key": _internal_api_key()},
             )
             data   = r.json()
             status = data.get("status", "unknown")

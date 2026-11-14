@@ -29,7 +29,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, require_api_key
 from warden.config import settings
 
 try:
@@ -41,6 +41,10 @@ except Exception:
 log = logging.getLogger("warden.api.compliance_report")
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
+
+# The attestation reports are built from the tenant's own journal. They had no
+# dependency while every posture route in this router did.
+_REPORT_READ = [Depends(require_api_key)]
 
 # Unprefixed router for regulator-expected paths (e.g. /api/compliance/gdpr/ropa)
 router_api = APIRouter(tags=["compliance"])
@@ -298,14 +302,14 @@ flag types, content length, and processing latency. This satisfies GDPR Art.5(1)
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
-@router.get("/smb-report", summary="SMB compliance report (JSON)")
+@router.get("/smb-report", dependencies=_REPORT_READ, summary="SMB compliance report (JSON)")
 async def smb_report_json(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> dict:
     return _build_report(days)
 
 
-@router.get("/smb-report/html", response_class=HTMLResponse, summary="SMB compliance report (HTML, print-ready)")
+@router.get("/smb-report/html", dependencies=_REPORT_READ, response_class=HTMLResponse, summary="SMB compliance report (HTML, print-ready)")
 async def smb_report_html(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> HTMLResponse:
@@ -313,7 +317,7 @@ async def smb_report_html(
     return HTMLResponse(content=_render_html(report))
 
 
-@router.get("/smb-report/pdf", summary="SMB compliance report (PDF or HTML fallback)")
+@router.get("/smb-report/pdf", dependencies=_REPORT_READ, summary="SMB compliance report (PDF or HTML fallback)")
 async def smb_report_pdf(
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> Response:
@@ -730,7 +734,7 @@ _HIPAA_SAFEGUARDS = [
 ]
 
 
-@router.get("/hipaa", summary="HIPAA technical safeguards attestation (JSON)")
+@router.get("/hipaa", dependencies=_REPORT_READ, summary="HIPAA technical safeguards attestation (JSON)")
 async def hipaa_report(days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     stats = _aggregate_logs(days)
     safeguards = [
@@ -753,7 +757,7 @@ async def hipaa_report(days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     }
 
 
-@router.get("/hipaa/html", response_class=HTMLResponse, summary="HIPAA safeguards report (HTML)")
+@router.get("/hipaa/html", dependencies=_REPORT_READ, response_class=HTMLResponse, summary="HIPAA safeguards report (HTML)")
 async def hipaa_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLResponse:
     data = await hipaa_report(days=days)
     rows = "".join(
@@ -806,7 +810,7 @@ _NIS2_MEASURES = [
 ]
 
 
-@router.get("/nis2", summary="NIS2 Directive compliance report (JSON)")
+@router.get("/nis2", dependencies=_REPORT_READ, summary="NIS2 Directive compliance report (JSON)")
 async def nis2_report(days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     stats = _aggregate_logs(days)
     measures = [
@@ -830,7 +834,7 @@ async def nis2_report(days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     }
 
 
-@router.get("/nis2/html", response_class=HTMLResponse, summary="NIS2 Directive compliance report (HTML)")
+@router.get("/nis2/html", dependencies=_REPORT_READ, response_class=HTMLResponse, summary="NIS2 Directive compliance report (HTML)")
 async def nis2_html(days: Annotated[int, Query(ge=1, le=365)] = 30) -> HTMLResponse:
     data = await nis2_report(days=days)
     rows = "".join(
@@ -1074,8 +1078,27 @@ from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
 
 
 @router.post("/evidence/generate")
-async def generate_evidence_bundle_endpoint(tenant_id: str = "default") -> dict:
-    """Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)"""
+async def generate_evidence_bundle_endpoint(
+    auth: AuthResult = Depends(require_api_key),
+) -> dict:
+    """Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)
+
+    Two defects, found by the R0 anonymous-write probe (2026-11-14):
+
+    * it carried no auth dependency at all, while *every* sibling in this
+      router does, so an anonymous caller could generate a SOC 2 evidence
+      bundle and receive a download URL for it;
+    * ``tenant_id`` was a query parameter defaulting to ``"default"``, bound to
+      nothing, so the caller chose whose compliance evidence to export. Same
+      shape as the ``/compliance/frameworks/{tenant_id}`` hole closed in #248 --
+      that audit fixed the path-param case in this file and missed this one.
+
+    The tenant now comes from the presented key and cannot be named by the
+    caller. There is no operator override because nothing calls this route
+    cross-tenant; add one deliberately (admin key, like the marketplace reads)
+    if that changes.
+    """
+    tenant_id = auth.tenant_id
     try:
         from warden.compliance.evidence_bundle import generate_evidence_bundle  # noqa: PLC0415
         result = await generate_evidence_bundle(tenant_id)

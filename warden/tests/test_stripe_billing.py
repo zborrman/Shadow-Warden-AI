@@ -269,7 +269,7 @@ class TestBillingEndpoints:
             yield
 
     def test_status_unknown_tenant_returns_free(self) -> None:
-        resp = self.client.get("/subscription/status?tenant_id=nobody")
+        resp = self.client.get("/subscription/status")
         assert resp.status_code == 200
         data = resp.json()
         assert data["plan"]  == "starter"
@@ -285,7 +285,7 @@ class TestBillingEndpoints:
         assert resp.status_code == 503
 
     def test_portal_returns_url(self) -> None:
-        resp = self.client.get("/subscription/portal?tenant_id=nobody")
+        resp = self.client.get("/subscription/portal")
         assert resp.status_code == 200
         assert "portal_url" in resp.json()
 
