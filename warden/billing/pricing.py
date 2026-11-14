@@ -136,3 +136,72 @@ ANNUAL_PRICING: dict[str, dict[str, Any]] = {
     for tier in TIER_PRICE_USD_MONTH
     if (plan := annual_plan(tier)) is not None
 }
+
+
+# ── M2M Store plans ───────────────────────────────────────────────────────────
+# The shop is the primary product (owner decision, 2026-11-12) and until now it
+# had no price, no limits and no row in this file: the whole ladder above sells
+# gateway requests. These are the seller plans.
+#
+# STATUS: a pricing *hypothesis*, not a published price. Nothing can be charged
+# (the capability matrix row "paid plans purchasable" is SIMULATED), no surface
+# serves these numbers, and they are expected to move after the seller pilot.
+# What is real today is the limit table: it is enforced on every store write.
+#
+# Same rules as the gateway ladder: one table, annual derived, never typed in.
+
+STORE_PLAN_PRICE_USD_MONTH: dict[str, float] = {
+    "store_free":     0.0,
+    "store_seller":   15.0,
+    "store_business": 39.0,
+}
+
+# What a plan may hold. Every key must appear on every plan, and the ladder must
+# be monotone - a higher plan never allows less (test_store_plans.py asserts both).
+#
+# Deliberately NOT limited on any plan:
+#   * order requests - a cap on orders punishes a seller for succeeding, and the
+#     platform moves no money, so there is nothing to meter;
+#   * photos per product - 8 everywhere (media.MAX_IMAGES_PER_PRODUCT); a thin
+#     storefront sells nothing and makes the free plan a bad advertisement.
+STORE_PLAN_LIMITS: dict[str, dict[str, int]] = {
+    "store_free":     {"stores": 1, "products": 25,    "locales": 2},
+    "store_seller":   {"stores": 1, "products": 500,   "locales": 5},
+    "store_business": {"stores": 5, "products": 5_000, "locales": 5},
+}
+
+STORE_DEFAULT_PLAN: str = "store_free"
+
+# One trial per tenant, ever: the paid plan, for a fixed window, no card.
+STORE_TRIAL_PLAN: str = "store_seller"
+STORE_TRIAL_DAYS: int = 14
+
+# The free plan has no revenue to derive an allowance from, so its inference
+# budget is a flat acquisition cost rather than a share of price.
+STORE_FREE_AI_BUDGET_USD: float = 0.50
+
+
+def store_plan_limits(plan: str) -> dict[str, int]:
+    """A copy of the plan's limit table. Unknown plans get the default plan's."""
+    return dict(STORE_PLAN_LIMITS.get(plan, STORE_PLAN_LIMITS[STORE_DEFAULT_PLAN]))
+
+
+def store_annual_price_usd(plan: str) -> float | None:
+    """Derived yearly price of a store plan. None for free or unknown plans."""
+    monthly = STORE_PLAN_PRICE_USD_MONTH.get(plan)
+    if not monthly:
+        return None
+    return round(monthly * 12.0 * (1.0 - ANNUAL_DISCOUNT), 2)
+
+
+def store_ai_budget_usd(plan: str) -> float:
+    """Monthly inference allowance of a store plan, in USD.
+
+    Paid plans: ``price x (1 - TARGET_GROSS_MARGIN)`` - the same formula that
+    sizes the gateway tiers, so "what we charge" and "what we may spend serving
+    it" stay one decision. Free: a flat ``STORE_FREE_AI_BUDGET_USD``.
+    """
+    monthly = STORE_PLAN_PRICE_USD_MONTH.get(plan, 0.0)
+    if not monthly:
+        return STORE_FREE_AI_BUDGET_USD
+    return round(monthly * (1.0 - TARGET_GROSS_MARGIN), 2)

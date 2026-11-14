@@ -62,9 +62,10 @@ from fastapi import (
 )
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from warden.admin_guard import require_admin_key
 from warden.auth_guard import AuthResult, require_api_key
 from warden.limiter import limiter as _limiter
-from warden.m2m_store import media
+from warden.m2m_store import media, plans
 from warden.m2m_store import order_requests as orq
 from warden.m2m_store import storefront as sf
 from warden.m2m_store.catalog import get_catalog
@@ -74,6 +75,7 @@ from warden.m2m_store.models import (
     CategoryPatch,
     OfferRequest,
     OrderRequest,
+    PlanGrantIn,
     PriceIn,
     Product,
     ShippingZoneIn,
@@ -133,6 +135,16 @@ async def require_store_owner(
 
 OwnerDep = Depends(require_store_owner)
 
+
+def _require_admin_key(
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> None:
+    """The operator, and nobody else. 503 when ADMIN_KEY is unset, never open."""
+    require_admin_key(x_admin_key)
+
+
+AdminDep = Depends(_require_admin_key)
+
 # Fields only the owner may see. The catalog is shared across sellers; the
 # seller's tenant id is not part of what a buyer is shown.
 _PRIVATE = {"tenant_id"}
@@ -163,6 +175,17 @@ def _strings_in(value: Any) -> Iterator[str]:
             yield from _strings_in(item)
 
 
+def _plan_limit(exc: plans.PlanLimitError) -> HTTPException:
+    """403 with a machine-readable body: the portal turns it into an upgrade prompt.
+
+    403 rather than 402, following the add-on gate's convention - 403 is "your
+    plan does not include this", 402 is "your plan allows it and it is unpaid".
+    """
+    return HTTPException(status_code=403, detail={
+        "error": "plan_limit", "limit": exc.limit, "max": exc.maximum, "plan": exc.plan,
+    })
+
+
 @contextmanager
 def _store_errors() -> Iterator[None]:
     try:
@@ -173,6 +196,12 @@ def _store_errors() -> Iterator[None]:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except sf.StoreInvalidError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except plans.PlanLimitError as exc:
+        raise _plan_limit(exc) from exc
+    except plans.PlanInvalidError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except plans.PlanConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except media.MediaUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except orq.OrderRequestUnavailableError as exc:
@@ -244,6 +273,8 @@ async def add_product(product: Product, auth: AuthResult = OwnerDep):
         saved = get_inventory().add_product(product, tenant_id=auth.tenant_id)
     except OwnershipError as exc:
         raise HTTPException(status_code=409, detail="Product id belongs to another seller") from exc
+    except plans.PlanLimitError as exc:
+        raise _plan_limit(exc) from exc
     return {"id": saved.id, "name": saved.name}
 
 
@@ -670,3 +701,50 @@ async def set_order_payment_link(request_id: str, body: orq.PaymentLinkIn,
     with _store_errors():
         return orq.set_payment_link(request_id, auth.tenant_id, body.url)
 
+
+# ── Plans ─────────────────────────────────────────────────────────────────────
+# The seller reads its own plan and may start its one trial. Putting a tenant on
+# a plan is the operator's act (X-Admin-Key) until a payment rail exists; the
+# subscription webhook will write the same table and nothing else changes.
+#
+# No route here returns a price. Paid plans cannot be bought yet, and a price
+# served by the API is a public claim (capability matrix: SIMULATED).
+
+@router.get("/plan", response_model=dict)
+async def get_store_plan(auth: AuthResult = OwnerDep):
+    """The caller's plan, its limits, and what the tenant holds against them."""
+    state = plans.get_plan(auth.tenant_id)
+    return state.as_dict() | {
+        "usage": plans.usage(auth.tenant_id),
+        "trial_available": plans.trial_available(auth.tenant_id),
+    }
+
+
+@router.post("/plan/trial", response_model=dict, status_code=201)
+async def start_store_trial(auth: AuthResult = OwnerDep):
+    """Start the caller's one trial of the paid plan. 409 once it has been used."""
+    with _store_errors():
+        return plans.start_trial(auth.tenant_id).as_dict()
+
+
+@router.put("/admin/plans/{tenant_id}", response_model=dict, dependencies=[AdminDep])
+async def grant_store_plan(tenant_id: str, body: PlanGrantIn):
+    """Operator: put a named tenant on a plan (pilot and founding sellers)."""
+    with _store_errors():
+        return plans.grant_plan(tenant_id, body.plan, source=body.source,
+                                actor="operator", days=body.days).as_dict()
+
+
+@router.delete("/admin/plans/{tenant_id}", status_code=204, dependencies=[AdminDep])
+async def revoke_store_plan(tenant_id: str):
+    """Operator: return a tenant to the default plan. Its stores and products stay."""
+    plans.revoke_plan(tenant_id, actor="operator")
+
+
+@router.get("/admin/plans/{tenant_id}", response_model=dict, dependencies=[AdminDep])
+async def read_store_plan(tenant_id: str):
+    """Operator: a tenant's plan, usage and the audit trail of every change."""
+    return plans.get_plan(tenant_id).as_dict() | {
+        "usage": plans.usage(tenant_id),
+        "history": plans.history(tenant_id),
+    }

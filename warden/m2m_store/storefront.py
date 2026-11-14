@@ -24,6 +24,7 @@ from typing import Any
 
 from warden.db.ddl_registry import register
 
+from . import plans
 from .inventory import _conn, _db_lock, _now_iso, get_inventory
 from .models import (
     SETTLEMENT_CURRENCIES,
@@ -135,19 +136,30 @@ def _store_row(r: sqlite3.Row) -> dict[str, Any]:
 def create_store(tenant_id: str, body: StoreIn) -> dict[str, Any]:
     if body.slug in RESERVED_SLUGS:
         raise StoreConflictError(f"slug {body.slug!r} is reserved")
+    # The plan is enforced here, in the function that writes the row, and not in
+    # the route: a caller that reaches this function cannot forget to check.
+    plan = plans.get_plan(tenant_id)
+    if len(body.locales) > plan.limit("locales"):
+        raise plans.PlanLimitError("locales", plan.limit("locales"), plan.plan)
     store_id = str(uuid.uuid4())
     try:
         with _db_lock, _conn() as con:
-            con.execute(
+            # Count and insert are one statement. Four workers each running
+            # "count, then insert" would all see room for the last store.
+            cur = con.execute(
                 "INSERT INTO m2m_stores(id, tenant_id, slug, name, description, default_currency,"
-                " currencies_json, locales_json, created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                " currencies_json, locales_json, created_at) SELECT ?,?,?,?,?,?,?,?,?"
+                " WHERE (SELECT COUNT(*) FROM m2m_stores"
+                "        WHERE tenant_id=? AND deleted_at='') < ?",
                 (store_id, tenant_id, body.slug, body.name, body.description,
                  body.default_currency, json.dumps(body.currencies), json.dumps(body.locales),
-                 _now_iso()),
+                 _now_iso(), tenant_id, plan.limit("stores")),
             )
     except sqlite3.IntegrityError as exc:
         # A deleted store keeps its slug: no one else may trade under it.
         raise StoreConflictError(f"slug {body.slug!r} is taken") from exc
+    if cur.rowcount != 1:
+        raise plans.PlanLimitError("stores", plan.limit("stores"), plan.plan)
     return get_store(store_id, tenant_id)
 
 
