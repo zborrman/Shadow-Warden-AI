@@ -314,12 +314,12 @@ class ImportBundleRequest(BaseModel):
     importing_community: str
 
 
-@router.get("", summary="List all model bundles")
+@router.get("", summary="List all model bundles", dependencies=[Depends(require_api_key)])
 async def list_model_bundles(source_community: str | None = None):
     return {"bundles": list_bundles(source_community)}
 
 
-@router.get("/{ueciid}", summary="Get a model bundle by UECIID")
+@router.get("/{ueciid}", summary="Get a model bundle by UECIID", dependencies=[Depends(require_api_key)])
 async def get_model_bundle(ueciid: str, include_rules: bool = False):
     bundle = get_bundle(ueciid, include_rules=include_rules)
     if not bundle:

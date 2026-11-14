@@ -90,7 +90,8 @@ async def health():
     }
 
 
-@router.get("/api/stats", summary="Aggregated filter stats for dashboard")
+@router.get("/api/stats", summary="Aggregated filter stats for dashboard",
+            dependencies=[Depends(require_api_key)])
 async def api_stats(hours: float = 24.0):
     # load_entries() reads and JSON-parses the whole NDJSON log file; keep that
     # blocking I/O off the event loop so concurrent requests aren't stalled.

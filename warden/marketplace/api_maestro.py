@@ -27,6 +27,7 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
+from warden.auth_guard import require_api_key
 from warden.config import data_path
 from warden.marketplace.maestro import get_maestro_service
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -114,7 +115,7 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 
 # ── REST endpoints ────────────────────────────────────────────────────────────
 
-@router.get("/agents/{agent_id}/maestro-report")
+@router.get("/agents/{agent_id}/maestro-report", dependencies=[Depends(require_api_key)])
 def maestro_report(agent_id: str, background_tasks: BackgroundTasks):
     """Run a full MAESTRO threat audit for a single agent and return the report."""
     try:
@@ -127,7 +128,7 @@ def maestro_report(agent_id: str, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.get("/maestro/flags")
+@router.get("/maestro/flags", dependencies=[Depends(require_api_key)])
 def maestro_flags(limit: int = Query(100, ge=1, le=1000)):
     """Admin — list all agents with active MAESTRO flags, newest first."""
     try:

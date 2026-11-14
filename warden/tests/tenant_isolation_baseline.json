@@ -1,5 +1,5 @@
 {
-  "total": 152,
+  "total": 150,
   "routes": [
     "warden/agentic/router.py::get_activity::tenant_id::GET /agents/activity",
     "warden/agentic/router.py::list_agents::tenant_id::GET /agents",
@@ -98,8 +98,6 @@
     "warden/api/staff_agents.py::growth_seo_drafts::tenant_id::GET /growth/drafts/seo",
     "warden/api/staff_agents.py::support_refund_intents::tenant_id::GET /support/refunds",
     "warden/api/staff_agents.py::support_tickets::tenant_id::GET /support/tickets",
-    "warden/api/subscription.py::billing_portal::tenant_id::GET /subscription/portal",
-    "warden/api/subscription.py::billing_status::tenant_id::GET /subscription/status",
     "warden/api/threats.py::get_blocked_ips::tenant_id::GET /threats/blocked-ips",
     "warden/api/threats.py::get_threat_profiles::tenant_id::GET /threats/profiles",
     "warden/api/threats.py::unblock_ip::tenant_id::DELETE /threats/blocked-ips/{ip}",

@@ -179,7 +179,7 @@ async def resolve_dispute(escrow_id: str, body: dict) -> dict:
     return {"resolved": True, "verdict": verdict}
 
 
-@router.get("/escrow/{escrow_id}")
+@router.get("/escrow/{escrow_id}", dependencies=[Depends(require_api_key)])
 async def get_escrow(escrow_id: str) -> dict:
     from warden.marketplace.escrow import EscrowService
     escrow = EscrowService().get_escrow(escrow_id)
@@ -188,7 +188,7 @@ async def get_escrow(escrow_id: str) -> dict:
     return escrow.to_dict()
 
 
-@router.get("/escrows")
+@router.get("/escrows", dependencies=[Depends(require_api_key)])
 async def list_escrows(
     agent_id: str | None = Query(default=None),
     role:     str        = Query(default="any"),

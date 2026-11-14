@@ -1,6 +1,7 @@
-"""Child process for ``test_anonymous_write_probe.py`` -- do not import.
+"""Child process for the anonymous write and read probes -- do not import.
 
-Run as a script with one argument: the path to write results JSON to. It must
+Run as a script: the path to write results JSON to, then optionally ``read``
+to probe GET routes instead of the write methods. It must
 be a separate process with a canonical, deploy-like environment; the test
 module explains why a same-process measurement reports a clean bill of health
 it has not earned.
@@ -9,8 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sys
+import threading
 
 from fastapi.testclient import TestClient
 
@@ -101,7 +104,13 @@ def _dummy(schema: dict, defs: dict, depth: int = 0):
     return _PROBE
 
 
-def main(out_path: str) -> None:
+# A streaming GET (SSE) never returns under TestClient. Each request runs in a
+# daemon thread with a deadline; a route that does not answer is recorded as
+# -2 and the process leaves through os._exit so the stuck thread cannot hold it.
+_DEADLINE_S = 8
+
+
+def main(out_path: str, methods: tuple[str, ...] = WRITE) -> None:
     client = TestClient(m.app, raise_server_exceptions=False)
     spec = m.app.openapi()
     defs = spec.get("components", {}).get("schemas", {})
@@ -109,7 +118,7 @@ def main(out_path: str) -> None:
 
     for path, ops in spec.get("paths", {}).items():
         for method, op in ops.items():
-            if method not in WRITE:
+            if method not in methods:
                 continue
             url = path
             params: dict[str, object] = {}
@@ -124,20 +133,32 @@ def main(out_path: str) -> None:
             if "application/json" in content:
                 body = _dummy(content["application/json"].get("schema", {}), defs)
             key = method.upper() + " " + path
-            try:
-                resp = client.request(
-                    method.upper(), url,
-                    params=params or None,
-                    json=body if body is not None else None,
-                )
-                results[key] = resp.status_code
-            except Exception as exc:  # noqa: BLE001 - a crash is a result, not a stop
-                results[key] = -1
-                print(f"{key}: {type(exc).__name__}: {exc}", file=sys.stderr)
+            box: dict[str, int] = {}
+
+            def _run(method=method, url=url, params=params, body=body, key=key, box=box):
+                try:
+                    resp = client.request(
+                        method.upper(), url,
+                        params=params or None,
+                        json=body if body is not None else None,
+                        follow_redirects=False,
+                    )
+                    box["s"] = resp.status_code
+                except Exception as exc:  # noqa: BLE001 - a crash is a result, not a stop
+                    box["s"] = -1
+                    print(f"{key}: {type(exc).__name__}: {exc}", file=sys.stderr)
+
+            worker = threading.Thread(target=_run, daemon=True)
+            worker.start()
+            worker.join(_DEADLINE_S)
+            results[key] = box.get("s", -2)
 
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(results, fh, indent=1, sort_keys=True)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], ("get",) if sys.argv[2:3] == ["read"] else WRITE)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)

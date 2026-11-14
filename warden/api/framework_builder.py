@@ -10,8 +10,9 @@ router = APIRouter(prefix="/compliance/frameworks", tags=["Compliance Framework 
 
 # tenant_id is a PATH parameter with nothing binding it to the caller, so every
 # write here was cross-tenant CRUD on another customer's compliance frameworks.
-# Reads stay open — docs/anonymous-route-audit-2026-07-29.md kept
-# GET /compliance/frameworks/{id} public by decision in #242.
+# Reads were left open by #242 on the theory that a framework is not
+# sensitive. It is one customer's control list, statuses and evidence notes,
+# so the reads take the same key as the writes (security audit 2026-11-14).
 _WRITE = [Depends(require_api_key)]
 
 
@@ -49,7 +50,7 @@ async def create_framework(tenant_id: str, body: FrameworkIn):
     return {**asdict(fw), "score": fw.score()}
 
 
-@router.get("/{tenant_id}")
+@router.get("/{tenant_id}", dependencies=_WRITE)
 async def list_frameworks(tenant_id: str):
     from dataclasses import asdict  # noqa: PLC0415
 
@@ -57,7 +58,7 @@ async def list_frameworks(tenant_id: str):
     return [{**asdict(fw), "score": fw.score()} for fw in list_frameworks(tenant_id)]
 
 
-@router.get("/{tenant_id}/{framework_id}")
+@router.get("/{tenant_id}/{framework_id}", dependencies=_WRITE)
 async def get_framework(tenant_id: str, framework_id: str):
     from dataclasses import asdict  # noqa: PLC0415
 
