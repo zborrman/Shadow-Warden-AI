@@ -92,6 +92,12 @@ def record() -> dict[str, Any]:
         Image.new("RGB", (64, 64), rgb).save(b, "PNG")
         return b.getvalue()
 
+    # The fixture store is published in five languages, which the default (free)
+    # plan does not hold. Granted the way an operator would grant a pilot seller.
+    from warden.m2m_store import plans
+    plans.grant_plan("tenant-fixture", "store_business", source="fixture",
+                     actor="storefront_fixture")
+
     store = ok(c.post(f"{api}/stores", headers=owner, json={
         "slug": SLUG, "name": "Alpine Pantry", "description": "Cheese, honey and tea from the Alps.",
         "default_currency": "EUR", "currencies": ["EUR", "USD", "CHF"],
