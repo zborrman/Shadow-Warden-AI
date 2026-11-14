@@ -47,7 +47,6 @@
     "POST /portal/auth/totp/complete": "Same.",
     "POST /portal/waitlist": "Same.",
     "POST /security/pentest": "Gated in-handler by _require_admin(x_admin_key) - a header check the dependency scan cannot see. Not open.",
-    "POST /slack/command": "Fail-CLOSED since this PR: 503 without SLACK_SIGNING_SECRET, 403 on a bad signature.",
-    "POST /subscription/checkout": "Creates a Lemon Squeezy checkout; 503 because billing is unconfigured in the probe environment. Review whether it should be gated."
+    "POST /slack/command": "Fail-CLOSED since this PR: 503 without SLACK_SIGNING_SECRET, 403 on a bad signature."
   }
 }

@@ -174,7 +174,7 @@ async def post_from_obsidian(
     }
 
 
-@router.get("/feed")
+@router.get("/feed", dependencies=_WRITE)
 def get_community_feed(
     tenant_id: str = "default",
     limit: int = Query(default=50, ge=1, le=200),
@@ -184,7 +184,7 @@ def get_community_feed(
     return {"posts": [p.to_dict() for p in posts], "count": len(posts)}
 
 
-@router.get("/posts/{post_id}")
+@router.get("/posts/{post_id}", dependencies=_WRITE)
 def get_community_post(post_id: str, tenant_id: str = "default"):
     post = get_post(post_id)
     if not post or post.tenant_id != tenant_id:
@@ -235,7 +235,7 @@ def admin_block_post(
     return {"id": post_id, "status": "blocked"}
 
 
-@router.get("/members")
+@router.get("/members", dependencies=_WRITE)
 def list_members(tenant_id: str = "default"):
     members = get_members(tenant_id)
     return {

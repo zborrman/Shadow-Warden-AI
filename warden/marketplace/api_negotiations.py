@@ -94,7 +94,7 @@ async def accept_offer(negotiation_id: str, body: OfferRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.get("/negotiations/{negotiation_id}")
+@router.get("/negotiations/{negotiation_id}", dependencies=[Depends(require_api_key)])
 async def get_negotiation(negotiation_id: str) -> dict:
     from warden.marketplace.negotiation import NegotiationEngine
     status = NegotiationEngine().get_negotiation_status(negotiation_id)

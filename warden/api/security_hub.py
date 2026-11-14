@@ -24,14 +24,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.security_hub")
 
 router = APIRouter(prefix="/security", tags=["security"])
+
+# The reads disclose the unpatched CVE list, open pentest findings and the
+# posture badge. They carried no dependency at all while the writes beside
+# them were admin-gated: the write ratchet could not see a read.
+_READ = [Depends(require_api_key)]
 
 _CVE_REPORT_PATH   = Path(settings.cve_report_path)
 _PENTEST_DB_PATH   = Path(settings.pentest_db_path)
@@ -112,13 +118,13 @@ class PentestFindingRequest(BaseModel):
 
 # ── Public endpoints ──────────────────────────────────────────────────────────
 
-@router.get("/posture")
+@router.get("/posture", dependencies=_READ)
 def get_posture():
     """Overall security posture — badge colour, CVE counts, certifications."""
     return _compute_posture()
 
 
-@router.get("/cve-feed")
+@router.get("/cve-feed", dependencies=_READ)
 def get_cve_feed(
     limit:  int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
@@ -137,7 +143,7 @@ def get_cve_feed(
     }
 
 
-@router.get("/pentest")
+@router.get("/pentest", dependencies=_READ)
 def get_pentest_findings(
     status: str | None = Query(default=None),
     redacted: bool = Query(default=True),
@@ -169,7 +175,7 @@ def get_pentest_findings(
     return {"findings": findings, "count": len(findings)}
 
 
-@router.get("/compliance")
+@router.get("/compliance", dependencies=_READ)
 def get_compliance():
     """SOC 2 / GDPR / OWASP control status + evidence links."""
     posture = _load_json(_POSTURE_PATH, {})

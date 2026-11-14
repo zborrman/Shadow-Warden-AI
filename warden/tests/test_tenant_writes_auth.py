@@ -108,7 +108,10 @@ def test_public_surface_stays_open(_client):
     the scanners would break existing installs. Kept public by decision; see
     docs/anonymous-route-audit-2026-07-29.md.
     """
-    assert _client.get("/compliance/frameworks/t").status_code != 401
+    # /compliance/frameworks/{tenant_id} was on this list until the 2026-11-14
+    # audit: a framework is one customer's control list, statuses and evidence
+    # notes, readable by naming the tenant in the path. It takes a key now.
+    assert _client.get("/compliance/frameworks/t").status_code == 401
     assert _client.post("/obsidian/scan", json={"content": "x"}).status_code != 401
     assert _client.post("/obsidian/ai-filter", json={"prompt": "x"}).status_code != 401
     assert (
