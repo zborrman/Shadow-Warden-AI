@@ -26,6 +26,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from warden.surfaces import is_lab, lab_enabled
+
 log = logging.getLogger(__name__)
 
 
@@ -44,6 +46,9 @@ def register_router_safe(app: FastAPI, spec: RouterSpec) -> bool:
     Catches ALL exceptions so a bad router cannot kill the app.
     """
     label = spec.label or spec.import_path
+    if is_lab(spec.import_path) and not lab_enabled():
+        log.info("router withheld (lab surface, WARDEN_LAB_SURFACES is off): %s", label)
+        return False
     try:
         module = importlib.import_module(spec.import_path)
         router = getattr(module, spec.attr)

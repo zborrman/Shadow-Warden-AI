@@ -1,5 +1,5 @@
 {
-  "total": 150,
+  "total": 145,
   "routes": [
     "warden/agentic/router.py::get_activity::tenant_id::GET /agents/activity",
     "warden/agentic/router.py::list_agents::tenant_id::GET /agents",
@@ -112,11 +112,6 @@
     "warden/api/vendor_gov.py::list_dpas::tenant_id::GET /vendors/{vendor_id}/dpa",
     "warden/api/vendor_gov.py::list_vendors::tenant_id::GET /vendors",
     "warden/api/vendor_gov.py::update_vendor::tenant_id::PUT /vendors/{vendor_id}",
-    "warden/api/whitelabel.py::caddy_snippet::tenant_id::GET /{tenant_id}/caddy-snippet",
-    "warden/api/whitelabel.py::delete_whitelabel::tenant_id::DELETE /{tenant_id}",
-    "warden/api/whitelabel.py::get_whitelabel::tenant_id::GET /{tenant_id}",
-    "warden/api/whitelabel.py::save_whitelabel::tenant_id::PUT /{tenant_id}",
-    "warden/api/whitelabel.py::whitelabel_css::tenant_id::GET /{tenant_id}/css",
     "warden/api/xai.py::dashboard::tenant_id::GET /dashboard",
     "warden/api/xai.py::explain::tenant_id::GET /explain/{request_id}",
     "warden/api/xai.py::report_html::tenant_id::GET /report/{request_id}",

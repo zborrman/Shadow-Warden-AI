@@ -888,6 +888,14 @@ class Settings:
         default_factory=lambda: _env("WARDEN_ENV", "dev").strip().lower()
     )
 
+    # Lab surfaces (docs/surface-decision-2026-11-14.md). Routers listed in
+    # warden/surfaces.py have no client; they are not mounted unless this is
+    # true. Off in production. The test suite turns it on so their module
+    # tests keep exercising code that still exists.
+    lab_surfaces_enabled: bool = field(
+        default_factory=lambda: _bool("WARDEN_LAB_SURFACES", False)
+    )
+
 
     # ── Security (cont.) ────────────────────────────────
     # VAULT master key (Fernet) — wraps community keypairs + data-pod secrets.
