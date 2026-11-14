@@ -106,6 +106,13 @@ class InventoryManager:
             product.tenant_id = tenant_id
         if not product.id:
             product.id = str(uuid.uuid4())
+        # Resolved before the lock is taken, and imported here because plans.py
+        # imports this module. A product with no owner (rows written before
+        # ownership existed, internal seeding) has no plan to be held to.
+        plan = None
+        if product.tenant_id:
+            from .plans import PlanLimitError, get_plan
+            plan = get_plan(product.tenant_id)
         with _db_lock, _conn() as con:
             row = con.execute(
                 "SELECT json_extract(data_json,'$.tenant_id') AS owner, "
@@ -115,10 +122,24 @@ class InventoryManager:
             if row is None:
                 product.reserved = 0
                 try:
-                    con.execute(
-                        "INSERT INTO m2m_products(id, data_json, created_at) VALUES(?,?,?)",
-                        (product.id, product.model_dump_json(), _now_iso()),
-                    )
+                    if plan is None:
+                        con.execute(
+                            "INSERT INTO m2m_products(id, data_json, created_at) VALUES(?,?,?)",
+                            (product.id, product.model_dump_json(), _now_iso()),
+                        )
+                    else:
+                        # One statement, like the stock counters above: the count
+                        # and the insert cannot be split across two workers.
+                        cur = con.execute(
+                            "INSERT INTO m2m_products(id, data_json, created_at) SELECT ?,?,?"
+                            " WHERE (SELECT COUNT(*) FROM m2m_products"
+                            "        WHERE json_extract(data_json,'$.tenant_id')=?"
+                            "        AND COALESCE(json_extract(data_json,'$.deleted_at'),'')='') < ?",
+                            (product.id, product.model_dump_json(), _now_iso(),
+                             product.tenant_id, plan.limit("products")),
+                        )
+                        if cur.rowcount != 1:
+                            raise PlanLimitError("products", plan.limit("products"), plan.plan)
                 except sqlite3.IntegrityError as exc:
                     raise OwnershipError(product.id) from exc
                 return product
