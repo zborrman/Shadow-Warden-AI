@@ -1057,7 +1057,7 @@ class TestXaiRendererCoverage:
 
 # ── settings/api.py ───────────────────────────────────────────────────────────
 
-_ENT = {"X-Tenant-Tier": "enterprise"}
+_ENT = {"X-Tenant-Tier": "lab"}
 
 
 def _mini_app(*routers):

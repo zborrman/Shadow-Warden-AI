@@ -267,7 +267,7 @@ def check_storage_quota(community_id: str, tier: str, incoming_bytes: int) -> bo
         raise OverageRequired("storage", used + incoming_bytes, effective)
 
     # Hard limit — suggest upgrade
-    next_tier = "business" if tier == "individual" else "mcp"
+    next_tier = "community_business"
     raise QuotaExceeded("storage", used + incoming_bytes, effective, next_tier)
 
 
@@ -288,7 +288,7 @@ def check_bandwidth_quota(community_id: str, tier: str, outgoing_bytes: int) -> 
     if limits.get("overage_enabled"):
         raise OverageRequired("bandwidth", used + outgoing_bytes, quota)
 
-    next_tier = "business" if tier == "individual" else "mcp"
+    next_tier = "community_business"
     raise QuotaExceeded("bandwidth", used + outgoing_bytes, quota, next_tier)
 
 

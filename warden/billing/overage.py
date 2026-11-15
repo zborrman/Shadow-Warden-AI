@@ -145,9 +145,7 @@ def resolve_overage(
 _NEXT_TIER = {
     "starter":            "individual",
     "individual":         "community_business",
-    "community_business": "pro",
-    "pro":                "enterprise",
-    "enterprise":         "enterprise",   # top of the ladder — contact sales
+    "community_business": "community_business",   # top of the ladder
 }
 
 
@@ -155,7 +153,7 @@ def get_upgrade_url(tier: str, metric: str) -> str:
     """Upgrade CTA URL for hard-quota 402 responses (next canonical tier)."""
     from warden.billing.pricing import canonical_tier
     current   = canonical_tier(tier)
-    next_tier = _NEXT_TIER.get(current, "pro")
+    next_tier = _NEXT_TIER.get(current, "community_business")
     base_url  = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
     return f"{base_url}/billing/upgrade?from={current}&to={next_tier}&reason={metric}"
 

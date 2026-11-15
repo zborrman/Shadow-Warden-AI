@@ -193,7 +193,7 @@ class TestStats:
 
 # ── 5. REST API ───────────────────────────────────────────────────────────────
 
-_PRO_HEADERS = {"X-Tenant-Tier": "pro"}
+_PRO_HEADERS = {"X-Tenant-Tier": "lab"}
 
 
 class TestMispApi:

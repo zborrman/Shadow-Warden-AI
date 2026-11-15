@@ -651,7 +651,6 @@
     "GET /billing/upgrade",
     "POST /billing/addons/grant",
     "POST /billing/community-seats/add",
-    "POST /billing/enterprise/quote",
     "POST /billing/overage/record",
     "POST /billing/referral/generate",
     "POST /billing/referral/redeem",

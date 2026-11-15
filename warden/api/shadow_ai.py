@@ -32,7 +32,7 @@ router = APIRouter(prefix="/shadow-ai", tags=["Shadow AI Governance"])
 
 AuthDep = Depends(require_api_key)
 _ScanGate = require_addon_or_feature(
-    feature="shadow_ai_enabled", addon_key="shadow_ai_discovery", min_tier="pro"
+    feature="shadow_ai_enabled", addon_key="shadow_ai_discovery", min_tier="lab"
 )
 
 

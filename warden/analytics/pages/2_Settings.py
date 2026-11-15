@@ -1237,7 +1237,7 @@ DELETE /billing/addons/revoke   # revoke add-on after cancellation""", language=
 from warden.billing.addons import require_addon_or_feature
 
 # Check feature directly
-gate = FeatureGate.for_tier("pro")
+gate = FeatureGate.for_tier("lab")
 gate.require("siem_integration")        # raises HTTP 403 if missing
 gate.require_capacity("max_communities", current_count=3)
 
@@ -1247,7 +1247,7 @@ async def update_policy(...): ...
 
 # FastAPI dependency — add-on gate (Pro + purchased OR Enterprise native)
 @router.post("/shadow-ai/scan", dependencies=[
-    require_addon_or_feature("shadow_ai_enabled", "shadow_ai_discovery", min_tier="pro")
+    require_addon_or_feature("shadow_ai_enabled", "shadow_ai_discovery", min_tier="lab")
 ])
 async def scan_subnet(...): ...""", language="python")
 

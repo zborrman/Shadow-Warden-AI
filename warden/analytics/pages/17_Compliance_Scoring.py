@@ -25,7 +25,7 @@ st.set_page_config(
 
 _BASE    = os.getenv("WARDEN_INTERNAL_URL", "http://localhost:8001")
 _API_KEY = os.getenv("WARDEN_API_KEY", "")
-_HEADERS = {"X-API-Key": _API_KEY, "X-Tenant-Tier": "pro"} if _API_KEY else {"X-Tenant-Tier": "pro"}
+_HEADERS = {"X-API-Key": _API_KEY, "X-Tenant-Tier": "lab"} if _API_KEY else {"X-Tenant-Tier": "lab"}
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 

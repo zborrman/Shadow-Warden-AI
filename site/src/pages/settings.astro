@@ -95,7 +95,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
             <button class="nav-item" data-panel="guide">
               <span class="nav-icon">📄</span>
-              <span class="nav-text">Enterprise Guide</span>
+              <span class="nav-text">Deployment Guide</span>
               <span class="nav-badge" style="color:#f59e0b;background:rgba(245,158,11,0.15)">PDF</span>
             </button>
 
@@ -377,12 +377,12 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
             <div class="space-y-3 max-w-md">
               {[
                 { id: 'toggle-sova',       label: 'SOVA Agent',          desc: `Autonomous operator with ${PRODUCT.sovaTools} tools + cron jobs`,                defaultOn: true  },
-                { id: 'toggle-master',     label: 'MasterAgent',         desc: 'Multi-agent SOC coordinator (Pro+)',                           defaultOn: false },
+                { id: 'toggle-master',     label: 'MasterAgent',         desc: 'Multi-agent SOC coordinator (not on a plan)',                           defaultOn: false },
                 { id: 'toggle-healer',     label: 'WardenHealer',        desc: 'Autonomous anomaly detection with OLS trend + Haiku triage',   defaultOn: true  },
                 { id: 'toggle-evolution',  label: 'Evolution Engine',    desc: 'Auto-generates detection rules from Claude Opus',              defaultOn: false },
                 { id: 'toggle-causal',     label: 'Causal Arbiter',      desc: 'Bayesian DAG inference for gray-zone decisions',               defaultOn: true  },
                 { id: 'toggle-phish',      label: 'PhishGuard',          desc: 'URL phishing + social engineering detection',                  defaultOn: true  },
-                { id: 'toggle-shadowai',   label: 'Shadow AI Discovery', desc: 'Subnet probe + DNS telemetry for unauthorized AI (Pro+)',      defaultOn: false },
+                { id: 'toggle-shadowai',   label: 'Shadow AI Discovery', desc: 'Subnet probe + DNS telemetry for unauthorized AI (not on a plan)',      defaultOn: false },
                 { id: 'toggle-docintl',    label: 'Document Intel',      desc: 'MarkItDown converter with SHA-256 cache (FE-50)',              defaultOn: true  },
               ].map(item => (
                 <label class="flex items-center justify-between p-4 rounded-xl cursor-pointer"
@@ -574,9 +574,9 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                 </thead>
                 <tbody>
                   {[
-                    { date: 'Jun 1, 2026',  plan: 'Pro — Monthly',  amount: '$99.99.00', status: 'Paid' },
-                    { date: 'May 1, 2026',  plan: 'Pro — Monthly',  amount: '$99.99.00', status: 'Paid' },
-                    { date: 'Apr 1, 2026',  plan: 'Pro — Monthly',  amount: '$99.99.00', status: 'Paid' },
+                    { date: 'Jun 1, 2026',  plan: 'Community Business — Monthly',  amount: '$39.99', status: 'Paid' },
+                    { date: 'May 1, 2026',  plan: 'Community Business — Monthly',  amount: '$39.99', status: 'Paid' },
+                    { date: 'Apr 1, 2026',  plan: 'Community Business — Monthly',  amount: '$39.99', status: 'Paid' },
                   ].map(row => (
                     <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
                       <td class="py-2.5" style="color:#94a3b8">{row.date}</td>
@@ -810,13 +810,13 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
         <!-- ── SECURITY / PQC ── -->
         <div id="panel-security" class="settings-panel hidden">
-          <p class="panel-subtitle">Cryptographic security controls for M2M trades. Post-Quantum options require Enterprise tier.</p>
+          <p class="panel-subtitle">Cryptographic security controls for M2M trades. Post-Quantum options are built and are not part of any plan.</p>
 
           <div class="settings-card mt-6">
             <h3 class="card-title mb-1">M2M Trade Signatures</h3>
             <p class="text-[12px] mb-5" style="color:#64748b">Applied to every Causal Transfer Proof at the ClearingEngine level.</p>
             <div class="space-y-3 max-w-md">
-              <!-- ML-DSA-65 toggle — Enterprise-gated -->
+              <!-- ML-DSA-65 toggle — on no plan -->
               <div class="pqc-gate-row flex items-start justify-between p-4 rounded-xl gap-4"
                    style="background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.15)">
                 <div class="flex-1 min-w-0">
@@ -831,7 +831,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                     Adds ML-DSA-65 (FIPS 204) hybrid signature to every Causal Transfer Proof. Requires <code class="font-mono text-[10px]" style="color:#94a3b8">liboqs-python</code> installed in the warden container.
                   </p>
                 </div>
-                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Requires Enterprise tier">
+                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Not part of any plan">
                   <label class="toggle-label">
                     <input type="checkbox" class="sr-only toggle-input" id="toggle-mldsa" />
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -852,7 +852,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                 <span class="toggle-track"><span class="toggle-thumb"></span></span>
               </label>
 
-              <!-- ML-KEM-768 KEM toggle — Enterprise-gated -->
+              <!-- ML-KEM-768 KEM toggle — on no plan -->
               <div class="pqc-gate-row flex items-start justify-between p-4 rounded-xl gap-4"
                    style="background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.10)">
                 <div class="flex-1 min-w-0">
@@ -867,7 +867,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
                     Hybrid X25519+ML-KEM-768 KEM for session key exchange. Shared secret derived via HKDF-SHA256(X25519 XOR ML-KEM-768).
                   </p>
                 </div>
-                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Requires Enterprise tier">
+                <div class="pqc-toggle-wrap flex-shrink-0" style="opacity:0.35;pointer-events:none" title="Not part of any plan">
                   <label class="toggle-label">
                     <input type="checkbox" class="sr-only toggle-input" id="toggle-mlkem" />
                     <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -893,12 +893,12 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           <div class="settings-card mt-4">
             <h3 class="card-title mb-3">Upgrade to unlock PQC</h3>
             <p class="text-[12px] mb-4" style="color:#64748b">
-              Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768) is available on Enterprise tier.
+              Post-Quantum Cryptography (ML-DSA-65 + ML-KEM-768) is built and tested. No plan includes it today.
               Classical Ed25519/X25519 remain active on all tiers.
             </p>
             <div class="flex gap-3 flex-wrap">
               <a href="/price#enterprise" class="btn-primary-sm" style="background:linear-gradient(135deg,#06b6d4,#38bdf8)">
-                Upgrade to Enterprise →
+                See plans →
               </a>
               <a href="/doc#pqc" class="btn-secondary-sm">PQC Documentation ↗</a>
             </div>
@@ -933,8 +933,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
               {[
                 { id: 'tier-trial', label: 'Trial', sub: '14 days · $0', color: '#6b7c96', active: false },
                 { id: 'tier-individual', label: 'Individual', sub: '$5/mo · 5k req', color: '#38bdf8', active: false },
-                { id: 'tier-community', label: 'Community Biz', sub: '$39.99/mo · 10k req', color: '#10b981', active: false },
-                { id: 'tier-pro', label: 'Pro', sub: '$99.99/mo · 50k req', color: '#06b6d4', active: true },
+                { id: 'tier-community', label: 'Community Biz', sub: '$39.99/mo · 15k req', color: '#10b981', active: true },
               ].map(t => (
                 <div id={t.id} class="tier-card rounded-lg p-3 text-center border transition-all"
                      style={`border-color:rgba(255,255,255,0.07);background:rgba(255,255,255,0.02);opacity:${t.active ? 1 : 0.4}`}>
@@ -1026,7 +1025,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           <div class="settings-card mt-6 flex items-center gap-4">
             <span style="font-size:28px;flex-shrink:0">📄</span>
             <div class="flex-1 min-w-0">
-              <div class="card-title">Enterprise Integration &amp; Deployment Guide</div>
+              <div class="card-title">Integration &amp; Deployment Guide</div>
               <div class="text-[12px] mt-0.5" style="color:#64748b">{PRODUCT.display} · 12 sections</div>
             </div>
             <div class="flex gap-2 flex-shrink-0">
@@ -1494,7 +1493,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
     'compliance-cfg':'Compliance',
     team:            'Team',
     billing:         'Billing',
-    guide:           'Enterprise Guide',
+    guide:           'Deployment Guide',
     danger:          'Danger zone',
   };
 

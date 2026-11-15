@@ -28,7 +28,7 @@ def client():
     os.environ.setdefault("ALLOW_UNAUTHENTICATED", "true")
     os.environ.setdefault("REDIS_URL", "memory://")
     from warden.main import app
-    return TestClient(app, headers={"X-Tenant-Tier": "pro"})
+    return TestClient(app, headers={"X-Tenant-Tier": "lab"})
 
 
 # ── Unit: registry ────────────────────────────────────────────────────────────

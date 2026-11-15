@@ -88,7 +88,7 @@ def test_tier_header_cannot_escalate_plan(_prod):
     from the authenticated tenant's billing record.
     """
     resp = _prod.get(
-        "/communities/c1/members", headers={**KEY, "X-Tenant-Tier": "mcp"}
+        "/communities/c1/members", headers={**KEY, "X-Tenant-Tier": "lab"}
     )
     assert resp.status_code == 403
     assert "STARTER" in resp.text.upper(), (
@@ -114,7 +114,7 @@ def test_dev_mode_still_accepts_the_header(_dev):
     """
     resp = _dev.get(
         "/communities/c1/members",
-        headers={"X-Tenant-ID": "t1", "X-Tenant-Tier": "mcp"},
+        headers={"X-Tenant-ID": "t1", "X-Tenant-Tier": "lab"},
     )
     assert resp.status_code != 401
 

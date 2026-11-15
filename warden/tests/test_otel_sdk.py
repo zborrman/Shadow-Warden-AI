@@ -256,7 +256,7 @@ class TestSdkStats:
 
 # ── 6. REST API ───────────────────────────────────────────────────────────────
 
-_PRO = {"X-Tenant-Tier": "pro"}
+_PRO = {"X-Tenant-Tier": "lab"}
 
 
 class TestSdkApi:

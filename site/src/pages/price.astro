@@ -4,7 +4,6 @@ import LemonSqueezyCheckout from '../components/LemonSqueezyCheckout.astro';
 import { VARIANT_IDS, BILLING_PORTAL, checkoutUrl } from '../config/lemonsqueezy';
 import roadmapData from '../data/roadmap.json';
 
-const bl19 = roadmapData.find((r: any) => r.id === 'BL-19')!;
 const bl20 = roadmapData.find((r: any) => r.id === 'BL-20')!;
 
 const tiers = [
@@ -46,39 +45,12 @@ const tiers = [
     highlight: false,
     cta: 'Start Free Trial',
     features: ['15,000 req / month','Everything in Individual','Obsidian Plugin','Secrets Governance','3 communities × 10 members','180-day log retention','14-day free trial'],
-    missing: ['MasterAgent SOC','PQC / Sovereign'],
-  },
-  {
-    key: 'pro',
-    name: 'Pro',
-    price_monthly: 99.99,
-    price_annual: 1019.90,
-    color: '#80b4fd',
-    tint: 'rgba(128,180,253,0.1)',
-    tag: 'Most Popular',
-    highlight: true,
-    cta: 'Start Free Trial',
-    features: ['50,000 req / month','MasterAgent SOC — 200 agent turns/mo included, then $0.15/turn','Evolution Engine','Evidence Vault + STIX 2.1','SOC 2 + GDPR audit package','Priority support','14-day free trial'],
-    addons: ['Shadow AI Discovery add-on available'],
-    missing: ['PQC / Sovereign Cloud'],
-  },
-  {
-    key: 'enterprise',
-    name: 'Enterprise',
-    price_monthly: 249,
-    price_annual: 2539.80,
-    color: '#bf5af2',
-    tint: 'rgba(191,90,242,0.08)',
-    tag: 'Regulated Industries',
-    highlight: false,
-    cta: 'Contact Sales',
-    features: ['Unlimited requests','Everything in Pro','Post-Quantum Crypto (ML-DSA-65 + ML-KEM-768)','Sovereign AI Cloud routing','ISO 27001 Annex A control mapping','SAML / OIDC SSO'],
   },
 ];
 
 // Add-on availability by tier, for the cost calculator. Rank = index in `tiers`.
 const ADDON_MIN_RANK: Record<string, number> = {
-  'Individual+': 1, 'Community Biz+': 2, 'Pro+': 3, 'Enterprise+': 4,
+  'Individual+': 1, 'Community Biz+': 2,
 };
 
 const addons = [
@@ -92,21 +64,12 @@ const addons = [
   { key: 'addonSeats',       name: 'Extra Seats (+5)',         price: 9,  tier: 'Community Biz+',   desc: 'Stackable. Combine with any higher tier for unlimited seat expansion.' },
   { key: 'addonAgenticPack', name: 'Agentic Commerce Pack',   price: 15, tier: 'Community Biz+',   desc: 'AI procurement with mandate controls, UCP store discovery, AP2 payment execution, MCP agent intents, vendor validation, and BI spend analytics.' },
   { key: 'addonEdgePacks',   name: 'ARC Edge Agent Packs',    price: 15, tier: 'Community Biz+',   desc: 'Plug-and-play edge analytics agents: Crop Health Monitor (NDVI), Yield Optimizer, Disease Detector (Claude Vision). Deploy as marketplace agents.' },
-  // ── Pro+ ─────────────────────────────────────────────────────────────────
-  { key: 'addonShadowAi',    name: 'Shadow AI Discovery',     price: 15, tier: 'Pro+',             desc: 'Async /24 subnet probe. 18 provider fingerprints. MONITOR / BLOCK / ALLOWLIST policy.' },
-  { key: 'addonOnPrem',      name: 'On-Prem Pack',            price: 29, tier: 'Pro+',             desc: 'MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine.' },
-  { key: 'addonPowerBundle', name: 'Power User Bundle',       price: 29, tier: 'Pro+',             desc: 'XAI Audit Reports + Secrets Vault + Shadow AI Discovery. Saves $7/mo vs buying separately.' },
-  { key: 'addonStreaming',   name: 'Event Streaming Pack',    price: 19, tier: 'Pro+',             desc: 'Kafka/Flink real-time agent event bus: produce/consume marketplace events, auto-dispute watchdog, Redis pub/sub fallback.' },
-  // ── Enterprise+ ──────────────────────────────────────────────────────────
-  { key: 'addonTokenomics',  name: 'Agent Tokenomics (WAT)',  price: 39, tier: 'Enterprise+',      desc: 'ERC-20 Warden Agent Token on Polygon Amoy: mint, transfer, outcome-based pricing settlements. Simulation mode for testing.' },
-  { key: 'addonUsdc',        name: 'USDC Multi-Rail Payments',price: 29, tier: 'Enterprise+',      desc: 'USDC payment intents via Coinbase Commerce or on-chain Polygon: multi-rail settlement. Simulation auto-confirms for testing.' },
-  { key: 'addonAns',         name: 'ANS Certificate Authority',price: 25, tier: 'Enterprise+',     desc: 'Issue X.509 agent identity certificates (agent-{id}.{community}.shadow-warden.ai), Redis CRL revocation.' },
 ];
 ---
 
 <BaseLayout
   title="Pricing — Shadow Warden AI"
-  description="Transparent pricing for every team size. From free to enterprise. 14-day trial, no card required."
+  description="Transparent pricing for every team size. Free, Individual and Business. 14-day trial, no card required."
   markdown="/pricing.md"
 >
   <div class="pt-14" style="background:#03050f">
@@ -125,7 +88,7 @@ const addons = [
           <span style="background:linear-gradient(135deg,#f97316,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">every threat model</span>
         </h1>
         <p class="text-[16px] mb-8 max-w-xl mx-auto" style="color:#94a3b8">
-          14-day trial on all paid plans — no card required. Cancel anytime. IBM 2024 breach data shows Pro ROI of 782×.
+          14-day trial on all paid plans — no card required. Cancel anytime.
         </p>
 
         <!-- Monthly / Annual toggle -->
@@ -189,7 +152,7 @@ const addons = [
                 </div>
 
                 <!-- CTA button -->
-                {t.key === 'enterprise' ? (
+                {false ? (
                   <a href="mailto:sales@shadow-warden-ai.com"
                      class="tier-cta block text-center mb-4 py-2.5 rounded-xl text-[13px] font-semibold text-white"
                      style={`background:linear-gradient(135deg,${t.color}cc,${t.color});box-shadow:0 4px 16px ${t.color}33`}>
@@ -237,34 +200,6 @@ const addons = [
           })}
         </div>
 
-        <!-- Enterprise contact-sales banner -->
-        <div class="mt-4 rounded-2xl px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-6"
-             style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2)">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-[11px] font-bold tracking-widest uppercase" style="color:#06b6d4">Beyond the list price</span>
-            </div>
-            <p class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">On-prem deployment, negotiated SLA terms or volume pricing</p>
-            <p class="text-[12px]" style="color:#94a3b8">Enterprise is $249/mo at list. Contracts that change those terms are arranged with sales.</p>
-          </div>
-          <a href="mailto:sales@shadow-warden-ai.com"
-             class="flex-shrink-0 px-6 py-3 rounded-xl text-[13px] font-semibold text-white whitespace-nowrap"
-             style="background:linear-gradient(135deg,#0891b2,#06b6d4);box-shadow:0 4px 16px rgba(6,182,212,0.3)">
-            Contact Sales →
-          </a>
-        </div>
-
-        <!-- ROI banner -->
-        <div class="mt-10 py-6 px-8 rounded-2xl text-center"
-             style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.15)">
-          <div class="text-[13px] font-semibold mb-1" style="color:#f97316">
-            IBM 2024 Cost of a Data Breach Report
-          </div>
-          <p class="text-[12px] max-w-2xl mx-auto" style="color:#64748b">
-            Average breach cost $4.88M · Pro plan $1,019.90/yr · Threat-to-breach conversion 1-in-180.
-            For 50,000 requests/month at a 5% threat rate: <strong style="color:#f97316">estimated ROI 782×</strong>
-          </p>
-        </div>
       </div>
     </section>
 
@@ -358,7 +293,7 @@ const addons = [
                     class="w-full rounded-xl px-4 py-3 text-[13px] font-medium cursor-pointer"
                     style="background:#03050f;border:1px solid rgba(128,180,253,0.25);color:#f1f5f9;outline:none">
               {tiers.map((t, i) => (
-                <option value={t.key} data-price={t.price_monthly} data-rank={i} selected={t.key === 'pro'}>
+                <option value={t.key} data-price={t.price_monthly} data-rank={i} selected={t.key === 'communityBusiness'}>
                   {t.name} — {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}/mo`}
                 </option>
               ))}
@@ -446,7 +381,6 @@ const addons = [
                   <option value="starter">Starter — Free (1,000 req/mo)</option>
                   <option value="individual">Individual — $5/mo (5,000 req/mo)</option>
                   <option value="community" selected>Community Business — $39.99/mo (15,000 req/mo)</option>
-                  <option value="pro">Pro — $99.99/mo (50,000 req/mo)</option>
                 </select>
               </div>
 
@@ -571,102 +505,18 @@ const addons = [
       </div>
     </section>
 
-    <!-- Overage Billing — BL-19 -->
-    <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-4xl px-4 pt-16">
-        <div class="rounded-2xl overflow-hidden" style="border:1px solid rgba(249,115,22,0.25);background:rgba(249,115,22,0.03)">
-
-          <!-- Header row -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 pt-6 pb-5"
-               style="border-bottom:1px solid rgba(249,115,22,0.12)">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[16px]"
-                   style="background:rgba(249,115,22,0.12)">⚡</div>
-              <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-[15px] font-semibold" style="color:#f1f5f9">Overage Billing</span>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                        style="color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25)">
-                    📋 Planned
-                  </span>
-                  <span class="text-[10px] font-mono" style="color:#475569">{bl19.id}</span>
-                </div>
-                <p class="text-[12px] mt-0.5" style="color:#64748b">{bl19.tier} · Billing &amp; Monetization</p>
-              </div>
-            </div>
-            <div class="text-right flex-shrink-0">
-              <div class="text-[26px] font-black" style="color:#f97316">$0.05</div>
-              <div class="text-[11px]" style="color:#64748b">per 1k requests over limit</div>
-            </div>
-          </div>
-
-          <!-- Body -->
-          <div class="px-6 py-5 grid sm:grid-cols-2 gap-6">
-            <!-- Description from roadmap -->
-            <div>
-              <p class="text-[13px] leading-relaxed mb-4" style="color:#94a3b8">
-                {bl19.description}
-              </p>
-              <a href="mailto:sales@shadow-warden-ai.com?subject=BL-19%20Overage%20Billing%20Availability"
-                 class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold transition-all"
-                 style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.06)"
-                 onmouseover="this.style.background='rgba(249,115,22,0.12)'"
-                 onmouseout="this.style.background='rgba(249,115,22,0.06)'">
-                Get notified when available →
-              </a>
-            </div>
-
-            <!-- How it works -->
-            <div class="space-y-3">
-              {[
-                { icon: '📊', label: 'Track usage', text: 'Real-time request counter in the SOC Dashboard. Visual bar shows % of monthly limit consumed.' },
-                { icon: '⚡', label: 'No interruption', text: 'Requests above the limit are never blocked — service continues unthrottled.' },
-                { icon: '💳', label: 'Auto-charge', text: 'Overage is calculated at period end and charged automatically via Lemon Squeezy. Detailed line-item invoice.' },
-                { icon: '🔔', label: 'Threshold alerts', text: 'SOVA sends a Slack alert at 80% and 100% of monthly limit so you\'re never surprised.' },
-              ].map(row => (
-                <div class="flex items-start gap-2.5">
-                  <span class="text-[15px] flex-shrink-0 mt-0.5">{row.icon}</span>
-                  <div>
-                    <div class="text-[12px] font-semibold" style="color:#f1f5f9">{row.label}</div>
-                    <div class="text-[11px] leading-relaxed" style="color:#64748b">{row.text}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <!-- Footer: example calc -->
-          <div class="px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-1"
-               style="background:rgba(0,0,0,0.2);border-top:1px solid rgba(249,115,22,0.1)">
-            <span class="text-[11px]" style="color:#475569">Example:</span>
-            {[
-              { label: 'Pro limit', val: '50,000 req/mo' },
-              { label: 'Your usage', val: '62,000 req' },
-              { label: 'Overage', val: '12,000 req' },
-              { label: 'Overage charge', val: '$0.60', highlight: true },
-            ].map(col => (
-              <div class="flex items-center gap-1.5">
-                <span class="text-[11px]" style="color:#475569">{col.label}:</span>
-                <span class="text-[11px] font-semibold" style={col.highlight ? 'color:#f97316' : 'color:#94a3b8'}>{col.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- FAQ strip -->
     <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
       <div class="mx-auto max-w-3xl px-4 pt-16">
         <h2 class="text-[20px] font-bold mb-8 text-center" style="color:#f1f5f9">Frequently Asked Questions</h2>
         <div class="space-y-4">
           {[
-            { q: 'Do you offer a free trial?', a: '14 days on Individual, Community Business, and Pro — no credit card required.' },
+            { q: 'Do you offer a free trial?', a: '14 days on Individual and Community Business — no credit card required.' },
             { q: 'Can I upgrade or downgrade?', a: 'Yes. Upgrades are immediate; downgrades take effect at the next billing date. Managed through the Lemon Squeezy Customer Portal.' },
-            { q: 'What payment methods do you accept?', a: 'All major credit/debit cards, PayPal, and bank transfers for Enterprise. Processed securely by Lemon Squeezy.' },
+            { q: 'What payment methods do you accept?', a: 'All major credit/debit cards, and PayPal. Processed securely by Lemon Squeezy.' },
             { q: 'Is my data safe during checkout?', a: 'All payments are handled by Lemon Squeezy (PCI-DSS Level 1). Shadow Warden AI never sees your card details.' },
             { q: 'Can I get a refund?', a: '30-day money-back guarantee on all plans. Contact support@shadow-warden-ai.com.' },
-            { q: 'What happens if I exceed my request limit?', a: 'On Pro and above, requests are never blocked when you exceed your monthly limit. Planned: automatic overage billing at $0.05 per 1k additional requests (BL-19, coming soon). You will receive a Slack alert from SOVA at 80% and 100% of your limit. Enterprise plans have unlimited requests with no overage.' },
+            { q: 'What happens if I exceed my request limit?', a: 'Requests beyond the monthly limit of your plan are refused until the next billing period or an upgrade. No plan bills for overage.' },
           ].map(item => (
             <details class="group rounded-xl p-4 cursor-pointer" style="border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02)">
               <summary class="flex items-center justify-between gap-4 text-[13px] font-medium list-none" style="color:#f1f5f9">
@@ -777,8 +627,7 @@ const addons = [
     const TIERS: Record<string, { sub: number; takeRate: number; name: string; upsell: string | null; upsellTo: string | null }> = {
       starter:   { sub: 0,    takeRate: 0,     name: 'Starter',            upsell: null, upsellTo: null },
       individual:{ sub: 500,  takeRate: 0,     name: 'Individual',         upsell: 'At this GMV, upgrading to Community Business unlocks the SOVA AI agent, 1.5% take rate vs high per-action fees, and 180-day log retention — net profit improves above $1,000/mo GMV.', upsellTo: 'community' },
-      community: { sub: 3999, takeRate: 0.015, name: 'Community Business', upsell: 'At this volume, Pro ($99.99/mo) gives 50k req/mo, MasterAgent SOC, and Evolution Engine — your effective cost per request drops 60%.', upsellTo: 'pro' },
-      pro:       { sub: 9999, takeRate: 0.015, name: 'Pro',               upsell: null, upsellTo: null },
+      community: { sub: 3999, takeRate: 0.015, name: 'Community Business', upsell: null, upsellTo: null },
     };
     const SPONSOR_COST_CENTS = 2900; // $29/mo
 

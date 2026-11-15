@@ -21,7 +21,7 @@ def _make_app():
 def client():
     # X-Tenant-Tier: pro — compliance_scoring_enabled is True at Pro+
     return TestClient(_make_app(), raise_server_exceptions=False,
-                      headers={"X-Tenant-Tier": "pro"})
+                      headers={"X-Tenant-Tier": "lab"})
 
 
 # ── /compliance/posture ───────────────────────────────────────────────────────

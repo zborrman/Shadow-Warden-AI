@@ -25,7 +25,7 @@ class TestCommunityBusinessTier:
     def test_tier_order_between_individual_and_pro(self):
         from warden.billing.feature_gate import _TIER_ORDER
         assert _TIER_ORDER["community_business"] > _TIER_ORDER["individual"]
-        assert _TIER_ORDER["community_business"] < _TIER_ORDER["pro"]
+        assert _TIER_ORDER["community_business"] < _TIER_ORDER["lab"]
 
     def test_features_enabled(self):
         from warden.billing.feature_gate import FeatureGate
@@ -79,8 +79,8 @@ class TestCommunityBusinessTier:
     def test_meets_minimum_below_pro(self):
         from warden.billing.feature_gate import FeatureGate
         gate = FeatureGate.for_tier("community_business")
-        assert gate.meets_minimum("pro") is False
-        assert gate.meets_minimum("enterprise") is False
+        assert gate.meets_minimum("lab") is False
+        assert gate.meets_minimum("lab") is False
 
     def test_as_dict_includes_tier(self):
         from warden.billing.feature_gate import FeatureGate

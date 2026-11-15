@@ -1,13 +1,13 @@
 """
 warden/billing/trial.py
 ────────────────────────
-14-day Pro trial management.
+14-day Community Business trial management.
 
 Rules
 ─────
   - One trial per tenant (Redis key `billing:trial:{tenant_id}`)
-  - Trial gives Pro-equivalent features capped at 10 000 requests / 14 days
-  - MasterAgent disabled during trial (Pro add-on restriction, not full Pro)
+  - Trial gives Community Business features capped at 10 000 requests / 14 days
+  - MasterAgent disabled during trial (MasterAgent is on no plan)
   - Trial auto-expires via Redis TTL; no cron needed
   - On expiry the tenant reverts to their previous tier (Starter by default)
   - `start_trial()` is idempotent — calling twice returns the existing trial
@@ -55,7 +55,7 @@ def _trial_key(tenant_id: str) -> str:
 
 def start_trial(tenant_id: str, current_tier: str = "starter") -> dict[str, Any]:
     """
-    Activate a 14-day Pro trial for *tenant_id*.
+    Activate a 14-day Community Business trial for *tenant_id*.
 
     Returns trial metadata dict. Idempotent — returns existing trial if already active.
     Raises ValueError if tenant already consumed their one-time trial.
@@ -67,7 +67,7 @@ def start_trial(tenant_id: str, current_tier: str = "starter") -> dict[str, Any]
         if existing["status"] == "expired":
             raise ValueError(
                 f"Tenant {tenant_id!r} already used their trial. "
-                "Upgrade to Pro at /billing/upgrade?plan=pro"
+                "Upgrade at /billing/upgrade?plan=community_business"
             )
 
     now = datetime.now(UTC)
@@ -147,7 +147,7 @@ def get_trial(tenant_id: str) -> dict[str, Any] | None:
         "status":        status,
         "days_remaining": days_remaining,
         "master_agent":  False,
-        "upgrade_url":   "/billing/upgrade?plan=pro",
+        "upgrade_url":   "/billing/upgrade?plan=community_business",
     }
 
 
@@ -160,10 +160,10 @@ def is_trial_active(tenant_id: str) -> bool:
 def get_trial_tier_limits() -> dict[str, Any]:
     """
     Return the TIER_LIMITS-compatible dict for an active trial.
-    Pro features minus MasterAgent, capped at TRIAL_REQ_LIMIT requests.
+    The top sold plan (Community Business), capped at TRIAL_REQ_LIMIT requests.
     """
     from warden.billing.feature_gate import TIER_LIMITS
-    limits = dict(TIER_LIMITS["pro"])
+    limits = dict(TIER_LIMITS["community_business"])
     limits["req_per_month"]      = _TRIAL_REQ_LIMIT
     limits["master_agent_enabled"] = False   # not included in trial
     limits["overage_enabled"]    = False     # no overages during trial

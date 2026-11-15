@@ -40,9 +40,9 @@ Usage
 ─────
     with FakeContext() as ctx:
         billing = LemonBilling(db_path=tmp_path / "lemon.db")   # inside the context
-        url = billing.create_checkout_session("tenant-1", "pro", "https://ok", "https://no")
-        ctx.lemon.deliver(billing, "subscription_created", tenant_id="tenant-1", plan="pro")
-        assert billing.get_plan("tenant-1") == "pro"
+        url = billing.create_checkout_session("tenant-1", "community_business", "https://ok", "https://no")
+        ctx.lemon.deliver(billing, "subscription_created", tenant_id="tenant-1", plan="community_business")
+        assert billing.get_plan("tenant-1") == "community_business"
 
 ``LemonBilling`` snapshots ``_LS_API_KEY`` into ``self._enabled`` at construction,
 so it must be constructed **inside** the context, not before it.
@@ -70,8 +70,6 @@ FAKE_VARIANTS: dict[str, str] = {
     "trial": "900000",
     "individual": "900001",
     "community_business": "900002",
-    "pro": "900003",
-    "enterprise": "900004",
 }
 
 _VARIANT_TO_PLAN: dict[str, str] = {v: k for k, v in FAKE_VARIANTS.items()}
@@ -175,7 +173,7 @@ class FakeLemonSqueezy:
         event_name: str,
         *,
         tenant_id: str = "",
-        plan: str = "pro",
+        plan: str = "community_business",
         sub_id: str = "fake-sub-1",
         customer_id: str = "fake-customer-1",
         status: str | None = None,
@@ -190,7 +188,7 @@ class FakeLemonSqueezy:
         handed to ``handle_webhook`` — signing is over the raw body, so a
         re-serialised dict would verify differently.
         """
-        variant_id = FAKE_VARIANTS.get(plan, FAKE_VARIANTS["pro"])
+        variant_id = FAKE_VARIANTS.get(plan, FAKE_VARIANTS["community_business"])
         now = datetime.now(UTC)
         attrs: dict[str, Any] = {
             "customer_id": customer_id,

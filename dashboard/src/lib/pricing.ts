@@ -18,8 +18,6 @@ export const TIER_MONTHLY_USD = {
   starter: 0,
   individual: 5,
   community_business: 39.99,
-  pro: 99.99,
-  enterprise: 249,
 } as const;
 
 export type TierId = keyof typeof TIER_MONTHLY_USD;
@@ -45,7 +43,7 @@ export function annualPriceUsd(tier: TierId): number | null {
   return Math.round(monthly * 12 * (1 - ANNUAL_DISCOUNT) * 100) / 100;
 }
 
-/** `$99.99/mo`, or `Free` for a zero-priced tier. */
+/** `$39.99/mo`, or `Free` for a zero-priced tier. */
 export function formatMonthly(tier: TierId): string {
   const p = TIER_MONTHLY_USD[tier];
   return p === 0 ? "Free" : `$${p}/mo`;

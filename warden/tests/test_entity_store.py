@@ -146,7 +146,7 @@ class TestStoreAndGetMeta(_StoreBase):
     def test_expires_at_none_for_mcp(self):
         """MCP tier has retention_days=-1 (unlimited) — no expiry."""
         from warden.communities.entity_store import store_entity
-        meta = store_entity(_make_envelope(), "cid-mcp", "mcp")
+        meta = store_entity(_make_envelope(), "cid-mcp", "lab")
         self.assertIsNone(meta.expires_at)
 
     def test_quota_recorded_after_store(self):

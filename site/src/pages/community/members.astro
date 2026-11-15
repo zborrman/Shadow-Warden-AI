@@ -87,11 +87,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       starter:           { name:'Starter',           color:'#64748b', maxMem:0  },
       individual:        { name:'Individual',         color:'#06b6d4', maxMem:5  },
       community_business:{ name:'Community Business', color:'#BF5AF2', maxMem:10 },
-      pro:               { name:'Pro',                color:'#FF8C42', maxMem:50 },
-      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxMem:-1 },
     };
-    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
-    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
 
     function getParam(name: string): string {
       return new URLSearchParams(window.location.search).get(name) || '';

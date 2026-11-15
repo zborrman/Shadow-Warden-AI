@@ -119,8 +119,6 @@ class FakeContext:
                 ("warden.lemon_billing._LS_VARIANT_TRIAL", FAKE_VARIANTS["trial"]),
                 ("warden.lemon_billing._LS_VARIANT_INDIVIDUAL", FAKE_VARIANTS["individual"]),
                 ("warden.lemon_billing._LS_VARIANT_COMMUNITY", FAKE_VARIANTS["community_business"]),
-                ("warden.lemon_billing._LS_VARIANT_PRO", FAKE_VARIANTS["pro"]),
-                ("warden.lemon_billing._LS_VARIANT_ENTERPRISE", FAKE_VARIANTS["enterprise"]),
             ])
 
         # Start every patch

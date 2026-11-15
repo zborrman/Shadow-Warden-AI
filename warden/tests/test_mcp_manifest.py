@@ -225,9 +225,11 @@ class TestProductTools:
         import asyncio
 
         result = asyncio.run(PRODUCT_TOOL_HANDLERS["list_pricing"](None, {}))
-        unlimited = [p for p in result["plans"] if p["unlimited_requests"]]
-        assert unlimited, "no unlimited plan published"
-        assert all(p["requests_per_month"] is None for p in unlimited)
+        # Unlimited requests were Enterprise, which is withdrawn: every plan
+        # that is published has a number, and none claims to be unlimited.
+        assert result["plans"], "no plans published"
+        assert not [p for p in result["plans"] if p["unlimited_requests"]]
+        assert all(isinstance(p["requests_per_month"], int) for p in result["plans"])
 
 
 # -- The loopback hop filter_text makes --------------------------------------

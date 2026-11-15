@@ -126,15 +126,18 @@ def _get_tenant(request: Request) -> dict:
 
 def _require_tier(tier: str, minimum: str) -> None:
     """
-    Enforce minimum tier.  Hierarchy: individual < business < mcp.
+    Enforce minimum tier.  Hierarchy: individual < business < lab (not sold).
 
     Raises HTTP 403 if the tenant's tier is below *minimum*.
     """
-    order = {
-        "starter": 0, "individual": 1, "business": 2, "community_business": 2,
-        "pro": 3, "enterprise": 4, "mcp": 4,
-    }
-    if order.get(tier.lower(), 0) < order.get(minimum.lower(), 1):
+    # "business" is the historic name of the Business minimum in this router.
+    # "lab" is what is built and not sold (pricing.LAB_TIER). The caller's tier
+    # goes through the alias table so a stored "pro"/"enterprise" reads as
+    # Business; the *minimum* never does - an alias there would lower the gate.
+    from warden.billing.pricing import canonical_tier  # noqa: PLC0415
+
+    order = {"starter": 0, "individual": 1, "business": 2, "community_business": 2, "lab": 9}
+    if order.get(canonical_tier(tier), 0) < order.get(minimum.lower(), 9):
         raise HTTPException(
             status_code=403,
             detail=(
@@ -708,7 +711,7 @@ async def initiate_break_glass_endpoint(
     from warden.communities.break_glass import initiate_break_glass
 
     ctx = _get_tenant(request)
-    _require_tier(ctx["tier"], "mcp")
+    _require_tier(ctx["tier"], "lab")
 
     community = get_community(community_id)
     if not community or community.tenant_id != ctx["tenant_id"]:
@@ -744,7 +747,7 @@ async def sign_break_glass_endpoint(
     from warden.communities.break_glass import sign_break_glass
 
     ctx = _get_tenant(request)
-    _require_tier(ctx["tier"], "mcp")
+    _require_tier(ctx["tier"], "lab")
 
     try:
         return sign_break_glass(request_id, body.signer_id, body.sig_b64)
@@ -768,7 +771,7 @@ async def activate_break_glass_endpoint(
     from warden.communities.break_glass import activate_break_glass
 
     ctx = _get_tenant(request)
-    _require_tier(ctx["tier"], "mcp")
+    _require_tier(ctx["tier"], "lab")
 
     try:
         kp = activate_break_glass(request_id)
@@ -789,7 +792,7 @@ async def close_break_glass_endpoint(
     from warden.communities.break_glass import close_break_glass
 
     ctx = _get_tenant(request)
-    _require_tier(ctx["tier"], "mcp")
+    _require_tier(ctx["tier"], "lab")
     close_break_glass(request_id)
 
 
@@ -824,7 +827,7 @@ async def upgrade_pqc_endpoint(
     from warden.communities.keypair import PQCUnavailableError, upgrade_to_hybrid  # noqa: PLC0415
 
     ctx = _get_tenant(request)
-    _require_tier(ctx["tier"], "mcp")   # Enterprise/MCP only
+    _require_tier(ctx["tier"], "lab")   # not sold
 
     gate = FeatureGate.for_tier(ctx["tier"])
     try:

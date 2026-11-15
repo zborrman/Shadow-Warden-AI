@@ -63,7 +63,7 @@ TENANT_ID  = f"hub-test-tenant-{_SUFFIX}"
 COMM_NAME  = f"Hub Test Community {_SUFFIX}"
 FAKE_PUBKEY = base64.b64encode(b"fake-ed25519-pubkey-32bytes-paddd").decode()
 
-_TENANT_HEADERS = {"X-Tenant-ID": TENANT_ID, "X-Tenant-Tier": "business"}
+_TENANT_HEADERS = {"X-Tenant-ID": TENANT_ID, "X-Tenant-Tier": "lab"}
 
 
 @pytest.fixture(scope="module")

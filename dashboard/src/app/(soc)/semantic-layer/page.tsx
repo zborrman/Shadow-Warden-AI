@@ -73,7 +73,7 @@ export default function SemanticLayerPage() {
         return;
       }
       if (res.status === 402 || res.status === 403) {
-        setError("Pro+ plan required for AI Query.");
+        setError("AI Query is not part of any plan.");
         return;
       }
       if (!res.ok) throw new Error(await res.text());
@@ -96,7 +96,7 @@ export default function SemanticLayerPage() {
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
-          ✅ Shipped · v5.1 · Pro+
+          ✅ Shipped · v5.1 · not on a sold plan
         </span>
       </div>
 
@@ -166,7 +166,7 @@ export default function SemanticLayerPage() {
         <div className="rounded-xl border bg-card p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">AI Query</h2>
-            <span className="text-xs text-muted-foreground">Natural language → SQL · Pro+</span>
+            <span className="text-xs text-muted-foreground">Natural language → SQL · not on a sold plan</span>
           </div>
 
           <div className="space-y-3">

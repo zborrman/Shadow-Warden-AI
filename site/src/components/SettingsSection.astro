@@ -231,7 +231,7 @@ const settingsTabs = [
         <div id="spanel-pqc" class="settings-panel hidden">
           <div class="p-4 rounded-xl border border-[#BF5AF2]/25 bg-[#BF5AF2]/[0.05] mb-5">
             <div class="flex items-center justify-between mb-3">
-              <div class="text-[13px] font-bold text-[#BF5AF2]">Post-Quantum Crypto (Enterprise)</div>
+              <div class="text-[13px] font-bold text-[#BF5AF2]">Post-Quantum Crypto (not on a plan)</div>
               <span class="text-[9px] px-2 py-0.5 rounded bg-[#BF5AF2]/20 text-[#BF5AF2] font-bold">FIPS 203/204</span>
             </div>
             <div class="space-y-3">
@@ -545,7 +545,7 @@ const settingsTabs = [
 
         <!-- Integration Guide panel -->
         <div id="spanel-guide" class="settings-panel hidden">
-          <div class="text-[13px] font-bold text-[#80B4FD] mb-3">Enterprise Integration Guide v4.11</div>
+          <div class="text-[13px] font-bold text-[#80B4FD] mb-3">Integration Guide v4.11</div>
           <p class="text-[12px] text-[#8E8E9E] mb-4">Full deployment playbook — segment strategies, hybrid architecture, ROI models, v4.x platform pillars, and Obsidian community integration.</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
             {[
@@ -565,7 +565,7 @@ const settingsTabs = [
           <a href="/integration-guide" target="_blank"
              class="inline-flex items-center gap-2 bg-[#80B4FD] text-[#0D0D1A] text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#9DC5FE] transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Open Enterprise Integration Guide v4.11
+            Open Integration Guide v4.11
           </a>
         </div>
 
@@ -601,8 +601,6 @@ const settingsTabs = [
                 billing: [
                   { l:'Stripe Secret Key', k:'STRIPE_SECRET_KEY', v:'sk_live_••••', h:'Stripe payment integration' },
                   { l:'Lemon Squeezy Key', k:'LEMON_API_KEY', v:'••••••••', h:'Lemon Squeezy webhooks' },
-                  { l:'Pro Price $/mo', k:'BILLING_PRO_PRICE', v:'69', h:'Shadow Warden Pro' },
-                  { l:'Enterprise $/mo', k:'BILLING_ENT_PRICE', v:'249', h:'Shadow Warden Enterprise' },
                 ],
                 alerts: [
                   { l:'Slack Webhook URL', k:'SLACK_WEBHOOK_URL', v:'https://hooks.slack.com/••••', h:'HIGH/BLOCK alerts' },
@@ -650,7 +648,7 @@ const settingsTabs = [
     alerts:        'Alerts & Notifications',
     infra:         'Infrastructure Settings',
     install:       'Install / Uninstall',
-    guide:         'Enterprise Integration Guide v4.11',
+    guide:         'Integration Guide v4.11',
   };
 
   function showSettingsTab(id: string) {

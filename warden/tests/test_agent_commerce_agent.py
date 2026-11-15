@@ -174,7 +174,7 @@ def test_negotiate_gated_for_starter():
 def test_negotiate_never_settles(monkeypatch):
     r = _client().post("/agent/sova/commerce/negotiate",
                        json={"purchase_request": "50 laptops", "budget_usd": 50000},
-                       headers={"X-Tenant-Tier": "pro"})
+                       headers={"X-Tenant-Tier": "lab"})
     assert r.status_code == 200
     body = r.json()
     assert body["settled"] is False
@@ -199,6 +199,6 @@ def test_negotiate_ignores_body_tenant_id(monkeypatch):
 
     r = _client().post("/agent/sova/commerce/negotiate",
                        json={"purchase_request": "x", "tenant_id": "victim-tenant"},
-                       headers={"X-Tenant-Tier": "pro"})
+                       headers={"X-Tenant-Tier": "lab"})
     assert r.status_code == 200
     assert seen["tenant_id"] != "victim-tenant"

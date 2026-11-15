@@ -127,21 +127,29 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       starter:           { name:'Starter',           color:'#64748b', obs:false, slack:false, pqc:false, price:'Free'    },
       individual:        { name:'Individual',         color:'#06b6d4', obs:false, slack:false, pqc:false, price:'$5/mo'   },
       community_business:{ name:'Community Business', color:'#BF5AF2', obs:true,  slack:false, pqc:false, price:'$39.99/mo'  },
-      pro:               { name:'Pro',                color:'#FF8C42', obs:true,  slack:true,  pqc:false, price:'$99.99/mo'  },
-      enterprise:        { name:'Enterprise',         color:'#FFD60A', obs:true,  slack:true,  pqc:true,  price:'$249/mo' },
     };
-    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
-    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
 
     function renderLockedPanel(bodyEl: HTMLElement, requiredTierKey: string) {
       const rt = TIERS[requiredTierKey];
+      if (!rt) {
+        // No plan includes this integration, so there is nothing to upgrade to.
+        bodyEl.innerHTML = `
+        <div style="text-align:center;padding:32px 20px">
+          <p style="font-size:36px;margin-bottom:12px">🔒</p>
+          <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">Not part of any plan</p>
+          <p style="font-size:13px;color:#64748b">This integration is built, and no plan includes it today.</p>
+        </div>`;
+        return;
+      }
       bodyEl.innerHTML = `
         <div style="text-align:center;padding:32px 20px">
           <p style="font-size:36px;margin-bottom:12px">🔒</p>
           <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">${rt.name} plan required</p>
           <p style="font-size:13px;color:#64748b;margin-bottom:20px">Upgrade to unlock this integration</p>
           <a href="/price"
-             style="display:inline-block;padding:11px 28px;background:${rt.color};border-radius:10px;color:${requiredTierKey === 'enterprise' ? '#000' : '#fff'};text-decoration:none;font-size:13px;font-weight:700">
+             style="display:inline-block;padding:11px 28px;background:${rt.color};border-radius:10px;color:#fff;text-decoration:none;font-size:13px;font-weight:700">
             Upgrade to ${rt.name} — ${rt.price} →
           </a>
           <p style="font-size:11px;color:#334155;margin-top:12px">
@@ -416,10 +424,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         initObsidian(cfg);
       }
 
-      // Slack: requires Pro+
+      // Slack: on no plan
       const slackBody = document.querySelector('#slack-panel-body') as HTMLElement;
       if (slackBody && !tc.slack) {
-        renderLockedPanel(slackBody, 'pro');
+        renderLockedPanel(slackBody, 'none');
         document.getElementById('slack-status-badge')!.textContent = 'LOCKED';
       } else {
         initSlack(cfg);

@@ -162,12 +162,12 @@ def test_the_price_scanner_reads_what_the_browser_renders() -> None:
         )
 
     for rendered in (
-        '<p>$99.99/mo</p>',
-        '<p data-testid="pricing">$99.99/mo</p>',
-        '<p>${99.99}/mo</p>',
-        '<span>$1,019.90/year</span>',
+        '<p>$39.99/mo</p>',
+        '<p data-testid="pricing">$39.99/mo</p>',
+        '<p>${39.99}/mo</p>',
+        '<span>$407.90/year</span>',
         '<span>$0/mo</span>',
-        'const label = "$39.99 per month";',
+        'const label = "$5 per month";',
     ):
         assert flags(rendered), (
             f"the scanner missed {rendered!r}, which renders a canonical list "
@@ -177,8 +177,8 @@ def test_the_price_scanner_reads_what_the_browser_renders() -> None:
     # Page copy is not a comment: `//` in a URL and `/*` in JSX text used to
     # blank the rest of the region, hiding a rendered price between the markers.
     for in_copy in (
-        '<p>/* $99.99/mo */</p>',
-        '<p>see https://x — $99.99/mo</p>',
+        '<p>/* $39.99/mo */</p>',
+        '<p>see https://x — $39.99/mo</p>',
     ):
         assert flags(in_copy), (
             f"the scanner treated {in_copy!r} as a comment. It is page copy, "
@@ -186,10 +186,10 @@ def test_the_price_scanner_reads_what_the_browser_renders() -> None:
         )
 
     for benign in (
-        "// Pro is $99.99/mo — see warden/billing/pricing.py",
-        "/* $99.99 */",
-        "const x = 1;  // was $99.99/mo before the mirror",
-        "const price = formatMonthly(\"pro\");",
+        "// Business is $39.99/mo — see warden/billing/pricing.py",
+        "/* $39.99 */",
+        "const x = 1;  // was $39.99/mo before the mirror",
+        "const price = formatMonthly(\"community_business\");",
         "const budget = 100;",
     ):
         assert not flags(benign), (

@@ -1,13 +1,13 @@
 ---
 const cards = [
   { icon: '🔐', title: 'Secrets Governance',     desc: '5 vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM, Env). SQLite inventory with risk scoring. Expiry alerts, auto-retire, rotation scheduling.', tier: 'Add-on $12' },
-  { icon: '🌐', title: 'Sovereign Routing',       desc: '8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH). MASQUE tunnels (H3/H2/TCP). TOFU TLS pinning. Lowest-latency ACTIVE tunnel selection.',                  tier: 'Enterprise'  },
-  { icon: '🗺️', title: 'Transfer Rules Matrix',  desc: 'CLASSIFIED → blocked always. PHI → 5 allowed jurisdictions. GENERAL → all with adequacy check. EU↔UK/CA/JP/CH adequacy decisions built-in.',       tier: 'Enterprise'  },
-  { icon: '🪙', title: 'Sovereignty Attestation', desc: 'HMAC-SHA256 signed attestations. 7-year Redis TTL. 10K cap per tenant. Verify any historical routing decision in O(1).',                              tier: 'Enterprise'  },
+  { icon: '🌐', title: 'Sovereign Routing',       desc: '8 jurisdictions (EU/US/UK/CA/SG/AU/JP/CH). MASQUE tunnels (H3/H2/TCP). TOFU TLS pinning. Lowest-latency ACTIVE tunnel selection.',                  tier: 'Not on a plan'  },
+  { icon: '🗺️', title: 'Transfer Rules Matrix',  desc: 'CLASSIFIED → blocked always. PHI → 5 allowed jurisdictions. GENERAL → all with adequacy check. EU↔UK/CA/JP/CH adequacy decisions built-in.',       tier: 'Not on a plan'  },
+  { icon: '🪙', title: 'Sovereignty Attestation', desc: 'HMAC-SHA256 signed attestations. 7-year Redis TTL. 10K cap per tenant. Verify any historical routing decision in O(1).',                              tier: 'Not on a plan'  },
   { icon: '📋', title: 'GDPR Controls',           desc: 'Export/purge APIs for Art. 17 right-to-erasure. Metadata-only logging (no content). Retention scheduler with NDJSON rotation.',                      tier: 'All'         },
   { icon: '🔑', title: 'Multi-tenant Auth',        desc: 'Per-tenant API keys with SHA-256 constant-time compare. Fail-closed at startup — no plaintext key in any log or span.',                              tier: 'All'         },
-  { icon: '🔄', title: 'Key Rotation',             desc: 'SOVA-automated daily rotation at 02:00 UTC. Community keypair rotation with PQC upgrade path. Zero-downtime key swap.',                              tier: 'Pro+'        },
-  { icon: '⚙️', title: 'Config API',              desc: 'Live-tune thresholds, timeouts, and resilience strategy without restart. Shadow ban score, semantic threshold, transit rules — all hot-reloadable.', tier: 'Pro+'        },
+  { icon: '🔄', title: 'Key Rotation',             desc: 'SOVA-automated daily rotation at 02:00 UTC. Community keypair rotation with PQC upgrade path. Zero-downtime key swap.',                              tier: 'Not on a plan'        },
+  { icon: '⚙️', title: 'Config API',              desc: 'Live-tune thresholds, timeouts, and resilience strategy without restart. Shadow ban score, semantic threshold, transit rules — all hot-reloadable.', tier: 'Not on a plan'        },
 ];
 
 const toggles = [
@@ -19,11 +19,11 @@ const toggles = [
 
 const tierColor: Record<string, string> = {
   'All': 'var(--sw-fg-4)', 'Add-on $12': 'var(--sw-cyan)',
-  'Enterprise': 'var(--sw-violet)', 'Pro+': 'var(--sw-indigo)',
+  'Not on a plan': 'var(--sw-violet)',
 };
 const tierBg: Record<string, string> = {
   'All': 'rgba(100,116,139,.12)', 'Add-on $12': 'var(--sw-tint-cyan)',
-  'Enterprise': 'var(--sw-tint-violet)', 'Pro+': 'var(--sw-tint-indigo)',
+  'Not on a plan': 'var(--sw-tint-violet)',
 };
 ---
 

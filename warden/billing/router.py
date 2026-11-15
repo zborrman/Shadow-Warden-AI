@@ -9,9 +9,8 @@ Endpoints
   GET  /billing/status                   — current plan + subscription details
   GET  /billing/quota                    — monthly request usage for a tenant
   GET  /billing/margin                   — plan revenue vs. month-to-date LLM cost
-  POST /billing/enterprise/quote         — [Admin] price / invoice an Enterprise deal
   GET  /billing/upgrade                  — redirect to Lemon Squeezy checkout
-  POST /billing/trial/start              — activate 14-day Pro trial (Individual+ only)
+  POST /billing/trial/start              — activate 14-day Community Business trial (Individual+ only)
   GET  /billing/trial/status             — trial status + days remaining
   GET  /billing/addons/bundles           — bundle catalog (Power User Bundle etc.)
   GET  /billing/addons/bundle/{key}/checkout  — redirect to bundle checkout
@@ -35,7 +34,6 @@ from __future__ import annotations
 import hmac
 import logging
 import os
-from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
@@ -103,7 +101,7 @@ class RedeemReferralRequest(BaseModel):
 )
 async def get_billing_tiers():
     """
-    Returns the full feature matrix for all 4 plan tiers.
+    Returns the feature matrix of every plan that is sold.
     No authentication required — used by the landing page pricing section.
     """
     # Monthly prices come from warden.billing.pricing — the canonical list. Only
@@ -114,8 +112,6 @@ async def get_billing_tiers():
         "starter":            ("Free",               ""),
         "individual":         ("Individual",         "+ $0.001/search via x402 metered billing"),
         "community_business": ("Community Business", "+ 1.5% take rate on cleared M2M transactions"),
-        "pro":                ("Pro",                "Sponsored listing boost (+0.15) included"),
-        "enterprise":         ("Enterprise",         "PQC + Sovereign + dedicated Opus routing"),
     }
     prices = {
         tier: {
@@ -129,7 +125,7 @@ async def get_billing_tiers():
     }
 
     tiers = []
-    for tier_name in ("trial", "starter", "individual", "community_business", "pro", "enterprise"):
+    for tier_name in ("trial", "starter", "individual", "community_business"):
         gate = FeatureGate.for_tier(tier_name)
         d    = gate.as_dict()
         d["pricing"]        = prices[tier_name]
@@ -205,86 +201,6 @@ async def get_billing_margin(
     return margin_report(tenant_id, resolve_tier(tenant_id) or "starter")
 
 
-# ── Enterprise quote ──────────────────────────────────────────────────────────
-
-class EnterpriseQuoteRequest(BaseModel):
-    tenant_id:      str
-    customer_email: str
-    company_name:   str  = ""
-    seats:          int  = 1
-    annual:         bool = True
-    po_number:      str  = ""
-    raise_invoice:  bool = False
-
-
-@router.post(
-    "/enterprise/quote",
-    summary="[Admin] Quote — and optionally invoice — an Enterprise agreement",
-)
-async def enterprise_quote(
-    body:        EnterpriseQuoteRequest,
-    x_admin_key: str | None = Header(default=None),
-):
-    """
-    Price an Enterprise deal from the canonical list, and optionally raise a
-    Stripe invoice for it.
-
-    Enterprise has no self-serve checkout by design: it is a procurement
-    process — company-addressed invoice, PO number, net terms, bank transfer —
-    which a merchant-of-record checkout structurally cannot produce. This
-    endpoint is the sales-side equivalent, so the number in a quote comes from
-    `warden.billing.pricing` rather than from whatever was typed into an email.
-
-    Admin-gated: it prices a deal and can create a real invoice.
-    `raise_invoice=false` (the default) quotes only.
-    """
-    _require_admin(x_admin_key)
-    from warden.billing.pricing import annual_price_usd, monthly_price_usd
-
-    unit = annual_price_usd("enterprise") if body.annual else monthly_price_usd("enterprise")
-    if not unit:
-        raise HTTPException(500, "Enterprise has no list price configured.")
-    if body.seats < 1:
-        raise HTTPException(400, "seats must be at least 1.")
-
-    quote: dict[str, Any] = {
-        "tenant_id":   body.tenant_id,
-        "plan":        "enterprise",
-        "period":      "annual" if body.annual else "monthly",
-        "seats":       body.seats,
-        "unit_usd":    unit,
-        "total_usd":   round(unit * body.seats, 2),
-        "po_number":   body.po_number,
-        "payment":     "invoice · net-30 · bank transfer or card",
-        "invoice":     None,
-    }
-
-    if not body.raise_invoice:
-        return quote
-
-    try:
-        from warden.stripe_billing import get_stripe_billing
-        quote["invoice"] = get_stripe_billing().create_enterprise_invoice(
-            tenant_id=body.tenant_id,
-            customer_email=body.customer_email,
-            company_name=body.company_name,
-            annual=body.annual,
-            seats=body.seats,
-            po_number=body.po_number,
-        )
-    except RuntimeError as exc:
-        # Stripe unconfigured is an operator state, not a client error: the
-        # quote is still valid and correct, so return it with the reason rather
-        # than failing the whole call.
-        quote["invoice_error"] = str(exc)
-        log.warning("billing/enterprise/quote: invoice not raised — %s", exc)
-    except Exception as exc:
-        log.error("billing/enterprise/quote: invoice failed — %s", exc)
-        raise HTTPException(502, f"Invoice creation failed: {type(exc).__name__}") from exc
-
-    return quote
-
-
 # ── Upgrade redirect ──────────────────────────────────────────────────────────
 
 @router.get(
@@ -294,7 +210,7 @@ async def enterprise_quote(
     status_code=303,
 )
 async def billing_upgrade(
-    plan:           str        = Query(..., description="Target plan: trial|individual|community_business|pro|enterprise"),
+    plan:           str        = Query(..., description="Target plan: trial|individual|community_business"),
     tenant_id:    str        = Depends(_caller_tenant),
     customer_email: str | None = Query(default=None),
     agent_id:       str | None = Query(default=None, description="Marketplace DID — bound to subscription for M2M billing"),
@@ -338,8 +254,8 @@ async def list_addons():
     Return all purchasable add-on SKUs with display names, prices, and minimum tiers.
     No authentication required — used by pricing pages and upgrade flows.
     """
-    from warden.billing.addons import ADDON_CATALOG
-    return {"addons": list(ADDON_CATALOG.values())}
+    from warden.billing.addons import sold_addons
+    return {"addons": sold_addons()}
 
 
 @router.get(
@@ -372,9 +288,11 @@ async def addon_checkout(
     success_url: str | None = Query(default=None),
     cancel_url:  str | None = Query(default=None),
 ):
-    from warden.billing.addons import ADDON_CATALOG
+    from warden.billing.addons import ADDON_CATALOG, is_sold
     addon = ADDON_CATALOG.get(addon_key)
-    if not addon:
+    # A withdrawn add-on answers exactly like one that never existed: there is
+    # nothing to buy, and a checkout for it would take money for no entitlement.
+    if not addon or not is_sold(addon_key):
         raise HTTPException(status_code=404, detail=f"Unknown add-on: {addon_key!r}")
 
     variant_id = addon.get("ls_variant_id", "")
@@ -461,14 +379,14 @@ class TrialStartRequest(BaseModel):
 
 @router.post(
     "/trial/start",
-    summary="Activate 14-day Pro trial (Individual+ tenants only, one-time)",
+    summary="Activate 14-day Community Business trial (Individual+ tenants only, one-time)",
 )
 async def start_trial(
     body:        TrialStartRequest,
     tenant_id: str = Depends(_caller_tenant),
 ):
     """
-    Activates a 14-day Pro trial capped at 10 000 requests.
+    Activates a 14-day Community Business trial capped at 10 000 requests.
     MasterAgent is excluded from the trial.
     One-time per tenant — raises 409 if already used.
     """
@@ -503,8 +421,8 @@ async def trial_status(
 )
 async def list_bundles():
     """Return all available bundle SKUs with savings information."""
-    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
-    return {"bundles": list(BUNDLE_CATALOG.values())}
+    from warden.billing.addons import sold_bundles  # noqa: PLC0415
+    return {"bundles": sold_bundles()}
 
 
 @router.get(
@@ -519,8 +437,9 @@ async def bundle_checkout(
     success_url: str | None = Query(default=None),
     cancel_url:  str | None = Query(default=None),
 ):
-    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
-    bundle = BUNDLE_CATALOG.get(bundle_key)
+    from warden.billing.addons import BUNDLE_CATALOG, bundle_is_sold  # noqa: PLC0415
+    # A withdrawn bundle answers like one that never existed.
+    bundle = BUNDLE_CATALOG.get(bundle_key) if bundle_is_sold(bundle_key) else None
     if not bundle:
         raise HTTPException(status_code=404, detail=f"Unknown bundle: {bundle_key!r}")
 
@@ -795,7 +714,7 @@ def _agent_turn_overage(tenant_id: str, tier: str) -> dict:
     blank = {"allowance": allowance, "used": 0, "overage": 0,
              "rate": AGENT_TURN_OVERAGE_USD, "charge": 0.0}
     if allowance is None or allowance == 0:
-        # Unlimited (Enterprise) or the feature is not sold on this tier.
+        # The feature is not sold on this tier.
         return blank
     try:
         from warden.finops.llm_budget import month_start_ts

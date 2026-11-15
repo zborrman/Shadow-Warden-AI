@@ -311,8 +311,9 @@ A hardening and honesty release. Feature work is frozen until launch (`docs/laun
 | **Starter** | Free | 1,000 | Core filter pipeline, analytics dashboard |
 | **Individual** | $5/mo | 5,000 | + XAI audit add-on eligible (+$9/mo) |
 | **Community Business** *(SMB)* | $39.99/mo | 15,000 | + File Scanner, Shadow AI Monitor, Communities (3×10), 180-day retention, Secrets Governance, one-click install |
-| **Pro** | $99.99/mo | 50,000 | + MasterAgent (200 agent turns/mo, then $0.15/turn), Shadow AI Discovery add-on eligible (+$15/mo) |
-| **Enterprise** | $249/mo | Unlimited | + PQC (ML-DSA-65 + ML-KEM-768), Sovereign AI Cloud, all add-ons |
+
+Pro ($99.99/mo) and Enterprise ($249/mo) were withdrawn on 2026-11-14. Nothing above
+Community Business is sold.
 
 **Add-ons** (billed via Lemon Squeezy):
 
@@ -320,22 +321,16 @@ A hardening and honesty release. Feature work is frozen until launch (`docs/laun
 |--------|-------|----------|-------------|
 | Secrets Vault Governance | +$12/mo | Individual | `secrets_governance` |
 | XAI Audit Reports | +$9/mo | Individual | `xai_reports_enabled` |
-| Shadow AI Discovery | +$15/mo | Pro | `shadow_ai_enabled` |
-| On-Prem Deployment Pack | +$29/mo | Pro | `on_prem_deployment` |
 | Community Seats (+5 members) | +$9/mo | Community Business | stackable |
-| MasterAgent | Included in Pro | Pro | `master_agent_enabled` |
 
-**Bundles** (save vs buying separately):
+**Annual billing:** 15% off paid tiers — Individual $51/yr · Community Business $407.90/yr
 
-| Bundle | Price | Saves | Includes |
-|--------|-------|-------|---------|
-| Power User Bundle | $29/mo | $7/mo | Secrets Vault + XAI Audit + Shadow AI Discovery |
+**14-day trial:** Community Business features, 10,000 requests, one-time per account.
 
-**Annual billing:** 15% off all paid tiers — Individual $51/yr · Community Business $407.90/yr · Pro $1,019.90/yr · Enterprise $2,539.80/yr
-
-**14-day Pro trial:** available to Individual and Community Business tenants — 10,000 requests, no MasterAgent, one-time per account.
-
-Enterprise includes PQC signing (`pqc_enabled`) and Sovereign AI Cloud (`sovereign_enabled`) — not available as add-ons.
+**Built, not sold.** MasterAgent, SOVA, PQC signing, Sovereign AI Cloud, ISO 27001
+mapping, Shadow AI Discovery, on-prem and the overage meter are in the code and under
+test behind the `lab` capability set (`warden/billing/pricing.py::LAB_TIER`). No plan
+includes them and no checkout can grant them.
 
 ---
 

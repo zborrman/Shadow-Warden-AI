@@ -38,50 +38,13 @@ const tiers = [
       { text: '180-day retention',             ok: true },
     ],
   },
-  {
-    name: 'Pro', price: 99.99, tag: 'Most Popular',
-    accent: 'var(--sw-indigo)', accentHex: '#80b4fd',
-    highlight: true,
-    cta: 'Start Free Trial',
-    features: [
-      { text: '50 000 req/month',             ok: true  },
-      { text: 'Full 9-layer defense stack',   ok: true  },
-      { text: 'AI Analytics Hub (9 models)',   ok: true  },
-      { text: 'Commerce Budget Guardian',      ok: true  },
-      { text: 'Self-Service Model Catalog',    ok: true  },
-      { text: 'MasterAgent SOC — 200 turns/mo', ok: true  },
-      { text: 'Evidence Vault + STIX 2.1',    ok: true  },
-      { text: 'SOC 2 + GDPR audit package',   ok: true  },
-      { text: 'Shadow AI (+$15 add-on)',       ok: null  },
-      { text: 'PQC / Sovereign Cloud',         ok: false },
-    ],
-  },
-  {
-    name: 'Enterprise', price: 249, tag: 'Full Stack',
-    accent: 'var(--sw-violet)', accentHex: '#38bdf8',
-    cta: 'Contact Sales',
-    features: [
-      { text: 'Unlimited requests',                      ok: true },
-      { text: 'Post-Quantum Crypto (FIPS 203/204)',      ok: true },
-      { text: 'Sovereign AI Cloud — 8 jurisdictions',    ok: true },
-      { text: 'Shadow AI Governance',                    ok: true },
-      { text: 'XAI Audit Reports (PDF)',                 ok: true },
-      { text: 'SEP Communities Protocol',               ok: true },
-      { text: 'SAML/OIDC SSO + RBAC',                  ok: true },
-      { text: 'Dedicated SLA + 24/7 support',           ok: true },
-    ],
-  },
 ];
 
 const addons = [
-  { name: 'Shadow AI Discovery', price: '$15/mo', tier: 'Pro+',
-    desc: 'Async /24 subnet probe across 18 AI providers. DNS telemetry. Per-tenant MONITOR/BLOCK/ALLOWLIST policy.' },
   { name: 'XAI Audit Reports',   price: '$9/mo',  tier: 'Individual+',
     desc: '9-stage causal chain. Primary cause attribution. PDF reports for SOC 2 evidence packages.' },
   { name: 'Secrets Vault',       price: '$12/mo', tier: 'Individual+',
     desc: 'Multi-cloud vault connectors (AWS SM / Azure KV / HashiCorp / GCP). Inventory, lifecycle alerts, policy score.' },
-  { name: 'On-Prem Pack',        price: '$29/mo', tier: 'Pro+',
-    desc: 'MinIO on-prem object store, self-hosted Prometheus/Grafana, air-gapped Evolution Engine mode.' },
   { name: 'Community Seats',     price: '$9/mo',  tier: 'Community Business+',
     desc: 'Stackable +5 extra seats per unit. Combine with any higher tier for unlimited seat expansion.' },
 ];
@@ -107,7 +70,6 @@ const addons = [
       </h2>
       <p class="text-[15px] max-w-xl mx-auto" style="color:var(--sw-fg-3)">
         IBM 2024: average breach costs <span style="color:var(--sw-red);font-weight:700">$4.88M</span>.
-        Pro plan ROI at default settings: <span style="color:var(--sw-green);font-weight:700">782×</span> annually.
       </p>
     </div>
 
@@ -168,7 +130,7 @@ const addons = [
             ))}
           </ul>
 
-          <button onclick={t.name === 'Enterprise' ? "window.location='mailto:sales@shadow-warden-ai.com'" : "openAuth('signup')"}
+          <button onclick="openAuth('signup')"
                   class="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all hover:-translate-y-0.5"
                   style={t.highlight
                     ? `background:${t.accentHex};color:#fff;box-shadow:0 8px 28px ${t.accentHex}40`
@@ -230,7 +192,7 @@ const addons = [
            style="background:var(--sw-surf-2);border:1px solid var(--sw-border)">
         <span class="text-2xl flex-shrink-0">🎁</span>
         <div class="flex-1">
-          <div class="text-[13px] font-bold mb-0.5" style="color:var(--sw-fg-1)">14-day Pro trial — no card required.</div>
+          <div class="text-[13px] font-bold mb-0.5" style="color:var(--sw-fg-1)">14-day trial — no card required.</div>
           <div class="text-[12px]" style="color:var(--sw-fg-3)">Individual and Community Business plans.</div>
         </div>
         <button onclick="openAuth('signup')"
@@ -242,7 +204,7 @@ const addons = [
     </div>
 
     <p class="text-center text-[11px] mt-8" style="color:var(--sw-fg-4)">
-      * IBM Cost of a Data Breach Report 2024. All prices USD. Annual billing saves 15%. Enterprise pricing custom — contact sales.
+      * IBM Cost of a Data Breach Report 2024. All prices USD. Annual billing saves 15%.
     </p>
   </div>
 </section>
@@ -250,7 +212,7 @@ const addons = [
 <script>
   const toggle = document.getElementById('annual-toggle') as HTMLButtonElement;
   const knob   = document.getElementById('toggle-knob')   as HTMLSpanElement;
-  const annualPrices: Record<string, number> = { Individual: 4, 'Community Business': 16, Pro: 59, Enterprise: 212 };
+  const annualPrices: Record<string, number> = { Individual: 4.25, 'Community Business': 33.99 };
   let isAnnual = false;
 
   toggle?.addEventListener('click', () => {

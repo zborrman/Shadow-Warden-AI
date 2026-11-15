@@ -32,8 +32,8 @@ const softwareApplication = {
     '@type': 'AggregateOffer',
     priceCurrency: 'USD',
     lowPrice: '0',
-    highPrice: '249.00',
-    offerCount: 5,
+    highPrice: '39.99',
+    offerCount: 3,
     // /price lists all five tiers, so the offer's ceiling is on the linked page.
     url: 'https://shadow-warden-ai.com/price',
   },
@@ -308,7 +308,7 @@ const softwareApplication = {
           <span class="text-[13px] font-bold" style="color:#f0f4fc">Post-Quantum Cryptography</span>
         </div>
         <p class="text-[12px] leading-relaxed mb-3" style="color:#6b7c96">
-          ML-DSA-65 (FIPS 204) hybrid signatures on every M2M trade proof. X25519 + ML-KEM-768 key encapsulation. Quantum-resistant by default on Enterprise.
+          ML-DSA-65 (FIPS 204) hybrid signatures on every M2M trade proof. X25519 + ML-KEM-768 key encapsulation. Built and tested; not part of any plan today.
         </p>
         <code class="text-[10px] font-mono px-2 py-1 rounded" style="color:#06b6d4;background:rgba(6,182,212,0.08)">
           HybridSigner · ML-DSA-65
@@ -527,19 +527,8 @@ const softwareApplication = {
           ],
         },
         {
-          title: 'Enterprise', color: '#ef4444',
-          badge: 'Enterprise · $249/mo',
-          features: [
-            'Post-Quantum Auth (Ed25519 + ML-DSA-65)',
-            'Sovereign AI Cloud across 8 jurisdictions',
-            'MasterAgent multi-agent SOC coordinator',
-            'GDPR DPIA + SOC 2 control mapping (self-attested)',
-            'Unlimited requests · 99.95% uptime target',
-          ],
-        },
-        {
           title: 'DevOps / MLOps', color: '#4d9cfc',
-          badge: 'Pro · $99.99/mo',
+          badge: 'Every plan, from Free',
           features: [
             'OpenAI-compatible proxy — one line of code',
             'LangChain WardenCallback integration',
@@ -591,14 +580,14 @@ const softwareApplication = {
     </div>
 
     <div class="grid md:grid-cols-3 gap-5 mb-12">
-      <!-- Card 1: Enterprise buyer — cost avoidance -->
+      <!-- Card 1: security teams — cost avoidance -->
       <div class="rounded-xl p-7 flex flex-col border" style="background:rgba(239,68,68,0.04);border-color:rgba(239,68,68,0.18)">
         <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-5 flex-shrink-0" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25)">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
         </div>
-        <div class="text-[12px] font-semibold mb-2 uppercase tracking-wider" style="color:#ef4444">For Enterprise &amp; Security Teams</div>
+        <div class="text-[12px] font-semibold mb-2 uppercase tracking-wider" style="color:#ef4444">For Security Teams</div>
         <h3 class="text-[17px] font-black mb-3 leading-snug" style="color:#f0f4fc">Avoid the $4.88M breach</h3>
         <p class="text-[13px] leading-relaxed mb-5 flex-1" style="color:#6b7c96">
           IBM 2024 reports the average AI-related data breach costs $4.88M. Shadow Warden's 9-layer filter blocks prompt injection, strips secrets, and enforces GDPR — reducing incidents by 87% within 6 months of deployment.
@@ -607,9 +596,6 @@ const softwareApplication = {
           <div class="grid grid-cols-2 gap-3">
             {[
               { val: '$4.88M', label: 'avg breach cost (IBM 2024)' },
-              { val: '87%',    label: 'incident reduction, 6 months' },
-              { val: '$249',   label: 'Enterprise plan / month' },
-              { val: '1,633×', label: 'ROI if one breach avoided' },
             ].map(r => (
               <div>
                 <div class="text-[18px] font-black leading-none mb-1" style="color:#ef4444">{r.val}</div>
@@ -619,7 +605,7 @@ const softwareApplication = {
           </div>
         </div>
         <a href="/price" class="text-[12px] font-semibold flex items-center gap-1.5" style="color:#ef4444">
-          See Enterprise plan
+          See plans
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
@@ -899,7 +885,7 @@ order   = agent.purchase(&#123; <span style="color:#34d399">"store_url"</span>: 
   <div class="mx-auto max-w-3xl px-4 lg:px-8 text-center">
     <div class="text-[12px] font-semibold mb-5 flex items-center justify-center gap-2" style="color:#34d399">
       <span class="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style="background:#34d399"></span>
-      14-day Pro trial · No credit card required
+      14-day trial · No credit card required
     </div>
     <h2 class="font-black leading-tight mb-3 text-balance"
         style="font-size:clamp(1.5rem,3.5vw,2.25rem);color:#f0f4fc;letter-spacing:-0.025em">
@@ -911,7 +897,7 @@ order   = agent.purchase(&#123; <span style="color:#34d399">"store_url"</span>: 
     <div class="flex flex-wrap items-center justify-center gap-3">
       <a href="https://portal.shadow-warden-ai.com" target="_blank"
          class="btn-primary text-[14px] px-7 py-3">
-        Start 14-day Pro Trial
+        Start 14-day Trial
       </a>
       <a href="mailto:zbrvladimir@gmail.com?subject=Demo%20Request%20—%20Shadow%20Warden%20AI"
          class="btn-ghost text-[14px] px-7 py-3">

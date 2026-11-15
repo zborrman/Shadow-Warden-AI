@@ -23,7 +23,7 @@ async function proxy(req: NextRequest): Promise<NextResponse> {
   try {
     const upstream = await fetch(target, {
       method:  req.method,
-      headers: { 'X-API-Key': API_KEY, 'X-Tenant-Tier': 'pro' },
+      headers: { 'X-API-Key': API_KEY, 'X-Tenant-Tier': 'community_business' },
       body:    req.method === 'GET' ? undefined : await req.text(),
     })
     const data = await upstream.json().catch(() => ({ detail: 'Invalid JSON' }))

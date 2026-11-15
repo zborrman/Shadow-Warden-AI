@@ -262,11 +262,11 @@ async def test_auto_approve_bypasses_gate(monkeypatch):
 
 def test_sova_feature_key_present_all_tiers():
     from warden.billing.feature_gate import TIER_LIMITS
-    for tier in ("starter", "individual", "community_business", "pro", "enterprise"):
+    for tier in ("starter", "individual", "community_business", "lab", "lab"):
         assert "sova_agent_enabled" in TIER_LIMITS[tier]
     assert TIER_LIMITS["starter"]["sova_agent_enabled"] is False
     assert TIER_LIMITS["community_business"]["sova_agent_enabled"] is True
-    assert TIER_LIMITS["pro"]["sova_agent_enabled"] is True
+    assert TIER_LIMITS["lab"]["sova_agent_enabled"] is True
 
 
 def _client():
@@ -286,7 +286,7 @@ def test_sova_endpoint_gated_for_starter():
 
 
 def test_sova_endpoint_allowed_for_pro():
-    r = _client().post("/agent/sova", json={"query": "hi"}, headers={"X-Tenant-Tier": "pro"})
+    r = _client().post("/agent/sova", json={"query": "hi"}, headers={"X-Tenant-Tier": "lab"})
     assert r.status_code == 200
 
 

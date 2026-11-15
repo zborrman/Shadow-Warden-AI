@@ -24,12 +24,10 @@ import math
 from dataclasses import dataclass
 
 # SLA monthly uptime targets by tier (fraction of the month). Source: docs/sla.md §2.
-#   Pro        99.9%  → 43.8 min/month max downtime
-#   Enterprise 99.95% → 21.9 min/month max downtime
-SLA_TARGETS: dict[str, float] = {
-    "pro": 0.999,
-    "enterprise": 0.9995,
-}
+# The contractual targets belonged to Pro (99.9%) and Enterprise (99.95%).
+# Neither plan is sold, so no plan carries one; DEFAULT_SLA below is the
+# internal objective the error budget is measured against, not a commitment.
+SLA_TARGETS: dict[str, float] = {}
 DEFAULT_SLA = 0.999
 
 _MINUTES_PER_DAY = 1440.0

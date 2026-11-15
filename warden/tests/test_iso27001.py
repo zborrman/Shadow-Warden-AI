@@ -20,7 +20,7 @@ def _make_app():
 def client():
     # X-Tenant-Tier: enterprise — iso27001_enabled is True at Enterprise
     return TestClient(_make_app(), raise_server_exceptions=False,
-                      headers={"X-Tenant-Tier": "enterprise"})
+                      headers={"X-Tenant-Tier": "lab"})
 
 
 # ── Control catalog integrity ─────────────────────────────────────────────────
@@ -155,7 +155,7 @@ class TestIso27001Json:
 
     def test_tier_gate_blocks_non_enterprise(self, client):
         pro_client = TestClient(_make_app(), raise_server_exceptions=False,
-                                headers={"X-Tenant-Tier": "pro"})
+                                headers={"X-Tenant-Tier": "lab"})
         r = pro_client.get("/compliance/iso27001")
         assert r.status_code in (403, 200)  # 403 when gate active; 200 if fail-open import
 

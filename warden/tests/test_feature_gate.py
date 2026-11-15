@@ -28,14 +28,14 @@ class TestTierLimits(unittest.TestCase):
 
     def test_business_communities_enabled(self):
         from warden.billing.feature_gate import TIER_LIMITS
-        limits = TIER_LIMITS["business"]
+        limits = TIER_LIMITS["community_business"]
         self.assertTrue(limits["communities_enabled"])
-        self.assertEqual(limits["max_communities"], 10)
+        self.assertEqual(limits["max_communities"], 3)
         self.assertFalse(limits["break_glass_enabled"])
 
     def test_mcp_all_enabled(self):
         from warden.billing.feature_gate import _UNLIMITED, TIER_LIMITS
-        limits = TIER_LIMITS["mcp"]
+        limits = TIER_LIMITS["lab"]
         self.assertTrue(limits["communities_enabled"])
         self.assertTrue(limits["break_glass_enabled"])
         self.assertTrue(limits["byok_enabled"])
@@ -44,8 +44,8 @@ class TestTierLimits(unittest.TestCase):
     def test_ratchet_intervals(self):
         from warden.billing.feature_gate import TIER_LIMITS
         self.assertIsNone(TIER_LIMITS["individual"]["ratchet_interval"])
-        self.assertEqual(TIER_LIMITS["business"]["ratchet_interval"], 10)
-        self.assertEqual(TIER_LIMITS["mcp"]["ratchet_interval"], 50)
+        self.assertIsNone(TIER_LIMITS["community_business"]["ratchet_interval"])
+        self.assertEqual(TIER_LIMITS["lab"]["ratchet_interval"], 50)
 
 
 class TestFeatureGateRequire(unittest.TestCase):
@@ -68,22 +68,22 @@ class TestFeatureGateRequire(unittest.TestCase):
         with self.assertRaises(PermissionError):
             biz_gate.require("break_glass_enabled")
 
-        mcp_gate = FeatureGate.for_tier("mcp")
+        mcp_gate = FeatureGate.for_tier("lab")
         mcp_gate.require("break_glass_enabled")   # should not raise
 
     def test_byok_requires_mcp(self):
         from warden.billing.feature_gate import FeatureGate
         with self.assertRaises(PermissionError):
             FeatureGate.for_tier("business").require("byok_enabled")
-        FeatureGate.for_tier("mcp").require("byok_enabled")
+        FeatureGate.for_tier("lab").require("byok_enabled")
 
 
 class TestFeatureGateCapacity(unittest.TestCase):
 
     def test_within_limit_passes(self):
         from warden.billing.feature_gate import FeatureGate
-        gate = FeatureGate.for_tier("business")
-        gate.require_capacity("max_communities", 4)   # limit=5, count=4 → OK
+        gate = FeatureGate.for_tier("community_business")
+        gate.require_capacity("max_communities", 2)   # limit=5, count=4 → OK
 
     def test_at_limit_raises(self):
         from warden.billing.feature_gate import FeatureGate
@@ -99,7 +99,7 @@ class TestFeatureGateCapacity(unittest.TestCase):
 
     def test_unlimited_never_raises(self):
         from warden.billing.feature_gate import _UNLIMITED, FeatureGate
-        gate = FeatureGate.for_tier("mcp")
+        gate = FeatureGate.for_tier("lab")
         gate.require_capacity("max_communities", _UNLIMITED - 1)   # no raise
 
 
@@ -107,16 +107,16 @@ class TestFeatureGateMeetsMinimum(unittest.TestCase):
 
     def test_individual_below_business(self):
         from warden.billing.feature_gate import FeatureGate
-        self.assertFalse(FeatureGate.for_tier("individual").meets_minimum("business"))
+        self.assertFalse(FeatureGate.for_tier("individual").meets_minimum("community_business"))
 
     def test_business_meets_business(self):
         from warden.billing.feature_gate import FeatureGate
-        self.assertTrue(FeatureGate.for_tier("business").meets_minimum("business"))
+        self.assertTrue(FeatureGate.for_tier("business").meets_minimum("community_business"))
 
     def test_mcp_meets_all(self):
         from warden.billing.feature_gate import FeatureGate
-        gate = FeatureGate.for_tier("mcp")
-        for t in ("individual", "business", "mcp"):
+        gate = FeatureGate.for_tier("lab")
+        for t in ("individual", "business", "lab"):
             self.assertTrue(gate.meets_minimum(t))
 
     def test_unknown_tier_defaults_to_individual(self):
@@ -129,15 +129,15 @@ class TestMinTierHelpers(unittest.TestCase):
 
     def test_communities_enabled_min_tier_is_business(self):
         from warden.billing.feature_gate import _min_tier_for
-        self.assertEqual(_min_tier_for("communities_enabled"), "pro")
+        self.assertEqual(_min_tier_for("communities_enabled"), "community_business")
 
     def test_break_glass_min_tier_is_mcp(self):
         from warden.billing.feature_gate import _min_tier_for
-        self.assertEqual(_min_tier_for("break_glass_enabled"), "enterprise")
+        self.assertIsNone(_min_tier_for("break_glass_enabled"))  # built, on no plan
 
     def test_capacity_min_tier_for_communities(self):
         from warden.billing.feature_gate import _min_tier_for_capacity
-        self.assertEqual(_min_tier_for_capacity("max_communities"), "pro")
+        self.assertEqual(_min_tier_for_capacity("max_communities"), "community_business")
 
 
 class TestFeatureGateMiddleware(unittest.IsolatedAsyncioTestCase):
@@ -177,7 +177,7 @@ class TestFeatureGateMiddleware(unittest.IsolatedAsyncioTestCase):
         scope = {
             "type":    "http",
             "path":    "/communities",
-            "headers": [(b"x-tenant-tier", b"business")],
+            "headers": [(b"x-tenant-tier", b"community_business")],
         }
         await middleware(scope, None, lambda e: None)
         self.assertTrue(app_called)

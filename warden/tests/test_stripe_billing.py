@@ -45,8 +45,8 @@ def enabled_store(tmp_path: Path) -> Generator[PaddleBilling, None, None]:
     with (
         patch("warden.lemon_billing._LS_API_KEY",              "ls_test_fake"),
         patch("warden.lemon_billing._LS_STORE_ID",             "store_fake"),
-        patch("warden.lemon_billing._LS_VARIANT_PRO",          "var_pro_fake"),
-        patch("warden.lemon_billing._LS_VARIANT_ENTERPRISE",   "var_ent_fake"),
+        patch("warden.lemon_billing._LS_VARIANT_INDIVIDUAL",          "var_pro_fake"),
+        patch("warden.lemon_billing._LS_VARIANT_COMMUNITY",   "var_ent_fake"),
         patch("warden.lemon_billing._LS_WEBHOOK_SECRET",       ""),  # skip sig check
     ):
         pb = PaddleBilling(db_path=tmp_path / "test_lemon_enabled.db")
@@ -62,23 +62,23 @@ class TestGetPlan:
         assert store.get_plan("nobody") == "starter"
 
     def test_active_pro(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "pro", "active", None)
-        assert store.get_plan("t1") == "pro"
+        store._upsert("t1", "ctm_1", "sub_1", "individual", "active", None)
+        assert store.get_plan("t1") == "individual"
 
     def test_active_msp(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "enterprise", "active", None)
-        assert store.get_plan("t1") == "enterprise"
+        store._upsert("t1", "ctm_1", "sub_1", "community_business", "active", None)
+        assert store.get_plan("t1") == "community_business"
 
     def test_trialing_returns_plan(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "pro", "on_trial", None)
-        assert store.get_plan("t1") == "pro"
+        store._upsert("t1", "ctm_1", "sub_1", "individual", "on_trial", None)
+        assert store.get_plan("t1") == "individual"
 
     def test_cancelled_falls_back_to_free(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "pro", "cancelled", None)
+        store._upsert("t1", "ctm_1", "sub_1", "individual", "cancelled", None)
         assert store.get_plan("t1") == "starter"
 
     def test_past_due_falls_back_to_free(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "enterprise", "past_due", None)
+        store._upsert("t1", "ctm_1", "sub_1", "community_business", "past_due", None)
         assert store.get_plan("t1") == "starter"
 
 
@@ -90,14 +90,9 @@ class TestGetQuota:
         assert store.get_quota("nobody") == 1_000
 
     def test_pro_quota(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "pro", "active", None)
-        assert store.get_quota("t1") == PLAN_QUOTAS["pro"]
-        assert store.get_quota("t1") == 50_000
-
-    def test_msp_unlimited(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_1", "sub_1", "enterprise", "active", None)
-        assert store.get_quota("t1") is None
-
+        store._upsert("t1", "ctm_1", "sub_1", "individual", "active", None)
+        assert store.get_quota("t1") == PLAN_QUOTAS["individual"]
+        assert store.get_quota("t1") == 5_000
 
 # ── get_status ────────────────────────────────────────────────────────────────
 
@@ -110,12 +105,12 @@ class TestGetStatus:
         assert s["customer_id"] is None
 
     def test_known_tenant(self, store: PaddleBilling) -> None:
-        store._upsert("t1", "ctm_x", "sub_x", "pro", "active", "2026-04-01T00:00:00+00:00")
+        store._upsert("t1", "ctm_x", "sub_x", "individual", "active", "2026-04-01T00:00:00+00:00")
         s = store.get_status("t1")
-        assert s["plan"]        == "pro"
+        assert s["plan"]        == "individual"
         assert s["customer_id"] == "ctm_x"
         assert s["renews_at"]   == "2026-04-01T00:00:00+00:00"
-        assert s["quota"]       == 50_000
+        assert s["quota"]       == 5_000
 
 
 # ── create_checkout_session ───────────────────────────────────────────────────
@@ -123,7 +118,7 @@ class TestGetStatus:
 class TestCreateCheckoutSession:
     def test_disabled_raises(self, store: PaddleBilling) -> None:
         with pytest.raises(RuntimeError, match="not configured"):
-            store.create_checkout_session("t1", "pro", "https://ok", "https://cancel")
+            store.create_checkout_session("t1", "individual", "https://ok", "https://cancel")
 
     def test_invalid_plan_raises(self, enabled_store: PaddleBilling) -> None:
         with pytest.raises(ValueError, match="Invalid plan"):
@@ -132,14 +127,14 @@ class TestCreateCheckoutSession:
     def test_returns_checkout_url(self, enabled_store: PaddleBilling) -> None:
         fake_resp = {"data": {"attributes": {"url": "https://checkout.lemonsqueezy.com/cs_test_123"}}}
         with patch("warden.lemon_billing._ls_request", return_value=fake_resp):
-            url = enabled_store.create_checkout_session("t1", "pro", "https://ok", "https://c")
+            url = enabled_store.create_checkout_session("t1", "individual", "https://ok", "https://c")
         assert url == "https://checkout.lemonsqueezy.com/cs_test_123"
 
     def test_customer_email_forwarded(self, enabled_store: PaddleBilling) -> None:
         fake_resp = {"data": {"attributes": {"url": "https://checkout.lemonsqueezy.com/cs_456"}}}
         with patch("warden.lemon_billing._ls_request", return_value=fake_resp) as mock_req:
             enabled_store.create_checkout_session(
-                "t1", "pro", "https://ok", "https://c",
+                "t1", "individual", "https://ok", "https://c",
                 customer_email="user@example.com",
             )
         _, _, body = mock_req.call_args[0]
@@ -148,14 +143,14 @@ class TestCreateCheckoutSession:
     def test_custom_data_contains_tenant_id(self, enabled_store: PaddleBilling) -> None:
         fake_resp = {"data": {"attributes": {"url": "https://checkout.lemonsqueezy.com/cs_789"}}}
         with patch("warden.lemon_billing._ls_request", return_value=fake_resp) as mock_req:
-            enabled_store.create_checkout_session("acme", "pro", "https://ok", "https://c")
+            enabled_store.create_checkout_session("acme", "individual", "https://ok", "https://c")
         _, _, body = mock_req.call_args[0]
         assert body["data"]["attributes"]["checkout_data"]["custom"]["tenant_id"] == "acme"
 
     def test_missing_checkout_url_raises(self, enabled_store: PaddleBilling) -> None:
         with patch("warden.lemon_billing._ls_request", return_value={"data": {}}), \
              pytest.raises(RuntimeError, match="checkout URL"):
-            enabled_store.create_checkout_session("t1", "pro", "https://ok", "https://c")
+            enabled_store.create_checkout_session("t1", "individual", "https://ok", "https://c")
 
 
 # ── get_portal_url ────────────────────────────────────────────────────────────
@@ -166,12 +161,12 @@ class TestGetPortalUrl:
         assert "lemonsqueezy.com" in url
 
     def test_with_customer_returns_portal(self, enabled_store: PaddleBilling) -> None:
-        enabled_store._upsert("t1", "ctm_abc", "sub_abc", "pro", "active", None)
+        enabled_store._upsert("t1", "ctm_abc", "sub_abc", "individual", "active", None)
         url = enabled_store.get_portal_url("t1")
         assert "lemonsqueezy.com" in url
 
     def test_api_failure_falls_back_to_generic(self, enabled_store: PaddleBilling) -> None:
-        enabled_store._upsert("t1", "ctm_abc", "sub_abc", "pro", "active", None)
+        enabled_store._upsert("t1", "ctm_abc", "sub_abc", "individual", "active", None)
         url = enabled_store.get_portal_url("t1")
         assert "lemonsqueezy.com" in url
 
@@ -198,20 +193,20 @@ class TestWebhookHandler:
             }},
             custom={"tenant_id": "t1"},
         )
-        assert enabled_store.get_plan("t1") == "pro"
+        assert enabled_store.get_plan("t1") == "individual"
 
     def test_subscription_canceled_reverts_to_free(self, enabled_store: PaddleBilling) -> None:
-        enabled_store._upsert("t1", "ctm_1", "sub_1", "pro", "active", None)
+        enabled_store._upsert("t1", "ctm_1", "sub_1", "individual", "active", None)
         self._handle(enabled_store, "subscription_cancelled", {"id": "sub_1"})
         assert enabled_store.get_plan("t1") == "starter"
 
     def test_subscription_past_due_sets_status(self, enabled_store: PaddleBilling) -> None:
-        enabled_store._upsert("t1", "ctm_1", "sub_1", "pro", "active", None)
+        enabled_store._upsert("t1", "ctm_1", "sub_1", "individual", "active", None)
         self._handle(enabled_store, "subscription_payment_failed", {"id": "sub_1"})
         assert enabled_store.get_plan("t1") == "starter"
 
     def test_subscription_updated_changes_plan(self, enabled_store: PaddleBilling) -> None:
-        enabled_store._upsert("t1", "ctm_1", "sub_1", "pro", "active", None)
+        enabled_store._upsert("t1", "ctm_1", "sub_1", "individual", "active", None)
         self._handle(
             enabled_store,
             "subscription_updated",
@@ -223,7 +218,7 @@ class TestWebhookHandler:
             }},
             custom={"tenant_id": "t1"},
         )
-        assert enabled_store.get_plan("t1") == "enterprise"
+        assert enabled_store.get_plan("t1") == "community_business"
 
     def test_unknown_event_passes_through(self, enabled_store: PaddleBilling) -> None:
         result = self._handle(enabled_store, "ping_pong", {})
@@ -278,7 +273,7 @@ class TestBillingEndpoints:
     def test_checkout_paddle_disabled_returns_503(self) -> None:
         resp = self.client.post("/subscription/checkout", json={
             "tenant_id":   "t1",
-            "plan":        "pro",
+            "plan":        "individual",
             "success_url": "https://example.com/ok",
             "cancel_url":  "https://example.com/cancel",
         })

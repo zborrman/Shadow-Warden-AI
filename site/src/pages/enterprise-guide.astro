@@ -4,7 +4,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout
-  title={`Enterprise Integration & Deployment Guide ${PRODUCT.display} — Shadow Warden AI`}
+  title={`Integration & Deployment Guide ${PRODUCT.display} — Shadow Warden AI`}
   description="Complete enterprise deployment guide for Shadow Warden AI. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
 >
 <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
@@ -18,11 +18,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <img src="/logo.png" alt="Shadow Warden AI" style="width:48px;height:48px;border-radius:12px;display:block;object-fit:cover" />
         <div>
           <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FF2D55]">Shadow Warden AI</div>
-          <div class="text-[12px] text-[#64748b]">Enterprise Documentation</div>
+          <div class="text-[12px] text-[#64748b]">Deployment Documentation</div>
         </div>
       </div>
       <h1 class="text-[36px] font-bold leading-tight mb-3" style="letter-spacing:-0.5px">
-        Enterprise Integration &amp;<br/>Deployment Guide
+        Integration &amp;<br/>Deployment Guide
       </h1>
       <div class="flex items-center gap-4 mb-6">
         <span class="text-[13px] font-semibold text-[#FF2D55]">Version 7.10</span>
@@ -169,17 +169,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </p>
       <div class="grid sm:grid-cols-2 gap-4">
         {[
-          { seg: 'A', title: 'FinTech / Banking', tier: 'Enterprise', color: '#f59e0b',
+          { seg: 'A', title: 'FinTech / Banking', tier: 'Not on a plan', color: '#f59e0b',
             highlights: ['PQC signing on all AI transactions', 'Sovereign routing — PHI stays US/EU only', 'SOC 2 Type II evidence vault', 'GDPR Art. 35 DPIA pre-filled'] },
-          { seg: 'B', title: 'Healthcare / Life Sciences', tier: 'Enterprise', color: '#10b981',
+          { seg: 'B', title: 'Healthcare / Life Sciences', tier: 'Not on a plan', color: '#10b981',
             highlights: ['PHI data pod jurisdiction lock', 'HIPAA audit chain (STIX 2.1)', 'Secret redactor covers HL7/FHIR tokens', 'Causal Transfer Guard blocks exfiltration'] },
-          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Pro', color: '#80b4fd',
+          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Not on a plan', color: '#80b4fd',
             highlights: ['Per-tenant API keys + rate limits', 'MasterAgent SOC coordinator', 'Shadow AI Discovery for rogue models', 'XAI audit reports per request'] },
-          { seg: 'D', title: 'Government / Public Sector', tier: 'Enterprise', color: '#FF2D55',
+          { seg: 'D', title: 'Government / Public Sector', tier: 'Not on a plan', color: '#FF2D55',
             highlights: ['MASQUE H3 sovereign tunnels', '8-jurisdiction transfer matrix', 'Post-quantum key encapsulation (ML-KEM-768)', 'Air-gapped Evolution Engine mode'] },
           { seg: 'E', title: 'SMB / Startup', tier: 'Community Business', color: '#38bdf8',
             highlights: ['Single Docker Compose deploy', 'SMB Governance Suite add-on', 'AI Budget Dashboard + Vendor Registry', 'Obsidian Plugin for note security'] },
-          { seg: 'F', title: 'AI-Native / LLM Platform', tier: 'Pro + Add-ons', color: '#06b6d4',
+          { seg: 'F', title: 'AI-Native / LLM Platform', tier: 'Not on a plan', color: '#06b6d4',
             highlights: ['OpenAI-compatible proxy endpoint', 'LangChain WardenCallback', 'SOVA scheduled threat sync (every 6h)', 'Evolution Engine with ArXiv auto-synthesis'] },
         ].map(({ seg, title, tier, highlights, color }) => (
           <div class="rounded-xl p-5 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
@@ -349,8 +349,6 @@ curl http://localhost:8001/health
       <div class="grid sm:grid-cols-3 gap-4">
         {[
           ['Starter / SMB', '5-year NPV $380K', 'Shadow AI + breach prevention'],
-          ['Mid-Market Pro', '3-year ROI 340%', 'Full 5-model stack'],
-          ['Enterprise', 'Payback < 4 months', 'Regulated + PQC + Sovereign'],
         ].map(([tier, roi, note]) => (
           <div class="rounded-xl p-4 border border-white/[0.07] text-center" style="background:rgba(255,255,255,0.02)">
             <div class="text-[11px] text-[#64748b] mb-1">{tier}</div>
@@ -456,7 +454,7 @@ curl http://localhost:8001/health
                 ['Dev / Staging','< 5K','2 vCPU','4 GB','20 GB','Single compose, no MinIO'],
                 ['Small Production','5K – 50K','4 vCPU','8 GB','60 GB','Add Redis persistence'],
                 ['Mid-Market','50K – 500K','8 vCPU','16 GB','200 GB','Horizontal warden scaling'],
-                ['Enterprise','500K+','16+ vCPU','32 GB','500 GB+','K8s Helm chart, HA Redis Cluster'],
+                ['Large','500K+','16+ vCPU','32 GB','500 GB+','K8s Helm chart, HA Redis Cluster'],
               ].map(([tier, rqd, cpu, ram, disk, notes], i) => (
                 <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
                   <td class="px-5 py-2.5 font-semibold text-white">{tier}</td>
@@ -511,7 +509,7 @@ curl http://localhost:8001/health
             'ML-DSA-65 (FIPS 204) hybrid signatures on AI transactions',
             'ML-KEM-768 (FIPS 203) key encapsulation for sovereign tunnels',
             'liboqs fail-open — classical Ed25519 fallback if library missing',
-            'Enterprise-tier only (PQC gate in TIER_LIMITS)',
+            'Not part of any plan (PQC gate in TIER_LIMITS)',
             'Hybrid key ID convention: v1-hybrid suffix on PQC keypairs',
           ]},
           { framework: 'Analytics & Commerce (v7.1)', color: '#38bdf8', items: [
@@ -613,7 +611,7 @@ curl http://localhost:8001/health
       <!-- Footer -->
       <div class="mt-16 pt-8 border-t border-white/[0.07] flex items-center justify-between flex-wrap gap-4">
         <div>
-          <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Enterprise Integration &amp; Deployment Guide</div>
+          <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Integration &amp; Deployment Guide</div>
           <div class="text-[11px] text-[#64748b]">Version 7.10 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">

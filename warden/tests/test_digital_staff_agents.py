@@ -348,7 +348,7 @@ class TestStaffAgentsAPI:
             yield
             _b._registry_instance = None
 
-    _HDR = {"X-Tenant-Tier": "pro"}
+    _HDR = {"X-Tenant-Tier": "lab"}
 
     def test_bdr_leads_empty(self):
         r = self.client.get("/staff/agents/bdr/leads?tenant_id=t1", headers=self._HDR)

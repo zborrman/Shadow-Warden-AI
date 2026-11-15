@@ -3575,7 +3575,7 @@
           "billing"
         ],
         "summary": "Tier catalog — all plans with features and pricing",
-        "description": "Returns the full feature matrix for all 4 plan tiers.\nNo authentication required — used by the landing page pricing section.",
+        "description": "Returns the feature matrix of every plan that is sold.\nNo authentication required — used by the landing page pricing section.",
         "operationId": "get_billing_tiers_billing_tiers_get",
         "responses": {
           "200": {
@@ -3794,64 +3794,6 @@
         }
       }
     },
-    "/billing/enterprise/quote": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "summary": "[Admin] Quote — and optionally invoice — an Enterprise agreement",
-        "description": "Price an Enterprise deal from the canonical list, and optionally raise a\nStripe invoice for it.\n\nEnterprise has no self-serve checkout by design: it is a procurement\nprocess — company-addressed invoice, PO number, net terms, bank transfer —\nwhich a merchant-of-record checkout structurally cannot produce. This\nendpoint is the sales-side equivalent, so the number in a quote comes from\n`warden.billing.pricing` rather than from whatever was typed into an email.\n\nAdmin-gated: it prices a deal and can create a real invoice.\n`raise_invoice=false` (the default) quotes only.",
-        "operationId": "enterprise_quote_billing_enterprise_quote_post",
-        "parameters": [
-          {
-            "name": "x-admin-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EnterpriseQuoteRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/billing/upgrade": {
       "get": {
         "tags": [
@@ -3871,10 +3813,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Target plan: trial|individual|community_business|pro|enterprise",
+              "description": "Target plan: trial|individual|community_business",
               "title": "Plan"
             },
-            "description": "Target plan: trial|individual|community_business|pro|enterprise"
+            "description": "Target plan: trial|individual|community_business"
           },
           {
             "name": "customer_email",
@@ -4306,8 +4248,8 @@
         "tags": [
           "billing"
         ],
-        "summary": "Activate 14-day Pro trial (Individual+ tenants only, one-time)",
-        "description": "Activates a 14-day Pro trial capped at 10 000 requests.\nMasterAgent is excluded from the trial.\nOne-time per tenant — raises 409 if already used.",
+        "summary": "Activate 14-day Community Business trial (Individual+ tenants only, one-time)",
+        "description": "Activates a 14-day Community Business trial capped at 10 000 requests.\nMasterAgent is excluded from the trial.\nOne-time per tenant — raises 409 if already used.",
         "operationId": "start_trial_billing_trial_start_post",
         "security": [
           {
@@ -5157,7 +5099,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "default": "pro",
+              "default": "community_business",
               "title": "Tier"
             }
           }
@@ -40453,49 +40395,6 @@
           "processing_ms"
         ],
         "title": "EmailScanResponse"
-      },
-      "EnterpriseQuoteRequest": {
-        "properties": {
-          "tenant_id": {
-            "type": "string",
-            "title": "Tenant Id"
-          },
-          "customer_email": {
-            "type": "string",
-            "title": "Customer Email"
-          },
-          "company_name": {
-            "type": "string",
-            "title": "Company Name",
-            "default": ""
-          },
-          "seats": {
-            "type": "integer",
-            "title": "Seats",
-            "default": 1
-          },
-          "annual": {
-            "type": "boolean",
-            "title": "Annual",
-            "default": true
-          },
-          "po_number": {
-            "type": "string",
-            "title": "Po Number",
-            "default": ""
-          },
-          "raise_invoice": {
-            "type": "boolean",
-            "title": "Raise Invoice",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "tenant_id",
-          "customer_email"
-        ],
-        "title": "EnterpriseQuoteRequest"
       },
       "EntityMetaResponse": {
         "properties": {

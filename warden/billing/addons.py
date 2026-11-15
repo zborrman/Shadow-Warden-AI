@@ -39,7 +39,7 @@ Usage in route handlers
   @router.post("/shadow-ai/scan", dependencies=[require_addon_or_feature(
       feature="shadow_ai_enabled",
       addon_key="shadow_ai_discovery",
-      min_tier="pro",
+      min_tier="individual",
   )])
   async def scan_subnet(body, auth): ...
 """
@@ -55,6 +55,7 @@ from warden.billing.feature_gate import (
     _get_tenant_tier,
     _normalize_tier,
 )
+from warden.billing.pricing import LAB_TIER
 from warden.config import settings
 
 log = logging.getLogger("warden.billing.addons")
@@ -70,7 +71,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "Shadow AI Discovery",
         "description":    "Detect unauthorized AI tool usage: async subnet probe, DNS telemetry, 18-provider fingerprint DB.",
         "usd_per_month":  15,
-        "min_tier":       "pro",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_shadow_ai,
         "unlocks":        ["shadow_ai_enabled"],
         "docs_url":       "/docs/addons/shadow-ai-discovery",
@@ -100,7 +101,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "On-Prem Deployment Pack",
         "description":    "Self-hosted license + Helm chart support + hardening runbook. Run Shadow Warden entirely inside your own infrastructure with no cloud dependency.",
         "usd_per_month":  29,
-        "min_tier":       "pro",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_on_prem,
         "unlocks":        ["on_prem_deployment"],
         "docs_url":       "/docs/addons/on-prem",
@@ -130,7 +131,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "Post-Quantum Cryptography",
         "description":    "Hybrid Ed25519 + ML-DSA-65 signatures and X25519 + ML-KEM-768 key exchange for community keypairs and transfer proofs. Harvest-now-decrypt-later protection without an Enterprise contract.",
         "usd_per_month":  19,
-        "min_tier":       "pro",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_pqc_pack,
         "unlocks":        ["pqc_enabled"],
         "docs_url":       "/docs/addons/pqc",
@@ -140,7 +141,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "Sovereign AI Cloud",
         "description":    "Per-tenant data-residency routing across 8 jurisdictions, MASQUE tunnels with TOFU pinning, transfer-rules matrix, and HMAC-signed sovereignty attestations retained for 7 years.",
         "usd_per_month":  25,
-        "min_tier":       "pro",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_sovereign_pack,
         "unlocks":        ["sovereign_enabled"],
         "docs_url":       "/docs/addons/sovereign",
@@ -191,7 +192,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "Event Streaming Pack",
         "description":    "Kafka/Flink real-time agent event bus: produce/consume marketplace events, auto-dispute watchdog for timed-out escrows, Redis pub/sub fallback.",
         "usd_per_month":  19,
-        "min_tier":       "pro",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_event_streaming,
         "unlocks":        ["streams_enabled"],
         "docs_url":       "/docs/addons/event-streaming",
@@ -201,7 +202,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "Agent Tokenomics (WAT)",
         "description":    "ERC-20 Warden Agent Token on Polygon Amoy: mint, transfer, outcome-based pricing settlements. Simulation mode included for testing.",
         "usd_per_month":  39,
-        "min_tier":       "enterprise",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_tokenomics,
         "unlocks":        ["tokenomics_enabled"],
         "docs_url":       "/docs/addons/agent-tokenomics",
@@ -211,7 +212,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "USDC Multi-Rail Payments",
         "description":    "USDC payment intents via Coinbase Commerce or on-chain Polygon: create intent, verify confirmation, multi-rail settlement. Simulation auto-confirms for testing.",
         "usd_per_month":  29,
-        "min_tier":       "enterprise",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_usdc_payments,
         "unlocks":        ["usdc_payments_enabled"],
         "docs_url":       "/docs/addons/usdc-payments",
@@ -221,7 +222,7 @@ ADDON_CATALOG: dict[str, dict[str, Any]] = {
         "display_name":   "ANS Certificate Authority",
         "description":    "Issue X.509 agent identity certificates (subject: agent-{id}.{community}.shadow-warden.ai), Redis CRL revocation, cryptography library with JSON fallback.",
         "usd_per_month":  25,
-        "min_tier":       "enterprise",
+        "min_tier":       "lab",
         "ls_variant_id":  settings.ls_variant_ans_certs,
         "unlocks":        ["ans_certificates_enabled"],
         "docs_url":       "/docs/addons/ans-certificates",
@@ -302,7 +303,7 @@ BUNDLE_CATALOG: dict[str, dict[str, Any]] = {
         "description":      "Secrets Vault + XAI Audit Reports + Shadow AI Discovery in one package. Save $7/mo vs purchasing separately.",
         "usd_per_month":    29,      # vs $12 + $9 + $15 = $36 separately
         "savings_usd":      7,
-        "min_tier":         "pro",
+        "min_tier":         "lab",
         "includes_addons":  ["secrets_vault", "xai_audit", "shadow_ai_discovery"],
         "ls_variant_id":    settings.ls_variant_power_bundle,
         "docs_url":         "/docs/addons/power-user-bundle",
@@ -313,6 +314,29 @@ BUNDLE_CATALOG: dict[str, dict[str, Any]] = {
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
+
+def is_sold(addon_key: str) -> bool:
+    """False for an add-on whose minimum plan is the unsold ``lab`` set."""
+    addon = ADDON_CATALOG.get(addon_key)
+    return bool(addon) and addon.get("min_tier") != LAB_TIER
+
+
+def sold_addons() -> list[dict[str, Any]]:
+    """The add-ons a customer can actually buy. What the public catalog serves."""
+    return [a for k, a in ADDON_CATALOG.items() if is_sold(k)]
+
+
+def bundle_is_sold(bundle_key: str) -> bool:
+    """A bundle is sold only if its own minimum plan and every add-on in it are."""
+    bundle = BUNDLE_CATALOG.get(bundle_key)
+    if not bundle or bundle.get("min_tier") == LAB_TIER:
+        return False
+    return all(is_sold(k) for k in bundle.get("includes_addons", []))
+
+
+def sold_bundles() -> list[dict[str, Any]]:
+    return [b for k, b in BUNDLE_CATALOG.items() if bundle_is_sold(k)]
+
 
 def _redis():
     try:
@@ -421,7 +445,7 @@ def _get_tenant_id_from_request(request: Request) -> str:
 def require_addon_or_feature(
     feature:   str,
     addon_key: str,
-    min_tier:  str = "pro",
+    min_tier:  str = "lab",
 ):
     """
     FastAPI dependency (use as a `dependencies=[...]` entry or `Depends()`).
@@ -448,11 +472,23 @@ def require_addon_or_feature(
         # Case 2: tier eligible for add-on?
         if not gate.meets_minimum(min_tier):
             addon = ADDON_CATALOG.get(addon_key, {})
+            name = addon.get("display_name", addon_key)
+            if min_tier == LAB_TIER:
+                # Withdrawn from sale: there is no plan to upgrade to and no
+                # checkout, so the refusal must not point at either.
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error":        "not_sold",
+                        "message":      f"'{name}' is not part of any plan.",
+                        "current_plan": tier,
+                    },
+                )
             raise HTTPException(
                 status_code=403,
                 detail={
                     "error":       "tier_required",
-                    "message":     f"'{addon.get('display_name', addon_key)}' requires {min_tier.upper()} plan or higher.",
+                    "message":     f"'{name}' requires {min_tier.upper()} plan or higher.",
                     "current_plan": tier,
                     "upgrade_url": f"/billing/upgrade?plan={min_tier}",
                     "addon_url":   f"/billing/addons/{addon_key}/checkout",

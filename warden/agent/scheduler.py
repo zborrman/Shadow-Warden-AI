@@ -1319,7 +1319,7 @@ async def sova_error_budget_alert(ctx: dict) -> dict:
 
     log.info("sova: error-budget burn alert [%s]", _ts())
 
-    tier = os.getenv("BURN_ALERT_TIER", "pro")
+    tier = os.getenv("BURN_ALERT_TIER", "community_business")
     sla = sla_for_tier(tier)
     tenant_id = settings.default_tenant_id
 

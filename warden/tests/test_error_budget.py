@@ -15,12 +15,14 @@ import warden.reliability.budget as eb
 
 class TestSlaForTier:
     def test_known_tiers(self):
-        assert eb.sla_for_tier("pro") == 0.999
-        assert eb.sla_for_tier("enterprise") == 0.9995
+        # The contractual targets belonged to Pro and Enterprise. Neither is
+        # sold, so every tier measures against the internal objective.
+        assert eb.SLA_TARGETS == {}
+        for tier in ("starter", "individual", "community_business", "pro", "enterprise"):
+            assert eb.sla_for_tier(tier) == eb.DEFAULT_SLA
 
     def test_case_and_whitespace_insensitive(self):
-        assert eb.sla_for_tier("  PRO ") == 0.999
-        assert eb.sla_for_tier("Enterprise") == 0.9995
+        assert eb.sla_for_tier("  COMMUNITY_BUSINESS ") == eb.DEFAULT_SLA
 
     def test_unknown_falls_back_to_default(self):
         assert eb.sla_for_tier("starter") == eb.DEFAULT_SLA

@@ -63,7 +63,7 @@ class TestBillingTrial:
         assert rec is not None
         assert rec["status"] == "active"
         assert 0 <= rec["days_remaining"] <= 14
-        assert rec["upgrade_url"] == "/billing/upgrade?plan=pro"
+        assert rec["upgrade_url"] == "/billing/upgrade?plan=community_business"
 
     def test_get_trial_expired_status(self):
         from warden.billing import trial as t
