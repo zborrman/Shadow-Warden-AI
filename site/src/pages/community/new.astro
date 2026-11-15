@@ -580,7 +580,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
     };
 
-    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
+    // A visitor who has not picked a plan on /account gets the top sold plan
+    // here, as this demo always defaulted to a paid one. Defaulting to Starter
+    // (no communities) put the limit gate in front of every first visit and
+    // hid the form.
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'community_business'; }
     function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
     function getComms(): any[] { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } }
 
