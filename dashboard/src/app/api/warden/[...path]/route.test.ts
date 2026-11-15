@@ -28,8 +28,8 @@ function req(
   });
 }
 
-function params(path: string): { params: { path: string[] } } {
-  return { params: { path: path.split("/").filter(Boolean) } };
+function params(path: string): { params: Promise<{ path: string[] }> } {
+  return { params: Promise.resolve({ path: path.split("/").filter(Boolean) }) };
 }
 
 async function fetchMockResponse(body: string, init: ResponseInit = {}) {

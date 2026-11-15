@@ -333,7 +333,7 @@ Both run in the `/filter` pipeline (Stage 2 + Stage 2b). The Evolution Engine mu
 | `warden/testing/context.py` | SWFE FakeContext — unified fake activation via mock.patch, X-Simulation-ID isolation |
 | `warden/testing/fakes/` | SWFE fake layer — FakeAnthropicClient, FakeNvidiaClient, FakeS3Storage, FakeEvolutionEngine |
 | `warden/telemetry.py` | OTel TracerProvider, gRPC exporter, `trace_stage()` context manager (all 9 pipeline stages) |
-| `dashboard/` | Next.js 14.2 SOC Dashboard — App Router, TanStack Query, Recharts, Tailwind dark theme |
+| `dashboard/` | Next.js 15.5 SOC Dashboard — App Router, TanStack Query, Recharts, Tailwind dark theme |
 | `dashboard/src/lib/api.ts` | API client — stats, events, event detail, threats, roi, compliance, health, filter |
 | `dashboard/src/app/(soc)/` | Route group — overview, events, events/[id], threats, sandbox, platform/metrics, platform/traces |
 | `dashboard/Dockerfile` | Multi-stage Node 20 Alpine build (deps → builder → runner), port 3002 |
@@ -554,7 +554,8 @@ NEXT_PUBLIC_JAEGER_URL=http://127.0.0.1:16686
 - **PATROL_URLS env var**: comma-separated list of extra URLs for `sova_visual_patrol`.
 - **OTel is opt-in**: `OTEL_ENABLED=false` by default. When disabled, `trace_stage()` is a no-op context manager — zero overhead, no import errors. Never import OTel directly in pipeline code; always go through `warden.telemetry`.
 - **OTel span attributes must be GDPR-safe**: raw content, decoded text, PII, and secret values are prohibited on spans. Refer to Rule.md §21 for the full allowlist.
-- **Next.js 14.2 `next.config.mjs`** (not `.ts`): Next.js 14 does not support TypeScript config files. Use `.mjs` with JSDoc `/** @type */` annotation. `output: "standalone"` enables minimal Docker image (no Next.js CDN runtime dependency).
+- **Next.js 15.5 + React 19 in `dashboard/` and `portal/` (2026-11-15)**: moved off 14.2.29 because the 14 line has no fix for the image-optimizer advisories. Route handlers and server pages take `params`/`searchParams` as a **Promise** (`const params = await props.params`); a test that calls a handler must pass `Promise.resolve({...})`. `images.unoptimized` and the Caddy `(no_next_image)` refusal both stay - nothing uses `next/image`.
+- **`next.config.mjs`** (not `.ts`) in `dashboard/`: kept from the Next 14 days, when TypeScript config files were not supported. Use `.mjs` with JSDoc `/** @type */` annotation. `output: "standalone"` enables minimal Docker image (no Next.js CDN runtime dependency).
 - **Dashboard `public/` must exist at build time**: Dockerfile runner stage does `COPY --from=builder /app/public ./public` — if `public/` is empty or missing from git, Docker COPY fails. Keep `dashboard/public/.gitkeep` committed.
 - **Dashboard uses mock data until Block L-02**: `dashboard/src/app/(soc)/overview/page.tsx` and threats page use `placeholderData` from `@tanstack/react-query`. Wire real API endpoints after analytics REST adapter is built.
 - **_PatrolWeights**: Redis-backed per-URL failure weights for `sova_visual_patrol`. Decay × 0.85 on success, boost × 1.5 (cap 10) on failure. Key `sova:patrol_weights` (7-day TTL). Falls back to in-process dict when Redis unavailable. Patrol targets sorted descending by weight so frequently-failing routes always run first.

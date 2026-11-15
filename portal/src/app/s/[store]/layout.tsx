@@ -14,20 +14,25 @@ import { StorefrontProvider, type Prefs } from './_components/StorefrontProvider
 // Countries that measure in imperial units by default; the buyer can switch.
 const IMPERIAL_COUNTRIES = new Set(['US', 'LR', 'MM'])
 
-export async function generateMetadata({ params }: { params: { store: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ store: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const store = await getStore(params.store)
   if (!store) return { title: 'Store not found' }
   return { title: store.name, description: store.description || undefined }
 }
 
-export default async function StorefrontLayout(
-  { children, params }: { children: React.ReactNode; params: { store: string } },
-) {
+export default async function StorefrontLayout(props: { children: React.ReactNode; params: Promise<{ store: string }> }) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const store = await getStore(params.store)
   if (!store) notFound()
 
-  const jar = cookies()
-  const hdrs = headers()
+  const jar = await cookies()
+  const hdrs = await headers()
   // Cloudflare's country header; XX and T1 (Tor) name no country.
   const cf = (hdrs.get('cf-ipcountry') ?? '').toUpperCase()
   const country = /^[A-Z]{2}$/.test(cf) && cf !== 'XX' && cf !== 'T1' ? cf : ''

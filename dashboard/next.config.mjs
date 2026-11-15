@@ -2,9 +2,10 @@
 const nextConfig = {
   output: "standalone",
   // The image optimizer is an anonymous endpoint (/_next/image) that decodes
-  // caller-chosen files. Nothing in this app uses next/image, and the 14.x line
-  // has no fix for GHSA-2464-fhr4-w9xw / GHSA-2xp9-vwfh-vxw4 /
-  // GHSA-p293-qw3h-jr36, so it is switched off rather than left reachable.
+  // caller-chosen files. Nothing in this app uses next/image, so it stays
+  // switched off after the move to 15.5.29 (which carries the fixes for
+  // GHSA-2464-fhr4-w9xw / GHSA-2xp9-vwfh-vxw4 / GHSA-p293-qw3h-jr36): an
+  // endpoint nobody uses is not worth keeping reachable.
   // docker/Caddyfile refuses the path as well, so a config regression here
   // does not reopen it.
   images: { unoptimized: true },
