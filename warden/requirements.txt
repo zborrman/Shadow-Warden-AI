@@ -4,7 +4,7 @@
 # into app.routes — runtime serving is unaffected (both include patterns return
 # 200), only route-inventory introspection needed teaching to expand that node
 # (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
-fastapi>=0.162.2
+fastapi>=0.162.5
 starlette>=1.10.0
 uvicorn[standard]>=0.54.0
 pydantic>=2.14.3
@@ -57,7 +57,7 @@ prometheus-client>=0.26.0
 transformers>=5.22.2
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
-sentence-transformers>=6.2.0
+sentence-transformers>=6.3.0
 
 # Numerics (pulled in by torch/transformers anyway, pinned for clarity)
 numpy>=1.26.0
@@ -72,7 +72,7 @@ cryptography>=50.0.2
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
-anthropic>=2.6.0
+anthropic>=2.8.0
 
 # ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
 # Install to enable Jaeger tracing across filter pipeline stages.
