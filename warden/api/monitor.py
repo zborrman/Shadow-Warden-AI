@@ -273,7 +273,7 @@ async def list_monitors(
 @router.get("/error-budget")
 async def error_budget_report(
     window_days: int = 30,
-    tier: str = "pro",
+    tier: str = "community_business",
     auth: AuthResult = Depends(require_api_key),
 ) -> dict[str, Any]:
     """SLA error-budget report across all of the tenant's monitors (FM-5).

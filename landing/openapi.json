@@ -3575,7 +3575,7 @@
           "billing"
         ],
         "summary": "Tier catalog — all plans with features and pricing",
-        "description": "Returns the full feature matrix for all 4 plan tiers.\nNo authentication required — used by the landing page pricing section.",
+        "description": "Returns the feature matrix of every plan that is sold.\nNo authentication required — used by the landing page pricing section.",
         "operationId": "get_billing_tiers_billing_tiers_get",
         "responses": {
           "200": {
@@ -3794,64 +3794,6 @@
         }
       }
     },
-    "/billing/enterprise/quote": {
-      "post": {
-        "tags": [
-          "billing"
-        ],
-        "summary": "[Admin] Quote — and optionally invoice — an Enterprise agreement",
-        "description": "Price an Enterprise deal from the canonical list, and optionally raise a\nStripe invoice for it.\n\nEnterprise has no self-serve checkout by design: it is a procurement\nprocess — company-addressed invoice, PO number, net terms, bank transfer —\nwhich a merchant-of-record checkout structurally cannot produce. This\nendpoint is the sales-side equivalent, so the number in a quote comes from\n`warden.billing.pricing` rather than from whatever was typed into an email.\n\nAdmin-gated: it prices a deal and can create a real invoice.\n`raise_invoice=false` (the default) quotes only.",
-        "operationId": "enterprise_quote_billing_enterprise_quote_post",
-        "parameters": [
-          {
-            "name": "x-admin-key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Admin-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EnterpriseQuoteRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/billing/upgrade": {
       "get": {
         "tags": [
@@ -3871,10 +3813,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Target plan: trial|individual|community_business|pro|enterprise",
+              "description": "Target plan: trial|individual|community_business",
               "title": "Plan"
             },
-            "description": "Target plan: trial|individual|community_business|pro|enterprise"
+            "description": "Target plan: trial|individual|community_business"
           },
           {
             "name": "customer_email",
@@ -4306,8 +4248,8 @@
         "tags": [
           "billing"
         ],
-        "summary": "Activate 14-day Pro trial (Individual+ tenants only, one-time)",
-        "description": "Activates a 14-day Pro trial capped at 10 000 requests.\nMasterAgent is excluded from the trial.\nOne-time per tenant — raises 409 if already used.",
+        "summary": "Activate 14-day Community Business trial (Individual+ tenants only, one-time)",
+        "description": "Activates a 14-day Community Business trial capped at 10 000 requests.\nMasterAgent is excluded from the trial.\nOne-time per tenant — raises 409 if already used.",
         "operationId": "start_trial_billing_trial_start_post",
         "security": [
           {
@@ -4772,16 +4714,56 @@
           "billing"
         ],
         "summary": "Redeem a referral code for a new tenant",
+        "description": "Redeem a referral code for the calling tenant.\n\nThe code is a bearer credential, but ``new_tenant_id`` in the body was the\nonly thing naming *who gets the credit*, with no key required at all - so\nan anonymous holder of a code could credit any tenant it liked. Found by\nthe R0 anonymous-write probe (2026-11-14); the same shape H-5 closed across\nthe rest of this router in #597, which this route escaped because it takes\nits tenant from a body field rather than the ``X-Tenant-ID`` header that\naudit grepped for.\n\nThe credited tenant now comes from the presented key (``_caller_tenant``,\nwhich still honours ``X-Tenant-ID`` alongside a valid ``X-Admin-Key`` for\nthe operator). A body field that disagrees is an error rather than being\nsilently ignored, so a stale client is told instead of quietly retargeted.",
         "operationId": "redeem_referral_billing_referral_redeem_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RedeemReferralRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -5117,7 +5099,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "default": "pro",
+              "default": "community_business",
               "title": "Tier"
             }
           }
@@ -8841,6 +8823,11 @@
         ],
         "summary": "SMB compliance report (JSON)",
         "operationId": "smb_report_json_compliance_smb_report_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -8888,6 +8875,11 @@
         ],
         "summary": "SMB compliance report (HTML, print-ready)",
         "operationId": "smb_report_html_compliance_smb_report_html_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -8933,6 +8925,11 @@
         ],
         "summary": "SMB compliance report (PDF or HTML fallback)",
         "operationId": "smb_report_pdf_compliance_smb_report_pdf_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -9068,6 +9065,11 @@
         ],
         "summary": "HIPAA technical safeguards attestation (JSON)",
         "operationId": "hipaa_report_compliance_hipaa_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -9115,6 +9117,11 @@
         ],
         "summary": "HIPAA safeguards report (HTML)",
         "operationId": "hipaa_html_compliance_hipaa_html_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -9160,6 +9167,11 @@
         ],
         "summary": "NIS2 Directive compliance report (JSON)",
         "operationId": "nis2_report_compliance_nis2_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -9207,6 +9219,11 @@
         ],
         "summary": "NIS2 Directive compliance report (HTML)",
         "operationId": "nis2_html_compliance_nis2_html_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "days",
@@ -9528,44 +9545,27 @@
           "compliance"
         ],
         "summary": "Generate Evidence Bundle Endpoint",
-        "description": "Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)",
+        "description": "Generate a SOC 2 Type II evidence bundle ZIP and return a presigned download URL. (TC-04)\n\nTwo defects, found by the R0 anonymous-write probe (2026-11-14):\n\n* it carried no auth dependency at all, while *every* sibling in this\n  router does, so an anonymous caller could generate a SOC 2 evidence\n  bundle and receive a download URL for it;\n* ``tenant_id`` was a query parameter defaulting to ``\"default\"``, bound to\n  nothing, so the caller chose whose compliance evidence to export. Same\n  shape as the ``/compliance/frameworks/{tenant_id}`` hole closed in #248 --\n  that audit fixed the path-param case in this file and missed this one.\n\nThe tenant now comes from the presented key and cannot be named by the\ncaller. There is no operator override because nothing calls this route\ncross-tenant; add one deliberately (admin key, like the marketplace reads)\nif that changes.",
         "operationId": "generate_evidence_bundle_endpoint_compliance_evidence_generate_post",
-        "parameters": [
-          {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
                   "additionalProperties": true,
+                  "type": "object",
                   "title": "Response Generate Evidence Bundle Endpoint Compliance Evidence Generate Post"
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/compliance/art30": {
@@ -15148,6 +15148,11 @@
         ],
         "summary": "Community Feed",
         "operationId": "community_feed_obsidian_feed_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -15261,6 +15266,11 @@
         "summary": "Obsidian Reputation",
         "description": "Return community reputation for the requesting tenant (for Obsidian sidebar).",
         "operationId": "obsidian_reputation_obsidian_reputation_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "x_tenant_id",
@@ -15913,6 +15923,11 @@
         ],
         "summary": "Get Community Feed",
         "operationId": "get_community_feed_community_feed_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -15977,6 +15992,11 @@
         ],
         "summary": "Get Community Post",
         "operationId": "get_community_post_community_posts__post_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "post_id",
@@ -16161,6 +16181,11 @@
         ],
         "summary": "List Members",
         "operationId": "list_members_community_members_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -16266,7 +16291,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/security/cve-feed": {
@@ -16277,6 +16307,11 @@
         "summary": "Get Cve Feed",
         "description": "Paginated list of CVE findings from the latest OSV scan.",
         "operationId": "get_cve_feed_security_cve_feed_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -16348,6 +16383,11 @@
         "summary": "Get Pentest Findings",
         "description": "Pentest findings timeline (public-safe, redacted by default).\nRemediated findings include the date; open findings omit technical detail.",
         "operationId": "get_pentest_findings_security_pentest_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "status",
@@ -16471,7 +16511,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/security/cve-scan": {
@@ -16559,7 +16604,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/soc/metrics": {
@@ -16579,7 +16629,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/soc/posture": {
@@ -16599,7 +16654,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/soc/heal": {
@@ -17067,7 +17127,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/jira/health": {
@@ -17090,7 +17155,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/teams/notify": {
@@ -17135,7 +17205,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/teams/health": {
@@ -17158,7 +17233,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/notion/page": {
@@ -17203,7 +17283,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/notion/health": {
@@ -17226,7 +17311,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/zapier/event": {
@@ -17271,7 +17361,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/integrations/zapier/health": {
@@ -17294,7 +17389,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/filter": {
@@ -21166,6 +21266,11 @@
         ],
         "summary": "List Frameworks",
         "operationId": "list_frameworks_compliance_frameworks__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -21206,6 +21311,11 @@
         ],
         "summary": "Get Framework",
         "operationId": "get_framework_compliance_frameworks__tenant_id___framework_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -22436,6 +22546,11 @@
         ],
         "summary": "List all model bundles",
         "operationId": "list_model_bundles_sep_model_bundles_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "source_community",
@@ -22483,6 +22598,11 @@
         ],
         "summary": "Get a model bundle by UECIID",
         "operationId": "get_model_bundle_sep_model_bundles__ueciid__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "ueciid",
@@ -26890,6 +27010,244 @@
         }
       }
     },
+    "/m2m-store/plan": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Get Store Plan",
+        "description": "The caller's plan, its limits, and what the tenant holds against them.",
+        "operationId": "get_store_plan_m2m_store_plan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Store Plan M2M Store Plan Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/m2m-store/plan/trial": {
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Start Store Trial",
+        "description": "Start the caller's one trial of the paid plan. 409 once it has been used.",
+        "operationId": "start_store_trial_m2m_store_plan_trial_post",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Start Store Trial M2M Store Plan Trial Post"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/m2m-store/admin/plans/{tenant_id}": {
+      "put": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Grant Store Plan",
+        "description": "Operator: put a named tenant on a plan (pilot and founding sellers).",
+        "operationId": "grant_store_plan_m2m_store_admin_plans__tenant_id__put",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanGrantIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Grant Store Plan M2M Store Admin Plans  Tenant Id  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Revoke Store Plan",
+        "description": "Operator: return a tenant to the default plan. Its stores and products stay.",
+        "operationId": "revoke_store_plan_m2m_store_admin_plans__tenant_id__delete",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Read Store Plan",
+        "description": "Operator: a tenant's plan, usage and the audit trail of every change.",
+        "operationId": "read_store_plan_m2m_store_admin_plans__tenant_id__get",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Read Store Plan M2M Store Admin Plans  Tenant Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tax/calculate": {
       "post": {
         "tags": [
@@ -27813,8 +28171,13 @@
           "Marketplace"
         ],
         "summary": "Marketplace Fairness Stats",
-        "description": "First-Proposal Bias metrics — avg alternatives evaluated per purchase.",
+        "description": "First-Proposal Bias metrics — avg alternatives evaluated per purchase.\n\nAuthenticated (audit S-6). The figures are derived from settled trades —\nhow many alternatives were weighed per purchase — so publishing them\nanonymously publishes the shape of the trading itself. The aggregates the\nmarketing site renders are ``/analytics/summary``, ``/chart-data`` and\n``/recent-trades``; this one has no public caller.",
         "operationId": "marketplace_fairness_stats_marketplace_analytics_fairness_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "period_days",
@@ -28312,7 +28675,7 @@
           "Marketplace"
         ],
         "summary": "Purchase Credits Endpoint",
-        "description": "Purchase a credit package. In production, redirects to Lemon Squeezy checkout.\n\nFor direct testing (integration tests, webhook simulation), grants credits immediately.\nReturns new balance and package details.\n\nRequires an ``Idempotency-Key`` header (FT-3): without one, a retried Lemon\nSqueezy webhook or a double-submitted checkout call granted credits TWICE —\nreal money creation, since the credit balance is directly spendable. A\nreplayed key returns the original balance unchanged and grants nothing new.",
+        "description": "Grant a credit package to a tenant. Requires ``X-Admin-Key``.\n\nThis endpoint grants credits; it takes no payment and checks none. Audit\nS-3: it used to say it \"redirects to Lemon Squeezy checkout\" and did no such\nthing, so any holder of an ordinary API key granted itself spendable\ncredits for free, as often as it had fresh idempotency keys. No provider\nwebhook calls this path either, so nothing ever stood between the request\nand the grant.\n\nIt is now the operator's grant: the caller must also hold ``X-Admin-Key``\n(fail-closed, 503 when no key is configured). The operator, or a payment\nwebhook handler once one exists, names the tenant in ``X-Tenant-ID`` after\nthe payment is confirmed.\n\nRequires an ``Idempotency-Key`` header (FT-3): without one, a retried Lemon\nSqueezy webhook or a double-submitted checkout call granted credits TWICE —\nreal money creation, since the credit balance is directly spendable. A\nreplayed key returns the original balance unchanged and grants nothing new.",
         "operationId": "purchase_credits_endpoint_marketplace_credits_purchase_post",
         "requestBody": {
           "content": {
@@ -28361,7 +28724,7 @@
           "Marketplace"
         ],
         "summary": "Get Credits Balance",
-        "description": "Return current credit balance and package catalog for the requesting tenant.",
+        "description": "Current credit balance and package catalog for the authenticated tenant.\n\nAudit S-6: this answered 200 without credentials and took the tenant from\nan ``X-Tenant-ID`` header, so anyone could read any tenant's spendable\nbalance by naming it — and, with #699's grant path, watch the effect of\ntheir own requests on someone else's funds. The balance now comes from the\nauthenticated key.\n\n``X-Tenant-ID`` is still honoured for an operator holding ``X-Admin-Key``\n(support, reconciliation); from anyone else, naming another tenant is a\n403 rather than a silently ignored header.",
         "operationId": "get_credits_balance_marketplace_credits_balance_get",
         "responses": {
           "200": {
@@ -28376,7 +28739,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
       }
     },
     "/marketplace/autonomy/{agent_id}": {
@@ -29527,7 +29895,13 @@
           "Marketplace Listings"
         ],
         "summary": "List Purchases",
+        "description": "Purchases the caller's tenant is party to, as buyer or as seller.\n\nAudit S-6: this answered 200 to an anonymous caller and returned every\nagent's trades — price paid, counterparty and asset — with\n``?buyer_agent=`` enough to single out one agent's buying history. Browsing\n*listings* is open by design (that is how agents find each other); a\nsettled trade is commercial data that belongs to its two parties.\n\nAn operator holding ``X-Admin-Key`` still reads the whole table, so\nsupport and reconciliation keep working without a per-tenant loop. The\nadmin guard is fail-closed: with no ``ADMIN_KEY`` configured, presenting\nthe header is a 503, not a free pass.",
         "operationId": "list_purchases_marketplace_purchases_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "buyer_agent",
@@ -29570,6 +29944,22 @@
               "maximum": 100,
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "X-Admin-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -29851,6 +30241,11 @@
         ],
         "summary": "Get Negotiation",
         "operationId": "get_negotiation_marketplace_negotiations__negotiation_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "negotiation_id",
@@ -30299,6 +30694,11 @@
         ],
         "summary": "Get Escrow",
         "operationId": "get_escrow_marketplace_escrow__escrow_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "escrow_id",
@@ -30343,6 +30743,11 @@
         ],
         "summary": "List Escrows",
         "operationId": "list_escrows_marketplace_escrows_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -30685,6 +31090,11 @@
         "summary": "Maestro Report",
         "description": "Run a full MAESTRO threat audit for a single agent and return the report.",
         "operationId": "maestro_report_marketplace_agents__agent_id__maestro_report_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "agent_id",
@@ -30726,6 +31136,11 @@
         "summary": "Maestro Flags",
         "description": "Admin — list all agents with active MAESTRO flags, newest first.",
         "operationId": "maestro_flags_marketplace_maestro_flags_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -30841,6 +31256,11 @@
         "summary": "Community Runner State",
         "description": "Return the FlinkAgentRunner state counters for a community.",
         "operationId": "community_runner_state_streams_state__community_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -31412,8 +31832,13 @@
           "Edge Agent Packs"
         ],
         "summary": "Deploy Pack",
-        "description": "Register an edge agent pack as a marketplace agent in a community.",
+        "description": "Register an edge agent pack as a marketplace agent in a community.\n\nGated since the R0 anonymous-write probe (2026-11-14) found it open: it\nregisters a marketplace agent in a community the *caller* names, and read\nas a harmless 404 only because the probe used a pack name that does not\nexist. Listing packs stays public, like the rest of marketplace discovery.",
         "operationId": "deploy_pack_agents_packs__name__deploy_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "name",
@@ -31463,8 +31888,13 @@
           "Edge Agent Packs"
         ],
         "summary": "Run Pack Analysis",
-        "description": "Run a pack's analyze + recommend_action pipeline on sensor data.",
+        "description": "Run a pack's analyze + recommend_action pipeline on sensor data.\n\nGated for the same reason: it runs compute on caller-supplied input.",
         "operationId": "run_pack_analysis_agents_packs__name__analyze_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "name",
@@ -31875,6 +32305,11 @@
         ],
         "summary": "Aggregated filter stats for dashboard",
         "operationId": "api_stats_api_stats_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "hours",
@@ -31915,7 +32350,7 @@
           "ops"
         ],
         "summary": "Per-stage pipeline health",
-        "description": "Reports availability of each filter stage, the ML model, and Turso connections.\n\nWith ``?deep=true`` it additionally fires the live canary corpus through the\nreal pipeline (sub-second) and folds a missed jailbreak / false-positive into\nthe ``degraded`` verdict — a load-balancer probe should use the cheap default.",
+        "description": "Reports availability of each filter stage, the ML model, and Turso connections.\n\nWith ``?deep=true`` it additionally fires the live canary corpus through the\nreal pipeline (sub-second) and folds a missed jailbreak / false-positive into\nthe ``degraded`` verdict — a load-balancer probe should use the cheap default.\nThe canary verdict is shared per worker for up to 60 s; ``canary.age_s``\nsays how old it is.",
         "operationId": "health_pipeline_health_pipeline_get",
         "parameters": [
           {
@@ -32744,14 +33179,58 @@
         ],
         "summary": "Current subscription plan and quota for a tenant",
         "operationId": "billing_status_subscription_status_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -32784,15 +33263,54 @@
         ],
         "summary": "Create a Lemon Squeezy checkout session — returns hosted payment URL",
         "operationId": "billing_checkout_subscription_checkout_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/_CheckoutRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -32823,14 +33341,58 @@
         ],
         "summary": "Return Lemon Squeezy customer portal URL for self-serve plan management",
         "operationId": "billing_portal_subscription_portal_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -38046,6 +38608,11 @@
         ],
         "summary": "List Agents",
         "operationId": "list_agents_kya_list_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "owner",
@@ -40772,49 +41339,6 @@
         ],
         "title": "EmailScanResponse"
       },
-      "EnterpriseQuoteRequest": {
-        "properties": {
-          "tenant_id": {
-            "type": "string",
-            "title": "Tenant Id"
-          },
-          "customer_email": {
-            "type": "string",
-            "title": "Customer Email"
-          },
-          "company_name": {
-            "type": "string",
-            "title": "Company Name",
-            "default": ""
-          },
-          "seats": {
-            "type": "integer",
-            "title": "Seats",
-            "default": 1
-          },
-          "annual": {
-            "type": "boolean",
-            "title": "Annual",
-            "default": true
-          },
-          "po_number": {
-            "type": "string",
-            "title": "Po Number",
-            "default": ""
-          },
-          "raise_invoice": {
-            "type": "boolean",
-            "title": "Raise Invoice",
-            "default": false
-          }
-        },
-        "type": "object",
-        "required": [
-          "tenant_id",
-          "customer_email"
-        ],
-        "title": "EnterpriseQuoteRequest"
-      },
       "EntityMetaResponse": {
         "properties": {
           "entity_id": {
@@ -43438,6 +43962,39 @@
         "type": "object",
         "title": "PingRequest"
       },
+      "PlanGrantIn": {
+        "properties": {
+          "plan": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "Plan"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Source",
+            "default": "admin"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan"
+        ],
+        "title": "PlanGrantIn",
+        "description": "Operator grant of a store plan. ``days=None`` is open-ended."
+      },
       "PlatformInviteRequest": {
         "properties": {
           "ttl_hours": {
@@ -44331,14 +44888,20 @@
             "title": "Code"
           },
           "new_tenant_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "New Tenant Id"
           }
         },
         "type": "object",
         "required": [
-          "code",
-          "new_tenant_id"
+          "code"
         ],
         "title": "RedeemReferralRequest"
       },

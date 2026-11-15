@@ -184,7 +184,7 @@ def test_api_returns_503_when_preflight_fails():
         resp = client.post(
             "/sovereign/tunnels",
             json={"label": "eu-tunnel", "jurisdiction": "EU", "protocol": "MASQUE_H3"},
-            headers={"X-Tenant-Tier": "enterprise"},
+            headers={"X-Tenant-Tier": "lab"},
         )
 
     assert resp.status_code == 503

@@ -276,9 +276,10 @@ class TestStructuredData:
         assert url, "the offer URL is gone — re-check this guard"
         target = url.group(1).rsplit("/", 1)[-1]
         page = _read(_PAGES / f"{target}.astro")
-        assert "enterprise" in page.lower(), (
-            f"/{target} does not list the Enterprise tier the offer range includes"
+        assert "community business" in page.lower(), (
+            f"/{target} does not list the top plan the offer range includes"
         )
+        assert "name: 'Enterprise'" not in page and "name: 'Pro'" not in page
 
     def test_both_layouts_publish_a_canonical(self):
         for layout in _SITE_LAYOUTS:

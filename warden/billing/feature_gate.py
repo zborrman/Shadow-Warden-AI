@@ -1,88 +1,28 @@
 """
 warden/billing/feature_gate.py
-────────────────────────────────
-Tier-based Feature Gating for Shadow Warden AI.
+──────────────────────────────
+What each plan may do.
 
-Tiers (aligned with Lemon Squeezy monetization)
-────────────────────────────────────────────────
-  starter            $0/mo      — Developers / Testing    1 000 req/mo
-  individual         $5/mo      — Solo Devs / Hobbyists   5 000 req/mo  (+$9/mo XAI add-on)
-  community_business $39.99/mo  — SMB one-click           15 000 req/mo, File Scanner, Shadow AI Monitor, 3 communities×10 members, 180-day retention
-  pro                $99.99/mo  — Mid-market              50 000 req/mo, MasterAgent included (+$15/mo Shadow AI add-on)
-  enterprise         $249/mo    — MSPs / Corporations     Unlimited, PQC, Sovereign AI Cloud, all add-ons included
+Sold plans (prices live in ``warden/billing/pricing.py``, never here):
 
-  Prices live in warden/billing/pricing.py — never re-typed here.
+  starter             free
+  individual          $5/mo
+  community_business  $39.99/mo
 
-Annual billing discount (15% off all paid tiers) — derived, not hand-written
-────────────────────────────────────────────────────────────────────────────
-  individual_annual         $51.00/yr    ($4.25/mo effectively)
-  community_business_annual $407.90/yr   ($33.99/mo effectively)
-  pro_annual                $1 019.90/yr ($84.99/mo effectively)
-  enterprise_annual         $2 539.80/yr ($211.65/mo effectively)
+Pro and Enterprise were withdrawn on 2026-11-14 (owner decision). What they
+gated is still built and still tested, behind the ``lab`` capability set: it
+has no price, cannot be bought, and no billing plan resolves to it. A feature
+that is true only under ``lab`` is on no plan, and the gate says so instead of
+offering an upgrade that does not exist.
 
-Add-on SKUs (Lemon Squeezy variant IDs)
-────────────────────────────────────────
-  shadow_ai_discovery  +$15/mo  Pro+           Shadow AI subnet scan + DNS telemetry
-  xai_audit            +$9/mo   Individual+    Causal XAI HTML/PDF audit reports
-  secrets_vault        +$12/mo  Individual+    Secrets governance
-  on_prem_pack         +$29/mo  Pro+           Self-hosted license + Helm chart
-  community_seats      +$9/mo   Community Biz+ +5 member slots (stackable)
+A stored subscription or an old client may still name a withdrawn plan. Those
+names resolve to ``community_business`` through ``pricing.TIER_ALIASES``.
 
-Bundle SKUs
-───────────
-  power_user_bundle    $29/mo   Pro+           Secrets Vault + XAI Audit + Shadow AI ($36 → save $7)
+Usage:
+  gate = FeatureGate.for_tier("community_business")
+  gate.require("communities_enabled")
 
-  MasterAgent is included in Pro — not sold as an add-on.
-
-Feature matrix
-──────────────
-  Feature                    starter   individual  pro       enterprise
-  ─────────────────────────────────────────────────────────────────────────
-  req_per_month              1 000     5 000       50 000    unlimited
-  prompt_shield              ✓         ✓           ✓         ✓
-  audit_trail                ✗         ✓           ✓         ✓
-  secret_redactor            ✓         ✓           ✓         ✓
-  multi_tenant               ✗         ✗           ✓ (≤50)   unlimited
-  siem_integration           ✗         ✗           ✓         ✓
-  prometheus_grafana         ✗         ✗           ✓         ✓
-  gdpr_purge_api             ✗         ✗           ✓         ✓
-  slack_pagerduty            ✗         ✗           ✓         ✓
-  on_prem_deployment         ✗         ✗           ✗         ✓
-  custom_ml_training         ✗         ✗           ✗         ✓
-  white_label                ✗         ✗           ✗         ✓
-  dedicated_support          ✗         ✗           ✗         ✓
-  break_glass                ✗         ✗           ✗         ✓
-  byok_enabled               ✗         ✗           ✗         ✓
-  pqc_enabled                ✗         ✗           ✗         ✓
-  master_agent_enabled       ✗         ✗           ✓         ✓
-  sova_agent_enabled         ✗         ✗    (CB ✓)     ✓         ✓
-  shadow_ai_enabled          ✗         ✗           add-on    ✓
-  xai_reports_enabled        ✗         add-on      ✓         ✓
-  sovereign_enabled          ✗         ✗           ✗         ✓
-  overage_enabled            ✗         ✗           ✓         ✓
-  referral_program           ✓         ✓           ✓         ✗
-  communities_enabled        ✗         ✗           ✓         ✓
-  max_communities            0         0           10        unlimited
-  max_members_per_community  0         0           25        unlimited
-
-Overage pricing (cents per 1 000 excess requests)
-───────────────────────────────────────────────────
-  pro:        $0.50 per 1k requests over 50k
-  enterprise: $0.10 per 1k requests over limit (custom SLA)
-
-Usage
-─────
-  from warden.billing.feature_gate import FeatureGate, require_plan
-
-  # In a route handler:
-  gate = FeatureGate.for_tier("pro")
-  gate.require("siem_integration")           # raises HTTP 403 if missing
-  gate.require_capacity("max_communities", 3)
-
-  # FastAPI Depends:
-  @router.get("/siem/export")
-  async def export(gate=Depends(require_plan("pro"))):
-      ...
+  @router.get("/x", dependencies=[Depends(require_feature("xai_reports_enabled"))])
 """
 from __future__ import annotations
 
@@ -93,6 +33,7 @@ from fastapi import Depends, HTTPException, Request
 
 from warden.billing.pricing import (
     AGENT_TURN_OVERAGE_USD,
+    SOLD_TIERS,
     TIER_PRICE_USD_MONTH,
     agent_turn_allowance,
     canonical_tier,
@@ -120,33 +61,9 @@ ANNUAL_PRICING: dict[str, dict[str, Any]] = _ANNUAL_PRICING
 
 # ── Overage pricing ───────────────────────────────────────────────────────────
 
-OVERAGE_PRICES: dict[str, dict[str, Any]] = {
-    "pro": {
-        "cents_per_1k_requests":      50,   # $0.50 per 1k over limit
-        "storage_cents_per_gb":        10,   # $0.10/GB
-        "bandwidth_cents_per_gb":      10,
-    },
-    "enterprise": {
-        "cents_per_1k_requests":      10,   # $0.10 per 1k (custom SLA)
-        "storage_cents_per_gb":        4,
-        "bandwidth_cents_per_gb":      4,
-    },
-    # Legacy aliases
-    "business": {
-        "cents_per_1k_requests":      50,
-        "storage_cents_per_gb":       10,
-        "bandwidth_cents_per_gb":     10,
-        "pack_cents":                 500,
-        "pack_bytes":                 50 * _GB,
-    },
-    "mcp": {
-        "cents_per_1k_requests":      10,
-        "storage_cents_per_gb":       4,
-        "bandwidth_cents_per_gb":     4,
-        "pack_cents":                 4000,
-        "pack_bytes":                 1 * _TB,
-    },
-}
+# Metered overage was sold on Pro and Enterprise only. Neither is sold, so no
+# plan has an overage price: a sold plan stops at its quota instead.
+OVERAGE_PRICES: dict[str, dict[str, Any]] = {}
 
 # ── Tier feature matrix ───────────────────────────────────────────────────────
 
@@ -303,80 +220,6 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "auto_isolation_enabled":      False,
     },
 
-    "pro": {
-        "req_per_month":               50_000,
-        "overage_enabled":             True,    # soft stop + charge
-        "trial_eligible":              False,   # already on Pro
-        "prompt_shield":               True,
-        "secret_redactor":             True,
-        "threat_vault":                True,
-        "docker_self_host":            True,
-        "totp_2fa":                    True,
-        "openai_proxy":                True,
-        "audit_trail":                 True,
-        "multi_tenant":                True,    # ← unlocked at Pro
-        "max_tenants":                 50,
-        "siem_integration":            True,    # ← Splunk + Elastic
-        "prometheus_grafana":          True,    # ← /metrics + Grafana dashboards
-        "gdpr_purge_api":              True,    # ← DELETE /gdpr/purge
-        "slack_pagerduty":             True,    # ← alert webhooks
-        "on_prem_deployment":          False,
-        "custom_ml_training":          False,
-        "white_label":                 False,
-        "dedicated_support":           False,
-        "break_glass_enabled":         False,
-        "byok_enabled":                False,
-        "pqc_enabled":                 False,
-        "master_agent_enabled":        True,    # ← MasterAgent SOC (included in $69 Pro)
-        "sova_agent_enabled":          True ,   # SOVA operator (read-only CB+; operator_mode needs Pro+)
-        "shadow_ai_enabled":           False,   # ← add-on: +$15/mo Shadow AI Discovery
-        "xai_reports_enabled":         True,    # ← Causal XAI + PDF reports included at Pro
-        "sovereign_enabled":           False,
-        "secrets_governance":          True,    # ← Secrets Governance included at Pro
-        "communities_enabled":         True,    # ← Secure Communities
-        "max_communities":             10,
-        "max_members_per_community":   25,
-        # ── SMB AI Governance ──────────────────────────────────────────────────
-        "vendor_governance_enabled":   True,
-        "cost_allocation_enabled":     True,
-        "budget_dashboard_enabled":    True,
-        "incident_register_enabled":   True,
-        "supplier_risk_enabled":       True,
-        "prompt_library_enabled":      True,
-        "training_records_enabled":    True,
-        "smb_suite_enabled":           True,
-        "agentic_commerce_enabled":    True,
-        "billing_audit_enabled":       True,
-        "semantic_layer_enabled":      True,
-        "settings_enabled":            True,
-        "marketplace_enabled":         True,    # ← M2M Agentic Marketplace (Pro+)
-        "gsam_enabled":                True,    # ← GSAM analytics/governance (Pro+)
-        "referral_program":            True,
-        "referral_bonus_requests":     2_000,
-        "referral_bonus_bytes":        5 * _GB,   # +5 GB per referred signup
-        "storage_bytes":               100 * _GB,
-        "bandwidth_bytes_per_month":   500 * _GB,
-        "max_entity_bytes":            1 * _GB,
-        "retention_days":              365,
-        "ratchet_interval":            10,
-        "misp_bridge_enabled":         True,   # ← MISP ZMQ syslog bridge (Pro+)
-        "sdk_otel_enabled":            True,   # ← OTel SDK WardenSpanProcessor (Pro+)
-        "github_actions_scan_enabled": True,   # ← GitHub Actions CI scan (Pro+)
-        "compliance_scoring_enabled":  True,   # ← Continuous compliance scoring dashboard (Pro+)
-        "iso27001_enabled":            False,  # ← ISO 27001 Annex A mapping is Enterprise-only
-        "mobile_push_enabled":         True,   # ← Mobile SOC push alerts (Pro+)
-        # ── New modules (MKT-10 → MKT-14) ────────────────────────────────────
-        "streams_enabled":             True,   # Kafka/Flink Event Streaming (Pro+)
-        "tokenomics_enabled":          False,  # WAT ERC-20 (Enterprise)
-        "usdc_payments_enabled":       False,  # USDC multi-rail (Enterprise)
-        "ans_certificates_enabled":    False,  # ANS X.509 CA (Enterprise)
-        "edge_packs_enabled":          True,   # ARC edge agent packs (Pro+)
-        # ── Security Hardening (SEC-03 Auto-Isolation, SEC-06 Federated Trust) ─
-        "federated_trust_enabled":     True,
-        "auto_isolation_enabled":      True,
-    },
-
-    # ── Community Business — SMB one-click tier ($19/mo) ──────────────────────
     "community_business": {
         "req_per_month":               15_000,
         "overage_enabled":             False,
@@ -460,7 +303,9 @@ TIER_LIMITS: dict[str, dict[str, Any]] = {
         "auto_isolation_enabled":      False,
     },
 
-    "enterprise": {
+    # Everything that is built and not sold (former Enterprise set). See
+    # pricing.LAB_TIER: no price, no checkout, unreachable from a billing plan.
+    "lab": {
         "req_per_month":               None,    # unlimited
         "overage_enabled":             True,
         "trial_eligible":              False,   # contact sales
@@ -569,17 +414,13 @@ FEATURE_AUTO_ISOLATION     = "auto_isolation_enabled"
 
 # ── Legacy aliases ─────────────────────────────────────────────────────────────
 TIER_LIMITS["free"]     = TIER_LIMITS["starter"]
-TIER_LIMITS["business"] = TIER_LIMITS["pro"]
 TIER_LIMITS["smb"]      = TIER_LIMITS["community_business"]   # short alias
-TIER_LIMITS["msp"]      = TIER_LIMITS["enterprise"]
-TIER_LIMITS["mcp"]      = TIER_LIMITS["enterprise"]   # legacy alias used in tests/quota
 
 _TIER_ORDER: dict[str, int] = {
     "starter": 0, "free": 0,
     "individual": 1,
     "community_business": 2, "smb": 2,
-    "pro": 3, "business": 3,
-    "enterprise": 4, "msp": 4, "mcp": 4,
+    "lab": 9,
 }
 
 
@@ -628,6 +469,11 @@ class FeatureGate:
         """
         if not self.is_enabled(feature):
             min_tier = _min_tier_for(feature)
+            if min_tier is None:
+                raise PermissionError(
+                    f"Feature '{feature}' is not part of any plan. "
+                    f"Current plan: {self.tier.upper()}."
+                )
             raise PermissionError(
                 f"Feature '{feature}' requires {min_tier.upper()} plan or higher. "
                 f"Current plan: {self.tier.upper()}. "
@@ -642,15 +488,15 @@ class FeatureGate:
         limit = self.get(feature)
         if limit == 0:
             min_tier = _min_tier_for_capacity(feature)
+            hint = f"Upgrade to {min_tier.upper()} or higher." if min_tier else "It is not part of any plan."
             raise PermissionError(
-                f"Feature '{feature}' is not available on {self.tier.upper()} plan. "
-                f"Upgrade to {min_tier.upper()} or higher."
+                f"Feature '{feature}' is not available on {self.tier.upper()} plan. {hint}"
             )
         if limit is not None and limit != _UNLIMITED and current_count >= limit:
             raise PermissionError(
                 f"Capacity limit reached for '{feature}': "
                 f"{current_count}/{limit} on {self.tier.upper()} plan. "
-                f"Upgrade to Enterprise for unlimited capacity."
+                f"This is the limit of the plan."
             )
 
     def meets_minimum(self, minimum_tier: str) -> bool:
@@ -690,22 +536,22 @@ class FeatureGate:
         return d
 
 
-def _min_tier_for(feature: str) -> str:
-    """Return canonical tier name that first enables a boolean feature."""
-    for tier in ("starter", "individual", "pro", "enterprise"):
+def _min_tier_for(feature: str) -> str | None:
+    """The lowest *sold* plan that enables a boolean feature, or None if no plan does."""
+    for tier in SOLD_TIERS:
         val = TIER_LIMITS[tier].get(feature)
         if isinstance(val, bool) and val:
             return tier
-    return "enterprise"
+    return None
 
 
-def _min_tier_for_capacity(feature: str) -> str:
-    """Return canonical tier that has non-zero capacity for *feature*."""
-    for tier in ("starter", "individual", "pro", "enterprise"):
+def _min_tier_for_capacity(feature: str) -> str | None:
+    """The lowest *sold* plan with non-zero capacity for *feature*, or None."""
+    for tier in SOLD_TIERS:
         val = TIER_LIMITS[tier].get(feature, 0)
         if val and val > 0:
             return tier
-    return "enterprise"
+    return None
 
 
 # ── FastAPI dependencies ───────────────────────────────────────────────────────
@@ -757,7 +603,7 @@ def require_plan(*plans: str):
     FastAPI Depends factory: raise HTTP 403 if tenant plan is not in *plans*.
 
     Usage:
-        @router.get("/siem/export", dependencies=[Depends(require_plan("pro", "enterprise"))])
+        @router.get("/siem/export", dependencies=[Depends(require_plan("community_business"))])
     """
     canonical = {_normalize_tier(p) for p in plans}
 
@@ -804,13 +650,13 @@ def require_feature(feature: str):
 
 _PLAN_ROUTES: dict[str, str] = {
     # route prefix → minimum plan required
-    "/communities":       "pro",
-    "/bots":              "pro",
-    "/siem":              "pro",
-    "/gdpr/purge":        "pro",
-    "/communities/break": "enterprise",
-    "/byok":              "enterprise",
-    "/admin/ml-train":    "enterprise",
+    "/communities":       "community_business",
+    "/bots":              "lab",
+    "/siem":              "lab",
+    "/gdpr/purge":        "lab",
+    "/communities/break": "lab",
+    "/byok":              "lab",
+    "/admin/ml-train":    "lab",
 }
 
 

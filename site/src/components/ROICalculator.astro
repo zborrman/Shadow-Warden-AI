@@ -116,7 +116,7 @@
             $6,480,000
           </p>
           <p id="roi-multiplier" class="text-[13px] text-[#8E8E9E] mt-2">
-            vs. Shadow Warden Pro at $99.99/mo · <strong class="text-[#30D158]">ROI: 782×</strong>
+            vs. Community Business at $39.99/mo
           </p>
         </div>
       </div>
@@ -139,10 +139,9 @@
     (document.getElementById('label-inc')!).textContent  = String(inc);
 
     const annual = inc * 12 * cost;
-    const roi    = Math.round(annual / (69 * 12));
     (document.getElementById('roi-result')!).textContent     = fmt(annual);
     (document.getElementById('roi-multiplier')!).innerHTML   =
-      `vs. Shadow Warden Pro at $99.99/mo · <strong class="text-[#30D158]">ROI: ${roi}×</strong>`;
+      `vs. Community Business at $39.99/mo`;
   }
 
   ['slider-req','slider-mal','slider-cost','slider-inc'].forEach(id => {

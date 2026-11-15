@@ -139,16 +139,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                            features: ['1 private community', '5 members', 'Demo tunnel (unencrypted)', 'Basic reporting'] },
       community_business:{ name: 'Community Business', color: '#BF5AF2', price: '$39.99/mo',  maxComm: 3,  maxMem: 10, obs: true,  slack: false, pqc: false,
                            features: ['3 communities × 10 members', 'Obsidian vault scanner', 'Shadow AI Monitor', '180-day log retention'] },
-      pro:               { name: 'Pro',                color: '#FF8C42', price: '$99.99/mo',  maxComm: 10, maxMem: 50, obs: true,  slack: true,  pqc: false,
-                           features: ['10 communities × 50 members', 'Slack alerting', 'MasterAgent SOC', 'XAI audit reports', 'SIEM integration'] },
-      enterprise:        { name: 'Enterprise',         color: '#FFD60A', price: '$249/mo', maxComm: -1, maxMem: -1, obs: true,  slack: true,  pqc: true,
-                           features: ['Unlimited communities & members', 'Post-Quantum Cryptography tunnels', 'Sovereign data routing', 'Dedicated 99.95% uptime SLA (target)', 'On-prem deployment'] },
     };
 
-    const TIER_ORDER = ['starter', 'individual', 'community_business', 'pro', 'enterprise'];
+    const TIER_ORDER = ['starter', 'individual', 'community_business'];
 
-    function getCurrentTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
-    function getTC(t?: string): any { return TIERS[t || getCurrentTier()] || TIERS.pro; }
+    function getCurrentTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
+    function getTC(t?: string): any { return TIERS[t || getCurrentTier()] || TIERS.community_business; }
 
     function loadAccount(): any { try { return JSON.parse(localStorage.getItem(ACC_KEY) || '{}'); } catch { return {}; } }
     function saveAccount(d: any) { localStorage.setItem(ACC_KEY, JSON.stringify(d)); }

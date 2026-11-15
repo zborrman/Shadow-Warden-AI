@@ -8,7 +8,7 @@ by being refused.
 ## The two limits
 
 - **`requests-per-minute`** — a sliding window keyed on your API key for authenticated routes, so a shared egress address does not collapse tenants into one bucket. 60/min by default; enterprise keys carry their own rate. The one unauthenticated route, `/demo/filter`, is keyed on client IP instead, at a fixed 10/min.
-- **`requests-per-month`** — the plan allowance, counted on `POST /filter` and `/filter/batch`, reset at the start of each UTC calendar month. Enterprise is unlimited and publishes no monthly policy.
+- **`requests-per-month`** — the plan allowance, counted on `POST /filter` and `/filter/batch`, reset at the start of each UTC calendar month. Every plan has a monthly allowance.
 
 ## What every response carries
 

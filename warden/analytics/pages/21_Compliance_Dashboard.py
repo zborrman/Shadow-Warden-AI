@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 WARDEN_URL = "http://localhost:8001"
-HEADERS    = {"X-API-Key": "", "X-Tenant-Tier": "pro"}
+HEADERS    = {"X-API-Key": "", "X-Tenant-Tier": "lab"}
 
 _STATUS_COLOR = {
     "compliant":     "#10b981",

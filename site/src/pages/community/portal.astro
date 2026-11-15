@@ -386,13 +386,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
     individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
     community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
-    pro:               { name:'Pro',                color:'#FF8C42', maxComm:10 },
-    enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1 },
   } as const;
   const TIER_MAP = TIERS;
 
-  function getTier() { return localStorage.getItem(TIER_KEY) || 'pro'; }
-  function getTC()   { return TIERS[getTier()] || TIERS.pro; }
+  function getTier() { return localStorage.getItem(TIER_KEY) || 'starter'; }
+  function getTC()   { return TIERS[getTier()] || TIERS.community_business; }
 
   function uid(): string {
     let id = localStorage.getItem(USER_KEY);

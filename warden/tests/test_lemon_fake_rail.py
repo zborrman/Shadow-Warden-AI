@@ -45,14 +45,14 @@ class TestCheckout:
     def test_checkout_returns_a_url_and_records_the_intent(self, rail):
         ctx, billing = rail
         url = billing.create_checkout_session(
-            "tenant-1", "pro", "https://ok.example", "https://no.example",
+            "tenant-1", "community_business", "https://ok.example", "https://no.example",
             customer_email="buyer@example.com",
         )
         assert url.startswith("https://fake-lemon.invalid/checkout/")
         assert ctx.lemon.checkout_count() == 1
         record = next(iter(ctx.lemon.checkouts.values()))
         assert record["tenant_id"] == "tenant-1"
-        assert record["plan"] == "pro"
+        assert record["plan"] == "community_business"
         assert record["email"] == "buyer@example.com"
         assert record["redirect_url"] == "https://ok.example"
 
@@ -78,31 +78,26 @@ class TestLifecycle:
     def test_created_activates_the_plan(self, rail):
         ctx, billing = rail
         event = ctx.lemon.deliver(
-            billing, "subscription_created", tenant_id="t-1", plan="pro"
+            billing, "subscription_created", tenant_id="t-1", plan="community_business"
         )
         assert event == "subscription_created"
-        assert billing.get_plan("t-1") == "pro"
+        assert billing.get_plan("t-1") == "community_business"
         assert billing.get_status("t-1")["status"] == "active"
 
     def test_plan_drives_feature_flags(self, rail):
         ctx, billing = rail
-        ctx.lemon.deliver(billing, "subscription_created", tenant_id="t-pro", plan="pro")
+        ctx.lemon.deliver(billing, "subscription_created", tenant_id="t-pro", plan="community_business")
         flags = billing.get_feature_flags("t-pro")
-        assert flags["sova_agent"] is True
         assert flags["marketplace_node"] is True
+        # Sold with Pro and Enterprise, which are withdrawn: the top plan a
+        # subscription can buy turns neither of these on.
+        assert flags["sova_agent"] is False
         assert flags["post_quantum_cryptography"] is False
-
-    def test_enterprise_unlocks_pqc(self, rail):
-        ctx, billing = rail
-        ctx.lemon.deliver(
-            billing, "subscription_created", tenant_id="t-ent", plan="enterprise"
-        )
-        assert billing.get_feature_flags("t-ent")["post_quantum_cryptography"] is True
 
     def test_cancellation_downgrades_and_revokes(self, rail):
         ctx, billing = rail
         ctx.lemon.deliver(
-            billing, "subscription_created", tenant_id="t-2", plan="pro", sub_id="sub-2"
+            billing, "subscription_created", tenant_id="t-2", plan="community_business", sub_id="sub-2"
         )
         ctx.lemon.deliver(billing, "subscription_cancelled", sub_id="sub-2")
         assert billing.get_plan("t-2") == "starter"
@@ -121,7 +116,7 @@ class TestLifecycle:
     def test_payment_failure_marks_past_due(self, rail):
         ctx, billing = rail
         ctx.lemon.deliver(
-            billing, "subscription_created", tenant_id="t-4", plan="pro", sub_id="sub-4"
+            billing, "subscription_created", tenant_id="t-4", plan="community_business", sub_id="sub-4"
         )
         ctx.lemon.deliver(billing, "subscription_payment_failed", sub_id="sub-4")
         status = billing.get_status("t-4")
@@ -144,20 +139,20 @@ class TestWebhookSecurity:
         """The fake signs with the same secret `handle_webhook` checks."""
         ctx, billing = rail
         payload, signature = ctx.lemon.emit(
-            "subscription_created", tenant_id="t-6", plan="pro"
+            "subscription_created", tenant_id="t-6", plan="community_business"
         )
         assert billing.handle_webhook(payload, signature) == "subscription_created"
 
     def test_forged_signature_is_rejected(self, rail):
         ctx, billing = rail
-        payload, _sig = ctx.lemon.emit("subscription_created", tenant_id="t-7", plan="pro")
+        payload, _sig = ctx.lemon.emit("subscription_created", tenant_id="t-7", plan="community_business")
         with pytest.raises(ValueError):
             billing.handle_webhook(payload, "0" * 64)
         assert billing.get_plan("t-7") == "starter"
 
     def test_missing_signature_is_rejected(self, rail):
         ctx, billing = rail
-        payload, _sig = ctx.lemon.emit("subscription_created", tenant_id="t-8", plan="pro")
+        payload, _sig = ctx.lemon.emit("subscription_created", tenant_id="t-8", plan="community_business")
         with pytest.raises(ValueError):
             billing.handle_webhook(payload, "")
         assert billing.get_plan("t-8") == "starter"
@@ -170,7 +165,7 @@ class TestWebhookSecurity:
         )
         # Upgrade the plan in flight: the variant id is what maps to a tier.
         tampered = payload.replace(
-            FAKE_VARIANTS["individual"].encode(), FAKE_VARIANTS["enterprise"].encode()
+            FAKE_VARIANTS["individual"].encode(), FAKE_VARIANTS["community_business"].encode()
         )
         assert tampered != payload
         with pytest.raises(ValueError):
@@ -180,7 +175,7 @@ class TestWebhookSecurity:
         """Lemon Squeezy retries on timeout; the second delivery must be inert."""
         ctx, billing = rail
         payload, signature = ctx.lemon.emit(
-            "subscription_created", tenant_id="t-10", plan="pro",
+            "subscription_created", tenant_id="t-10", plan="community_business",
             sub_id="sub-10", event_id="fixed-event-id",
         )
         billing.handle_webhook(payload, signature)
@@ -212,9 +207,9 @@ class TestFakeGuarantees:
     def test_every_artifact_is_marked_test_mode(self, rail):
         ctx, billing = rail
         billing.create_checkout_session(
-            "t-11", "pro", "https://ok.example", "https://no.example"
+            "t-11", "community_business", "https://ok.example", "https://no.example"
         )
-        ctx.lemon.deliver(billing, "subscription_created", tenant_id="t-11", plan="pro")
+        ctx.lemon.deliver(billing, "subscription_created", tenant_id="t-11", plan="community_business")
         checkout = ctx.lemon.request("POST", "/checkouts", {"data": {}})
         assert checkout["data"]["attributes"]["test_mode"] is True
         assert checkout["data"]["attributes"]["_fake_provider"] == "FakeLemonSqueezy"
@@ -230,7 +225,7 @@ class TestFakeGuarantees:
         _payload, _sig = ctx.lemon.emit(
             "subscription_created",
             tenant_id="t-13",
-            plan="pro",
+            plan="community_business",
             attributes={"test_mode": False, "_fake_provider": "lemonsqueezy"},
         )
         attrs = ctx.lemon.events_named("subscription_created")[0]["data"]["attributes"]
@@ -241,7 +236,7 @@ class TestFakeGuarantees:
         """The REST seam is replaced, so nothing reaches urllib."""
         ctx, billing = rail
         billing.create_checkout_session(
-            "t-12", "pro", "https://ok.example", "https://no.example"
+            "t-12", "community_business", "https://ok.example", "https://no.example"
         )
         assert ctx.lemon.calls == [
             ("POST", "/checkouts", ctx.lemon.calls[0][2])

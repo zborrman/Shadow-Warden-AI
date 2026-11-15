@@ -3,11 +3,17 @@
 **Version:** 1.0 · **Effective:** 2026-04-10  
 **Audience:** Customers, SOC 2 auditors, compliance officers
 
+> **Status, 2026-11-14: no plan carries this SLA.** Its commitments were attached to
+> the Pro and Enterprise plans, which are no longer sold. The sold plans (Starter,
+> Individual, Community Business) are best-effort. The targets below remain the
+> internal objective the error budget is measured against; they are not a
+> commitment to any customer and no service credit is owed under them.
+
 ---
 
 ## 1. Scope
 
-This SLA applies to all paid tiers (Pro, Enterprise) of the Shadow Warden AI gateway service
+This document described the withdrawn Pro and Enterprise tiers of the Shadow Warden AI gateway service
 (`/filter`, `/v1/chat/completions`, `/subscription/*`, portal authentication, and health
 endpoints). Starter (free) tier access is best-effort with no uptime guarantee.
 

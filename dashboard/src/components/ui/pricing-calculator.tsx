@@ -7,7 +7,7 @@ import { TIER_MONTHLY_USD, annualPriceUsd } from "@/lib/pricing";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tier = "starter" | "individual" | "community_business" | "pro" | "enterprise";
+type Tier = "starter" | "individual" | "community_business";
 type Billing = "monthly" | "annual";
 
 interface TierConfig {
@@ -69,7 +69,7 @@ const TIERS: TierConfig[] = [
     description: "Solo devs & consultants",
     icon: Shield,
     trialEligible: true,
-    features: ["Everything in Starter", "Audit trail", "XAI add-on eligible", "Secrets Vault add-on", "14-day Pro trial"],
+    features: ["Everything in Starter", "Audit trail", "XAI add-on eligible", "Secrets Vault add-on", "14-day trial"],
   },
   {
     id: "community_business",
@@ -89,67 +89,18 @@ const TIERS: TierConfig[] = [
       "Secrets Governance",
     ],
   },
-  {
-    id: "pro",
-    label: "Pro",
-    monthlyPrice: TIER_MONTHLY_USD.pro,
-    annualPrice: annualPriceUsd("pro"),
-    requests: "50,000 req/mo",
-    description: "Mid-market & growing teams",
-    icon: Shield,
-    highlight: true,
-    features: [
-      "Everything in Community Business",
-      "MasterAgent SOC (included)",
-      "Causal XAI reports",
-      "Multi-tenant (up to 50)",
-      "SIEM (Splunk + Elastic)",
-      "Slack / PagerDuty alerts",
-      "Overage billing ($0.50/1k)",
-    ],
-  },
-  {
-    id: "enterprise",
-    label: "Enterprise",
-    monthlyPrice: TIER_MONTHLY_USD.enterprise,
-    annualPrice: annualPriceUsd("enterprise"),
-    requests: "Unlimited",
-    description: "MSPs & regulated enterprises",
-    icon: Lock,
-    features: [
-      "Everything in Pro",
-      "Post-Quantum Crypto (ML-DSA-65)",
-      "Sovereign AI Cloud (8 jurisdictions)",
-      "BYOK + White-label",
-      "On-prem deployment",
-      "Dedicated support & SLA",
-      "All add-ons included",
-    ],
-  },
 ];
 
 const ADDONS: Addon[] = [
   { key: "xai_audit",          label: "XAI Audit Reports",      price: 9,  minTier: "individual",         description: "HTML + PDF causal chain reports" },
   { key: "secrets_vault",      label: "Secrets Vault",          price: 12, minTier: "individual",         description: "AWS SM / Azure KV / HashiCorp governance" },
-  { key: "shadow_ai_discovery",label: "Shadow AI Discovery",    price: 15, minTier: "pro",                description: "Subnet probe + DNS telemetry, 18 providers" },
-  { key: "on_prem_pack",       label: "On-Prem Deployment",     price: 29, minTier: "pro",                description: "Self-hosted license + Helm chart" },
   { key: "community_seats",    label: "Community Seats (+5)",   price: 9,  minTier: "community_business", description: "Add 5 member slots (stackable)" },
 ];
 
-const BUNDLES: Bundle[] = [
-  {
-    key: "power_user_bundle",
-    label: "Power User Bundle",
-    price: 29,
-    fullPrice: 36,
-    savings: 7,
-    minTier: "pro",
-    includes: ["secrets_vault", "xai_audit", "shadow_ai_discovery"],
-  },
-];
+const BUNDLES: Bundle[] = [];
 
 const TIER_ORDER: Record<Tier, number> = {
-  starter: 0, individual: 1, community_business: 2, pro: 3, enterprise: 4,
+  starter: 0, individual: 1, community_business: 2,
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -282,7 +233,7 @@ function BundleCard({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PricingCalculator() {
-  const [selectedTier, setSelectedTier] = useState<Tier>("pro");
+  const [selectedTier, setSelectedTier] = useState<Tier>("community_business");
   const [billing, setBilling] = useState<Billing>("monthly");
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
   const [selectedBundles, setSelectedBundles] = useState<Set<string>>(new Set());
@@ -388,7 +339,7 @@ export function PricingCalculator() {
         {tier.trialEligible && (
           <div className="flex items-center gap-2 text-xs text-accent-yellow">
             <Zap size={11} className="shrink-0" />
-            14-day Pro trial available
+            14-day trial available
           </div>
         )}
       </div>
@@ -442,12 +393,10 @@ export function PricingCalculator() {
           )}
         </div>
         <a
-          href={selectedTier === "enterprise"
-            ? "mailto:sales@shadow-warden-ai.com?subject=Enterprise inquiry"
-            : `/billing/upgrade?plan=${selectedTier}`}
+          href={`/billing/upgrade?plan=${selectedTier}`}
           className="px-5 py-2.5 rounded-lg bg-accent-purple text-white text-sm font-semibold hover:bg-accent-purple/80 transition-colors"
         >
-          {selectedTier === "enterprise" ? "Contact Sales" : selectedTier === "starter" ? "Start Free" : "Get Started"}
+          {selectedTier === "starter" ? "Start Free" : "Get Started"}
         </a>
       </div>
     </div>

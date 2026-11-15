@@ -123,10 +123,10 @@ class TestGetUpgradeUrl:
 
     def test_legacy_tier_names_resolve_before_the_ladder_is_walked(self):
         from warden.billing.overage import get_upgrade_url
-        # "business" is a legacy alias for pro, whose next step is enterprise.
+        # "business" is a legacy alias for the top sold plan; there is no step above it.
         url = get_upgrade_url("business", "storage")
-        assert "from=pro" in url
-        assert "to=enterprise" in url
+        assert "from=community_business" in url
+        assert "to=community_business" in url
 
     def test_every_step_of_the_ladder_names_a_real_tier(self):
         from warden.billing.feature_gate import TIER_LIMITS
@@ -164,13 +164,13 @@ class TestGetOveragePackUrl:
     def test_returns_url_with_the_canonical_tier(self):
         from warden.billing.overage import get_overage_pack_url
         url = get_overage_pack_url("business", "bandwidth")
-        assert "tier=pro" in url          # "business" is a legacy alias for pro
+        assert "tier=community_business" in url   # legacy alias
         assert "metric=bandwidth" in url
 
     def test_legacy_mcp_resolves_to_enterprise(self):
         from warden.billing.overage import get_overage_pack_url
         url = get_overage_pack_url("mcp", "storage")
-        assert "tier=enterprise" in url
+        assert "tier=community_business" in url
 
 
 class TestGenerateReferralCode:

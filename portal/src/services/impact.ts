@@ -27,7 +27,7 @@ export function calculateImpact(input: ImpactInput): ImpactResult {
   const mul          = industry.multiplier
   const reqs         = input.monthlyRequests
   const years        = input.years ?? 3
-  const annualCost   = input.annualCostUsd ?? 5_988 // Pro plan × 12
+  const annualCost   = input.annualCostUsd ?? 479.88 // Community Business × 12
 
   // 1 — Inference savings (shadow-banned requests × avg token cost × 12 months)
   const inference_savings_usd = reqs * IBM_2024.shadowBanRate * IBM_2024.avgCostPerRequest * 12

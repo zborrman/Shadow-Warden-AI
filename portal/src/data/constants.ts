@@ -89,16 +89,16 @@ export interface Plan {
 
 export const PLANS: Plan[] = [
   {
-    id: 'starter', label: 'Starter', requestsQuota: 10_000, priceUsd: 0,
-    features: ['10k requests/mo', 'Core detection pipeline', 'Email support'],
+    id: 'starter', label: 'Starter', requestsQuota: 1_000, priceUsd: 0,
+    features: ['1,000 requests/mo', 'Core detection pipeline'],
   },
   {
-    id: 'pro', label: 'Pro', requestsQuota: 250_000, priceUsd: 99,
-    features: ['250k requests/mo', 'Evolution Engine', 'Slack alerts', 'Priority support'],
+    id: 'individual', label: 'Individual', requestsQuota: 5_000, priceUsd: 5,
+    features: ['5,000 requests/mo', 'Audit trail', '14-day trial'],
   },
   {
-    id: 'msp', label: 'MSP', requestsQuota: -1, priceUsd: 499,
-    features: ['Unlimited requests', 'Multi-tenant', 'SIEM integration', 'Dedicated SLA'],
+    id: 'community_business', label: 'Community Business', requestsQuota: 15_000, priceUsd: 39.99,
+    features: ['15,000 requests/mo', '3 communities × 10 members', '180-day retention'],
   },
 ]
 

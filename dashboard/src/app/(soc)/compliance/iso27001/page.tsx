@@ -271,7 +271,7 @@ export default function Iso27001Page() {
           </div>
           <div className="mt-4 pt-4 border-t border-border text-xs text-gray-500">
             <CheckCircle size={12} className="inline text-emerald-400 mr-1" />
-            ISO/IEC 27001:2022 · 93 Annex A controls · Enterprise tier · CP-22
+            ISO/IEC 27001:2022 · 93 Annex A controls · not on a sold plan · CP-22
           </div>
         </div>
       </div>

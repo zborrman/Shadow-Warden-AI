@@ -181,7 +181,7 @@ class TestBillingAuditAPI:
         self.db = db
 
     def _headers(self):
-        return {"X-Tenant-Tier": "pro"}
+        return {"X-Tenant-Tier": "lab"}
 
     def test_chain_endpoint(self):
         resp = self.client.get("/billing/audit/chain/api-tenant", headers=self._headers())

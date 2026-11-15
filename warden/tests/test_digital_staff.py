@@ -347,31 +347,31 @@ class TestStaffAPI:
         self.client = TestClient(app, raise_server_exceptions=True)
 
     def test_list_boundaries_returns_defaults(self):
-        r = self.client.get("/staff/boundaries", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.get("/staff/boundaries", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 200
         ids = {b["agent_id"] for b in r.json()}
         assert "bdr" in ids and "support" in ids
 
     def test_get_single_boundary(self):
-        r = self.client.get("/staff/boundaries/growth", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.get("/staff/boundaries/growth", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 200
         assert r.json()["role"] == "GROWTH"
 
     def test_get_unknown_boundary_404(self):
-        r = self.client.get("/staff/boundaries/ghost", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.get("/staff/boundaries/ghost", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 404
 
     def test_suspend_and_restore(self):
-        r = self.client.post("/staff/boundaries/qa/suspend", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.post("/staff/boundaries/qa/suspend", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 200
         assert r.json()["suspended"] is True
 
-        r = self.client.post("/staff/boundaries/qa/restore", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.post("/staff/boundaries/qa/restore", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 200
         assert r.json()["suspended"] is False
 
     def test_suspend_unknown_404(self):
-        r = self.client.post("/staff/boundaries/nobody/suspend", headers={"X-Tenant-Tier": "pro"})
+        r = self.client.post("/staff/boundaries/nobody/suspend", headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 404
 
     def test_sign_refund_intent_within_cap(self):
@@ -381,7 +381,7 @@ class TestStaffAPI:
             "amount_usd": "5.00",
             "reason": "duplicate",
         }
-        r = self.client.post("/staff/intent/refund", json=payload, headers={"X-Tenant-Tier": "pro"})
+        r = self.client.post("/staff/intent/refund", json=payload, headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 200
         data = r.json()
         assert data["requires_backend_countersign"] is True
@@ -394,5 +394,5 @@ class TestStaffAPI:
             "amount_usd": "100.00",
             "reason": "large refund",
         }
-        r = self.client.post("/staff/intent/refund", json=payload, headers={"X-Tenant-Tier": "pro"})
+        r = self.client.post("/staff/intent/refund", json=payload, headers={"X-Tenant-Tier": "lab"})
         assert r.status_code == 403

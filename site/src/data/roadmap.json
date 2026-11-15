@@ -86,7 +86,7 @@
     "feature": "Data Poisoning Guard",
     "description": "CPT drift gate rejects calibration updates shifting any parameter >25% from prior. Prevents coordinated poisoning.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -116,7 +116,7 @@
     "feature": "SOVA Agent",
     "description": "Claude Opus agentic loop over the full SOVA tool set. 7 ARQ cron schedules. Redis memory: 20-turn cap, 6h TTL.",
     "version": "v3.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -126,7 +126,7 @@
     "feature": "MasterAgent",
     "description": "4 specialised sub-agents (SOVAOperator, ThreatHunter, ForensicsAgent, ComplianceAgent). HMAC task tokens. Human-in-the-loop approval.",
     "version": "v4.0",
-    "tier": "Pro",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -136,7 +136,7 @@
     "feature": "WardenHealer",
     "description": "Autonomous anomaly detection. OLS trend prediction. SQLite recipe cache. Haiku incident classification.",
     "version": "v4.11",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -156,7 +156,7 @@
     "feature": "Browser Sandbox",
     "description": "Playwright headless Chromium. ScreencastRecorder captures video → MinIO SOC 2 evidence bundles.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -166,7 +166,7 @@
     "feature": "Visual Assert Page",
     "description": "In-process Claude Vision page assertion. No HTTP round-trip. Requires Playwright + Anthropic API key.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -176,7 +176,7 @@
     "feature": "Visual Diff Tool",
     "description": "Claude Vision baseline vs candidate screenshot comparison. Verdicts: IDENTICAL / MINOR_DIFF / REGRESSION / CRITICAL.",
     "version": "v4.11",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -186,7 +186,7 @@
     "feature": "Shadow AI Scanner (SOVA)",
     "description": "SOVA tool #29: calls ShadowAIDetector directly. 18 providers. Falls back gracefully without package.",
     "version": "v4.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -196,7 +196,7 @@
     "feature": "XAI Explain Tool (SOVA)",
     "description": "SOVA tool #30: causal chain retrieval from logs + XAI rationale. Used by ScenarioRunner smart_retry.",
     "version": "v4.3",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -256,7 +256,7 @@
     "feature": "Behavioral Anomaly Detection",
     "description": "Z-score anomaly scoring. NORMAL/ELEVATED/CRITICAL thresholds. 30-day rolling baseline. SQLite event store.",
     "version": "v4.8",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -266,7 +266,7 @@
     "feature": "OAuth Agent Discovery",
     "description": "14-provider OAuth catalog. Scope-based risk scoring. ALLOW/MONITOR/BLOCK verdicts. Redis-backed policy.",
     "version": "v4.8",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -276,7 +276,7 @@
     "feature": "Community Intelligence Reports",
     "description": "Weighted risk score: 40% transfer rejection + 35% anomaly + 25% governance gap. SAFE→CRITICAL labels.",
     "version": "v4.8",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -286,7 +286,7 @@
     "feature": "STIX 2.1 Tamper-Evident Audit",
     "description": "SHA-256 prev_hash chain per community. Genesis block. OASIS STIX JSONL export for SIEM ingestion.",
     "version": "v4.7",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -306,7 +306,7 @@
     "feature": "Slack Integration",
     "description": "Slash command handler with HMAC-SHA256 verification. HIGH/BLOCK + share alerts via webhook.",
     "version": "v4.17",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -326,7 +326,7 @@
     "feature": "SIEM Integration",
     "description": "Splunk HEC + Elastic ECS format. Custom field mappings. SOC 2 Type II evidence ingestion.",
     "version": "v3.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -356,7 +356,7 @@
     "feature": "GitHub Actions integration — pre-commit hook that scans commit message + diff",
     "description": "Automatically scan every commit message and diff for secrets, injection patterns, and policy violations before code is merged, using a Shadow Warden GitHub Actions workflow.",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -366,7 +366,7 @@
     "feature": "Jira integration — auto-create security tickets on HIGH/BLOCK verdicts",
     "description": "Automatically create Jira issues for HIGH/BLOCK verdicts with full XAI causal chain and remediation guidance embedded directly in the ticket.",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -376,7 +376,7 @@
     "feature": "Microsoft Teams slash command — /warden equivalent for Teams channels",
     "description": "Bring Shadow Warden into Microsoft Teams with a /warden slash command that scans text, shows verdicts, and lets teams respond to security incidents without leaving the conversation.",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -396,7 +396,7 @@
     "feature": "STIX/TAXII feed consumer — ingest external threat intel from any TAXII 2.1 server",
     "description": "Consume threat intelligence from any TAXII 2.1 server, automatically ingesting STIX indicators and observables into Shadow Warden's detection pipeline for enhanced threat correlation.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -406,7 +406,7 @@
     "feature": "OpenTelemetry SDK library — WardenSpanProcessor for any OTel-enabled app",
     "description": "WardenSpanProcessor (sync ThreadPoolExecutor) + WardenAsyncSpanProcessor (asyncio tasks). Extracts span name, string/numeric attributes, event messages — forwarded to /filter. Bounded queue (max 512), shutdown drain, force_flush(), on_finding callback, configurable min_risk + skip_span_names. REST: GET /sdk/status, GET /sdk/stats, POST /sdk/ping. Tier: Pro+.",
     "version": "v5.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -416,7 +416,7 @@
     "feature": "MISP syslog bridge — route MISP ZMQ feed into Shadow Warden syslog sink",
     "description": "Bridge MISP's ZMQ event feed directly into Shadow Warden's syslog sink. ZMQ subscriber (pyzmq, multipart frame support) + HTTP pull fallback. Domain IoCs forwarded as dnsmasq-style syslog lines to UDP 5514 for real-time correlation with passive DNS telemetry. Stats at GET /misp/stats. One-shot sync via POST /misp/sync. Auto-starts in lifespan when MISP_ZMQ_URL or MISP_API_URL+KEY is set.",
     "version": "v5.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -426,7 +426,7 @@
     "feature": "Post-Quantum Keypairs",
     "description": "Hybrid Ed25519 + ML-DSA-65 (FIPS 204). HybridKEM: X25519 + ML-KEM-768 (FIPS 203). liboqs fail-open.",
     "version": "v4.1",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -436,7 +436,7 @@
     "feature": "Sovereign AI Cloud",
     "description": "8 jurisdictions: EU/US/UK/CA/SG/AU/JP/CH. MASQUE tunnels (H3/H2/TCP). TOFU TLS pinning. Least-latency routing.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -446,7 +446,7 @@
     "feature": "Sovereign Data Pods",
     "description": "Per-jurisdiction MinIO routing. Fernet-encrypted pod keys. 5s health probes. Jurisdiction→data_class resolution.",
     "version": "v4.7",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -456,7 +456,7 @@
     "feature": "Sovereignty Attestation",
     "description": "HMAC-SHA256 signed. 7-year Redis TTL. 10K cap per tenant. O(1) historical routing verification.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -466,7 +466,7 @@
     "feature": "Transfer Rules Matrix",
     "description": "CLASSIFIED → never. PHI → 5 jurisdictions. GENERAL → all with adequacy. EU↔UK/CA/JP/CH decisions built-in.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -476,7 +476,7 @@
     "feature": "ML-KEM-1024 upgrade path (FIPS 203 Level 5)",
     "description": "Upgrade path to ML-KEM-1024 for post-quantum key exchange at FIPS 203 Security Level 5. Higher lattice dimension than ML-KEM-768 — stronger quantum resistance for long-lived keys.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -486,7 +486,7 @@
     "feature": "HSM integration — PKCS#11 bridge for sovereign key material",
     "description": "PKCS#11 bridge to Hardware Security Modules for protecting sovereign key material. Keys never leave tamper-resistant hardware — enforced at the driver level.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -496,7 +496,7 @@
     "feature": "Certificate-pinned MASQUE tunnels — TOFU → CA-signed upgrade path",
     "description": "Upgrade path from Trust-On-First-Use certificate pinning to CA-signed certificates for MASQUE tunnels. Enables enterprise-managed PKI with zero connectivity interruption during migration. Includes cert_mode field, issue_tunnel_certificate(), revoke_certificate_by_id(), upgrade_to_ca() with atomic rollback, and POST /sovereign/tunnels/{id}/upgrade-cert API.",
     "version": "v6.8",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -506,7 +506,7 @@
     "feature": "Evolution Engine",
     "description": "Claude Opus auto-generates rules from HIGH/BLOCK events. ArXiv synthesis → attack examples hot-reloaded.",
     "version": "v2.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -516,7 +516,7 @@
     "feature": "Intel Bridge",
     "description": "ArXiv paper hunter + OSV CVE scanner. Auto-feeds Evolution Engine. Runs every 6h background.",
     "version": "v3.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -526,7 +526,7 @@
     "feature": "Threat Radar",
     "description": "OSV API dependency CVE scanner + ArXiv LLM-attack paper hunter. Saves to data/intel_report.json.",
     "version": "v3.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -546,7 +546,7 @@
     "feature": "Corpus Drift Watchdog",
     "description": "ARQ cron every 30min. Delegates to WardenHealer — no LLM on happy path. Alerts on corpus DEGRADED.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -556,7 +556,7 @@
     "feature": "OTel Distributed Tracing",
     "description": "9 pipeline stage spans with timing, verdict, score. gRPC export to Jaeger. GDPR-safe: no raw content on spans.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -566,7 +566,7 @@
     "feature": "Prometheus Metrics",
     "description": "Full metric singletons: SHADOW_BAN_TOTAL, SHADOW_BAN_COST_SAVED_USD, P99 latency, bypass rate, corpus drift.",
     "version": "v2.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -576,7 +576,7 @@
     "feature": "Grafana Dashboards",
     "description": "Pre-built SLO dashboards. Alerts: P99 latency, 5xx rate, availability, shadow ban rate, corpus drift.",
     "version": "v2.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -586,7 +586,7 @@
     "feature": "Jaeger Distributed Tracing UI",
     "description": "Full pipeline trace visualization. 9 spans per request. Span attributes: stage, verdict, score (GDPR-safe).",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -596,7 +596,7 @@
     "feature": "Loki Log Aggregation",
     "description": "Structured log shipping via Promtail. Integrated with Grafana for log-metric correlation.",
     "version": "v4.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -616,7 +616,7 @@
     "feature": "Uptime Monitor",
     "description": "HTTP/SSL/DNS/TCP checks. TimescaleDB hypertable + continuous aggregates. 90-day retention. PagerDuty webhooks.",
     "version": "v4.19",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -635,7 +635,7 @@
     "subcategory": "Observability",
     "feature": "Real-time anomaly WebSocket stream — push XAI events to dashboard without polling",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped",
     "description": "WebSocket-based push of XAI anomaly events and incident alerts directly to the SOC dashboard and other observability surfaces. Eliminates polling — latency drops to near-zero. Backed by FastAPI WebSocket endpoint + Redis Pub/Sub fan-out. Client auto-reconnects on disconnect."
   },
@@ -645,7 +645,7 @@
     "subcategory": "Infrastructure & DevOps",
     "feature": "Kubernetes horizontal pod autoscaler for warden + dashboard services",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned",
     "description": "HPA manifests for the warden (FastAPI) and dashboard (Next.js) Deployments. Scales on CPU ≥ 70% and memory ≥ 80%. Min 2 replicas / max 10 per service. Paired with PodDisruptionBudgets (minAvailable: 1) for zero-downtime rolling updates. Metrics served via metrics-server; custom metrics via Prometheus Adapter for P99 latency scaling."
   },
@@ -655,7 +655,7 @@
     "subcategory": "Infrastructure & DevOps",
     "feature": "Multi-region active-active deployment (EU + US)",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned",
     "description": "Active-active deployment across EU (Frankfurt) and US (Virginia) regions. Tenant-aware GeoDNS routing, cross-region Postgres streaming replication, Redis active-active via CRDTs, MinIO bucket replication. Automatic failover with < 30s RTO. Sovereign data residency rules enforced at the routing layer."
   },
@@ -665,7 +665,7 @@
     "subcategory": "Observability",
     "feature": "Mobile SOC app — React Native, push alerts for HIGH/BLOCK verdicts",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned",
     "description": "React Native mobile application (iOS + Android) with real-time push notifications for HIGH and BLOCK security verdicts. SOC operators receive instant alerts on-the-go with verdict details, risk score, causal stage, and a one-tap link to the full XAI report. Powered by FCM/APNs via the SOVA alerting pipeline."
   },
@@ -696,7 +696,7 @@
     "feature": "Next.js SOC Dashboard",
     "description": "App Router + TanStack Query + Recharts. Events, threats, sandbox, metrics, traces. Dark theme. Port 3002.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -716,7 +716,7 @@
     "feature": "XAI Reports Dashboard",
     "description": "9-stage causal chain visualization. Stage hit rates, top causes, flag distribution. HTML + PDF download.",
     "version": "v4.3",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -806,7 +806,7 @@
     "feature": "SOC 2 Type II Evidence",
     "description": "Control mapping + auditor collection procedures. Pre-built evidence bundles from MinIO. ScreencastRecorder.",
     "version": "v4.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -836,7 +836,7 @@
     "feature": "ISO 27001 Annex A control mapping",
     "description": "Map platform controls to ISO 27001 Annex A, providing clear evidence of compliance with international information security standards.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -846,7 +846,7 @@
     "feature": "HIPAA technical safeguards attestation (encryption, audit, access control)",
     "description": "Attestation of HIPAA-required technical safeguards: encryption in transit and at rest, comprehensive audit logging, and role-based access control.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -856,7 +856,7 @@
     "feature": "NIS2 Directive compliance report",
     "description": "Generate compliance reports meeting NIS2 Directive requirements for critical infrastructure and digital services — risk management, incident response, and supply chain security.",
     "version": "",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -866,7 +866,7 @@
     "feature": "Continuous compliance scoring dashboard — real-time SOC 2 / GDPR / ISO posture",
     "description": "Real-time dashboard that continuously scores compliance posture against SOC 2, GDPR, and ISO 27001, enabling instant visibility into regulatory alignment.",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -906,7 +906,7 @@
     "feature": "MinIO On-Prem Object Store",
     "description": "S3-compatible. warden-evidence/ session bundles. warden-logs/ date-partitioned. Background ship, fail-open.",
     "version": "v3.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -943,35 +943,13 @@
     "price": 19
   },
   {
-    "id": "BL-04",
-    "category": "Price",
-    "subcategory": "Tiers",
-    "feature": "Pro — $99.99/mo",
-    "description": "50,000 req/mo. MasterAgent SOC. Evolution Engine. Evidence Vault + STIX 2.1. SOC 2 + GDPR audit package.",
-    "version": "v2.0",
-    "tier": "Pro",
-    "status": "shipped",
-    "price": 69
-  },
-  {
-    "id": "BL-05",
-    "category": "Price",
-    "subcategory": "Tiers",
-    "feature": "Enterprise — $249/mo",
-    "description": "Unlimited requests. PQC (FIPS 203/204). Sovereign AI Cloud across 8 jurisdictions. SAML/OIDC SSO.",
-    "version": "v4.1",
-    "tier": "Enterprise",
-    "status": "shipped",
-    "price": 249
-  },
-  {
     "id": "BL-06",
     "category": "Price",
     "subcategory": "Add-ons",
     "feature": "Shadow AI Discovery — $15/mo",
     "description": "Async /24 subnet probe. 18 provider fingerprints. MONITOR/BLOCK/ALLOWLIST policy. DNS telemetry.",
     "version": "v4.2",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped",
     "price": 15
   },
@@ -1004,7 +982,7 @@
     "feature": "On-Prem Pack — $29/mo",
     "description": "MinIO on-prem, self-hosted Prometheus/Grafana, air-gapped Evolution Engine mode.",
     "version": "v3.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped",
     "price": 29
   },
@@ -1044,11 +1022,11 @@
     "id": "BL-13",
     "category": "Price",
     "subcategory": "Billing & Monetization",
-    "feature": "14-day free trial (Individual, Community Business, Pro)",
+    "feature": "14-day free trial (Individual, Community Business)",
     "version": "v4.5",
     "tier": "Individual+",
     "status": "shipped",
-    "description": "14-day full-feature trial on Individual, Community Business, and Pro tiers. No credit card required. Automatically converts to paid plan at trial end with prior consent."
+    "description": "14-day full-feature trial on Individual and Community Business. No credit card required. Automatically converts to paid plan at trial end with prior consent."
   },
   {
     "id": "BL-14",
@@ -1076,7 +1054,7 @@
     "subcategory": "Billing & Monetization",
     "feature": "Slack + email billing alerts",
     "version": "v4.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped",
     "description": "Automated Slack webhook and email notifications for subscription events: renewal upcoming, payment failed, plan upgraded/downgraded, trial expiring in 3 days."
   },
@@ -1104,10 +1082,10 @@
     "id": "BL-19",
     "category": "Price",
     "subcategory": "Billing & Monetization",
-    "feature": "Request overage billing — automatic charge per 1k requests above the Pro quota",
-    "description": "Automatic charge per 1,000 requests above the plan quota: $0.50/1k on Pro, $0.10/1k on Enterprise. Computed monthly by an ARQ cron and previewed at GET /billing/overage/preview.",
+    "feature": "Request overage billing (withdrawn - no plan sells overage)",
+    "description": "Overage rating was built for Pro and Enterprise, which are no longer sold. No plan bills for requests above its quota; requests beyond it are refused.",
     "version": "v4.21",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped",
     "price_per_1k": 0.5
   },
@@ -1187,9 +1165,9 @@
     "category": "Settings",
     "subcategory": "Security",
     "feature": "Two-Factor Authentication",
-    "description": "TOTP-based 2FA for all operator accounts. Required for Pro+ tenants in SOC 2 audit mode.",
+    "description": "TOTP-based 2FA for all operator accounts.",
     "version": "v4.20",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   },
   {
@@ -1209,7 +1187,7 @@
     "feature": "Key Rotation Scheduling",
     "description": "SOVA-automated key rotation at 02:00 UTC daily. Community keypair rotation, HMAC re-keying.",
     "version": "v4.7",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1249,7 +1227,7 @@
     "feature": "SIEM Connectors",
     "description": "Splunk HEC and Elastic ECS integration for streaming security events to your existing SIEM.",
     "version": "v3.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1439,7 +1417,7 @@
     "feature": "8-Jurisdiction Registry",
     "description": "EU, US, UK, CA, SG, AU, JP, CH jurisdictions with AI regulations, compliance frameworks, and data classification transfer rules matrix. Adequacy decisions for EU↔UK/CA/JP/CH.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1449,7 +1427,7 @@
     "feature": "MASQUE Tunnel Protocol",
     "description": "MASQUE_H3, MASQUE_H2, CONNECT_TCP protocol support. TOFU TLS pinning via SHA-256 fingerprint. Lifecycle: PENDING → ACTIVE → DEGRADED → OFFLINE.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1459,7 +1437,7 @@
     "feature": "Sovereign Routing Engine",
     "description": "Picks lowest-latency ACTIVE tunnel in allowed jurisdictions. Prefers preferred_tunnel_id. Checks compliance before routing. BLOCK/DIRECT fallback modes.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1469,7 +1447,7 @@
     "feature": "Sovereignty Attestation",
     "description": "HMAC-SHA256 signed attestations. Redis 7-year TTL. Verify endpoint for audit. 10,000 cap per tenant. SOVEREIGN_ATTEST_KEY env var.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1479,7 +1457,7 @@
     "feature": "Data Classification Matrix",
     "description": "Transfer rules per data class: CLASSIFIED (never), PHI (US/EU/UK/CA/CH only), PII/FINANCIAL/GENERAL (all, adequacy check). Sovereign Pod Tags per entity.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1489,7 +1467,7 @@
     "feature": "Per-Tenant Routing Policy",
     "description": "Per-tenant data-class overrides (PHI→US only, CLASSIFIED→none). BLOCK/DIRECT fallback. Redis-backed with in-memory fallback.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1499,7 +1477,7 @@
     "feature": "Async TCP Health Probing",
     "description": "probe_tunnel() async TCP health-check on configured endpoint. Marks tunnel ACTIVE on first success, DEGRADED after 2 failures, OFFLINE after 5.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1509,7 +1487,7 @@
     "feature": "QUIC/HTTP3 Support",
     "description": "Caddy v2 UDP 443 for QUIC/HTTP3. Alt-Svc header injection. HSTS enforced. hostname-based routing: api/app/analytics/landing subdomains.",
     "version": "v4.7",
-    "tier": "Pro",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1519,7 +1497,7 @@
     "feature": "Cross-Border Transfer Rules",
     "description": "Adequacy decisions matrix: EU↔UK, EU↔CA, EU↔JP, EU↔CH. is_transfer_allowed() checks data class + source/dest jurisdiction. Non-adequate transfers blocked.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1529,7 +1507,7 @@
     "feature": "GDPR Art. 35 DPIA",
     "description": "Data Protection Impact Assessment for sovereign routing decisions. Article 35 documentation, risk mitigations, residual risk scoring.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1539,7 +1517,7 @@
     "feature": "Sovereignty Report API",
     "description": "GET /sovereign/report — full jurisdiction compliance summary, active tunnels, attestation count, routing decisions, adequacy partners.",
     "version": "v4.4",
-    "tier": "Enterprise",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1599,7 +1577,7 @@
     "feature": "Enable/Disable Agent Modules",
     "description": "Toggle SOVA, MasterAgent, Evolution Engine, CausalArbiter, PhishGuard independently without container restart.",
     "version": "v4.31",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1629,7 +1607,7 @@
     "feature": "Web3 On-Chain Mandates (Ethereum/Polygon)",
     "description": "SmartContract mandate deployment via eth_tester/Sepolia. IPFS metadata storage. Immutable on-chain audit trail for AI spending.",
     "version": "v5.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1659,7 +1637,7 @@
     "feature": "FIDO2 Passkeys for AP2 Mandate Signing",
     "description": "WebAuthn Passkey registration and authentication. Optional FIDO gate on mandate execution. Phishing-resistant.",
     "version": "v5.0",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1679,7 +1657,7 @@
     "feature": "Semantic Layer (Headless BI)",
     "description": "Centralised metric contract: SemanticModel + Metric + Dimension + QueryEngine. Deterministic SQL generation, LLM-to-QueryObject translation via SOVA, OSI export/import, Streamlit Model Editor + Query Builder + AI Query + Usage Analytics.",
     "version": "v5.1",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1739,7 +1717,7 @@
     "feature": "SOVA Tool #50 — scan_document",
     "description": "SOVA agent can scan base64-encoded files through the full pipeline. Converts PDF/DOCX/PPTX to Markdown via MarkItDown, then runs SecretRedactor + SemanticGuard + HyperbolicBrain + CausalArbiter. Returns full FilterResponse: allowed, risk_level, secrets_found, semantic_flags.",
     "version": "v5.4",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1759,7 +1737,7 @@
     "feature": "Real-time Compliance Dashboard",
     "description": "Live multi-source compliance scoring (GDPR/SOC2/ISO27001/HIPAA) with automated gap detection, remediation guidance, WebSocket updates, portal self-service page, and SOVA tools for AI-assisted compliance management.",
     "version": "v5.5",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1769,7 +1747,7 @@
     "feature": "Mobile SOC App — React Native push alerts for HIGH/BLOCK verdicts",
     "description": "iOS + Android React Native app for on-the-go SOC operators. FCM/APNs push alerts fire on every HIGH/BLOCK verdict via the SOVA alerting pipeline. Alert feed, detail view with 9-stage XAI pipeline, one-tap deep-link to full XAI report. Device token registry (SQLite, max 50/tenant). Prometheus counter for delivered notifications.",
     "version": "v5.6",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1789,7 +1767,7 @@
     "feature": "Overage rating repair",
     "description": "The overage calculator read a rate key that did not exist in the price table, so every request overage on every tier had rated at $0.00 and reported itself disabled.",
     "version": "v7.9",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1819,7 +1797,7 @@
     "feature": "Margin reporting — GET /billing/margin",
     "description": "Plan revenue against month-to-date inference cost, plus a FinOps CLI printing unit economics, per-model turn cost and node capacity from the code's own price book.",
     "version": "v7.9",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "shipped"
   },
   {
@@ -1829,7 +1807,7 @@
     "feature": "Metered agent-turn allowance published per plan",
     "description": "Publish the included agent-turn allowance explicitly, with metered overage beyond it, instead of leaving 'MasterAgent included' implicit.",
     "version": "",
-    "tier": "Pro+",
+    "tier": "Not on a plan",
     "status": "planned"
   }
 ]

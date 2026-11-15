@@ -1218,14 +1218,14 @@ async def get_soc2_report(
 
     from warden.compliance.soc2_collector import load_evidence_range  # noqa: PLC0415
 
-    # Tier gate — Pro+ required
+    # Tier gate — not on any sold plan (was Pro+)
     tier = (request.headers.get("X-Tenant-Tier") or "starter").lower() if request else "starter"
-    _pro_tiers = {"pro", "enterprise"}
+    _pro_tiers = {"lab"}
     if tier not in _pro_tiers:
         from fastapi import HTTPException  # noqa: PLC0415
         raise HTTPException(
             status_code=403,
-            detail=f"SOC 2 Type II reports require Pro+ tier (current: {tier}).",
+            detail=f"SOC 2 Type II reports are not part of any plan (current: {tier}).",
         )
 
     snapshots = load_evidence_range(days=period_days)

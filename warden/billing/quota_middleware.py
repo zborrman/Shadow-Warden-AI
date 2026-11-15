@@ -435,8 +435,7 @@ def _build_upgrade_url(current_tier: str) -> str:
     base = os.getenv("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
     next_tier_map = {
         "starter":    "individual",
-        "individual": "pro",
-        "pro":        "enterprise",
+        "individual": "community_business",
     }
-    next_tier = next_tier_map.get(current_tier, "pro")
+    next_tier = next_tier_map.get(current_tier, "community_business")
     return f"{base}/billing/upgrade?from={current_tier}&to={next_tier}&reason=quota"

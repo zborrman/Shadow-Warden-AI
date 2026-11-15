@@ -3,9 +3,9 @@ const cards = [
   { icon: '🔗', title: 'SEP / UECIID',           desc: 'Snowflake→base-62 entity IDs (<code>SEP-{11}</code>). Cryptographically-unique, sortable, collision-free cross-community references.', tier: 'Community Business' },
   { icon: '🤝', title: 'Inter-Community Peering',  desc: 'Three modes: MIRROR_ONLY, REWRAP_ALLOWED, FULL_SYNC. HMAC-SHA256 handshake tokens. Duplicate peering guard enforced.', tier: 'Community Business' },
   { icon: '📬', title: 'Knock-and-Verify',         desc: '72-hour Redis-backed one-time invitation tokens. Invitee identity verified before member enrollment. Revoke at any time.', tier: 'Community Business' },
-  { icon: '🗺️', title: 'Sovereign Data Pods',      desc: 'Per-jurisdiction MinIO routing across 8 regions (EU/US/UK/CA/SG/AU/JP/CH). Fernet-encrypted pod keys. 5-second health probes.', tier: 'Pro' },
-  { icon: '🔒', title: 'STIX 2.1 Audit Chain',     desc: 'Tamper-evident SHA-256 linked bundles. Genesis + prev_hash chain per community. OASIS STIX JSONL export for SIEM ingestion.', tier: 'Pro' },
-  { icon: '⚛️', title: 'Post-Quantum Keypairs',    desc: 'Hybrid Ed25519 + ML-DSA-65 (FIPS 204) community keys. Upgrade existing communities in-place. <code>is_hybrid</code> auto-detected.', tier: 'Enterprise' },
+  { icon: '🗺️', title: 'Sovereign Data Pods',      desc: 'Per-jurisdiction MinIO routing across 8 regions (EU/US/UK/CA/SG/AU/JP/CH). Fernet-encrypted pod keys. 5-second health probes.', tier: 'Not on a plan' },
+  { icon: '🔒', title: 'STIX 2.1 Audit Chain',     desc: 'Tamper-evident SHA-256 linked bundles. Genesis + prev_hash chain per community. OASIS STIX JSONL export for SIEM ingestion.', tier: 'Not on a plan' },
+  { icon: '⚛️', title: 'Post-Quantum Keypairs',    desc: 'Hybrid Ed25519 + ML-DSA-65 (FIPS 204) community keys. Upgrade existing communities in-place. <code>is_hybrid</code> auto-detected.', tier: 'Not on a plan' },
   { icon: '🏆', title: 'Reputation Engine',         desc: '5-badge system (NEWCOMER → ELITE). Points for publishing, search hits, adopted recommendations. Anonymised leaderboard — GDPR-safe.', tier: 'Community Business' },
   { icon: '📝', title: 'Obsidian Plugin',           desc: 'Auto-scan notes on save. Share via SEP UECIID. XAI pipeline visualization. Offline publish queue with Fernet-encrypted vault sync.', tier: 'Community Business' },
   { icon: '📜', title: 'Charter & Governance',      desc: 'Versioned community charters (DRAFT → ACTIVE → SUPERSEDED). Z-score behavioral anomaly detection. OAuth agent discovery with 14-provider catalog.', tier: 'Community Business' },
@@ -13,13 +13,11 @@ const cards = [
 
 const tierColor: Record<string, string> = {
   'Community Business': 'var(--sw-violet)',
-  'Pro': 'var(--sw-indigo)',
-  'Enterprise': 'var(--sw-cyan)',
+  'Not on a plan': 'var(--sw-cyan)',
 };
 const tierBg: Record<string, string> = {
   'Community Business': 'var(--sw-tint-violet)',
-  'Pro': 'var(--sw-tint-indigo)',
-  'Enterprise': 'var(--sw-tint-cyan)',
+  'Not on a plan': 'var(--sw-tint-cyan)',
 };
 ---
 

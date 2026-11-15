@@ -143,7 +143,7 @@ class TestBillingAddons:
         from warden.billing.addons import ADDON_CATALOG
         ai = ADDON_CATALOG["shadow_ai_discovery"]
         assert ai["usd_per_month"] == 15
-        assert ai["min_tier"] == "pro"
+        assert ai["min_tier"] == "lab"
 
     def test_grant_and_has_addon(self):
         from warden.billing.addons import grant_addon, has_addon
@@ -192,18 +192,18 @@ class TestBillingAddons:
         dep_factory = require_addon_or_feature(
             feature="shadow_ai_enabled",
             addon_key="shadow_ai_discovery",
-            min_tier="pro",
+            min_tier="lab",
         )
         # dep_factory is a Depends(...) wrapper; get the inner callable
         inner = dep_factory.dependency
 
         request = MagicMock()
-        request.state.tenant = {"tenant_id": "ent-t1", "tier": "enterprise"}
+        request.state.tenant = {"tenant_id": "ent-t1", "tier": "lab"}
         request.headers.get = MagicMock(return_value=None)
 
-        # Patch _get_tenant_tier to return "enterprise"
+        # Patch _get_tenant_tier to return "lab"
         original = addons_mod._get_tenant_tier
-        addons_mod._get_tenant_tier = lambda req: "enterprise"
+        addons_mod._get_tenant_tier = lambda req: "lab"
         try:
             gate = inner(request)
             assert gate is not None
@@ -222,7 +222,7 @@ class TestBillingAddons:
         dep_factory = require_addon_or_feature(
             feature="shadow_ai_enabled",
             addon_key="shadow_ai_discovery",
-            min_tier="pro",
+            min_tier="lab",
         )
         inner = dep_factory.dependency
 
@@ -247,16 +247,16 @@ class TestBillingAddons:
         from warden.billing.addons import require_addon_or_feature
 
         dep_factory = require_addon_or_feature(
-            feature="shadow_ai_enabled",
-            addon_key="shadow_ai_discovery",
-            min_tier="pro",
+            feature="xai_reports_enabled",
+            addon_key="xai_audit",
+            min_tier="individual",
         )
         inner = dep_factory.dependency
 
         request = MagicMock()
         request.state.tenant = {"tenant_id": "pro-t1"}
         request.headers.get = MagicMock(return_value=None)
-        addons_mod._get_tenant_tier = lambda req: "pro"
+        addons_mod._get_tenant_tier = lambda req: "individual"
         addons_mod._get_tenant_id_from_request = lambda req: "pro-t1"
         try:
             with pytest.raises(HTTPException) as exc_info:

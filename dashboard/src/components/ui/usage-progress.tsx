@@ -24,9 +24,8 @@ interface UsageProgressProps {
 const UPGRADE_NEXT: Record<string, { label: string; plan: string }> = {
   starter:            { label: "Individual",         plan: "individual" },
   individual:         { label: "Community Business", plan: "community_business" },
-  community_business: { label: "Pro",                plan: "pro" },
-  pro:                { label: "Enterprise",         plan: "enterprise" },
-  enterprise:         { label: "custom",             plan: "enterprise" },
+  // Top of the ladder: there is no plan above Business to upgrade to.
+  community_business: { label: "Community Business", plan: "community_business" },
 };
 
 function BarColor(pct: number): string {
@@ -150,7 +149,7 @@ export function UsageProgress({ tenantId = "default", className, warnAt = 80 }: 
       )}
 
       {/* Upgrade CTA at 80%+ */}
-      {showWarning && nextPlan.plan !== "enterprise" && (
+      {showWarning && nextPlan.plan !== "community_business" && (
         <div className="flex items-center justify-between pt-2 border-t border-accent-yellow/20">
           <p className="text-xs text-accent-yellow">
             {pct >= 100 ? "Limit reached — requests may be throttled" : `${100 - pct}% quota remaining`}

@@ -37,7 +37,7 @@ from warden.semantic_layer.models import QueryObject, QueryResult, SemanticModel
 router = APIRouter(prefix="/semantic-layer", tags=["Semantic Layer"])
 
 AuthDep = Depends(require_api_key)
-_ProGate = require_addon_or_feature(feature="master_agent_enabled", addon_key="master_agent", min_tier="pro")
+_ProGate = require_addon_or_feature(feature="master_agent_enabled", addon_key="master_agent", min_tier="lab")
 
 
 # ── Models registry ───────────────────────────────────────────────────────────

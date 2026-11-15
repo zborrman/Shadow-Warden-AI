@@ -29,7 +29,7 @@ from warden.billing.pricing import (
     monthly_price_usd,
 )
 
-_PAID_TIERS = ("individual", "community_business", "pro", "enterprise")
+_PAID_TIERS = ("individual", "community_business")
 
 _SITE = Path(__file__).resolve().parents[2] / "site"
 
@@ -37,8 +37,6 @@ _SITE = Path(__file__).resolve().parents[2] / "site"
 _SITE_TIER_NAMES = {
     "Individual":         "individual",
     "Community Business": "community_business",
-    "Pro":                "pro",
-    "Enterprise":         "enterprise",
 }
 
 
@@ -46,19 +44,40 @@ _SITE_TIER_NAMES = {
 
 class TestCanonicalTable:
     def test_every_gated_tier_has_a_price(self):
+        from warden.billing.pricing import LAB_TIER
+
         for tier in TIER_LIMITS:
+            if tier == LAB_TIER:
+                continue
             assert monthly_price_usd(tier) is not None, f"{tier} has no list price"
+
+    def test_the_unsold_capability_set_has_no_price(self):
+        """`lab` is what is built and not sold. A price would make it a plan."""
+        from warden.billing.pricing import LAB_TIER, SOLD_TIERS, annual_price_usd
+
+        assert monthly_price_usd(LAB_TIER) is None
+        assert annual_price_usd(LAB_TIER) is None
+        assert LAB_TIER not in SOLD_TIERS
+
+    @pytest.mark.parametrize("name", ["pro", "enterprise", "business", "msp", "mcp"])
+    def test_a_withdrawn_plan_name_never_resolves_to_the_unsold_set(self, name):
+        """A stale plan string must not become an entitlement."""
+        from warden.billing.pricing import canonical_tier
+
+        assert canonical_tier(name) == "community_business"
+        assert FeatureGate.for_tier(name).tier == "community_business"
 
     def test_unknown_tier_has_no_price(self):
         assert monthly_price_usd("platinum_unicorn") is None
 
     def test_lookup_is_case_and_space_insensitive(self):
-        assert monthly_price_usd("  PRO ") == monthly_price_usd("pro")
+        assert monthly_price_usd("  INDIVIDUAL ") == monthly_price_usd("individual")
 
     @pytest.mark.parametrize(
         ("alias", "canonical"),
         [("free", "starter"), ("smb", "community_business"),
-         ("business", "pro"), ("msp", "enterprise"), ("mcp", "enterprise")],
+         ("business", "community_business"), ("msp", "community_business"),
+         ("mcp", "community_business")],
     )
     def test_legacy_aliases_price_as_their_canonical_tier(self, alias, canonical):
         assert monthly_price_usd(alias) == TIER_PRICE_USD_MONTH[canonical]
@@ -138,9 +157,7 @@ class TestTierCatalogEndpoint:
         from warden.billing.router import get_billing_tiers
         priced = self._by_label(await get_billing_tiers())
         for label, tier in (("Individual", "individual"),
-                            ("Community Business", "community_business"),
-                            ("Pro", "pro"),
-                            ("Enterprise", "enterprise")):
+                            ("Community Business", "community_business")):
             assert priced[label]["usd_per_month"] == TIER_PRICE_USD_MONTH[tier]
             assert priced[label]["annual"] == ANNUAL_PRICING[tier]
 
@@ -181,23 +198,32 @@ class TestOverageRating:
                             lambda: type("F", (), {"get_plan": lambda _s, _t: plan})())
         return _calculate_overage("t1")
 
-    def test_pro_overage_charges_the_table_rate(self, monkeypatch):
-        from warden.billing.feature_gate import OVERAGE_PRICES
-        row = self._overage(monkeypatch, "pro", 62_500, 50_000)
-        expected_usd = OVERAGE_PRICES["pro"]["cents_per_1k_requests"] / 100.0
-        assert row["overage_requests"] == 12_500
-        assert row["rate_per_1k_usd"] == expected_usd
-        assert row["charge_usd"] == pytest.approx(12.5 * expected_usd)
-        assert row["overage_enabled"] is True
+    _RATE = {"cents_per_1k_requests": 50}
 
-    def test_enterprise_rate_is_the_cheaper_one(self, monkeypatch):
-        row = self._overage(monkeypatch, "enterprise", 1_100_000, 1_000_000)
-        assert row["rate_per_1k_usd"] == 0.10
+    def test_overage_charges_the_table_rate(self, monkeypatch):
+        """No plan sells overage, so the rating math is pinned on a synthetic rate."""
+        import warden.billing.feature_gate as fg
+
+        monkeypatch.setitem(fg.OVERAGE_PRICES, "community_business", self._RATE)
+        row = self._overage(monkeypatch, "community_business", 62_500, 50_000)
+        assert row["overage_requests"] == 12_500
+        assert row["rate_per_1k_usd"] == 0.50
+        assert row["charge_usd"] == pytest.approx(12.5 * 0.50)
 
     def test_no_overage_below_the_quota(self, monkeypatch):
-        row = self._overage(monkeypatch, "pro", 10_000, 50_000)
+        import warden.billing.feature_gate as fg
+
+        monkeypatch.setitem(fg.OVERAGE_PRICES, "community_business", self._RATE)
+        row = self._overage(monkeypatch, "community_business", 10_000, 50_000)
         assert row["overage_requests"] == 0
         assert row["charge_usd"] == 0.0
+
+    @pytest.mark.parametrize("plan", ["starter", "individual", "community_business"])
+    def test_no_sold_plan_has_an_overage_rate(self, monkeypatch, plan):
+        row = self._overage(monkeypatch, plan, 90_000, 5_000)
+        assert row["rate_per_1k_usd"] == 0.0
+        assert row["charge_usd"] == 0.0
+        assert row["overage_enabled"] is False
 
     def test_tier_without_an_overage_rate_charges_nothing(self, monkeypatch):
         row = self._overage(monkeypatch, "individual", 9_000, 5_000)
@@ -325,19 +351,18 @@ class TestMeteredPricing:
 # ── Agent-turn allowance (published, not implicit) ────────────────────────────
 
 class TestAgentTurnAllowance:
-    def test_pro_publishes_an_allowance(self):
-        assert FeatureGate.for_tier("pro").agent_turns_per_month() > 0
+    """MasterAgent was sold with Pro. With Pro withdrawn, no plan includes it."""
 
-    def test_enterprise_is_unlimited_and_free_tiers_have_none(self):
-        assert FeatureGate.for_tier("enterprise").agent_turns_per_month() is None
-        assert FeatureGate.for_tier("starter").agent_turns_per_month() == 0
+    @pytest.mark.parametrize("tier", ["starter", "individual", "community_business"])
+    def test_no_sold_plan_includes_agent_turns(self, tier):
+        gate = FeatureGate.for_tier(tier)
+        assert gate.agent_turns_per_month() == 0
+        assert gate.get("master_agent_enabled") is False
 
-    @pytest.mark.parametrize("tier", ["starter", "individual", "community_business",
-                                      "pro", "enterprise"])
+    @pytest.mark.parametrize("tier", ["starter", "individual", "community_business"])
     def test_an_allowance_is_published_only_where_the_agent_is_enabled(self, tier):
         """Publishing turns for a tier that cannot call the agent is a promise
-        the product does not keep — and publishing none where it can is the
-        unbounded-cost problem this whole allowance exists to close."""
+        the product does not keep."""
         gate = FeatureGate.for_tier(tier)
         turns = gate.agent_turns_per_month()
         enabled = bool(gate.get("master_agent_enabled"))
@@ -345,29 +370,27 @@ class TestAgentTurnAllowance:
             f"{tier}: master_agent_enabled={enabled} but turn allowance={turns}"
         )
 
-    def test_the_allowance_fits_inside_the_tier_llm_budget(self):
-        """
-        The published turn count must be affordable within the tier's own
-        inference allowance at the model it is sold with. A published allowance
-        the plan cannot fund is the same unbounded promise, just written down.
-        """
+    def test_a_published_allowance_must_fit_the_tier_llm_budget(self):
+        """Holds vacuously today, and is the rule the next allowance must pass."""
+        from warden.billing.pricing import AGENT_TURN_ALLOWANCE
         from warden.finops.llm_budget import tier_llm_budget_usd
         from warden.finops.rating import rate_usage
 
         opus_turn = rate_usage("claude-opus-4-8", 2_000, 800, 20_000).total_usd
-        for tier in ("pro",):
-            turns = FeatureGate.for_tier(tier).agent_turns_per_month()
-            budget = tier_llm_budget_usd(tier)
-            assert turns * opus_turn <= budget, f"{tier} sells more turns than it funds"
+        for tier, turns in AGENT_TURN_ALLOWANCE.items():
+            if turns:
+                assert turns * opus_turn <= tier_llm_budget_usd(tier), (
+                    f"{tier} sells more turns than it funds"
+                )
 
     @pytest.mark.asyncio
-    async def test_catalog_publishes_the_allowance_and_its_overage_rate(self):
-        from warden.billing.pricing import AGENT_TURN_OVERAGE_USD
+    async def test_catalog_publishes_no_allowance(self):
         from warden.billing.router import get_billing_tiers
+
         payload = await get_billing_tiers()
-        pro = next(t for t in payload["tiers"] if t["pricing"]["label"] == "Pro")
-        assert pro["agent_turns_per_month"] == FeatureGate.for_tier("pro").agent_turns_per_month()
-        assert pro["agent_turn_overage_usd"] == AGENT_TURN_OVERAGE_USD
+        assert payload["tiers"], "the catalog is empty"
+        for tier in payload["tiers"]:
+            assert tier["agent_turns_per_month"] == 0
 
 
 # ── Agent-turn overage metering ───────────────────────────────────────────────
@@ -388,21 +411,31 @@ class TestAgentTurnOverage:
         )
         return _calculate_overage("t1")
 
-    def test_turns_within_the_allowance_are_free(self, monkeypatch):
-        row = self._overage(monkeypatch, "pro", turns_used=10)
+    _PLAN = "community_business"
+
+    @pytest.fixture
+    def _allowance(self, monkeypatch):
+        """No plan sells turns; pin the metering math on a synthetic allowance."""
+        import warden.billing.pricing as pricing
+
+        monkeypatch.setitem(pricing.AGENT_TURN_ALLOWANCE, self._PLAN, 200)
+        return 200
+
+    def test_turns_within_the_allowance_are_free(self, monkeypatch, _allowance):
+        row = self._overage(monkeypatch, self._PLAN, turns_used=10)
         assert row["overage_turns"] == 0
         assert row["turn_charge_usd"] == 0.0
 
-    def test_turns_beyond_the_allowance_are_metered(self, monkeypatch):
+    def test_turns_beyond_the_allowance_are_metered(self, monkeypatch, _allowance):
         from warden.billing.pricing import AGENT_TURN_OVERAGE_USD
-        allowance = FeatureGate.for_tier("pro").agent_turns_per_month()
-        row = self._overage(monkeypatch, "pro", turns_used=allowance + 20)
+
+        row = self._overage(monkeypatch, self._PLAN, turns_used=_allowance + 20)
         assert row["overage_turns"] == 20
         assert row["turn_charge_usd"] == pytest.approx(20 * AGENT_TURN_OVERAGE_USD)
         assert row["charge_usd"] == pytest.approx(row["request_charge_usd"] + row["turn_charge_usd"])
 
-    def test_enterprise_turns_are_never_metered(self, monkeypatch):
-        row = self._overage(monkeypatch, "enterprise", turns_used=100_000)
+    def test_a_plan_that_sells_no_turns_meters_none(self, monkeypatch):
+        row = self._overage(monkeypatch, self._PLAN, turns_used=100_000)
         assert row["overage_turns"] == 0
         assert row["turn_charge_usd"] == 0.0
 
@@ -430,7 +463,7 @@ class TestPublishedSiteIsCurrent:
             pytest.skip(f"landing/{page}/ not present in this checkout")
         return path.read_text(encoding="utf-8", errors="ignore")
 
-    @pytest.mark.parametrize("tier", ["community_business", "pro"])
+    @pytest.mark.parametrize("tier", ["community_business"])
     def test_published_price_page_quotes_the_canonical_monthly_price(self, tier):
         html = self._published("price")
         price = f"${TIER_PRICE_USD_MONTH[tier]:g}"
@@ -439,7 +472,7 @@ class TestPublishedSiteIsCurrent:
             "The published site is stale — rebuild site/ and regenerate landing/."
         )
 
-    @pytest.mark.parametrize("tier", ["individual", "community_business", "pro"])
+    @pytest.mark.parametrize("tier", ["individual", "community_business"])
     def test_published_price_page_quotes_the_derived_annual_price(self, tier):
         html = self._published("price")
         annual = annual_price_usd(tier)
@@ -474,8 +507,37 @@ def test_pricing_is_one_page_and_the_old_url_redirects():
     assert '"source": "/pricing", "destination": "/price"' in vercel
     assert "redir /pricing /price 308" in (root / "docker/Caddyfile").read_text(encoding="utf-8")
     price = (_SITE / "src/pages/price.astro").read_text(encoding="utf-8")
-    assert "name: 'Enterprise'" in price and 'id="calculator"' in price
+    assert 'id="calculator"' in price
     old_url = re.compile(r"href=[\"'](https://shadow-warden-ai\.com)?/pricing\b")
     stale = [str(f.relative_to(_SITE)) for f in (_SITE / "src").rglob("*.astro")
              if old_url.search(f.read_text(encoding="utf-8"))]
     assert not stale, f"links to the retired /pricing URL: {stale}"
+
+
+@pytest.mark.parametrize("rel", ["src/pages/price.astro", "src/components/Pricing.astro"])
+def test_the_site_lists_only_plans_that_are_sold(rel):
+    """
+    Pro and Enterprise were withdrawn on 2026-11-14. The price guards above skip
+    a card whose name they do not know, so a returned "Enterprise" card would
+    pass them unpriced - this is the check that it cannot return.
+    """
+    path = _SITE / rel
+    if not path.exists():
+        pytest.skip("site/ not present in this checkout")
+    src = path.read_text(encoding="utf-8")
+    names = set(re.findall(r"^\s*name:\s*'([^']+)',\s*(?:price_monthly|price):", src, re.M))
+    assert names, f"{rel}: the plan cards no longer parse - update this guard"
+    unsold = names - set(_SITE_TIER_NAMES) - {"Starter", "Free"}
+    assert not unsold, f"{rel} lists plan(s) that are not sold: {sorted(unsold)}"
+    for withdrawn in ("99.99", "$249", "1019.90", "2539.80"):
+        assert withdrawn not in src, f"{rel} still quotes the withdrawn price {withdrawn}"
+
+
+@pytest.mark.parametrize("rel", ["public/pricing.md", "public/llms.txt"])
+def test_the_machine_readable_price_list_names_no_withdrawn_plan(rel):
+    path = _SITE / rel
+    if not path.exists():
+        pytest.skip("site/ not present in this checkout")
+    text = path.read_text(encoding="utf-8")
+    for marker in ("**Pro**", "**Enterprise**", "$99.99", "$249"):
+        assert marker not in text, f"{rel} still lists {marker}"

@@ -88,7 +88,7 @@ function DownloadButton({ periodDays }: { periodDays: number }) {
     try {
       const res = await fetch(
         `${API_BASE}/marketplace/compliance/soc2-report?period_days=${periodDays}&format=zip`,
-        { headers: { 'X-Tenant-Tier': 'pro' } }
+        { headers: { 'X-Tenant-Tier': 'community_business' } }
       )
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Request failed' }))
@@ -149,7 +149,7 @@ export default function CompliancePage() {
     try {
       const res = await fetch(
         `${API_BASE}/marketplace/compliance/soc2-report?period_days=${periodDays}&format=json`,
-        { headers: { 'X-Tenant-Tier': 'pro' } }
+        { headers: { 'X-Tenant-Tier': 'community_business' } }
       )
       if (!res.ok) {
         const body = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }))
@@ -182,7 +182,7 @@ export default function CompliancePage() {
           </div>
         </div>
         <span className="text-xs font-mono px-2 py-1 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-          Pro+ required
+          Not part of any plan
         </span>
       </div>
 

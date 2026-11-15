@@ -68,8 +68,8 @@ def test_resolve_tenant_id_single_key(monkeypatch):
 
 def test_get_tenant_tier_honours_header_in_test_mode(monkeypatch):
     monkeypatch.setattr(ag.settings, "allow_unauthenticated", True, raising=False)
-    req = _Request({"X-Tenant-Tier": "enterprise"})
-    assert fg._get_tenant_tier(req) == "enterprise"
+    req = _Request({"X-Tenant-Tier": "lab"})
+    assert fg._get_tenant_tier(req) == "lab"
 
 
 def test_get_tenant_tier_ignores_header_in_prod_uses_billing(monkeypatch):
@@ -87,7 +87,7 @@ def test_get_tenant_tier_ignores_header_in_prod_uses_billing(monkeypatch):
     )
 
     # Attacker sends enterprise header with a valid (starter-tier) key → ignored.
-    req = _Request({"X-Tenant-Tier": "enterprise", "X-API-Key": "prod-secret"})
+    req = _Request({"X-Tenant-Tier": "lab", "X-API-Key": "prod-secret"})
     assert fg._get_tenant_tier(req) == "starter"
 
 
@@ -95,6 +95,6 @@ def test_get_tenant_tier_state_wins(monkeypatch):
     # Upstream auth-populated request.state.tenant is authoritative.
     monkeypatch.setattr(ag.settings, "allow_unauthenticated", False, raising=False)
     monkeypatch.setattr(ag, "_VALID_KEY", "prod-secret", raising=False)
-    req = _Request({"X-Tenant-Tier": "enterprise"})
-    req.state.tenant = {"tier": "pro"}
-    assert fg._get_tenant_tier(req) == "pro"
+    req = _Request({"X-Tenant-Tier": "lab"})
+    req.state.tenant = {"tier": "lab"}
+    assert fg._get_tenant_tier(req) == "lab"

@@ -370,7 +370,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <div class="toggle-desc">ML-DSA-65 hybrid signing (Ed25519 + ML-KEM-768)</div>
             </div>
             <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled
-              toolparamdescription="Boolean. Post-Quantum Cryptography (ML-DSA-65 hybrid signing). Enterprise tier only. Set true only when tenant tier is enterprise." /><span class="slider"></span></label>
+              toolparamdescription="Boolean. Post-Quantum Cryptography (ML-DSA-65 hybrid signing). Not part of any plan; leave false. Formerly set true only when tenant tier is enterprise." /><span class="slider"></span></label>
           </div>
           <div class="nav-row">
             <button class="btn-back" id="back-2">← Back</button>
@@ -578,12 +578,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
       individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
       community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
-      pro:               { name:'Pro',                color:'#FF8C42', maxComm:10 },
-      enterprise:        { name:'Enterprise',         color:'#FFD60A', maxComm:-1 },
     };
 
-    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'pro'; }
-    function getTC(): any { return TIERS[getTier()] || TIERS.pro; }
+    function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
+    function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
     function getComms(): any[] { try { return JSON.parse(localStorage.getItem(COMM_KEY) || '[]'); } catch { return []; } }
 
     function getUserId(): string {
@@ -616,8 +614,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         `Your ${tc.name} plan allows up to ${tc.maxComm === 0 ? 'no' : tc.maxComm} ${tc.maxComm === 1 ? 'community' : 'communities'}. You have ${comms.length}.`;
     }
 
-    // ── PQC tier unlock (Enterprise only) ───────────────────
-    if (getTier() === 'enterprise') {
+    // ── PQC: built, on no plan — the toggle stays locked ─────
+    if (false) {
       const pqcInput = document.getElementById('t-pqc') as HTMLInputElement;
       const pqcRow   = document.getElementById('pqc-row') as HTMLElement;
       const pqcBadge = document.getElementById('pqc-badge') as HTMLElement;
@@ -840,7 +838,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const chk = (id: string) => (document.getElementById(id) as HTMLInputElement)?.checked ?? false;
         const tips: string[] = [];
         if (!chk('t-sova'))     tips.push('Enable SOVA Agent (−30 pts)');
-        if (!chk('t-pqc'))      tips.push('Enable Post-Quantum Cryptography in Step 3 (−25 pts, Enterprise)');
+        if (!chk('t-pqc'))      tips.push('Post-Quantum Cryptography is not part of any plan (−25 pts)');
         if (!chk('t-e2e'))      tips.push('Enable the (simulated) end-to-end encryption setting (−15 pts)');
         if (!chk('t-approval')) tips.push('Require Join Approval (−15 pts)');
         if (!chk('t-slack'))    tips.push('Enable Slack Alerts (−5 pts)');

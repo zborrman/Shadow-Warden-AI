@@ -38,9 +38,17 @@ TIER_PRICE_USD_MONTH: dict[str, float] = {
     "starter":            0.0,
     "individual":         5.0,
     "community_business": 39.99,
-    "pro":                99.99,
-    "enterprise":         249.0,
 }
+
+# The plans a customer can be on. Pro ($99.99) and Enterprise ($249) were
+# withdrawn on 2026-11-14 (owner decision): nothing above Business is sold.
+SOLD_TIERS: tuple[str, ...] = ("starter", "individual", "community_business")
+
+# The capability set behind everything that is built and not sold. It has no
+# price, no checkout and no webhook that can grant it; in production a tier is
+# read from the billing plan, so no tenant resolves to it. It exists so code
+# that is kept but withdrawn from sale stays gated and stays tested.
+LAB_TIER: str = "lab"
 
 # Legacy tier names still accepted from stored subscriptions and old clients.
 # Owned here so the price lookup and ``feature_gate._normalize_tier`` cannot
@@ -49,9 +57,14 @@ TIER_PRICE_USD_MONTH: dict[str, float] = {
 TIER_ALIASES: dict[str, str] = {
     "free":     "starter",
     "smb":      "community_business",
-    "business": "pro",
-    "msp":      "enterprise",
-    "mcp":      "enterprise",
+    # Names of withdrawn plans, still possible in a stored subscription or an
+    # old client. They resolve to the highest plan that is sold - never to the
+    # lab capability set, which would turn a stale string into an entitlement.
+    "business":   "community_business",
+    "pro":        "community_business",
+    "enterprise": "community_business",
+    "msp":        "community_business",
+    "mcp":        "community_business",
 }
 
 
@@ -91,12 +104,11 @@ AGENT_TURN_OVERAGE_USD: float = 0.15
 # with `master_agent_enabled` in the feature gate — an allowance published for a
 # tier that cannot call the agent is a promise the product does not keep.
 AGENT_TURN_ALLOWANCE: dict[str, int | None] = {
-    "trial":              0,      # the Pro trial explicitly excludes MasterAgent
+    "trial":              0,
     "starter":            0,
     "individual":         0,
     "community_business": 0,
-    "pro":                200,
-    "enterprise":         None,   # None = unlimited (negotiated)
+    # MasterAgent was sold with Pro; with Pro withdrawn it is on no plan.
 }
 
 

@@ -1114,12 +1114,6 @@ class Settings:
     lemonsqueezy_variant_community: str = field(
         default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_COMMUNITY", "")
     )
-    lemonsqueezy_variant_pro: str = field(
-        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_PRO", "")
-    )
-    lemonsqueezy_variant_enterprise: str = field(
-        default_factory=lambda: _env("LEMONSQUEEZY_VARIANT_ENTERPRISE", "")
-    )
     ls_meter_flush_events: int = field(
         default_factory=lambda: _int("LS_METER_FLUSH_EVENTS", 100)
     )

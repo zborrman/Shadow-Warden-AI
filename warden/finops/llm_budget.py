@@ -62,7 +62,7 @@ FREE_TIER_LLM_BUDGET_USD: float = float(os.getenv("FREE_TIER_LLM_BUDGET_USD", "0
 WARN_AT: float = 0.80
 
 # Tiers whose spend is negotiated rather than derived — never gated.
-_UNCAPPED_TIERS: frozenset[str] = frozenset({"enterprise"})
+_UNCAPPED_TIERS: frozenset[str] = frozenset({"lab"})
 
 # Month-to-date spend is read per agent call; cache it briefly so a busy agent
 # loop does not re-scan the cost table on every turn.

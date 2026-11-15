@@ -23,8 +23,6 @@ Environment variables
   LEMONSQUEEZY_STORE_ID         — Store ID from LS dashboard
   LEMONSQUEEZY_WEBHOOK_SECRET   — Webhook signing secret (LS dashboard → Webhooks)
   LEMONSQUEEZY_VARIANT_INDIVIDUAL — variant_id for Individual plan ($5/mo)
-  LEMONSQUEEZY_VARIANT_PRO        — variant_id for Pro plan ($49/mo)
-  LEMONSQUEEZY_VARIANT_ENTERPRISE — variant_id for Enterprise plan ($199/mo)
   LEMONSQUEEZY_DB_PATH          — SQLite path (default /warden/data/lemon.db)
 
 Thread-safe: all writes protected by threading.Lock + WAL journal mode.
@@ -43,6 +41,7 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
+from warden.billing.pricing import SOLD_TIERS, canonical_tier
 from warden.config import settings
 from warden.db.connect import open_persistent_db
 from warden.db.ddl_registry import register
@@ -55,8 +54,6 @@ _LS_WEBHOOK_SECRET     = settings.lemonsqueezy_webhook_secret
 _LS_VARIANT_TRIAL      = settings.lemonsqueezy_variant_trial
 _LS_VARIANT_INDIVIDUAL = settings.lemonsqueezy_variant_individual
 _LS_VARIANT_COMMUNITY  = settings.lemonsqueezy_variant_community
-_LS_VARIANT_PRO        = settings.lemonsqueezy_variant_pro
-_LS_VARIANT_ENTERPRISE = settings.lemonsqueezy_variant_enterprise
 
 # Metered billing: flush x402 usage to LS after this many events or seconds
 _METER_FLUSH_EVENTS = settings.ls_meter_flush_events
@@ -105,9 +102,7 @@ PLAN_QUOTAS: dict[str, int | None] = {
     "trial":            1_000,   # 14-day trial — same quota as starter
     "starter":          1_000,
     "individual":       5_000,   # usage-based metered billing via x402
-    "community_business": 10_000,
-    "pro":              50_000,
-    "enterprise":       None,    # unlimited
+    "community_business": 15_000,   # the number the price page publishes
 }
 
 # Tier prices (USD/month) — MoR: Lemon Squeezy
@@ -116,13 +111,10 @@ PLAN_PRICES: dict[str, float] = {
     "starter":            0.00,
     "individual":         5.00,   # + $0.001/search via x402 metered billing
     "community_business": 39.99,  # + 1.5% take rate on cleared M2M transactions
-    "pro":                99.99,  # + sponsored listings boost included
-    "enterprise":        249.00,  # + PQC + Sovereign + dedicated Opus routing
 }
 
 # Backwards-compat aliases used by existing quota checks
 PLAN_QUOTAS["free"] = PLAN_QUOTAS["starter"]
-PLAN_QUOTAS["msp"]  = PLAN_QUOTAS["enterprise"]
 
 
 def _variant_to_plan(variant_id: str) -> str:
@@ -136,10 +128,6 @@ def _variant_to_plan(variant_id: str) -> str:
         mapping[_LS_VARIANT_INDIVIDUAL] = "individual"
     if _LS_VARIANT_COMMUNITY:
         mapping[_LS_VARIANT_COMMUNITY]  = "community_business"
-    if _LS_VARIANT_PRO:
-        mapping[_LS_VARIANT_PRO]        = "pro"
-    if _LS_VARIANT_ENTERPRISE:
-        mapping[_LS_VARIANT_ENTERPRISE] = "enterprise"
     return mapping.get(variant_id, "individual")
 
 
@@ -196,7 +184,11 @@ class LemonBilling:
             return "starter"
         if row["status"] not in ("active", "on_trial"):
             return "starter"
-        return row["plan"]
+        # A stored row may name a withdrawn plan (pro, enterprise) or anything
+        # written by hand. Only a plan that is sold comes back out; nothing in
+        # this table can resolve to the unsold capability set.
+        plan = canonical_tier(row["plan"])
+        return plan if plan in SOLD_TIERS or plan == "trial" else "starter"
 
     def get_quota(self, tenant_id: str) -> int | None:
         return PLAN_QUOTAS.get(self.get_plan(tenant_id), PLAN_QUOTAS["starter"])
@@ -242,9 +234,6 @@ class LemonBilling:
             "individual":         _LS_VARIANT_INDIVIDUAL,
             "community_business": _LS_VARIANT_COMMUNITY,
             "smb":                _LS_VARIANT_COMMUNITY,   # alias
-            "pro":                _LS_VARIANT_PRO,
-            "enterprise":         _LS_VARIANT_ENTERPRISE,
-            "msp":                _LS_VARIANT_ENTERPRISE,  # alias
         }
         variant_id = variant_map.get(plan, "")
         if not variant_id:
@@ -409,13 +398,13 @@ class LemonBilling:
         Gate PQC and SOVA access to their minimum plan tier.
         Called on every subscription change so downgrades are enforced immediately.
 
-        PQC (post_quantum_cryptography) → Enterprise only
-        SOVA agent                       → Pro and above
-        Marketplace node                 → Community Business and above
+        PQC and the SOVA agent were sold with Enterprise and Pro. Neither plan
+        is sold, so no subscription turns them on.
+        Marketplace node → Individual and above.
         """
-        metered_tiers = ("individual", "community_business", "pro", "enterprise")
-        pro_tiers     = ("pro", "enterprise")
-        ent_tiers     = ("enterprise",)
+        metered_tiers = ("individual", "community_business")
+        pro_tiers: tuple[str, ...] = ()
+        ent_tiers: tuple[str, ...] = ()
 
         self.set_feature_flags(
             tenant_id,

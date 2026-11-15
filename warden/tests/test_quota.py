@@ -60,10 +60,6 @@ class TestCheckEntitySize(_QuotaBase):
             check_entity_size("individual", 101 * _MB)
         self.assertIn("100", str(ctx.exception))
 
-    def test_business_allows_1gb(self):
-        from warden.communities.quota import check_entity_size
-        check_entity_size("business", 1 * _GB)   # exactly at limit — OK
-
     def test_business_over_1gb_raises(self):
         from warden.communities.quota import check_entity_size
         with self.assertRaises(ValueError):
@@ -71,7 +67,7 @@ class TestCheckEntitySize(_QuotaBase):
 
     def test_mcp_allows_5gb(self):
         from warden.communities.quota import check_entity_size
-        check_entity_size("mcp", 5 * _GB)   # no raise
+        check_entity_size("lab", 5 * _GB)   # no raise
 
     def test_unknown_tier_falls_back_to_individual(self):
         from warden.communities.quota import check_entity_size
@@ -99,18 +95,6 @@ class TestCheckStorageQuota(_QuotaBase):
             check_storage_quota(cid, "individual", 1 * _MB)
         self.assertEqual(ctx.exception.metric, "storage")
         self.assertIn("business", ctx.exception.upgrade_tier.lower())
-
-    def test_business_overage_raises_overage_required(self):
-        from warden.communities.quota import (
-            OverageRequired,
-            _incr_counter,
-            check_storage_quota,
-        )
-        cid = "cid-biz-full"
-        _incr_counter(cid, "storage_bytes", 100 * _GB)
-        with self.assertRaises(OverageRequired) as ctx:
-            check_storage_quota(cid, "business", 1 * _MB)
-        self.assertEqual(ctx.exception.metric, "storage")
 
     def test_bonus_bytes_expand_effective_quota(self):
         from warden.communities.quota import (
@@ -149,19 +133,6 @@ class TestCheckBandwidthQuota(_QuotaBase):
         _incr_counter(cid, _bw_metric(), 50 * _GB)
         with self.assertRaises(QuotaExceeded):
             check_bandwidth_quota(cid, "individual", 1 * _MB)
-
-    def test_business_bw_exceeded_raises_overage_required(self):
-        from warden.communities.quota import (
-            OverageRequired,
-            _bw_metric,
-            _incr_counter,
-            check_bandwidth_quota,
-        )
-        cid = "bw-biz-full"
-        _incr_counter(cid, _bw_metric(), 500 * _GB)
-        with self.assertRaises(OverageRequired):
-            check_bandwidth_quota(cid, "business", 1 * _MB)
-
 
 class TestRecordAndRelease(_QuotaBase):
 

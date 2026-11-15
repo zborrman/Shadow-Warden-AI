@@ -31,12 +31,12 @@ class TestLemonBilling:
         assert billing.get_plan("tenant-xyz") == "starter"
 
     def test_upsert_and_get_plan(self, billing):
-        billing._upsert("t1", "cust-1", "sub-1", "pro", "active", None)
-        assert billing.get_plan("t1") == "pro"
+        billing._upsert("t1", "cust-1", "sub-1", "community_business", "active", None)
+        assert billing.get_plan("t1") == "community_business"
 
     def test_cancelled_reverts_to_starter(self, billing):
-        billing._upsert("t2", "cust-2", "sub-2", "pro", "active", None)
-        billing._upsert("t2", "cust-2", "sub-2", "pro", "cancelled", None)
+        billing._upsert("t2", "cust-2", "sub-2", "community_business", "active", None)
+        billing._upsert("t2", "cust-2", "sub-2", "community_business", "cancelled", None)
         assert billing.get_plan("t2") == "starter"
 
     def test_on_trial_is_valid(self, billing):
@@ -44,11 +44,11 @@ class TestLemonBilling:
         assert billing.get_plan("t3") == "individual"
 
     def test_quota_for_known_plans(self, billing):
-        billing._upsert("t4", "c", "s", "enterprise", "active", None)
-        assert billing.get_quota("t4") is None  # unlimited
+        billing._upsert("t4", "c", "s", "enterprise", "active", None)   # withdrawn plan name
+        assert billing.get_plan("t4") == "community_business"   # never unlimited
 
-        billing._upsert("t5", "c", "s", "pro", "active", None)
-        assert billing.get_quota("t5") == 50_000
+        billing._upsert("t5", "c", "s", "community_business", "active", None)
+        assert billing.get_quota("t5") == 15_000
 
     def test_get_status_shape(self, billing):
         billing._upsert("t6", "cust-6", "sub-6", "individual", "active", "2025-02-01")
@@ -101,7 +101,7 @@ class TestLemonBilling:
         lb_mod._LS_API_KEY = ""
         billing._enabled = False
         with pytest.raises(RuntimeError, match="not configured"):
-            billing.create_checkout_session("t", "pro", "https://ok", "https://cancel")
+            billing.create_checkout_session("t", "community_business", "https://ok", "https://cancel")
         lb_mod._LS_API_KEY = old
 
     def test_checkout_invalid_plan_raises(self, billing):
@@ -156,7 +156,7 @@ class TestLemonBilling:
 
     def test_portal_url_includes_customer_id(self, billing):
         """get_portal_url must return customer-scoped URL when subscription exists."""
-        billing._upsert("t-portal", "cust-42", "sub-p", "pro", "active", None)
+        billing._upsert("t-portal", "cust-42", "sub-p", "community_business", "active", None)
         url = billing.get_portal_url("t-portal")
         assert "customer_id=cust-42" in url
 
@@ -171,20 +171,20 @@ class TestFeatureGate:
     def test_tier_normalization(self):
         from warden.billing.feature_gate import FeatureGate
         assert FeatureGate.for_tier("free").tier  == "starter"
-        assert FeatureGate.for_tier("msp").tier   == "enterprise"
-        assert FeatureGate.for_tier("business").tier == "pro"
+        assert FeatureGate.for_tier("msp").tier   == "community_business"
+        assert FeatureGate.for_tier("business").tier == "community_business"
 
     def test_boolean_features_per_tier(self):
         from warden.billing.feature_gate import FeatureGate
         starter    = FeatureGate.for_tier("starter")
         individual = FeatureGate.for_tier("individual")
-        pro        = FeatureGate.for_tier("pro")
-        enterprise = FeatureGate.for_tier("enterprise")
+        pro        = FeatureGate.for_tier("community_business")
+        enterprise = FeatureGate.for_tier("lab")
 
         assert not starter.is_enabled("audit_trail")
         assert     individual.is_enabled("audit_trail")
         assert not starter.is_enabled("siem_integration")
-        assert     pro.is_enabled("siem_integration")
+        assert     enterprise.is_enabled("siem_integration")
         assert not pro.is_enabled("on_prem_deployment")
         assert     enterprise.is_enabled("on_prem_deployment")
 
@@ -196,31 +196,31 @@ class TestFeatureGate:
 
     def test_meets_minimum(self):
         from warden.billing.feature_gate import FeatureGate
-        pro = FeatureGate.for_tier("pro")
+        pro = FeatureGate.for_tier("community_business")
         assert     pro.meets_minimum("starter")
         assert     pro.meets_minimum("individual")
-        assert     pro.meets_minimum("pro")
-        assert not pro.meets_minimum("enterprise")
+        assert     pro.meets_minimum("community_business")
+        assert not pro.meets_minimum("lab")
 
     def test_quota_req_per_month(self):
         from warden.billing.feature_gate import FeatureGate
         assert FeatureGate.for_tier("starter").quota_req_per_month()    == 1_000
-        assert FeatureGate.for_tier("pro").quota_req_per_month()        == 50_000
-        assert FeatureGate.for_tier("enterprise").quota_req_per_month() is None
+        assert FeatureGate.for_tier("community_business").quota_req_per_month()        == 15_000
+        assert FeatureGate.for_tier("lab").quota_req_per_month() is None
 
     def test_as_dict_has_tier(self):
         from warden.billing.feature_gate import FeatureGate
-        d = FeatureGate.for_tier("pro").as_dict()
-        assert d["tier"]      == "pro"
+        d = FeatureGate.for_tier("community_business").as_dict()
+        assert d["tier"]      == "community_business"
         assert "siem_integration" in d
         assert "overage_prices"   in d
 
     def test_require_capacity(self):
         from warden.billing.feature_gate import FeatureGate
-        pro = FeatureGate.for_tier("pro")
-        pro.require_capacity("max_tenants", 10)   # 10 < 50 — OK
+        pro = FeatureGate.for_tier("community_business")
+        pro.require_capacity("max_tenants", 0)   # 0 < 1 - OK
         with pytest.raises(PermissionError, match="Capacity limit reached"):
-            pro.require_capacity("max_tenants", 50)  # 50 >= 50
+            pro.require_capacity("max_tenants", 1)  # 1 >= 1
 
 
 # ── Referral flywheel ─────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ class TestReferral:
             generate_referral_code,
             redeem_referral_code,
         )
-        code = generate_referral_code("referrer-2", "pro")
+        code = generate_referral_code("referrer-2", "community_business")
         redeem_referral_code(code, "new-tenant-2")
         with pytest.raises(ValueError, match="invalid"):
             redeem_referral_code(code, "new-tenant-3")
@@ -266,23 +266,6 @@ class TestReferral:
         with pytest.raises(ValueError, match="Self-referral"):
             redeem_referral_code(code, "solo-1")
 
-    def test_enterprise_cannot_generate(self):
-        self._clear()
-        from warden.billing.referral import generate_referral_code
-        with pytest.raises(PermissionError, match="not available on the ENTERPRISE"):
-            generate_referral_code("ent-tenant", "enterprise")
-
-    def test_pro_bonus_is_2000(self):
-        self._clear()
-        from warden.billing.referral import (
-            generate_referral_code,
-            redeem_referral_code,
-        )
-        code   = generate_referral_code("pro-referrer", "pro")
-        result = redeem_referral_code(code, "new-pro-1")
-        assert result["referrer_bonus_req"] == 2_000
-
-
 # ── Billing API router ────────────────────────────────────────────────────────
 
 class TestBillingRouter:
@@ -292,10 +275,8 @@ class TestBillingRouter:
         data = resp.json()
         assert "tiers" in data
         tiers_by_name = {t["tier"]: t for t in data["tiers"]}
-        assert set(tiers_by_name.keys()) == {"starter", "individual", "community_business", "pro", "enterprise"}
-        assert tiers_by_name["pro"]["siem_integration"] is True
+        assert set(tiers_by_name.keys()) == {"starter", "individual", "community_business"}
         assert tiers_by_name["starter"]["siem_integration"] is False
-        assert tiers_by_name["enterprise"]["referral_program"] is False
 
     def test_quota_header_alone_does_not_select_a_tenant(self, client):
         # H-5: X-Tenant-ID used to be the identity. It is honoured only with a
@@ -321,7 +302,7 @@ class TestBillingRouter:
         resp = client.get("/billing/status", headers={"X-Tenant-ID": "test-tenant"})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["plan"] in ("starter", "individual", "community_business", "pro", "enterprise")
+        assert data["plan"] in ("starter", "individual", "community_business")
         assert "features" in data
 
 
@@ -397,7 +378,7 @@ class TestBillingRouter:
         """When LS is not configured, /billing/upgrade should redirect to pricing page."""
         resp = client.get(
             "/billing/upgrade",
-            params={"plan": "pro"},
+            params={"plan": "community_business"},
             headers={"X-Tenant-ID": "test-tenant"},
             follow_redirects=False,
         )
@@ -453,7 +434,7 @@ class TestPhase5:
         old  = (now - timedelta(days=10)).isoformat()
         billing._conn.execute(
             "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
-            ("old-t", "pro", "past_due", old),
+            ("old-t", "community_business", "past_due", old),
         )
         billing._conn.commit()
         cutoff     = (now - timedelta(days=7)).isoformat()
@@ -468,7 +449,7 @@ class TestPhase5:
         fresh = (now - timedelta(days=3)).isoformat()
         billing._conn.execute(
             "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
-            ("fresh-t", "pro", "past_due", fresh),
+            ("fresh-t", "community_business", "past_due", fresh),
         )
         billing._conn.commit()
         cutoff = (now - timedelta(days=7)).isoformat()
@@ -477,7 +458,7 @@ class TestPhase5:
         row = billing._conn.execute(
             "SELECT plan, status FROM subscriptions WHERE tenant_id='fresh-t'"
         ).fetchone()
-        assert row["plan"]   == "pro"
+        assert row["plan"]   == "community_business"
         assert row["status"] == "past_due"
 
     def test_expire_past_due_skips_active(self, billing):
@@ -485,7 +466,7 @@ class TestPhase5:
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         billing._conn.execute(
             "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
-            ("active-t", "enterprise", "active", old),
+            ("active-t", "community_business", "active", old),
         )
         billing._conn.commit()
         cutoff = (datetime.now(UTC) - timedelta(days=7)).isoformat()
@@ -499,7 +480,7 @@ class TestPhase5:
         for tid, age in [("t-old-1", old), ("t-old-2", old), ("t-recent", recent)]:
             billing._conn.execute(
                 "INSERT INTO subscriptions(tenant_id, plan, status, updated_at) VALUES(?,?,?,?)",
-                (tid, "pro", "past_due", age),
+                (tid, "community_business", "past_due", age),
             )
         billing._conn.commit()
         cutoff     = (now - timedelta(days=7)).isoformat()
@@ -511,7 +492,7 @@ class TestPhase5:
         row = billing._conn.execute(
             "SELECT plan, status FROM subscriptions WHERE tenant_id='t-recent'"
         ).fetchone()
-        assert row["plan"]   == "pro"
+        assert row["plan"]   == "community_business"
         assert row["status"] == "past_due"
 
     # ── Webhook endpoint ──────────────────────────────────────────────────────

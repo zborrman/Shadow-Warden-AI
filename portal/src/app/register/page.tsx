@@ -21,7 +21,7 @@ type Form = z.infer<typeof schema>
 
 const PERKS = [
   { icon: ShieldCheck, label: '1,000 req / month free',   desc: 'Full 9-layer pipeline' },
-  { icon: Brain,       label: 'No credit card required',  desc: '14-day Pro trial included' },
+  { icon: Brain,       label: 'No credit card required',  desc: '14-day trial included' },
   // This perk used to assert a SOC 2 certification and ISO 27001 readiness.
   // Neither is true: there is no audit, auditor or report, and the ISO work is
   // a control mapping. capability-matrix.md marks the first FABRICATED and the
@@ -33,8 +33,8 @@ const PERKS = [
 
 const TIERS = [
   { name: 'Starter',  price: 'Free',   color: '#64748b' },
-  { name: 'Pro',      price: '$99.99/mo', color: '#6366f1', popular: true },
-  { name: 'Business', price: '$39.99/mo', color: '#8b5cf6' },
+  { name: 'Individual', price: '$5/mo', color: '#6366f1' },
+  { name: 'Business', price: '$39.99/mo', color: '#8b5cf6', popular: true },
 ]
 
 export default function RegisterPage() {

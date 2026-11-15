@@ -42,7 +42,7 @@ def client():
 
 @pytest.fixture(scope="module")
 def auth_headers():
-    return {"X-API-Key": "test-key", "X-Tenant-Tier": "enterprise", "X-Tenant-ID": "prod-test"}
+    return {"X-API-Key": "test-key", "X-Tenant-Tier": "lab", "X-Tenant-ID": "prod-test"}
 
 
 # ── 1. Health endpoint ────────────────────────────────────────────────────────
@@ -229,7 +229,8 @@ def test_billing_tier_catalog(client, auth_headers):
     assert resp.status_code == 200
     data = resp.json()
     tiers = {t.get("tier") or t.get("name") for t in (data if isinstance(data, list) else data.get("tiers", []))}
-    assert "enterprise" in tiers or "pro" in tiers
+    assert "community_business" in tiers
+    assert not ({"pro", "enterprise", "lab"} & tiers), "an unsold plan is in the catalog"
 
 
 # ── 10. CORS headers ─────────────────────────────────────────────────────────

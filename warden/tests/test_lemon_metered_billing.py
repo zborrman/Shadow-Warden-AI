@@ -221,64 +221,6 @@ class TestFeatureFlagEnforcement(unittest.TestCase):
     def _billing(self, tmp_path: Path):
         return _make_billing(tmp_path)
 
-    def test_enterprise_enables_pqc_and_sova(self):
-        import tempfile
-        tmp = Path(tempfile.mkdtemp())
-        b = self._billing(tmp)
-        import warden.lemon_billing as _lb
-        _lb._LS_VARIANT_ENTERPRISE = "var_ent_999"
-        raw, _ = _webhook_payload("t-ent", plan_variant="var_ent_999")
-        with _no_sig_check():
-            b.handle_webhook(raw, "")
-        flags = b.get_feature_flags("t-ent")
-        assert flags["post_quantum_cryptography"] is True
-        assert flags["sova_agent"] is True
-        assert flags["marketplace_node"] is True
-        b.close()
-
-    def test_downgrade_to_starter_clears_pqc_and_sova(self):
-        import tempfile
-        tmp = Path(tempfile.mkdtemp())
-        b = self._billing(tmp)
-        import warden.lemon_billing as _lb
-        # First: grant Enterprise
-        _lb._LS_VARIANT_ENTERPRISE = "var_ent_999"
-        raw1, _ = _webhook_payload("t-downgrade", plan_variant="var_ent_999", sub_id="sub_d1")
-        with _no_sig_check():
-            b.handle_webhook(raw1, "")
-        assert b.get_feature_flags("t-downgrade")["post_quantum_cryptography"] is True
-
-        # Downgrade: cancel subscription
-        cancel_raw = json.dumps({
-            "meta": {
-                "event_name": "subscription_cancelled",
-                "event_id":   "evt_cancel_d1",
-                "custom_data": {},
-            },
-            "data": {"id": "sub_d1"},
-        }).encode()
-        with _no_sig_check():
-            b.handle_webhook(cancel_raw, "")
-
-        flags = b.get_feature_flags("t-downgrade")
-        assert flags["post_quantum_cryptography"] is False
-        assert flags["sova_agent"] is False
-        b.close()
-
-    def test_pro_enables_sova_not_pqc(self):
-        import tempfile
-        tmp = Path(tempfile.mkdtemp())
-        b = self._billing(tmp)
-        import warden.lemon_billing as _lb
-        _lb._LS_VARIANT_PRO = "var_pro_77"
-        raw, _ = _webhook_payload("t-pro", plan_variant="var_pro_77")
-        with _no_sig_check():
-            b.handle_webhook(raw, "")
-        flags = b.get_feature_flags("t-pro")
-        assert flags["sova_agent"] is True
-        assert flags["post_quantum_cryptography"] is False
-        b.close()
-
     def test_individual_enables_marketplace_node_only(self):
         import tempfile
         tmp = Path(tempfile.mkdtemp())
