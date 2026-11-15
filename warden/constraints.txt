@@ -279,7 +279,7 @@ sphinxcontrib-serializinghtml==2.0.0
 SQLAlchemy==2.1.8
 starlette==1.10.0
 streamlit==1.67.0
-stripe==16.1.0
+stripe==17.0.0
 sympy==1.14.0
 tenacity==9.2.1
 textual==8.2.8
