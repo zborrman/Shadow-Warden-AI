@@ -1,7 +1,11 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json ./
-RUN npm install --frozen-lockfile 2>/dev/null || npm install
+# Install exactly what package-lock.json records. This stage used to copy only
+# package.json, so every image build resolved fresh versions and never used the
+# audited lock file - and `--frozen-lockfile` is a yarn flag npm rejects, so the
+# command always fell through to a plain `npm install`.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 FROM node:20-alpine AS builder
 WORKDIR /app
