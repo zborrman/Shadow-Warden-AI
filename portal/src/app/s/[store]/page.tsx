@@ -6,11 +6,13 @@ import { getFeed, getStore } from '@/lib/storefront/server'
 import { Catalog } from './_components/Catalog'
 import { JsonLd } from './_components/JsonLd'
 
-export function generateMetadata({ params }: { params: { store: string } }): Metadata {
+export async function generateMetadata(props: { params: Promise<{ store: string }> }): Promise<Metadata> {
+  const params = await props.params;
   return { alternates: { canonical: storeUrl(params.store) } }
 }
 
-export default async function StorefrontCatalogPage({ params }: { params: { store: string } }) {
+export default async function StorefrontCatalogPage(props: { params: Promise<{ store: string }> }) {
+  const params = await props.params;
   const [store, feed] = await Promise.all([getStore(params.store), getFeed(params.store)])
   if (!store || !feed) notFound()
   return (

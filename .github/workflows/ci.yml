@@ -258,7 +258,7 @@ jobs:
           print(f"Uploaded {len(manifest)} files + manifest to {endpoint}/{mkey}")
           EOF
 
-  # ── Portal Build (Next.js 14, TypeScript) ───────────────────────────────────
+  # ── Portal Build (Next.js 15, TypeScript) ───────────────────────────────────
   portal-build:
     name: Portal Build (Next.js)
     runs-on: ubuntu-latest
@@ -346,7 +346,7 @@ jobs:
         env:
           PORTAL_URL: http://127.0.0.1:3017
 
-  # ── SOC Dashboard Build (Next.js 14, TypeScript) ────────────────────────────
+  # ── SOC Dashboard Build (Next.js 15, TypeScript) ────────────────────────────
   dashboard-build:
     name: Dashboard Build (Next.js)
     runs-on: ubuntu-latest
