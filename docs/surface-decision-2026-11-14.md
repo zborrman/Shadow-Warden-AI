@@ -169,3 +169,23 @@ No public page claims it, but a tier that grants a feature with no mounted
 route is a claim waiting to be made. It should leave the tier table or return
 with a client.
 
+## Cohort 2 — outbound integrations and agent packs (2026-11-15)
+
+Re-measured before listing: no file in `site/`, `portal/`, `dashboard/`, `sdk/`,
+the workers or the agent tool tables calls either prefix.
+
+| prefix | module | routes |
+|---|---|---|
+| `/integrations` | `warden.api.integrations` | 8 |
+| `/agents/packs` | `warden.agents.packs.api` | 3 |
+
+Measured effect: route inventory 784 → 773 routes, published spec 674 → 663
+paths, anonymous-read baseline loses `GET /agents/packs`. The claimed-tenant
+baseline is unchanged at 145: neither module took a tenant from the request.
+
+The integration clients under `warden/integrations/` stay as code; only the
+HTTP routes that triggered them are withheld. `ROADMAP.md` still records
+IN-16/17/18/20 as built, which is true of the code and says nothing about an
+endpoint; the public roadmap already lists them as planned.
+
+Still outside the list: `/msp`, for the reason given under cohort 1.

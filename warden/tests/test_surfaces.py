@@ -22,9 +22,12 @@ _REPO = Path(__file__).resolve().parents[2]
 _INVENTORY = Path(__file__).with_name("fixtures") / "route_inventory.json"
 
 
-def _prefixes(import_path: str) -> set[str]:
+def _paths(import_path: str) -> set[str]:
+    """The module's own route paths. Not its first segment: ``/agents/packs`` is
+    lab while ``/agents`` (agent management) is product, and a first-segment
+    match reported the product routes as leaked."""
     router = importlib.import_module(import_path).router
-    return {"/" + r.path.strip("/").split("/")[0] for r in router.routes}
+    return {r.path for r in router.routes}
 
 
 def test_the_lab_list_is_not_empty():
@@ -38,7 +41,7 @@ def test_a_lab_router_is_not_mounted_with_the_flag_off(import_path, monkeypatch)
     app = FastAPI()
     assert register_router_safe(app, RouterSpec(import_path)) is False
     mounted = {getattr(r, "path", "") for r in app.routes}
-    assert not any(p.startswith(tuple(_prefixes(import_path))) for p in mounted)
+    assert not (mounted & _paths(import_path))
 
 
 @pytest.mark.parametrize("import_path", sorted(surfaces.LAB_ROUTER_MODULES))
@@ -81,12 +84,13 @@ def test_the_route_inventory_holds_no_lab_module():
 
 
 def test_the_published_spec_advertises_no_lab_route():
-    lab_prefixes: set[str] = set()
+    lab_paths: set[str] = set()
     for path in surfaces.LAB_ROUTER_MODULES:
-        lab_prefixes |= _prefixes(path)
+        lab_paths |= _paths(path)
+    assert lab_paths, "no lab route was resolved, so the check below proves nothing"
     for spec in ("site/public/openapi.json", "landing/openapi.json"):
         paths = json.loads((_REPO / spec).read_text(encoding="utf-8"))["paths"]
-        leaked = sorted(p for p in paths if "/" + p.strip("/").split("/")[0] in lab_prefixes)
+        leaked = sorted(p for p in paths if p in lab_paths)
         assert not leaked, f"{spec} advertises withdrawn route(s): {leaked[:5]}"
 
 
