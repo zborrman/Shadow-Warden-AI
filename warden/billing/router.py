@@ -421,8 +421,8 @@ async def trial_status(
 )
 async def list_bundles():
     """Return all available bundle SKUs with savings information."""
-    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
-    return {"bundles": list(BUNDLE_CATALOG.values())}
+    from warden.billing.addons import sold_bundles  # noqa: PLC0415
+    return {"bundles": sold_bundles()}
 
 
 @router.get(
@@ -437,8 +437,9 @@ async def bundle_checkout(
     success_url: str | None = Query(default=None),
     cancel_url:  str | None = Query(default=None),
 ):
-    from warden.billing.addons import BUNDLE_CATALOG  # noqa: PLC0415
-    bundle = BUNDLE_CATALOG.get(bundle_key)
+    from warden.billing.addons import BUNDLE_CATALOG, bundle_is_sold  # noqa: PLC0415
+    # A withdrawn bundle answers like one that never existed.
+    bundle = BUNDLE_CATALOG.get(bundle_key) if bundle_is_sold(bundle_key) else None
     if not bundle:
         raise HTTPException(status_code=404, detail=f"Unknown bundle: {bundle_key!r}")
 

@@ -541,3 +541,45 @@ def test_the_machine_readable_price_list_names_no_withdrawn_plan(rel):
     text = path.read_text(encoding="utf-8")
     for marker in ("**Pro**", "**Enterprise**", "$99.99", "$249"):
         assert marker not in text, f"{rel} still lists {marker}"
+
+
+class TestWithdrawnAddonsAreNotSold:
+    """An add-on whose minimum plan is the unsold set can be neither listed nor bought."""
+
+    def test_the_public_catalog_lists_only_sold_addons(self):
+        from warden.billing.addons import ADDON_CATALOG, sold_addons
+        from warden.billing.pricing import LAB_TIER
+
+        withdrawn = {k for k, a in ADDON_CATALOG.items() if a.get("min_tier") == LAB_TIER}
+        assert withdrawn, "no withdrawn add-on - this test would pass for free"
+        assert len(sold_addons()) == len(ADDON_CATALOG) - len(withdrawn)
+        assert all(a.get("min_tier") != LAB_TIER for a in sold_addons())
+
+    def test_no_bundle_carries_a_withdrawn_addon(self):
+        from warden.billing.addons import is_sold, sold_bundles
+
+        for bundle in sold_bundles():
+            assert all(is_sold(a) for a in bundle.get("includes_addons", []))
+
+    @pytest.mark.asyncio
+    async def test_checkout_for_a_withdrawn_addon_is_a_404(self):
+        from fastapi import HTTPException
+
+        from warden.billing.router import addon_checkout
+
+        with pytest.raises(HTTPException) as exc:
+            await addon_checkout("shadow_ai_discovery", tenant_id="t1",
+                                 success_url=None, cancel_url=None)
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_checkout_for_a_withdrawn_bundle_is_a_404(self):
+        from fastapi import HTTPException
+
+        from warden.billing import router as billing_router
+
+        fn = next(getattr(billing_router, n) for n in dir(billing_router)
+                  if n.startswith("bundle") and n.endswith("checkout"))
+        with pytest.raises(HTTPException) as exc:
+            await fn("power_user_bundle", tenant_id="t1", success_url=None, cancel_url=None)
+        assert exc.value.status_code == 404

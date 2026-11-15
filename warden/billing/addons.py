@@ -326,6 +326,18 @@ def sold_addons() -> list[dict[str, Any]]:
     return [a for k, a in ADDON_CATALOG.items() if is_sold(k)]
 
 
+def bundle_is_sold(bundle_key: str) -> bool:
+    """A bundle is sold only if its own minimum plan and every add-on in it are."""
+    bundle = BUNDLE_CATALOG.get(bundle_key)
+    if not bundle or bundle.get("min_tier") == LAB_TIER:
+        return False
+    return all(is_sold(k) for k in bundle.get("includes_addons", []))
+
+
+def sold_bundles() -> list[dict[str, Any]]:
+    return [b for k, b in BUNDLE_CATALOG.items() if bundle_is_sold(k)]
+
+
 def _redis():
     try:
         import redis as _r
