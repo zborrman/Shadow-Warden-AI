@@ -1,24 +1,60 @@
 # Shadow Warden AI — Full Product Roadmap
 
-**Version 7.10 · Last updated 2026-10-19**
+**Version 7.10 · Last updated 2026-11-15**
 
 Complete feature roadmap organized by product category. Each category tracks what is shipped, what is planned, and the target tier.
 
-Legend: ✅ Shipped · 🔄 In Progress · 📋 Planned · ❌ Cancelled
+Legend: ✅ Shipped · 🔄 In Progress · 📋 Planned · 🧪 Lab (built, not mounted in production) · ❌ Cancelled
+
+**How to read this file.** It is an engineering registry of what has been built, not a
+statement of what is on sale. What may be said publicly is bounded by
+`docs/capability-matrix.md`, which wins any disagreement with a row here.
+
+- **Three plans are sold** (since 2026-11-14): Starter $0, Individual $5/mo and Community
+  Business $39.99/mo. Pro and Enterprise are withdrawn. A row whose Tier column says
+  `Pro+` or `Enterprise` records the gate in code (`TIER_LIMITS["lab"]`); no customer can
+  buy that tier.
+- **✅ means the code is merged and tested**, not that anyone uses it. There are no
+  registered users and no revenue.
+- **🧪 Lab** marks a router that is no longer mounted (`warden/surfaces.py`); its routes
+  answer 404 in production and are absent from the published API spec.
 
 ---
 
 ## How We Prioritize
 
-Every item on this roadmap competes across three inputs:
+There is one maintainer and no customer yet, so priority is set by risk, not by demand:
 
-1. **Community Feedback** — security teams using the platform vote on features via the Community Hub. Items with 3+ community votes jump one priority tier automatically.
-2. **Threat Signal** — SOVA analytics surfaces emerging attack patterns. When a new jailbreak class or CVE class exceeds a detection threshold, the corresponding pipeline hardening moves to P0 regardless of backlog position.
-3. **Enterprise Demand** — direct requests from Enterprise customers with signed contracts. These land in the next sprint if they don't require architectural changes; otherwise they enter the quarterly planning cycle.
+1. **Feature freeze** (launch programme P0, since 2026-08-18): no new subsystems, routers,
+   frontends, chains, providers or integrations until P3 exits. Security fixes, repairs to
+   something already shipped and work a launch phase calls for are exempt.
+2. **Security before the first pilot seller.** Findings that become exploitable when a
+   second tenant exists (tenant isolation, actor proof) come before anything else.
+3. **Claims honesty.** Nothing public may exceed its row in `docs/capability-matrix.md`.
+4. **Narrow before migrating.** A surface with no client is withdrawn to Lab rather than
+   maintained.
 
-We publish an updated priority snapshot every quarter. The `📋 Planned` items below reflect the current ranking; re-ordering happens openly — if something drops, the reason appears in the changelog.
+`📋 Planned` items are not scheduled and carry no date.
 
-> **Release cadence:** patch versions (4.x.y) ship weekly; minor versions (4.x) ship when a delivery block is complete; major versions (5.0) ship on a quarterly cycle tied to infrastructure milestones.
+---
+
+## Unreleased — on `main` since v7.10 (as of 2026-11-15)
+
+No version has been cut for this work.
+
+| Area | Change | Status |
+|------|--------|--------|
+| Pricing | Pro and Enterprise withdrawn; three plans sold; unsold features gated behind `TIER_LIMITS["lab"]` (#709) | ✅ |
+| Surface | Routers with no client withdrawn to Lab: `/wallet`, `/whitelabel`, `/web3`, `/tokenomics` (#708), `/integrations`, `/agents/packs` (#714) — 30 routes | ✅ |
+| Security | Image optimizer closed on the dashboard and portal; 24 anonymous reads gated; anonymous-read ratchet (#706) | ✅ |
+| Security | MCP paid tools no longer run free with the payment gate off (#698); marketplace credits can no longer be self-granted (#699) | ✅ |
+| Security | SOC dashboard behind Cloudflare Access (configured 2026-11-15) | ✅ |
+| Security | Tenant binding: `caller_tenant` dependency, commerce router first (145 → 133 routes) (#731) | 🔄 |
+| Dependencies | Next.js 14.2.29 → 15.5.29 and React 19 in the dashboard and portal (#724); Astro 6 → 7.4.11 (#712, #725); runtime `npm audit` clean in both apps (#730) | ✅ |
+| Dependencies | Dependabot covers npm in `site/`, `portal/`, `dashboard/`; security updates enabled (#710) | ✅ |
+| M2M Store | Store builder, public storefront in five languages, order requests, seller payment link (M0–M6.5, #666–#675) | ✅ |
+| M2M Store | Payments through the platform (M7, Stripe Connect) — blocked on the feature freeze and on a registered legal entity | 📋 |
+| Loop | Nightly autonomous audit made audible after six silent nights (#702) | ✅ |
 
 ---
 
@@ -276,11 +312,11 @@ Connectors that bring Shadow Warden into existing developer and analyst workflow
 | IN-13 | Browser extension — popup with scan button, verdict badge, UECIID display | v4.11 | Community+ | ✅ |
 | IN-14 | VS Code extension — inline risk annotation on selected text | v4.22 | Individual+ | ✅ |
 | IN-15 | GitHub Actions integration — CI gate scans commit message + per-file diff (30 files, 93 controls), PR comment, 90-day audit artifact, composite action, pre-commit hook mode | v5.3 | Pro+ | ✅ |
-| IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | v4.21 | Pro+ | ✅ |
-| IN-17 | Microsoft Teams slash command — Adaptive Card via webhook, `/warden` for Teams | v4.21 | Pro+ | ✅ |
-| IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | v4.21 | Community+ | ✅ |
+| IN-16 | Jira integration — auto-create security tickets on HIGH/BLOCK verdicts | v4.21 | Pro+ | 🧪 |
+| IN-17 | Microsoft Teams slash command — Adaptive Card via webhook, `/warden` for Teams | v4.21 | Pro+ | 🧪 |
+| IN-18 | Notion integration — scan Notion pages via API, write risk tags as properties | v4.21 | Community+ | 🧪 |
 | IN-19 | STIX/TAXII feed consumer — ingest external threat intel from any TAXII 2.1 server | v4.22 | Enterprise | ✅ |
-| IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | ✅ |
+| IN-20 | Zapier / Make connector — webhook trigger + filter action blocks | v4.21 | Individual+ | 🧪 |
 | IN-21 | OpenTelemetry SDK library — `WardenSpanProcessor` for any OTel-enabled app | v4.21 | Pro+ | ✅ |
 | IN-22 | MISP syslog bridge — ZMQ SUB socket + HTTP poll fallback, topic `misp_json` | v4.21 | Pro+ | ✅ |
 | IN-25 | SMB AI Governance Suite — single-wizard provisioning of all 7 modules | v4.29 | Community+ | ✅ |
@@ -432,7 +468,7 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 |----|---------|---------|------|--------|
 | FE-01 | Landing pages — 33 HTML pages with accessibility widget | v1.0 | Public | ✅ |
 | FE-02 | Astro site (`shadow-warden-ai.com`) — marketing, community, incident pages | v3.0 | Public | ✅ |
-| FE-03 | Tenant portal (`app.shadow-warden-ai.com`) — Next.js 14, API hub, communities | v3.0 | All | ✅ |
+| FE-03 | Tenant portal (`portal.shadow-warden-ai.com`) — Next.js 15, API hub, communities | v3.0 | All | ✅ |
 | FE-04 | SOC Next.js dashboard (`dash.shadow-warden-ai.com`) — 8-page SPA | v4.13 | All | ✅ |
 | FE-05 | Redoc API docs (`docs.shadow-warden-ai.com`) — always-public OpenAPI schema | v4.14 | Public | ✅ |
 | FE-06 | Accessibility widget — WCAG 2.1 AA, Section 508, EN 301 549, ADA | v4.11 | All | ✅ |
@@ -477,10 +513,10 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 | MKT-08 | Cross-chain Escrow — multi-chain support for Sepolia, Polygon Amoy, Arbitrum Sepolia; `warden/web3/chains.py` (`CHAINS` dict, `VALID_CHAINS`, `get_chain()`, `chain_label()`); `warden/web3/smart_contract.py` (`deploy_escrow()` returns `address:chain` suffix, `strip_chain_suffix()`, `call_escrow()`); `chain` field on `Listing` + `Escrow` dataclasses; backward-compat `_migrate_chain_column()`; `chain` param on `publish_listing()`, `create_escrow()`, `ListingCreateRequest`, `EscrowCreateRequest`; Streamlit Escrow Monitor tab with chain filter + distribution chart; `SEPOLIA_RPC_URL` / `POLYGON_AMOY_RPC_URL` / `ARBITRUM_SEPOLIA_RPC_URL` env vars; 12 tests | v6.0 | Community+ | ✅ |
 | MKT-09 | MAESTRO Threat Detection — multi-layer M2M security: `GoalMisalignmentDetector` (z-score analysis vs community goals, >2σ flag); `CollusionDetector` (negotiation pair tracking, flag ≥60% suspicious pairs with <2 rounds + <5% price delta); `ModelPoisoningDetector` (3σ outlier detection on rule features from community baseline); `MaestroService` aggregator with `run_full_audit()` + `get_maestro_penalty()`; `ReputationEngine` v3 formula adds `maestro_factor×0.10`; `AssetImporter` poisoning gate sets `pending_review` status + Slack alert; `GET /marketplace/agents/{id}/maestro-report` + `GET /marketplace/maestro/flags`; 3 Prometheus counters; Streamlit MAESTRO Threats tab in 23_Marketplace_Admin.py; SOC Dashboard trust page MAESTRO alerts section; 20+ pytest tests | v6.5 | Enterprise | ✅ |
 | MKT-10 | Kafka/Flink Event Streaming — `KafkaEventBus` (aiokafka producer/consumer, Redis pub/sub fallback, fail-open); `FlinkAgentRunner` stateful stream processor (marketplace.escrow + marketplace.listings topics, per-community Redis state, `_watchdog_loop()` auto-dispute for timed-out funded escrows every 5 min); `get_event_bus()` + `get_runner()` singletons; `GET /streams/health`, `POST /streams/topics/{topic}/replay`, `GET /streams/communities/{id}/state`; `STREAMS_EVENTS_TOTAL` Prometheus counter; `streams_enabled` feature gate (Pro+); `event_streaming_pack` add-on $19/mo; 11 pytest tests | v6.6 | Pro+ | ✅ |
-| MKT-11 | Agent Tokenomics / WAT ERC-20 — `AgentToken` dual-rail (Web3.py on-chain Polygon Amoy + Redis simulation via `WAT_SIMULATE=true`); `mint()`, `transfer()`, `balance_of()` with `_WAT_UNIT=10**18` decimals; `OutcomePricingService` (SQLite `outcome_listings`, KPI-gated settlement `final_price = base_price × min(achieved/target, 1.0)`, WAT auto-transfer); 5 REST endpoints at `/tokenomics/*`; `WAT_TRANSFERS_TOTAL` Prometheus counter; `tokenomics_enabled` feature gate (Enterprise); `agent_tokenomics_pack` add-on $39/mo; 10 pytest tests | v6.6 | Enterprise | ✅ |
+| MKT-11 | Agent Tokenomics / WAT ERC-20 — `AgentToken` dual-rail (Web3.py on-chain Polygon Amoy + Redis simulation via `WAT_SIMULATE=true`); `mint()`, `transfer()`, `balance_of()` with `_WAT_UNIT=10**18` decimals; `OutcomePricingService` (SQLite `outcome_listings`, KPI-gated settlement `final_price = base_price × min(achieved/target, 1.0)`, WAT auto-transfer); 5 REST endpoints at `/tokenomics/*`; `WAT_TRANSFERS_TOTAL` Prometheus counter; `tokenomics_enabled` feature gate (Enterprise); `agent_tokenomics_pack` add-on $39/mo; 10 pytest tests | v6.6 | Enterprise | 🧪 |
 | MKT-12 | USDC Multi-Rail Payments — `USDCService` (`PaymentIntent` dataclass, create intent + Redis TTL, `verify_payment()` Coinbase Commerce or on-chain USDC, simulation auto-confirm first call via `USDC_SIMULATE=true`); `_create_coinbase_charge()` (Coinbase Commerce API key); per-chain singleton `get_usdc_service(chain)`; 2 REST endpoints at `/payments/usdc/*`; `USDC_INTENTS_TOTAL` Prometheus counter; `usdc_payments_enabled` feature gate (Enterprise); `usdc_payments_pack` add-on $29/mo; 8 pytest tests | v6.6 | Enterprise | ✅ |
 | MKT-13 | ANS Certificate Authority — `CertificateAuthority` (X.509 with `cryptography` library, JSON synthetic fallback); `issue_agent_certificate()` (subject CN `agent-{id}.{community}.shadow-warden.ai`, Ed25519 CA key, SQLite `ans_certificates`); `revoke_certificate()` (DB flag + Redis CRL set `ans:crl:{community_id}`); `verify_certificate()` (chain + revocation + expiry checks); `get_agent_certificate()`; `get_ca()` singleton; 4 REST endpoints at `/marketplace/agents/{id}/certificate` + `/certificates/verify`; `ANS_CERTS_ISSUED_TOTAL` + `ANS_CERTS_REVOKED_TOTAL` Prometheus counters; `ans_certificates_enabled` gate (Enterprise); `ans_certificate_pack` add-on $25/mo; 10 pytest tests | v6.6 | Enterprise | ✅ |
-| MKT-14 | ARC Edge Agent Packs — `EdgeAgentPack` ABC with `@register` decorator, global `_REGISTRY`; 3 concrete packs: `CropHealthMonitor` (NDVI/red-edge/soil-moisture → health_score + stress_level + chlorophyll_index); `YieldOptimizer` (soil/temp/humidity/crop_type → evapotranspiration + irrigation_schedule + yield_risk via Penman–Monteith); `DiseaseDetector` (Claude Vision or NDVI heuristic → severity + detected_issues + area_affected_pct); `list_packs()`, `get_pack()`, `validate_sensors()`; `GET /agents/packs`, `POST /agents/packs/{name}/deploy`, `POST /agents/packs/{name}/analyze`; `EDGE_PACK_ANALYZE_TOTAL` Prometheus counter; `edge_packs_enabled` gate (Pro+); `edge_agent_packs` add-on $15/mo; 17 pytest tests | v6.6 | Pro+ | ✅ |
+| MKT-14 | ARC Edge Agent Packs — `EdgeAgentPack` ABC with `@register` decorator, global `_REGISTRY`; 3 concrete packs: `CropHealthMonitor` (NDVI/red-edge/soil-moisture → health_score + stress_level + chlorophyll_index); `YieldOptimizer` (soil/temp/humidity/crop_type → evapotranspiration + irrigation_schedule + yield_risk via Penman–Monteith); `DiseaseDetector` (Claude Vision or NDVI heuristic → severity + detected_issues + area_affected_pct); `list_packs()`, `get_pack()`, `validate_sensors()`; `GET /agents/packs`, `POST /agents/packs/{name}/deploy`, `POST /agents/packs/{name}/analyze`; `EDGE_PACK_ANALYZE_TOTAL` Prometheus counter; `edge_packs_enabled` gate (Pro+); `edge_agent_packs` add-on $15/mo; 17 pytest tests | v6.6 | Pro+ | 🧪 |
 | BGA-01 | Brand Agent (seller-side gateway) — `BrandAgentFilter` 4-gate sequential filter: (1) federation deny-list (SHA-256 DID hash via `check_threat_hash()`); (2) TrustRank gate (`BRAND_AGENT_MIN_TRUST=0.0` default disables until reputation data exists); (3) Redis sliding-window rate limit (`BRAND_AGENT_MAX_RPM=60` req/min per DID, sorted-set pattern, skipped for `REDIS_URL=memory://`); (4) capability gate (`marketplace_buy` required). `FilterVerdict` dataclass. All gates fail-open. `warden/marketplace/brand_agent.py` | v6.8 | Pro+ | ✅ |
 | TDB-01 | Three-Layer Context DB — Layer 1: Redis+SQLite session; Layer 2: `AgentHandoffMemory` (~50-token JSON summaries, ~61% token savings, Redis primary + SQLite fallback, `compact_prompt()`, configurable TTL); Layer 3: pgvector MiniLM-384 semantic search + SQLite LIKE fallback when `MARKETPLACE_VECTOR_SEARCH=false`. SOVA tools #70–74: `write_handoff_memory`, `read_handoff_memory`, `semantic_listing_search`, `get_protocol_schema`, `send_order_proposal`. `warden/marketplace/memory.py` + `vector_search.py` | v6.8 | Pro+ | ✅ |
 | MKT-15 | M2M 4-Stage Lifecycle Protocol — Stage 1: DID registration + `GET /marketplace/protocol` (`X-Protocol-Version: 1.1`, `Cache-Control: max-age=300`) + `GET /marketplace/protocol/schema/{action}` (7 JSON Schemas for agent payload validation). Stage 2: semantic search via Layer 3 pgvector. Stage 3: Brand Agent 4-gate filter on all seller-facing actions (`send_proposal`, `send_message`, `send_offer`, `negotiate`, `buy`). Stage 4: `POST /marketplace/clear` — `ClearingEngine` auto-rejects non-winner negotiations (`cleared_by_market`), dual-writes SQLite (sync) + PostgreSQL (async via asyncpg, fail-open). 14 action types in unified `POST /marketplace/action` dispatcher. `warden/marketplace/clearing.py`. 71 marketplace tests | v6.8 | Pro+ | ✅ |
@@ -494,9 +530,13 @@ All customer-facing web surfaces: landing, portal, dashboards, extensions.
 
 Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 
+> **2026-11-14:** Pro and Enterprise are withdrawn (#709). Rows below that name them
+> describe code that still exists behind the `lab` tier, not a plan on sale. The canonical
+> price list is `warden/billing/pricing.py`.
+
 | ID | Feature | Version | Tier | Status |
 |----|---------|---------|------|--------|
-| BL-01 | Tier catalog — Starter $0 / Individual $5 / Community Business $39.99 / Pro $99.99 / Enterprise $249 | v4.5 | — | ✅ |
+| BL-01 | Tier catalog — Starter $0 / Individual $5 / Community Business $39.99 (Pro $99.99 and Enterprise $249 withdrawn 2026-11-14) | v4.5 | — | ✅ |
 | BL-02 | Feature gate system — `require_feature()` FastAPI dep, per-tier caps | v4.5 | — | ✅ |
 | BL-03 | Add-on: Secrets Vault Governance — +$12/mo (Individual+) | v4.9 | Individual+ | ✅ |
 | BL-04 | Add-on: XAI Audit Reports — +$9/mo (Individual+) | v4.5 | Individual+ | ✅ |
@@ -510,8 +550,8 @@ Revenue model: tiers + add-ons + usage-based overages via Lemon Squeezy.
 | BL-12 | Add-on: On-Prem Deployment Pack — +$29/mo (Pro+), unlocks `on_prem_deployment` | v4.20 | Pro+ | ✅ |
 | BL-13 | Add-on: Community Seats (+5 members) — +$9/mo (Community Business+), stackable | v4.20 | CB+ | ✅ |
 | BL-14 | Bundle: Power User Bundle — Secrets Vault + XAI + Shadow AI at $29 (save $7) | v4.20 | Pro+ | ✅ |
-| BL-15 | Annual billing — 15% off: $51/$407.90/$1,019.90/$2,539.80/yr for Individual/CB/Pro/Enterprise | v4.20 | All | ✅ |
-| BL-16 | 14-day Pro trial — 10k req cap, no MasterAgent, one-time per tenant | v4.20 | Individual+ | ✅ |
+| BL-15 | Annual billing — 15% off, derived from the monthly price: $51/yr Individual, $407.90/yr Community Business | v4.20 | All | ✅ |
+| BL-16 | 14-day Community Business trial — 10k req cap, no MasterAgent, one-time per tenant | v4.20 | Individual+ | ✅ |
 | BL-17 | `PricingCalculator` React component — tier + add-on + bundle + annual/monthly toggle | v4.20 | — | ✅ |
 | BL-18 | `UsageProgress` React component — quota bar, 80% upgrade CTA, 60s refresh | v4.20 | — | ✅ |
 | BL-19 | Request overage billing — ARQ monthly cron, Pro $0.50/1k, Enterprise $0.10/1k | v4.21 | Pro+ | ✅ |
@@ -582,18 +622,22 @@ Continuous self-improvement and threat intelligence synthesis.
 
 ## Production Infrastructure Status
 
+Probed anonymously on 2026-11-15.
+
 | Component | URL | Status |
 |-----------|-----|--------|
 | API Gateway | `https://api.shadow-warden-ai.com` | ✅ Live |
-| Tenant Portal | `https://app.shadow-warden-ai.com` | ✅ Live |
-| Landing Page | `https://shadow-warden-ai.com` | ✅ Live |
-| Redoc API Docs | `https://docs.shadow-warden-ai.com` | ✅ Live |
-| Community Dashboard | `https://shadow-warden-ai.com/community` | ✅ Live (Vercel) |
-| Public Incident Page | `https://shadow-warden-ai.com/incident` | ✅ Live (Vercel) |
-| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ✅ Live |
-| Grafana | `http://91.98.234.160:3000` | ✅ Live |
-| Jaeger UI | `http://91.98.234.160:16686` | ✅ Live |
-| Hetzner VPS | `91.98.234.160` | ✅ Live |
+| Tenant Portal and storefronts | `https://portal.shadow-warden-ai.com` | ✅ Live |
+| Site | `https://www.shadow-warden-ai.com` (the apex redirects here) | ✅ Live (Vercel) |
+| Community demo | `https://www.shadow-warden-ai.com/community` | ✅ Live (browser-only demo, `localStorage`) |
+| Public Incident Page | `https://www.shadow-warden-ai.com/incident` | ✅ Live (Vercel) |
+| SOC Dashboard | `https://dash.shadow-warden-ai.com` | ✅ Live, behind Cloudflare Access |
+| Grafana | `127.0.0.1:3001` on the host, SSH tunnel only | ✅ Not public by design |
+| Jaeger UI | `127.0.0.1:16686` on the host, SSH tunnel only | ✅ Not public by design |
+| Hetzner VPS | one node, 24 Docker services | ✅ Live |
+
+`app.shadow-warden-ai.com` and `docs.shadow-warden-ai.com`, listed here until 2026-11-15,
+do not resolve.
 
 ---
 
@@ -648,3 +692,12 @@ Continuous self-improvement and threat intelligence synthesis.
 | **v6.9** | **2026-06-26** | **Dynamic Model Router (MKT-17): 4-factor complexity scoring routes Haiku/Sonnet/Opus per dispatch action; wired into dispatch_action() with OTel span attrs; env-configurable thresholds + force-override; Model Tier Analytics (MKT-18): `GET /analytics/model-tiers`, cost savings vs all-Opus baseline, sparse-data fallback; Marketplace Intelligence Charts (FE-51): First-Proposal Bias + Model Tier doughnuts on marketplace.astro with Chart.js; CI Docker Scout gate (IF-23)** |
 | **v7.1** | **2026-06-29** | **Lemon Squeezy Metered Billing (report_usage JSON:API, ls_sub_item_id, BackgroundTasks offload, feature flag gating on downgrade), OTel traced_dispatch for SOVA, DB Snapshots for Loop Safety, MAESTRO tacit collusion detection** |
 | v7.0 | 2026-06-27 | Agentic Marketplace unified page, CI mypy gate, 4305 tests 81.21% coverage |
+| v7.2 | 2026-06-30 | Application factory, unit-economics tracker, agent-to-agent protocol, structured logging, security contract tests |
+| v7.3 | 2026-07-01 | Paid MCP gateway, ACP protocol, billing audit chain, Turso distributed SQLite |
+| v7.4 | 2026-07-01 | Pipeline health endpoint, x402 replay protection, payment-bypass audit log |
+| v7.5 | 2026-07-04 | Layered architecture refactor, layer guard, route-inventory guard |
+| v7.6 | 2026-07-04 | Marketplace and community APIs restored, CI import audit |
+| v7.7 | date not recorded | GSAM observation stream, drift detection and agent quarantine, JIT credential lease |
+| v7.8 | date not recorded | Shadow Agentic Container: execution guard, GSAM downstream |
+| v7.9 | 2026-08-03 | FinOps and monetization (FM-7): one price list, overage rating repair, LLM cost attribution |
+| v7.10 | 2026-10-19 | Security, honesty and supply-chain hardening; no new features |
