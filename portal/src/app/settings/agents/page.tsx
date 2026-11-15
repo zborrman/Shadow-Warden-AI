@@ -64,7 +64,7 @@ export default function AgentsPage() {
     queryFn: settingsApi.getAgentConfig,
   })
 
-  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<AgentForm>({
+  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<z.input<typeof agentSchema>, unknown, AgentForm>({
     resolver: zodResolver(agentSchema),
     values: config as AgentForm,
   })

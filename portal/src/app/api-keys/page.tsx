@@ -43,7 +43,7 @@ function CreateKeyModal({ onClose, onCreated }: {
   onCreated: (key: string) => void
 }) {
   const qc = useQueryClient()
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<z.input<typeof schema>, unknown, Form>({
     resolver: zodResolver(schema),
     defaultValues: { label: 'Default', rate_limit: 60 },
   })
