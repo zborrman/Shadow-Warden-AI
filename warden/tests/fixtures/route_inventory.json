@@ -599,13 +599,6 @@
     "POST /vendor-gov/vendors/{vendor_id}/dpa",
     "PUT /vendor-gov/vendors/{vendor_id}"
   ],
-  "warden.api.wallet": [
-    "GET /wallet",
-    "POST /wallet/commit",
-    "POST /wallet/deposit",
-    "POST /wallet/release",
-    "POST /wallet/reserve"
-  ],
   "warden.api.webhook": [
     "GET /billing/webhook/health",
     "POST /billing/webhook"
@@ -622,13 +615,6 @@
     "GET /webhooks/{endpoint_id}/history",
     "POST /webhooks/",
     "POST /webhooks/test/{endpoint_id}"
-  ],
-  "warden.api.whitelabel": [
-    "DELETE /whitelabel/{tenant_id}",
-    "GET /whitelabel/{tenant_id}",
-    "GET /whitelabel/{tenant_id}/caddy-snippet",
-    "GET /whitelabel/{tenant_id}/css",
-    "PUT /whitelabel/{tenant_id}"
   ],
   "warden.api.ws_events": [
     "WS /ws/events"
@@ -670,12 +656,6 @@
     "POST /billing/referral/generate",
     "POST /billing/referral/redeem",
     "POST /billing/trial/start"
-  ],
-  "warden.blockchain.api": [
-    "DELETE /web3/mandates/{mandate_id}",
-    "GET /web3/mandates/{mandate_id}",
-    "POST /web3/mandates/create",
-    "POST /web3/mandates/{mandate_id}/execute"
   ],
   "warden.business_community.agentic_commerce.api": [
     "DELETE /business-community/commerce/mandates/{mandate_id}",
@@ -1008,13 +988,6 @@
     "GET /threat/neutralizer/matrix",
     "GET /threat/neutralizer/sectors",
     "POST /threat/neutralizer/assess"
-  ],
-  "warden.tokenomics.api": [
-    "GET /tokenomics/balance/{agent_id}",
-    "GET /tokenomics/listings/outcome",
-    "POST /tokenomics/listings/outcome",
-    "POST /tokenomics/listings/{listing_id}/settle",
-    "POST /tokenomics/mint"
   ],
   "warden.voice.api": [
     "GET /voice/sessions/{session_id}",
