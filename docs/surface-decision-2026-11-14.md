@@ -134,3 +134,38 @@ one.
 * The narrowing has a number attached: **17 orphan prefixes / 67 routes** is the
   starting measurement. A cohort is done when its prefix leaves that list by
   entering `lab` or `retired` — not by acquiring a client it does not have.
+
+## Cohort 1 — the mechanism, and four prefixes (2026-11-14)
+
+The mechanism is `warden/surfaces.py`: a table of router modules and the reason
+each is lab. `register_router_safe()` refuses to mount a listed module unless
+`WARDEN_LAB_SURFACES=true` (`Settings.lab_surfaces_enabled`, default false; the
+test suite turns it on so the modules' own tests keep running). The list lives
+in one place rather than on each `RouterSpec`, because the tenant-isolation
+hook and the tests need to read it without importing the app.
+
+| prefix | module | routes |
+|---|---|---|
+| `/wallet` | `warden.api.wallet` | 5 |
+| `/whitelabel` | `warden.api.whitelabel` | 5 |
+| `/web3` | `warden.blockchain.api` | 4 |
+| `/tokenomics` | `warden.tokenomics.api` | 5 |
+
+Measured effect: route inventory −19 routes, published spec 687 → 672 paths,
+claimed-tenant baseline 150 → 145 (all five `/whitelabel` routes took the
+tenant from the path).
+
+Not in this cohort, and why:
+
+* `/msp` — mounted by the onboarding router, not by its own `RouterSpec`;
+  withdrawing it means splitting a router, which is a separate change.
+* `/integrations/*`, `/agents/packs` — gated when this decision landed; their
+  withdrawal is the next cohort.
+* `warden/blockchain/` and `warden/tokenomics/` as *code* stay: escrow imports
+  the chain connector. Only the HTTP surface is withheld.
+
+Open: `feature_gate.py` still lists `white_label` as an Enterprise entitlement.
+No public page claims it, but a tier that grants a feature with no mounted
+route is a claim waiting to be made. It should leave the tier table or return
+with a client.
+

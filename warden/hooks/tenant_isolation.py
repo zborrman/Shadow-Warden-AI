@@ -270,7 +270,25 @@ def scan_source(src: str, path: str) -> list[Finding]:
     return findings
 
 
+def _is_lab(rel: str) -> bool:
+    """A lab router is not mounted, so its routes are not reachable to isolate.
+
+    The debt is not forgiven: leaving ``warden/surfaces.py`` puts the module
+    back under this hook with no baseline entry to hide behind.
+    """
+    try:
+        root = str(Path(__file__).resolve().parents[2])
+        if root not in sys.path:
+            sys.path.insert(0, root)
+        from warden.surfaces import is_lab
+    except Exception:  # noqa: BLE001 - if the list cannot be read, count everything
+        return False
+    return is_lab(rel.removesuffix(".py").replace("/", "."))
+
+
 def scan_file(file: Path, rel: str) -> list[Finding]:
+    if _is_lab(rel):
+        return []
     return scan_source(file.read_text(encoding="utf-8"), rel)
 
 
