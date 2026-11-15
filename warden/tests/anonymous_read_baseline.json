@@ -4,7 +4,6 @@
     "GET /.well-known/ai-market.json": "Machine-readable discovery document; public by protocol.",
     "GET /.well-known/mcp.json": "Machine-readable discovery document; public by protocol.",
     "GET /acp/manifest": "Protocol manifest an agent reads before it has a credential.",
-    "GET /agents/packs": "Static catalogue of agent packs; deploy/analyze are gated.",
     "GET /billing/addons": "Public price list and add-on catalogue; no tenant data. webhook/health reports only whether the webhook secret is configured.",
     "GET /billing/addons/bundles": "Public price list and add-on catalogue; no tenant data. webhook/health reports only whether the webhook secret is configured.",
     "GET /billing/tiers": "Public price list and add-on catalogue; no tenant data. webhook/health reports only whether the webhook secret is configured.",

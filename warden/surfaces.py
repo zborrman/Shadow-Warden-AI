@@ -31,6 +31,12 @@ LAB_ROUTER_MODULES: dict[str, str] = {
         "/web3 - Sepolia mandate contract; testnet only, no client",
     "warden.tokenomics.api":
         "/tokenomics - agent token; no client, no settled transaction",
+    # Cohort 2 (2026-11-15).
+    "warden.api.integrations":
+        "/integrations - Jira, Teams, Notion and Zapier outbound writers; no client "
+        "on any frontend, SDK or tool table",
+    "warden.agents.packs.api":
+        "/agents/packs - edge agent packs; no client, and no pack has been deployed",
 }
 
 
