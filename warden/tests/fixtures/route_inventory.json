@@ -9,11 +9,6 @@
     "POST /mcp/quote",
     "PUT /agents/{agent_id}"
   ],
-  "warden.agents.packs.api": [
-    "GET /agents/packs",
-    "POST /agents/packs/{name}/analyze",
-    "POST /agents/packs/{name}/deploy"
-  ],
   "warden.api.acp": [
     "DELETE /acp/token/{token_id}",
     "GET /acp/cart/{cart_id}",
@@ -265,16 +260,6 @@
     "GET /incidents/{incident_id}",
     "POST /incidents",
     "PUT /incidents/{incident_id}/status"
-  ],
-  "warden.api.integrations": [
-    "GET /integrations/jira/health",
-    "GET /integrations/notion/health",
-    "GET /integrations/teams/health",
-    "GET /integrations/zapier/health",
-    "POST /integrations/jira/issue",
-    "POST /integrations/notion/page",
-    "POST /integrations/teams/notify",
-    "POST /integrations/zapier/event"
   ],
   "warden.api.kya": [
     "GET /kya/list",

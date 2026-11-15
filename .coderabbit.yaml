@@ -59,6 +59,12 @@ reviews:
     - "!**/pnpm-lock.yaml"
     - "!dashboard/public/**"
     - "!site/public/**"
+    # landing/ is the committed build output of site/ (see CLAUDE.md). Nobody
+    # can review minified output, and it counts against the per-PR file limit:
+    # PR #709 was 200 files, 73 of them under landing/, and got no review at
+    # all ("Too many files", limit 150). CI rebuilds site/ and diffs it against
+    # landing/, which is the check that actually holds for these files.
+    - "!landing/**"
     - "!**/node_modules/**"
     - "!**/*.min.js"
     - "!**/data/logs.json"
