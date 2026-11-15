@@ -226,6 +226,81 @@ updates:
       - dependency-name: "python"
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
+  # npm had no entry at all, so the three frontends received no version
+  # updates: on 2026-11-14 every one of the 289 open Dependabot alerts was npm
+  # and there was not one open Dependabot PR. Minor and patch arrive as one
+  # grouped PR per app, the same shape as pip above. Majors are ignored here
+  # because the ones outstanding (next 14 -> 15, astro 6 -> 7, zod 4) are
+  # migrations to be planned, not bumps to be merged; the ignore covers
+  # version updates only, so a security fix that needs a major is still raised.
+  # Security update PRs additionally need "Dependabot security updates" turned
+  # on in the repository settings - this file cannot enable that.
+  - package-ecosystem: "npm"
+    directory: "/portal"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "javascript"
+    groups:
+      portal-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/dashboard"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "javascript"
+    groups:
+      dashboard-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "npm"
+    directory: "/site"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "javascript"
+    # A bump that changes the build output also changes landing/, which CI
+    # compares against a fresh build: rebuild it on the PR branch (CLAUDE.md,
+    # "landing/ is generated") before merging.
+    groups:
+      site-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
