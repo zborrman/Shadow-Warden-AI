@@ -583,3 +583,41 @@ class TestWithdrawnAddonsAreNotSold:
         with pytest.raises(HTTPException) as exc:
             await fn("power_user_bundle", tenant_id="t1", success_url=None, cancel_url=None)
         assert exc.value.status_code == 404
+
+
+class TestAGateMinimumIsNeverLowered:
+    """A withdrawn or misspelt plan named as a *minimum* must close the gate."""
+
+    @pytest.mark.parametrize("minimum", ["pro", "enterprise", "business", "msp", "mcp",
+                                         "PRO", " Enterprise ", "platinum", ""])
+    def test_no_sold_plan_meets_it(self, minimum):
+        for tier in ("starter", "individual", "community_business"):
+            assert not FeatureGate.for_tier(tier).meets_minimum(minimum), (
+                f"{tier} passes a gate whose minimum is {minimum!r}"
+            )
+
+    @pytest.mark.parametrize("minimum", ["pro", "enterprise", "platinum"])
+    def test_the_unsold_set_still_meets_it(self, minimum):
+        assert FeatureGate.for_tier("lab").meets_minimum(minimum)
+
+    def test_sold_minimums_still_order(self):
+        cb = FeatureGate.for_tier("community_business")
+        assert cb.meets_minimum("individual") and cb.meets_minimum("smb")
+        assert not FeatureGate.for_tier("individual").meets_minimum("community_business")
+        assert FeatureGate.for_tier("starter").meets_minimum("free")
+
+    def test_require_plan_with_a_withdrawn_name_refuses_business(self):
+        from unittest.mock import MagicMock
+
+        from fastapi import HTTPException
+
+        import warden.billing.feature_gate as fg
+
+        dep = fg.require_plan("pro").dependency
+        request = MagicMock()
+        request.state.tenant = {"tier": "community_business"}
+        with pytest.raises(HTTPException) as exc:
+            dep(request)
+        assert exc.value.status_code == 403
+        assert exc.value.detail["error"] == "not_sold"
+        assert "upgrade_url" not in exc.value.detail

@@ -33,6 +33,7 @@ from fastapi import Depends, HTTPException, Request
 
 from warden.billing.pricing import (
     AGENT_TURN_OVERAGE_USD,
+    LAB_TIER,
     SOLD_TIERS,
     TIER_PRICE_USD_MONTH,
     agent_turn_allowance,
@@ -424,6 +425,23 @@ _TIER_ORDER: dict[str, int] = {
 }
 
 
+_MINIMUM_ALIASES: dict[str, str] = {"free": "starter", "smb": "community_business"}
+
+
+def _minimum_tier(name: str) -> str:
+    """Resolve a tier named as a gate's *minimum*.
+
+    Deliberately not ``_normalize_tier``. That one answers "what is this tenant
+    on", where a withdrawn name must read as Business and an unknown one as
+    Starter. In the minimum position both of those lower the gate: ``"pro"``
+    would become a Business gate, and a typo would become no gate at all. Here
+    anything that is not a sold plan means "not sold".
+    """
+    t = (name or "").strip().lower()
+    t = _MINIMUM_ALIASES.get(t, t)
+    return t if t in SOLD_TIERS else LAB_TIER
+
+
 def _normalize_tier(tier: str) -> str:
     # Alias table lives in warden.billing.pricing so gating and pricing can never
     # disagree about what a legacy tier name means.
@@ -501,9 +519,7 @@ class FeatureGate:
 
     def meets_minimum(self, minimum_tier: str) -> bool:
         """Return True if this tier >= *minimum_tier*."""
-        return _TIER_ORDER.get(self.tier, 0) >= _TIER_ORDER.get(
-            _normalize_tier(minimum_tier), 0
-        )
+        return _TIER_ORDER.get(self.tier, 0) >= _TIER_ORDER[_minimum_tier(minimum_tier)]
 
     def quota_req_per_month(self) -> int | None:
         """Return monthly request quota (None = unlimited)."""
@@ -605,21 +621,30 @@ def require_plan(*plans: str):
     Usage:
         @router.get("/siem/export", dependencies=[Depends(require_plan("community_business"))])
     """
-    canonical = {_normalize_tier(p) for p in plans}
+    canonical = {_minimum_tier(p) for p in plans}
 
     def dependency(request: Request) -> FeatureGate:
         tier = _normalize_tier(_get_tenant_tier(request))
         gate = FeatureGate.for_tier(tier)
         # Accept if tier meets any specified plan level
         if not any(gate.meets_minimum(p) for p in canonical):
-            required = " or ".join(p.upper() for p in sorted(canonical))
+            if canonical == {LAB_TIER}:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error":        "not_sold",
+                        "message":      "This feature is not part of any plan.",
+                        "current_plan": tier,
+                    },
+                )
+            required = " or ".join(p.upper() for p in sorted(canonical - {LAB_TIER}))
             raise HTTPException(
                 status_code=403,
                 detail={
                     "error":        "plan_required",
                     "message":      f"This feature requires {required} plan.",
                     "current_plan": tier,
-                    "upgrade_url":  f"/subscription/checkout?plan={min(canonical, key=lambda p: _TIER_ORDER.get(p, 0))}",
+                    "upgrade_url":  f"/subscription/checkout?plan={min(canonical - {LAB_TIER}, key=lambda p: _TIER_ORDER.get(p, 0))}",
                 },
             )
         return gate

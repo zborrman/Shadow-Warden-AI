@@ -107,11 +107,11 @@ class TestFeatureGateMeetsMinimum(unittest.TestCase):
 
     def test_individual_below_business(self):
         from warden.billing.feature_gate import FeatureGate
-        self.assertFalse(FeatureGate.for_tier("individual").meets_minimum("business"))
+        self.assertFalse(FeatureGate.for_tier("individual").meets_minimum("community_business"))
 
     def test_business_meets_business(self):
         from warden.billing.feature_gate import FeatureGate
-        self.assertTrue(FeatureGate.for_tier("business").meets_minimum("business"))
+        self.assertTrue(FeatureGate.for_tier("business").meets_minimum("community_business"))
 
     def test_mcp_meets_all(self):
         from warden.billing.feature_gate import FeatureGate
