@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 
+from warden.auth_guard import caller_tenant_path
 from warden.billing.feature_gate import require_feature
 from warden.config import data_path
 
@@ -29,7 +30,7 @@ _DB_PATH = data_path("warden_billing_audit.db", "BILLING_AUDIT_DB_PATH")
 
 @router.get("/chain/{tenant_id}", dependencies=[_Gate])
 async def get_chain(
-    tenant_id: str,
+    tenant_id: str = Depends(caller_tenant_path),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> dict:
@@ -40,7 +41,7 @@ async def get_chain(
 
 
 @router.get("/verify/{tenant_id}", dependencies=[_Gate])
-async def verify_chain(tenant_id: str) -> dict:
+async def verify_chain(tenant_id: str = Depends(caller_tenant_path)) -> dict:
     """
     Re-hash the full chain and confirm integrity.
 
@@ -61,14 +62,14 @@ async def verify_chain(tenant_id: str) -> dict:
 
 
 @router.get("/summary/{tenant_id}", dependencies=[_Gate])
-async def get_summary(tenant_id: str) -> dict:
+async def get_summary(tenant_id: str = Depends(caller_tenant_path)) -> dict:
     """Return total spend, entry count, and tip hash."""
     from warden.billing.audit_chain import get_summary as _summary  # noqa: PLC0415
     return _summary(tenant_id, db_path=_DB_PATH)
 
 
 @router.get("/export/{tenant_id}", dependencies=[_Gate])
-async def export_chain(tenant_id: str) -> PlainTextResponse:
+async def export_chain(tenant_id: str = Depends(caller_tenant_path)) -> PlainTextResponse:
     """
     Export full audit chain as JSONL (one entry per line).
     Content-Type: application/x-ndjson — import directly into Splunk/Elastic.
@@ -83,7 +84,7 @@ async def export_chain(tenant_id: str) -> PlainTextResponse:
 
 
 @router.get("/evm/{tenant_id}", dependencies=[_Gate])
-async def get_evm_anchors(tenant_id: str) -> dict:
+async def get_evm_anchors(tenant_id: str = Depends(caller_tenant_path)) -> dict:
     """Return EVM attestation anchor history for the tenant."""
     from contextlib import closing  # noqa: PLC0415
 

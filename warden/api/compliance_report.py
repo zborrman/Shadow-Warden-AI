@@ -29,7 +29,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.config import settings
 
 try:
@@ -1015,7 +1015,7 @@ except Exception:
 
 @router.get("/posture/gaps", summary="List all compliance gaps with remediation guidance (CP-30)", dependencies=_CP30_GATE)
 async def compliance_gaps(
-    tenant_id: str = "default",
+    tenant_id: str = Depends(caller_tenant),
     severity:  str | None = None,
     framework: str | None = None,
 ) -> dict:
@@ -1044,7 +1044,7 @@ async def compliance_gaps(
 @router.get("/posture/{framework}", summary="Per-framework compliance detail (CP-30)", dependencies=_CP30_GATE)
 async def compliance_framework_detail(
     framework: str,
-    tenant_id: str = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     """
     Returns score, status, passed/total controls, and gap list for a single
@@ -1061,7 +1061,7 @@ async def compliance_framework_detail(
 
 
 @router.post("/posture/recalculate", summary="Force cache invalidation and recompute posture (CP-30)", dependencies=_CP30_GATE)
-async def compliance_recalculate(tenant_id: str = "default") -> dict:
+async def compliance_recalculate(tenant_id: str = Depends(caller_tenant)) -> dict:
     """Clears the Redis cache and recomputes the posture report immediately."""
     from warden.compliance.posture_service import CompliancePostureService
     svc = CompliancePostureService()
@@ -1109,7 +1109,7 @@ async def generate_evidence_bundle_endpoint(
 
 
 @router.websocket("/ws")
-async def compliance_ws(ws: WebSocket, tenant_id: str = "default") -> None:
+async def compliance_ws(ws: WebSocket, tenant_id: str = Depends(caller_tenant)) -> None:
     """
     WebSocket endpoint — sends a ComplianceReport immediately on connect, then
     pushes a fresh report whenever posture_service publishes to the

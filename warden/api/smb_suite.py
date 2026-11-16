@@ -8,9 +8,10 @@ Tier:   Community Business+ (smb_suite_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import caller_tenant, caller_tenant_path
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/smb-suite", tags=["SMB Governance Suite"])
@@ -46,12 +47,12 @@ async def provision(body: ProvisionRequest) -> dict:
 
 
 @router.get("/status/{tenant_id}", summary="Provisioning result and current health", dependencies=[_Gate])
-async def get_status(tenant_id: str, community_id: str = "") -> dict:
+async def get_status(tenant_id: str = Depends(caller_tenant_path), community_id: str = "") -> dict:
     from warden.integrations.smb_suite import get_suite_health
     return get_suite_health(tenant_id, community_id=community_id)
 
 
 @router.get("/health", summary="All 7 modules health check", dependencies=[_Gate])
-async def health_check(tenant_id: str, community_id: str = "") -> dict:
+async def health_check(tenant_id: str = Depends(caller_tenant), community_id: str = "") -> dict:
     from warden.integrations.smb_suite import get_suite_health
     return get_suite_health(tenant_id, community_id=community_id)

@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant_path, require_api_key
 
 router = APIRouter(prefix="/compliance/frameworks", tags=["Compliance Framework Builder"])
 
@@ -37,7 +37,7 @@ class ControlStatusUpdate(BaseModel):
 
 
 @router.post("/{tenant_id}", status_code=201, dependencies=_WRITE)
-async def create_framework(tenant_id: str, body: FrameworkIn):
+async def create_framework(body: FrameworkIn, tenant_id: str = Depends(caller_tenant_path)):
     from dataclasses import asdict  # noqa: PLC0415
 
     from warden.compliance.framework_builder import create_framework  # noqa: PLC0415
@@ -51,7 +51,7 @@ async def create_framework(tenant_id: str, body: FrameworkIn):
 
 
 @router.get("/{tenant_id}", dependencies=_WRITE)
-async def list_frameworks(tenant_id: str):
+async def list_frameworks(tenant_id: str = Depends(caller_tenant_path)):
     from dataclasses import asdict  # noqa: PLC0415
 
     from warden.compliance.framework_builder import list_frameworks  # noqa: PLC0415
@@ -59,7 +59,7 @@ async def list_frameworks(tenant_id: str):
 
 
 @router.get("/{tenant_id}/{framework_id}", dependencies=_WRITE)
-async def get_framework(tenant_id: str, framework_id: str):
+async def get_framework(framework_id: str, tenant_id: str = Depends(caller_tenant_path)):
     from dataclasses import asdict  # noqa: PLC0415
 
     from warden.compliance.framework_builder import get_framework  # noqa: PLC0415
@@ -70,7 +70,7 @@ async def get_framework(tenant_id: str, framework_id: str):
 
 
 @router.put("/{tenant_id}/{framework_id}", dependencies=_WRITE)
-async def update_framework(tenant_id: str, framework_id: str, body: FrameworkIn):
+async def update_framework(framework_id: str, body: FrameworkIn, tenant_id: str = Depends(caller_tenant_path)):
     from dataclasses import asdict  # noqa: PLC0415
 
     from warden.compliance.framework_builder import update_framework  # noqa: PLC0415
@@ -85,7 +85,7 @@ async def update_framework(tenant_id: str, framework_id: str, body: FrameworkIn)
 
 
 @router.delete("/{tenant_id}/{framework_id}", dependencies=_WRITE)
-async def delete_framework(tenant_id: str, framework_id: str):
+async def delete_framework(framework_id: str, tenant_id: str = Depends(caller_tenant_path)):
     from warden.compliance.framework_builder import delete_framework  # noqa: PLC0415
     ok = delete_framework(framework_id, tenant_id)
     if not ok:
@@ -94,7 +94,7 @@ async def delete_framework(tenant_id: str, framework_id: str):
 
 
 @router.patch("/{tenant_id}/{framework_id}/controls/{control_id}", dependencies=_WRITE)
-async def update_control(tenant_id: str, framework_id: str, control_id: str, body: ControlStatusUpdate):
+async def update_control(framework_id: str, control_id: str, body: ControlStatusUpdate, tenant_id: str = Depends(caller_tenant_path)):
     from warden.compliance.framework_builder import update_control_status  # noqa: PLC0415
     ok = update_control_status(framework_id, tenant_id, control_id, body.status)
     if not ok:

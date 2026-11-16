@@ -25,7 +25,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.billing.addons import require_addon_or_feature
 
 router = APIRouter(prefix="/shadow-ai", tags=["Shadow AI Governance"])
@@ -147,7 +147,7 @@ async def ingest_dns_event(body: DnsEventRequest, auth: AuthResult = AuthDep) ->
 
 @router.get("/findings", summary="List Shadow AI findings")
 async def list_findings(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     limit:     int = Query(100, ge=1, le=1000),
     auth: AuthResult = AuthDep,
 ) -> list[dict]:
@@ -163,7 +163,7 @@ async def list_findings(
 
 @router.delete("/findings", status_code=204, summary="Clear all findings for a tenant")
 async def clear_findings_endpoint(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> None:
     """Permanently delete all stored Shadow AI findings for this tenant."""
@@ -177,7 +177,7 @@ async def clear_findings_endpoint(
     summary="Shadow AI governance summary report",
 )
 async def governance_report(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     limit:     int = Query(1000, ge=1, le=1000),
     auth: AuthResult = AuthDep,
 ) -> GovernanceReport:
@@ -237,7 +237,7 @@ async def governance_report(
 
 @router.get("/policy", summary="Get Shadow AI governance policy")
 async def get_policy_endpoint(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     """Return the current governance policy for a tenant."""
@@ -248,7 +248,7 @@ async def get_policy_endpoint(
 @router.put("/policy", summary="Update Shadow AI governance policy")
 async def update_policy_endpoint(
     body:      PolicyRequest,
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     """

@@ -29,7 +29,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, public_tenant_filter, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -1056,7 +1056,7 @@ async def analytics_sql_query(
 
 @router.get("/stats")
 async def marketplace_stats(
-    tenant_id: str | None = Query(default=None),
+    tenant_id: str | None = Depends(public_tenant_filter),
 ) -> dict:
     from warden.marketplace.agent import list_agents as _list_agents
     from warden.marketplace.listing import get_listings
@@ -1085,7 +1085,7 @@ async def marketplace_stats(
 
 @router.get("/analytics/summary")
 async def marketplace_analytics_summary(
-    tenant_id:    str | None = Query(default=None),
+    tenant_id: str | None = Depends(public_tenant_filter),
     community_id: str | None = Query(default=None),
     period_days:  int        = Query(default=30, ge=1, le=365),
 ) -> dict:
@@ -1095,7 +1095,7 @@ async def marketplace_analytics_summary(
 
 @router.get("/analytics/volume")
 async def marketplace_volume_series(
-    tenant_id:    str | None = Query(default=None),
+    tenant_id: str | None = Depends(public_tenant_filter),
     community_id: str | None = Query(default=None),
     period_days:  int        = Query(default=30, ge=7, le=365),
 ) -> list[dict]:
@@ -1136,7 +1136,7 @@ async def marketplace_model_tiers(
 
 @router.get("/analytics/agents")
 async def marketplace_agent_leaderboard(
-    tenant_id:    str | None = Query(default=None),
+    tenant_id: str | None = Depends(public_tenant_filter),
     community_id: str | None = Query(default=None),
     limit:        int        = Query(default=10, le=50),
 ) -> dict:

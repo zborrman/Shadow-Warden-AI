@@ -24,7 +24,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, require_api_key
 
 log = logging.getLogger(__name__)
 
@@ -79,13 +79,13 @@ def _bdr_db():
 
 
 @router.get("/bdr/leads")
-async def bdr_leads(tenant_id: str = "default", status: str | None = None, limit: int = 20) -> dict:
+async def bdr_leads(tenant_id: str = Depends(caller_tenant), status: str | None = None, limit: int = 20) -> dict:
     from warden.staff.tools.bdr import crm_search  # noqa: PLC0415
     return await crm_search(tenant_id=tenant_id, status=status, limit=limit)
 
 
 @router.get("/bdr/drafts/email")
-async def bdr_email_drafts(tenant_id: str = "default") -> dict:
+async def bdr_email_drafts(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _bdr_db() as db:
         rows = db.execute(
             "SELECT * FROM email_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -95,7 +95,7 @@ async def bdr_email_drafts(tenant_id: str = "default") -> dict:
 
 
 @router.post("/bdr/drafts/email/{draft_id}/approve")
-async def approve_email_draft(draft_id: int, tenant_id: str = "default") -> dict:
+async def approve_email_draft(draft_id: int, tenant_id: str = Depends(caller_tenant)) -> dict:
     with _bdr_db() as db:
         row = db.execute(
             "SELECT * FROM email_drafts WHERE id=? AND tenant_id=?", (draft_id, tenant_id)
@@ -110,7 +110,7 @@ async def approve_email_draft(draft_id: int, tenant_id: str = "default") -> dict
 
 
 @router.get("/bdr/meeting-slots")
-async def bdr_meeting_slots(tenant_id: str = "default") -> dict:
+async def bdr_meeting_slots(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _bdr_db() as db:
         rows = db.execute(
             "SELECT * FROM meeting_slots WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -127,7 +127,7 @@ def _growth_db():
 
 
 @router.get("/growth/drafts/seo")
-async def growth_seo_drafts(tenant_id: str = "default") -> dict:
+async def growth_seo_drafts(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _growth_db() as db:
         rows = db.execute(
             "SELECT id, tenant_id, topic, injection_clean, status, created_at FROM seo_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -137,7 +137,7 @@ async def growth_seo_drafts(tenant_id: str = "default") -> dict:
 
 
 @router.get("/growth/proposals")
-async def growth_budget_proposals(tenant_id: str = "default") -> dict:
+async def growth_budget_proposals(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _growth_db() as db:
         rows = db.execute(
             "SELECT * FROM budget_proposals WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -147,7 +147,7 @@ async def growth_budget_proposals(tenant_id: str = "default") -> dict:
 
 
 @router.post("/growth/proposals/{proposal_id}/approve")
-async def approve_budget_proposal(proposal_id: int, tenant_id: str = "default") -> dict:
+async def approve_budget_proposal(proposal_id: int, tenant_id: str = Depends(caller_tenant)) -> dict:
     with _growth_db() as db:
         row = db.execute(
             "SELECT * FROM budget_proposals WHERE id=? AND tenant_id=?", (proposal_id, tenant_id)
@@ -169,7 +169,7 @@ def _compliance_db():
 
 
 @router.get("/compliance/sars")
-async def compliance_sars(tenant_id: str = "default") -> dict:
+async def compliance_sars(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _compliance_db() as db:
         rows = db.execute(
             "SELECT id, tenant_id, subject, risk_level, status, created_at FROM sar_drafts WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -179,7 +179,7 @@ async def compliance_sars(tenant_id: str = "default") -> dict:
 
 
 @router.post("/compliance/sars/{sar_id}/approve")
-async def approve_sar(sar_id: int, tenant_id: str = "default") -> dict:
+async def approve_sar(sar_id: int, tenant_id: str = Depends(caller_tenant)) -> dict:
     with _compliance_db() as db:
         row = db.execute(
             "SELECT * FROM sar_drafts WHERE id=? AND tenant_id=?", (sar_id, tenant_id)
@@ -194,7 +194,7 @@ async def approve_sar(sar_id: int, tenant_id: str = "default") -> dict:
 
 
 @router.get("/compliance/screening-log")
-async def compliance_screening_log(tenant_id: str = "default", limit: int = 50) -> dict:
+async def compliance_screening_log(tenant_id: str = Depends(caller_tenant), limit: int = 50) -> dict:
     with _compliance_db() as db:
         rows = db.execute(
             "SELECT * FROM screening_log WHERE tenant_id=? ORDER BY screened_at DESC LIMIT ?",
@@ -211,7 +211,7 @@ def _support_db():
 
 
 @router.get("/support/tickets")
-async def support_tickets(tenant_id: str = "default", status: str | None = None) -> dict:
+async def support_tickets(tenant_id: str = Depends(caller_tenant), status: str | None = None) -> dict:
     from warden.staff.tools.support import get_ticket  # noqa: PLC0415
     return await get_ticket(tenant_id=tenant_id, status=status)
 
@@ -229,7 +229,7 @@ async def create_support_ticket(req: CreateTicketRequest) -> dict:
 
 
 @router.get("/support/refunds")
-async def support_refund_intents(tenant_id: str = "default") -> dict:
+async def support_refund_intents(tenant_id: str = Depends(caller_tenant)) -> dict:
     with _support_db() as db:
         rows = db.execute(
             "SELECT id,tenant_id,agent_id,amount_usd,reason,status,created_at FROM refund_intents WHERE tenant_id=? ORDER BY created_at DESC LIMIT 50",
@@ -239,7 +239,7 @@ async def support_refund_intents(tenant_id: str = "default") -> dict:
 
 
 @router.post("/support/refunds/{intent_id}/approve")
-async def approve_refund_intent(intent_id: int, tenant_id: str = "default") -> dict:
+async def approve_refund_intent(intent_id: int, tenant_id: str = Depends(caller_tenant)) -> dict:
     with _support_db() as db:
         row = db.execute(
             "SELECT * FROM refund_intents WHERE id=? AND tenant_id=?", (intent_id, tenant_id)
@@ -256,14 +256,14 @@ async def approve_refund_intent(intent_id: int, tenant_id: str = "default") -> d
 # ── Unit Economics endpoints ───────────────────────────────────────────────────
 
 @router.get("/economics/report")
-async def economics_report(tenant_id: str = "default", days: int = 30) -> dict:
+async def economics_report(tenant_id: str = Depends(caller_tenant), days: int = 30) -> dict:
     """Per-action token cost breakdown for the last N days."""
     from warden.staff.economics import get_tracker  # noqa: PLC0415
     return get_tracker().get_report(tenant_id, days)
 
 
 @router.get("/economics/alerts")
-async def economics_alerts(tenant_id: str = "default", threshold_usd: float = 0.50) -> dict:
+async def economics_alerts(tenant_id: str = Depends(caller_tenant), threshold_usd: float = 0.50) -> dict:
     """Actions where average cost-per-call exceeds threshold_usd."""
     from warden.staff.economics import get_tracker  # noqa: PLC0415
     alerts = get_tracker().get_margin_alerts(tenant_id, threshold_usd)

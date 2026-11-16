@@ -33,7 +33,7 @@ import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, require_api_key
 from warden.config import settings
 from warden.site.approval import (
     TIER1_KEYS,
@@ -265,7 +265,7 @@ def _compute_drift() -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("")
-def get_settings(tenant_id: str = Query(default="default")) -> dict:
+def get_settings(tenant_id: str = Depends(caller_tenant)) -> dict:
     """Full live configuration snapshot. Sensitive key values replaced with boolean presence."""
     return _full_config()
 

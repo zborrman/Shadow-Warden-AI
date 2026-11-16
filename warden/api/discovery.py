@@ -11,7 +11,7 @@ Endpoints
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from warden.discovery.well_known import build_ai_market, build_mcp_descriptor
@@ -20,14 +20,16 @@ router = APIRouter(tags=["Discovery"])
 
 
 @router.get("/.well-known/ai-market.json")
-async def ai_market(x_tenant_id: str = Header("")) -> JSONResponse:
-    doc = build_ai_market(tenant_id=x_tenant_id or None)
+async def ai_market() -> JSONResponse:
+    # Public document. It used to echo an unauthenticated X-Tenant-ID header
+    # back as the document's tenant; nothing proved the header, so it is gone.
+    doc = build_ai_market(tenant_id=None)
     return JSONResponse(content=doc, media_type="application/json")
 
 
 @router.get("/.well-known/mcp.json")
-async def mcp_well_known(x_tenant_id: str = Header("")) -> JSONResponse:
-    doc = build_mcp_descriptor(tenant_id=x_tenant_id or None)
+async def mcp_well_known() -> JSONResponse:
+    doc = build_mcp_descriptor(tenant_id=None)
     return JSONResponse(content=doc, media_type="application/json")
 
 

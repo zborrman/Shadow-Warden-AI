@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant_path, require_api_key
 
 # Router-level authentication (anonymous-route audit, 2026-07-29).
 #
@@ -29,7 +29,7 @@ class BudgetIn(BaseModel):
 
 
 @router.post("/{tenant_id}", status_code=201)
-async def create_budget(tenant_id: str, body: BudgetIn):
+async def create_budget(body: BudgetIn, tenant_id: str = Depends(caller_tenant_path)):
     from warden.billing.usage_budgets import set_budget  # noqa: PLC0415
     return set_budget(
         tenant_id=tenant_id,
@@ -43,13 +43,13 @@ async def create_budget(tenant_id: str, body: BudgetIn):
 
 
 @router.get("/{tenant_id}")
-async def list_budgets(tenant_id: str):
+async def list_budgets(tenant_id: str = Depends(caller_tenant_path)):
     from warden.billing.usage_budgets import list_budgets  # noqa: PLC0415
     return list_budgets(tenant_id)
 
 
 @router.get("/{tenant_id}/{department}")
-async def get_budget(tenant_id: str, department: str):
+async def get_budget(department: str, tenant_id: str = Depends(caller_tenant_path)):
     from warden.billing.usage_budgets import get_budget, get_counter  # noqa: PLC0415
     budget = get_budget(tenant_id, department)
     if not budget:
@@ -61,13 +61,13 @@ async def get_budget(tenant_id: str, department: str):
 
 
 @router.get("/{tenant_id}/{department}/check")
-async def check_budget(tenant_id: str, department: str):
+async def check_budget(department: str, tenant_id: str = Depends(caller_tenant_path)):
     from warden.billing.usage_budgets import check_budget_gate  # noqa: PLC0415
     return check_budget_gate(tenant_id, department)
 
 
 @router.delete("/{tenant_id}/{department}")
-async def delete_budget(tenant_id: str, department: str):
+async def delete_budget(department: str, tenant_id: str = Depends(caller_tenant_path)):
     import os  # noqa: PLC0415
 
     import redis as rl  # noqa: PLC0415, F401
