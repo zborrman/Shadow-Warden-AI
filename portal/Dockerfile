@@ -2,8 +2,9 @@
 FROM node:26-alpine AS builder
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install
+# Install exactly what package-lock.json records, not a fresh resolution.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 
