@@ -16,10 +16,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, caller_tenant_scope, require_api_key
 from warden.communities.notifications import (
     VALID_CHANNELS,
     VALID_EVENTS,
@@ -92,7 +92,7 @@ async def subscribe_endpoint(community_id: str, req: SubscribeRequest) -> dict[s
 @router.get("/{community_id}/notifications/subscriptions")
 async def list_subs(
     community_id: str,
-    tenant_id: str | None = Query(None),
+    tenant_id: str | None = Depends(caller_tenant_scope),
 ) -> list[dict[str, Any]]:
     return [s.to_dict() for s in list_subscriptions(community_id, tenant_id)]
 
@@ -100,7 +100,7 @@ async def list_subs(
 # ── Delete ────────────────────────────────────────────────────────────────────
 
 @router.delete("/{community_id}/notifications/{sub_id}", status_code=204)
-async def delete_sub(community_id: str, sub_id: str, tenant_id: str = Query(...)) -> None:
+async def delete_sub(community_id: str, sub_id: str, tenant_id: str = Depends(caller_tenant)) -> None:
     if not unsubscribe(sub_id, tenant_id):
         raise HTTPException(404, "Subscription not found or not owned by tenant")
 
@@ -112,7 +112,7 @@ async def patch_sub(
     community_id: str,
     sub_id:       str,
     req:          PatchSubRequest,
-    tenant_id:    str = Query(...),
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict[str, Any]:
     if req.active is not None and not set_active(sub_id, tenant_id, req.active):
         raise HTTPException(404, "Subscription not found or not owned by tenant")

@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from warden.agentic.mandate import MandateResult, create_invoice, validate_mandate
 from warden.agentic.registry import get_registry
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 
 log = logging.getLogger("warden.agentic.router")
 
@@ -74,7 +74,7 @@ class MandateExecuteRequest(BaseModel):
 
 @router.get("/agents", summary="List registered agents for a tenant")
 async def list_agents(
-    tenant_id: str = Query(default="default"),
+    tenant_id: str = Depends(caller_tenant),
     _auth: AuthResult = Depends(require_api_key),
 ) -> list[dict]:
     return get_registry().get_agents(tenant_id)
@@ -103,7 +103,7 @@ async def register_agent(
 
 @router.get("/agents/activity", summary="Agentic activity audit log for a tenant")
 async def get_activity(
-    tenant_id: str        = Query(default="default"),
+    tenant_id: str = Depends(caller_tenant),
     agent_id:  str | None = Query(default=None),
     limit:     int        = Query(default=100, ge=1, le=1000),
     _auth: AuthResult     = Depends(require_api_key),
@@ -113,7 +113,7 @@ async def get_activity(
 
 @router.post("/agents/revoke-all", summary="Revoke all active agents for a tenant")
 async def revoke_all_agents(
-    tenant_id: str    = Query(default="default"),
+    tenant_id: str = Depends(caller_tenant),
     _auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     count = get_registry().revoke_all(tenant_id)

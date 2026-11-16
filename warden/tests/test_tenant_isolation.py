@@ -294,7 +294,10 @@ def test_the_hook_exits_nonzero_on_a_new_finding(tmp_path: Path) -> None:
 
 def test_the_hook_passes_a_baselined_file() -> None:
     hook = _WARDEN / "hooks" / "tenant_isolation.py"
-    some = sorted(_baseline()["routes"])[0].split("::")[0]
+    # The baseline reached zero on 2026-11-16, so there is no baselined file to
+    # borrow. A migrated router is the same claim: the hook has nothing to say.
+    routes = sorted(_baseline()["routes"])
+    some = routes[0].split("::")[0] if routes else "warden/api/vendor_gov.py"
     res = subprocess.run(
         [sys.executable, str(hook), some],
         cwd=_REPO, capture_output=True, text=True, timeout=60,

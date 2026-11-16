@@ -25,7 +25,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, require_api_key
 from warden.community_models import (
     Comment,
     Member,
@@ -107,7 +107,7 @@ class ObsidianPostRequest(BaseModel):
 async def create_community_post(
     req: CreatePostRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = "default",
+    tenant_id: str = Depends(caller_tenant),
 ):
     """Create a post. NIM moderation runs in background; post starts as 'pending'."""
     post = Post(
@@ -127,7 +127,7 @@ async def create_community_post(
 async def post_from_obsidian(
     req: ObsidianPostRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = "default",
+    tenant_id: str = Depends(caller_tenant),
 ):
     """
     Obsidian → Community bridge.
@@ -176,7 +176,7 @@ async def post_from_obsidian(
 
 @router.get("/feed", dependencies=_WRITE)
 def get_community_feed(
-    tenant_id: str = "default",
+    tenant_id: str = Depends(caller_tenant),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ):
@@ -236,7 +236,7 @@ def admin_block_post(
 
 
 @router.get("/members", dependencies=_WRITE)
-def list_members(tenant_id: str = "default"):
+def list_members(tenant_id: str = Depends(caller_tenant)):
     members = get_members(tenant_id)
     return {
         "members": [
@@ -249,7 +249,7 @@ def list_members(tenant_id: str = "default"):
 
 
 @router.post("/members", status_code=201, dependencies=_WRITE)
-def join_community(req: MemberRequest, tenant_id: str = "default"):
+def join_community(req: MemberRequest, tenant_id: str = Depends(caller_tenant)):
     member = Member(
         id=str(uuid.uuid4()),
         tenant_id=tenant_id,

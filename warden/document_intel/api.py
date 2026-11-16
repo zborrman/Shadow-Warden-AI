@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant_form, require_api_key
 from warden.billing.feature_gate import require_feature
 
 log = logging.getLogger("warden.document_intel.api")
@@ -52,7 +52,7 @@ async def convert_file(file: UploadFile = File(...)) -> dict:
 @router.post("/convert-and-scan", summary="Convert file and run the full Warden filter pipeline", dependencies=[_Gate])
 async def convert_and_scan(
     file: UploadFile = File(...),
-    tenant_id: str = Form("default"),
+    tenant_id: str = Depends(caller_tenant_form),
 ) -> dict:
     """Convert a file to Markdown and immediately pass it through SecretRedactor + SemanticGuard."""
     from warden.document_intel.converter import MarkItDownUnavailable, get_converter

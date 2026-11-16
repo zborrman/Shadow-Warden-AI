@@ -30,8 +30,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+
+from warden.auth_guard import caller_tenant_header
 
 log = logging.getLogger("warden.api.community_intel")
 
@@ -39,12 +41,6 @@ router = APIRouter(prefix="/community-intel", tags=["Community Intelligence"])
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
-
-def _require_tenant(x_tenant_id: str | None = Header(default=None)) -> str:
-    if not x_tenant_id:
-        raise HTTPException(status_code=401, detail="X-Tenant-ID required")
-    return x_tenant_id
-
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
@@ -80,9 +76,8 @@ class OAuthGrantRequest(BaseModel):
 @router.get("/{community_id}")
 def get_intel_report(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.intelligence import generate_report
         return generate_report(community_id).to_dict()
@@ -94,9 +89,8 @@ def get_intel_report(
 @router.get("/{community_id}/risk")
 def get_risk_score(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.intelligence import generate_report
         report = generate_report(community_id)
@@ -111,9 +105,8 @@ def get_risk_score(
 def create_charter(
     community_id: str,
     body: CharterCreateRequest,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.charter import create_charter as _create
         rec = _create(
@@ -136,9 +129,8 @@ def create_charter(
 @router.get("/{community_id}/charter")
 def get_active_charter(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.charter import get_active_charter as _get
     rec = _get(community_id)
     if not rec:
@@ -149,9 +141,8 @@ def get_active_charter(
 @router.get("/{community_id}/charter/history")
 def list_charters(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.charter import list_charters as _list
     return {"community_id": community_id, "charters": [c.to_dict() for c in _list(community_id)]}
 
@@ -160,9 +151,8 @@ def list_charters(
 def publish_charter(
     community_id: str,
     charter_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.charter import publish_charter as _publish
         return _publish(charter_id).to_dict()
@@ -175,9 +165,8 @@ def accept_charter(
     community_id: str,
     charter_id: str,
     body: CharterAcceptRequest,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.charter import accept_charter as _accept
         return _accept(charter_id, body.member_id, ip_fingerprint=body.ip_fingerprint)
@@ -188,9 +177,8 @@ def accept_charter(
 @router.get("/{community_id}/charter/pending")
 def pending_acceptances(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.charter import list_pending_acceptances
     return {
         "community_id": community_id,
@@ -204,9 +192,8 @@ def pending_acceptances(
 def list_anomalies(
     community_id: str,
     limit: int = Query(50, ge=1, le=200),
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.behavioral import list_recent_anomalies
         return {
@@ -221,9 +208,8 @@ def list_anomalies(
 def detect_anomaly_endpoint(
     community_id: str,
     body: AnomalyDetectRequest,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     try:
         from warden.communities.behavioral import detect_anomaly, record_event
         record_event(community_id, body.event_type, body.value)
@@ -239,9 +225,8 @@ def detect_anomaly_endpoint(
 def list_oauth_grants(
     community_id: str,
     status: str = Query("ACTIVE", pattern="^(ACTIVE|REVOKED)$"),
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.oauth_discovery import list_grants
     return {
         "community_id": community_id,
@@ -253,9 +238,8 @@ def list_oauth_grants(
 def register_oauth_grant(
     community_id: str,
     body: OAuthGrantRequest,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.oauth_discovery import register_oauth_grant as _reg
     grant = _reg(community_id, body.member_id, body.provider, body.scopes)
     return grant.to_dict()
@@ -264,9 +248,8 @@ def register_oauth_grant(
 @router.delete("/oauth/{grant_id}")
 def revoke_oauth_grant(
     grant_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.oauth_discovery import revoke_grant
     try:
         grant = revoke_grant(grant_id)
@@ -278,17 +261,15 @@ def revoke_oauth_grant(
 @router.get("/{community_id}/oauth/summary")
 def oauth_risk_summary(
     community_id: str,
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.oauth_discovery import get_risk_summary
     return get_risk_summary(community_id)
 
 
 @router.get("/oauth/catalog")
 def oauth_provider_catalog(
-    x_tenant_id: str | None = Header(default=None),
+    x_tenant_id: str = Depends(caller_tenant_header),
 ) -> dict[str, Any]:
-    _require_tenant(x_tenant_id)
     from warden.communities.oauth_discovery import get_provider_catalog
     return {"providers": get_provider_catalog()}

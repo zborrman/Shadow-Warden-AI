@@ -47,7 +47,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastapi import Depends, Header, HTTPException, Query, Security, status
+from fastapi import Depends, Form, Header, HTTPException, Query, Security, status
+from fastapi import Path as PathParam
 from fastapi.security import APIKeyHeader
 
 from warden.config import settings
@@ -208,10 +209,7 @@ def bind_tenant(auth: AuthResult, claimed: str | None, x_admin_key: str | None =
     claim = (claimed or "").strip()
     if not claim or claim == auth.tenant_id:
         return auth.tenant_id
-    if auth.tenant_id == "default":
-        return claim
-    admin_key = os.getenv("ADMIN_KEY", "")
-    if x_admin_key and admin_key and hmac.compare_digest(x_admin_key, admin_key):
+    if _is_operator(auth, x_admin_key):
         return claim
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -231,6 +229,83 @@ def caller_tenant(
     working; see :func:`bind_tenant` for what a foreign value gets.
     """
     return bind_tenant(auth, tenant_id, x_admin_key)
+
+
+def caller_tenant_path(
+    auth: AuthResult = Depends(require_api_key),
+    tenant_id: str = PathParam(...),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """:func:`caller_tenant` for a route whose URL carries ``{tenant_id}``.
+
+    The path segment stays where it is, so no client URL changes; a segment that
+    names another tenant is refused by :func:`bind_tenant`.
+    """
+    return bind_tenant(auth, tenant_id, x_admin_key)
+
+
+def caller_tenant_header(
+    auth: AuthResult = Depends(require_api_key),
+    x_tenant_id: str | None = Header(default=None),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """:func:`caller_tenant` for a route that reads the tenant from ``X-Tenant-ID``."""
+    return bind_tenant(auth, x_tenant_id, x_admin_key)
+
+
+def caller_tenant_form(
+    auth: AuthResult = Depends(require_api_key),
+    tenant_id: str | None = Form(default=None),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """:func:`caller_tenant` for a multipart upload that sends ``tenant_id`` as a form field."""
+    return bind_tenant(auth, tenant_id, x_admin_key)
+
+
+def _is_operator(auth: AuthResult, x_admin_key: str | None) -> bool:
+    if auth.tenant_id == "default":
+        return True
+    admin_key = os.getenv("ADMIN_KEY", "")
+    return bool(x_admin_key and admin_key and hmac.compare_digest(x_admin_key, admin_key))
+
+
+def caller_tenant_scope(
+    auth: AuthResult = Depends(require_api_key),
+    tenant_id: str | None = Query(default=None),
+    x_admin_key: str | None = Header(default=None),
+) -> str | None:
+    """For a listing where ``tenant_id`` was an optional filter and ``None`` meant
+    "every tenant".
+
+    Only the operator keeps that meaning. A customer key that names no tenant is
+    scoped to its own — the unfiltered view was every tenant's rows — and one
+    that names another is refused, as in :func:`bind_tenant`.
+    """
+    claim = (tenant_id or "").strip()
+    if not claim:
+        return None if _is_operator(auth, x_admin_key) else auth.tenant_id
+    return bind_tenant(auth, claim, x_admin_key)
+
+
+def public_tenant_filter(tenant_id: str | None = Query(default=None)) -> str | None:
+    """A ``tenant_id`` filter on a route that is public on purpose.
+
+    No authentication, and none is implied: use it only where every row the
+    route can return is already public (recorded with a reason in
+    ``warden/tests/anonymous_read_baseline.json``), so the value narrows a public
+    listing and cannot reach anything private. Anything else takes
+    :func:`caller_tenant`.
+    """
+    return (tenant_id or "").strip() or None
+
+
+def caller_label(x_api_key: str | None = Header(default=None)) -> str:
+    """The caller's tenant for a log line on a route that does not require a key.
+
+    Derived from the key when one is sent, ``"anonymous"`` otherwise — never from
+    a field the caller typed.
+    """
+    return resolve_tenant_id(x_api_key) or "anonymous"
 
 
 def tier_header_trusted() -> bool:

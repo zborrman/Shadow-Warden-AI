@@ -31,7 +31,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/sovereign", tags=["Sovereign AI Cloud"])
@@ -149,7 +149,7 @@ async def compliance_check(
     from_jurisdiction: str = Query(..., description="Origin jurisdiction code"),
     to_jurisdiction:   str = Query(..., description="Destination jurisdiction code"),
     data_class:        str = Query("GENERAL"),
-    tenant_id:         str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     """
@@ -174,7 +174,7 @@ async def compliance_check(
 
 @router.get("/policy", summary="Get tenant routing policy")
 async def get_policy(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     from warden.sovereign.policy import get_policy as _get
@@ -184,7 +184,7 @@ async def get_policy(
 @router.put("/policy", summary="Update tenant routing policy", dependencies=[_SovereignGate])
 async def update_policy(
     body:      PolicyUpdateRequest,
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     """
@@ -217,7 +217,7 @@ async def update_policy(
 @router.get("/tunnels", summary="List MASQUE tunnels")
 async def list_tunnels(
     jurisdiction: str | None = Query(None),
-    tenant_id:    str | None = Query(None),
+    tenant_id: str = Depends(caller_tenant),
     status:       str | None = Query(None, description="PENDING | ACTIVE | DEGRADED | OFFLINE"),
     auth: AuthResult = AuthDep,
 ) -> list[dict]:
@@ -465,7 +465,7 @@ async def verify_attestation(attest_id: str, auth: AuthResult = AuthDep) -> dict
 
 @router.get("/attestations", summary="List tenant attestations")
 async def list_attestations(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     limit:     int = Query(100, ge=1, le=1000),
     auth: AuthResult = AuthDep,
 ) -> list[dict]:
@@ -481,7 +481,7 @@ async def list_attestations(
 
 @router.get("/report", summary="Sovereign AI Cloud compliance report")
 async def sovereignty_report(
-    tenant_id: str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     limit:     int = Query(500, ge=1, le=5000),
     auth: AuthResult = AuthDep,
 ) -> dict:

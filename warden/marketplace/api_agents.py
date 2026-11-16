@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import public_tenant_filter, require_api_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -57,7 +57,7 @@ class PayoutAddressRequest(BaseModel):
 
 @router.get("/agents")
 async def list_agents(
-    tenant_id:    str | None = Query(default=None),
+    tenant_id: str | None = Depends(public_tenant_filter),
     community_id: str | None = Query(default=None),
     limit:        int        = Query(default=50, le=100),
 ) -> list[dict]:

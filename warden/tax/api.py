@@ -5,10 +5,11 @@ Prefix: /tax
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/tax", tags=["Tax & Compliance"])
@@ -39,7 +40,7 @@ async def calculate_tax(body: TaxRequest) -> dict:
 
 
 @router.get("/orders/{order_id}/invoice", summary="Download PDF invoice", dependencies=[_Gate])
-async def get_invoice(order_id: str, tenant_id: str) -> Response:
+async def get_invoice(order_id: str, tenant_id: str = Depends(caller_tenant)) -> Response:
     from warden.business_community.agentic_commerce.service import AgenticCommerceService
     from warden.tax.calculator import TaxCalculator
     from warden.tax.invoice_generator import InvoiceGenerator
@@ -66,7 +67,7 @@ async def get_invoice(order_id: str, tenant_id: str) -> Response:
 
 
 @router.get("/reports", summary="Quarterly tax compliance report", dependencies=[_Gate])
-async def quarterly_report(tenant_id: str, year: int = 2026, quarter: int = 2) -> dict:
+async def quarterly_report(tenant_id: str = Depends(caller_tenant), year: int = 2026, quarter: int = 2) -> dict:
     from warden.tax.calculator import TaxCalculator
     # In production: load records from DB. Return empty summary for now.
     return TaxCalculator().quarterly_summary([], year=year, quarter=quarter)

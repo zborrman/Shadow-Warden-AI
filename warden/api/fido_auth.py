@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, require_api_key
 
 router = APIRouter(prefix="/auth/fido", tags=["FIDO2 Auth"])
 
@@ -74,14 +74,14 @@ async def authenticate_complete(body: AuthCompleteRequest) -> dict:
 
 
 @router.get("/credentials", summary="List registered Passkeys", dependencies=_ENROL)
-async def list_credentials(tenant_id: str) -> dict:
+async def list_credentials(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.auth.fido import FIDOProvider
     creds = FIDOProvider().list_credentials(tenant_id)
     return {"credentials": creds, "count": len(creds)}
 
 
 @router.delete("/credentials/{credential_id}", summary="Remove a Passkey", dependencies=_ENROL)
-async def delete_credential(credential_id: str, tenant_id: str) -> dict:
+async def delete_credential(credential_id: str, tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.auth.fido import FIDOProvider
     ok = FIDOProvider().delete_credential(tenant_id, credential_id)
     if not ok:

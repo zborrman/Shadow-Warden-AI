@@ -18,7 +18,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.billing.addons import require_addon_or_feature
 
 router = APIRouter(prefix="/xai", tags=["Explainable AI"])
@@ -44,7 +44,7 @@ class BatchExplainRequest(BaseModel):
 )
 async def explain(
     request_id: str,
-    tenant_id:  str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> dict:
     """
@@ -104,7 +104,7 @@ async def explain_batch(
 )
 async def report_html(
     request_id: str,
-    tenant_id:  str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> Response:
     """
@@ -139,7 +139,7 @@ async def report_html(
 )
 async def report_pdf(
     request_id: str,
-    tenant_id:  str = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     auth: AuthResult = AuthDep,
 ) -> Response:
     """
@@ -175,7 +175,7 @@ async def report_pdf(
 
 @router.get("/dashboard", summary="Aggregated XAI statistics")
 async def dashboard(
-    tenant_id: str  = Query("default"),
+    tenant_id: str = Depends(caller_tenant),
     hours:     int  = Query(24, ge=1, le=168, description="Look-back window in hours"),
     auth: AuthResult = AuthDep,
 ) -> dict:

@@ -8,8 +8,9 @@ Tier:   Community Business+ (communities_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 from warden.business_intelligence.models import ReportRequest
 from warden.business_intelligence.repository import (
@@ -23,37 +24,37 @@ _Gate  = require_feature("communities_enabled")
 
 
 @router.get("/usage", summary="AI usage analytics for a tenant", dependencies=[_Gate])
-async def usage_summary(tenant_id: str, period_month: str | None = None) -> dict:
+async def usage_summary(tenant_id: str = Depends(caller_tenant), period_month: str | None = None) -> dict:
     from warden.business_intelligence.service import get_usage_summary
     return get_usage_summary(tenant_id, period_month)
 
 
 @router.get("/threats", summary="Threat intelligence dashboard", dependencies=[_Gate])
-async def threat_summary(tenant_id: str, period_days: int = 30) -> dict:
+async def threat_summary(tenant_id: str = Depends(caller_tenant), period_days: int = 30) -> dict:
     from warden.business_intelligence.service import get_threat_summary
     return get_threat_summary(tenant_id, period_days)
 
 
 @router.get("/vendors", summary="Vendor performance scorecards", dependencies=[_Gate])
-async def vendor_scorecards(tenant_id: str) -> dict:
+async def vendor_scorecards(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.business_intelligence.service import get_vendor_scorecards
     return {"tenant_id": tenant_id, "scorecards": get_vendor_scorecards(tenant_id)}
 
 
 @router.get("/costs", summary="Cost optimization insights", dependencies=[_Gate])
-async def cost_insights(tenant_id: str, months: int = 3) -> dict:
+async def cost_insights(tenant_id: str = Depends(caller_tenant), months: int = 3) -> dict:
     from warden.business_intelligence.service import get_cost_insights
     return get_cost_insights(tenant_id, months)
 
 
 @router.get("/compliance", summary="Compliance posture score", dependencies=[_Gate])
-async def compliance_score(tenant_id: str, community_id: str = "") -> dict:
+async def compliance_score(tenant_id: str = Depends(caller_tenant), community_id: str = "") -> dict:
     from warden.business_intelligence.service import get_compliance_score
     return get_compliance_score(tenant_id, community_id)
 
 
 @router.get("/benchmarks", summary="Community benchmarking", dependencies=[_Gate])
-async def benchmarks(tenant_id: str, community_id: str = "") -> dict:
+async def benchmarks(tenant_id: str = Depends(caller_tenant), community_id: str = "") -> dict:
     from warden.business_intelligence.service import get_benchmarks
     return {
         "tenant_id": tenant_id,
@@ -62,7 +63,7 @@ async def benchmarks(tenant_id: str, community_id: str = "") -> dict:
 
 
 @router.get("/predictions", summary="Predictive incident analytics", dependencies=[_Gate])
-async def incident_prediction(tenant_id: str, horizon_days: int = 30) -> dict:
+async def incident_prediction(tenant_id: str = Depends(caller_tenant), horizon_days: int = 30) -> dict:
     from warden.business_intelligence.service import get_incident_prediction
     return get_incident_prediction(tenant_id, horizon_days)
 
@@ -83,7 +84,7 @@ async def build_report(body: ReportRequest) -> dict:
 
 
 @router.get("/summary", summary="Executive summary (all modules)", dependencies=[_Gate])
-async def executive_summary(tenant_id: str, community_id: str = "") -> dict:
+async def executive_summary(tenant_id: str = Depends(caller_tenant), community_id: str = "") -> dict:
     from warden.business_intelligence.service import build_report
     return build_report(
         tenant_id=tenant_id,
@@ -96,7 +97,7 @@ async def executive_summary(tenant_id: str, community_id: str = "") -> dict:
 # ── Cache management ───────────────────────────────────────────────────────────
 
 @router.delete("/cache", summary="Invalidate BI cache for a tenant", dependencies=[_Gate])
-async def invalidate_cache(tenant_id: str) -> dict:
+async def invalidate_cache(tenant_id: str = Depends(caller_tenant)) -> dict:
     removed = cache_invalidate(tenant_id)
     return {"removed": removed, "tenant_id": tenant_id}
 
@@ -108,5 +109,5 @@ async def purge_cache() -> dict:
 
 
 @router.get("/cache/stats", summary="Cache statistics for a tenant", dependencies=[_Gate])
-async def get_cache_stats(tenant_id: str) -> dict:
+async def get_cache_stats(tenant_id: str = Depends(caller_tenant)) -> dict:
     return cache_stats(tenant_id)
