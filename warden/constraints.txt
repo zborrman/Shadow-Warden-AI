@@ -251,7 +251,7 @@ rlp==5.0.0
 roman-numerals==4.1.0
 rpds-py==2026.9.1
 rsa==4.9.1
-ruff==0.17.4
+ruff==0.17.5
 s3transfer==0.19.3
 safetensors==0.8.0
 scikit-learn==1.9.1
