@@ -1700,6 +1700,13 @@ jobs:
       # `npm ci` runs package install scripts (esbuild, workerd and fsevents all
       # declare one). Keep it in a step that has no deploy credential in its
       # environment, so a compromised dependency cannot read the token.
+      # Wrangler 4.16x refuses to start below Node 22.12. This job had no
+      # setup-node, so it ran on whatever the runner image shipped.
+      - uses: actions/setup-node@v7
+        if: steps.cred.outputs.have == 'true'
+        with:
+          node-version: 22
+
       - name: Install preflight worker dependencies
         if: steps.cred.outputs.have == 'true'
         working-directory: cloudflare/preflight-worker
