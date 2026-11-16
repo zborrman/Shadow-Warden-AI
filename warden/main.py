@@ -70,6 +70,7 @@ from warden.brain.semantic import SemanticGuard as BrainSemanticGuard
 from warden.config import settings
 from warden.data_policy import DataPolicyEngine
 from warden.gateway_state import gateway_state
+from warden.middleware.edge_hidden import EdgeHiddenPathsMiddleware
 from warden.mtls import MTLSMiddleware
 from warden.offline import is_offline as _is_offline
 from warden.onboarding import OnboardingEngine
@@ -1225,6 +1226,11 @@ app.add_middleware(
 # Disabled by default (MTLS_ENABLED=false); enable in production after running
 # scripts/gen_certs.sh and mounting certs/ into each container.
 app.add_middleware(MTLSMiddleware)
+
+# /metrics is for Prometheus on the compose network. The tunnel hands public
+# requests straight to this container, so nothing in the Caddyfile was ever in
+# front of it - see warden/middleware/edge_hidden.py.
+app.add_middleware(EdgeHiddenPathsMiddleware)
 
 
 #: Origin schemes the browser extension can legitimately present. The extension ID

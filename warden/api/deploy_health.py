@@ -126,7 +126,7 @@ async def deploy_status() -> dict[str, Any]:
         _http_check("minio",      "MinIO",       f"{_MINIO_URL}/minio/health/live"),
         _http_check("prometheus", "Prometheus",  f"{_PROM_URL}/-/healthy", "Prometheus is Healthy."),
         _http_check("grafana",    "Grafana",     f"{_GRAFANA_URL}/api/health"),
-        _http_check("analytics",  "Analytics",   f"{_ANALYTICS_URL}/api/v1/stats"),
+        _http_check("analytics",  "Analytics",   f"{_ANALYTICS_URL}/health"),
         _postgres_check(),
         _arq_check(redis_result),
     )

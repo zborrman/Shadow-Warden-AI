@@ -25,11 +25,23 @@ from analytics.main import app
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
+_KEY = "test-analytics-key"
+
+
 @pytest.fixture(scope="module")
 def aclient():
-    """TestClient for the analytics FastAPI app."""
-    with TestClient(app) as c:
-        yield c
+    """TestClient for the analytics FastAPI app, presenting the service key.
+
+    /api/v1 is fail-closed on a key (see test_analytics_access.py), so the
+    behavioural tests below run as an authenticated caller.
+    """
+    mp = pytest.MonkeyPatch()
+    mp.setenv("ANALYTICS_API_KEY", _KEY)
+    try:
+        with TestClient(app, headers={"X-API-Key": _KEY}) as c:
+            yield c
+    finally:
+        mp.undo()
 
 
 def _make_entry(
