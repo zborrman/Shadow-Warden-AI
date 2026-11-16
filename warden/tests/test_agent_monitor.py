@@ -37,9 +37,13 @@ def analytics_client(monkeypatch, tmp_path):
     import analytics.main as am
 
     monkeypatch.setattr(am, "SESSIONS_PATH", tmp_path / "sessions.json")
+    # /api/v1 on the analytics service is fail-closed on a key
+    # (test_analytics_access.py); these tests exercise the session routes as
+    # an authenticated caller.
+    monkeypatch.setenv("ANALYTICS_API_KEY", "agent-monitor-test-key")
     from fastapi.testclient import TestClient
 
-    return TestClient(am.app), tmp_path
+    return TestClient(am.app, headers={"X-API-Key": "agent-monitor-test-key"}), tmp_path
 
 
 # ── Core record ops ───────────────────────────────────────────────────────────
