@@ -21,12 +21,9 @@ background tasks finish (see the note in ``rate_limit_headers.py``).
 """
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterable
-from typing import Any
+from collections.abc import Iterable
 
-Scope = dict[str, Any]
-Receive = Callable[[], Awaitable[dict[str, Any]]]
-Send = Callable[[dict[str, Any]], Awaitable[None]]
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 #: Headers only the Cloudflare edge adds.
 EDGE_HEADERS: frozenset[bytes] = frozenset({b"cf-ray", b"cf-connecting-ip"})
@@ -42,7 +39,7 @@ def came_through_the_edge(headers: Iterable[tuple[bytes, bytes]]) -> bool:
 
 
 class EdgeHiddenPathsMiddleware:
-    def __init__(self, app: Any, paths: Iterable[str] = DEFAULT_HIDDEN_PATHS) -> None:
+    def __init__(self, app: ASGIApp, paths: Iterable[str] = DEFAULT_HIDDEN_PATHS) -> None:
         self.app = app
         self.paths = frozenset(paths)
 
