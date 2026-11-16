@@ -1200,6 +1200,7 @@ async def get_soc2_report(
     period_days: int = Query(default=90, ge=1, le=365, description="Look-back window in days"),
     format: str   = Query(default="json", pattern="^(json|zip)$"),
     request: Request = None,
+    _auth: AuthResult = Depends(require_api_key),
 ) -> Any:
     """Compile SOC 2 Type II evidence for the requesting tenant over the period.
 
@@ -1216,10 +1217,15 @@ async def get_soc2_report(
 
     from fastapi.responses import StreamingResponse
 
+    # Tier gate — not on any sold plan (was Pro+).
+    # The tier was read straight from `X-Tenant-Tier`, and the route had no
+    # authentication, so `curl -H "X-Tenant-Tier: lab"` returned the report to
+    # anyone. `_get_tenant_tier` honours that header only where auth is off
+    # (dev/test); with a real key it derives the plan from the caller's tenant.
+    from warden.billing.feature_gate import _get_tenant_tier, _normalize_tier
     from warden.compliance.soc2_collector import load_evidence_range  # noqa: PLC0415
 
-    # Tier gate — not on any sold plan (was Pro+)
-    tier = (request.headers.get("X-Tenant-Tier") or "starter").lower() if request else "starter"
+    tier = _normalize_tier(_get_tenant_tier(request))
     _pro_tiers = {"lab"}
     if tier not in _pro_tiers:
         from fastapi import HTTPException  # noqa: PLC0415
