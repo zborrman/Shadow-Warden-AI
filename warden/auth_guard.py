@@ -47,7 +47,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastapi import Header, HTTPException, Security, status
+from fastapi import Depends, Header, HTTPException, Query, Security, status
 from fastapi.security import APIKeyHeader
 
 from warden.config import settings
@@ -185,6 +185,52 @@ def require_api_key(api_key: str | None = Security(_API_KEY_HEADER)) -> AuthResu
         detail="Invalid or missing X-API-Key header.",
         headers={"WWW-Authenticate": "ApiKey"},
     )
+
+
+def bind_tenant(auth: AuthResult, claimed: str | None, x_admin_key: str | None = None) -> str:
+    """The tenant a request acts on, given the tenant it *claims* to act on.
+
+    A tenant id in a query string, path or body is caller-supplied text; taken at
+    its word it lets one tenant read and change another's rows by typing a name.
+    The caller's own tenant (resolved from its API key) is the answer, and a
+    claim that names it — or names nothing — changes nothing.
+
+    A claim that names a different tenant is honoured for the operator only:
+      * a valid ``X-Admin-Key``, or
+      * the master key, which resolves to ``"default"``. It is the key the
+        gateway's own tools (SOVA, the admin UI, the portal's server proxy) call
+        with on behalf of a named tenant, and it is the only identity in
+        single-key and unauthenticated dev mode. Never issue a customer a key
+        mapped to ``"default"``.
+    Anyone else gets 403 — an explicit refusal, not a silent substitution, so a
+    client that asked for tenant A is never handed tenant B's data labelled A.
+    """
+    claim = (claimed or "").strip()
+    if not claim or claim == auth.tenant_id:
+        return auth.tenant_id
+    if auth.tenant_id == "default":
+        return claim
+    admin_key = os.getenv("ADMIN_KEY", "")
+    if x_admin_key and admin_key and hmac.compare_digest(x_admin_key, admin_key):
+        return claim
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="This API key cannot act on another tenant.",
+    )
+
+
+def caller_tenant(
+    auth: AuthResult = Depends(require_api_key),
+    tenant_id: str | None = Query(default=None),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """FastAPI dependency: ``tenant_id: str = Depends(caller_tenant)``.
+
+    Replaces a bare ``tenant_id: str`` query parameter. The parameter keeps its
+    name and stays optional, so existing clients that send their own tenant keep
+    working; see :func:`bind_tenant` for what a foreign value gets.
+    """
+    return bind_tenant(auth, tenant_id, x_admin_key)
 
 
 def tier_header_trusted() -> bool:

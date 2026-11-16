@@ -22737,14 +22737,42 @@
         ],
         "summary": "List mandates for a tenant",
         "operationId": "list_mandates_business_community_commerce_mandates_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -22781,6 +22809,11 @@
         ],
         "summary": "Get mandate details",
         "operationId": "get_mandate_business_community_commerce_mandates__mandate_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "mandate_id",
@@ -22794,10 +22827,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -22850,10 +22906,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -22890,6 +22969,11 @@
         ],
         "summary": "Verify mandate status & signature",
         "operationId": "verify_mandate_business_community_commerce_mandates__mandate_id__verify_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "mandate_id",
@@ -22903,10 +22987,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -22989,16 +23096,12 @@
         ],
         "summary": "Order history for a tenant",
         "operationId": "list_orders_business_community_commerce_orders_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "limit",
             "in": "query",
@@ -23007,6 +23110,38 @@
               "type": "integer",
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23043,6 +23178,11 @@
         ],
         "summary": "Get order details + receipt",
         "operationId": "get_order_business_community_commerce_orders__order_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "order_id",
@@ -23056,10 +23196,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23204,15 +23367,6 @@
             }
           },
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "action",
             "in": "query",
             "required": false,
@@ -23220,6 +23374,38 @@
               "type": "string",
               "default": "approve",
               "title": "Action"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23256,14 +23442,42 @@
         ],
         "summary": "Agentic spend summary",
         "operationId": "spend_summary_business_community_commerce_analytics_spend_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23346,16 +23560,12 @@
         ],
         "summary": "List auctions for a tenant",
         "operationId": "list_auctions_business_community_commerce_auctions_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "limit",
             "in": "query",
@@ -23364,6 +23574,38 @@
               "type": "integer",
               "default": 20,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23400,6 +23642,11 @@
         ],
         "summary": "Get auction result",
         "operationId": "get_auction_business_community_commerce_auctions__auction_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "auction_id",
@@ -23413,10 +23660,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23454,14 +23724,42 @@
         "summary": "MTD spend summary (Semantic Layer)",
         "description": "Return month-to-date spend, remaining budget, utilisation %, and the\nSemantic Layer SQL used — all in one response.",
         "operationId": "get_budget_summary_business_community_commerce_budget_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -23499,16 +23797,12 @@
         "summary": "Pre-flight budget check",
         "description": "Check whether a payment of *amount_usd* USD would exceed budget limits.\nReturns action: allow | require_approval | block.",
         "operationId": "budget_check_business_community_commerce_budget_check_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "amount_usd",
             "in": "query",
@@ -23526,6 +23820,38 @@
               "type": "string",
               "default": "",
               "title": "Merchant"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
