@@ -59,7 +59,7 @@
     "GET /marketplace/agents/{agent_id}/certificate": "Public agent directory and per-agent public trust/certificate/KYA status - the counterparty check an unknown agent runs first. Not yet reviewed field by field.",
     "GET /marketplace/agents/{agent_id}/key-rotation-status": "Public agent directory and per-agent public trust/certificate/KYA status - the counterparty check an unknown agent runs first. Not yet reviewed field by field.",
     "GET /marketplace/agents/{agent_id}/kya": "Public agent directory and per-agent public trust/certificate/KYA status - the counterparty check an unknown agent runs first. Not yet reviewed field by field.",
-    "GET /marketplace/analytics/stream": "Server-sent event stream; never returns under the probe (-2). Aggregate public statistics.",
+    "GET /marketplace/analytics/stream": "Server-sent event stream; never returns under the probe (-2). Aggregate public statistics. Bounded since 2026-11-16: 20 ticks per connection, 32 streams per worker (test_marketplace_sse_bounded.py).",
     "GET /marketplace/assets/{ueciid}": "Public asset catalogue (discovery).",
     "GET /marketplace/listings/{listing_id}": "Marketplace discovery - an agent must find goods before it has a relationship with us (asserted public in #701).",
     "GET /marketplace/proposals/{proposal_id}": "Governance proposals are public by design; nothing tenant-scoped.",
