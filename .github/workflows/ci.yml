@@ -137,9 +137,13 @@ jobs:
       # its tests: #410 moved it onto the versioned surface and left the suite
       # mocking the old paths, which only surfaced in a release dry run — the
       # one workflow that does run them, and the last place you want to find out.
+      # Node 22: vitest 5 (the SDK test runner) supports ^22.12 || ^24 only.
+      # It happened to run on 20; nothing guaranteed it would keep doing so.
+      # This is the toolchain, not the SDK - the package still declares
+      # `engines.node >= 18` for the people who install it.
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install the TypeScript SDK
         run: npm ci || npm install
