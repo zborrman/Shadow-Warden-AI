@@ -1320,6 +1320,12 @@ def _safe_avg(values: list) -> float | None:
 
 # ── SSE live-metrics stream ────────────────────────────────────────────────────
 
+#: Ticks per connection before the server closes it (20 x 30 s = 10 minutes).
+_SSE_MAX_EVENTS = 20
+#: Concurrent streams per worker process.
+_SSE_MAX_STREAMS = 32
+_sse_open_streams = 0
+
 @router.get("/analytics/stream")
 async def analytics_stream(request: Request) -> Any:
     """Server-Sent Events stream of live marketplace metrics (30 s interval).
@@ -1341,23 +1347,43 @@ async def analytics_stream(request: Request) -> Any:
 
     sse_interval = 30  # seconds
 
+    # This route is anonymous and, until now, unbounded: a connection lived for
+    # as long as the client kept it, and nothing limited how many there were.
+    # Each one holds a task that recomputes the metrics every tick, so opening
+    # a few thousand was a cheap way to occupy a worker. A stream now ends after
+    # _SSE_MAX_EVENTS ticks (EventSource reconnects on its own), and a worker
+    # serves at most _SSE_MAX_STREAMS at once.
+    if _sse_open_streams >= _SSE_MAX_STREAMS:
+        raise HTTPException(
+            status_code=503,
+            detail="Too many open metric streams; retry shortly.",
+            headers={"Retry-After": str(sse_interval)},
+        )
+
     async def _generator():
-        event_id = 0
-        while True:
-            if await request.is_disconnected():
-                break
-            try:
-                data = await get_live_metrics()
-                payload = _json.dumps(data, default=str)
-                yield f"id: {event_id}\ndata: {payload}\n\n"
-                event_id += 1
-            except Exception as exc:
-                log.warning("SSE metrics error: %s", exc)
-                yield "event: error\ndata: {}\n\n"
-            try:
-                await asyncio.sleep(sse_interval)
-            except asyncio.CancelledError:
-                break
+        # Counted here, not in the handler: a response that is never iterated
+        # (the client left first) would otherwise hold its slot for good.
+        global _sse_open_streams
+        _sse_open_streams += 1
+        try:
+            # `range`, not a counter bumped on success: a metrics source that
+            # fails every tick must still reach the end of the stream.
+            for event_id in range(_SSE_MAX_EVENTS):
+                if await request.is_disconnected():
+                    break
+                try:
+                    data = await get_live_metrics()
+                    payload = _json.dumps(data, default=str)
+                    yield f"id: {event_id}\ndata: {payload}\n\n"
+                except Exception as exc:
+                    log.warning("SSE metrics error: %s", exc)
+                    yield "event: error\ndata: {}\n\n"
+                try:
+                    await asyncio.sleep(sse_interval)
+                except asyncio.CancelledError:
+                    break
+        finally:
+            _sse_open_streams -= 1
 
     return StreamingResponse(
         _generator(),
