@@ -19,7 +19,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant_path, require_api_key
 from warden.runtime import runtime as _runtime
 
 router = APIRouter(tags=["data-policy"])
@@ -54,7 +54,7 @@ def _require_policy():
     summary="Get full data classification policy for a tenant",
 )
 async def get_policy(
-    tenant_id: str,
+    tenant_id: str = Depends(caller_tenant_path),
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """
@@ -70,8 +70,8 @@ async def get_policy(
     summary="Update tenant policy settings",
 )
 async def update_policy_settings(
-    tenant_id: str,
     body: _PolicySettingsRequest,
+    tenant_id: str = Depends(caller_tenant_path),
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """
@@ -93,8 +93,8 @@ async def update_policy_settings(
     status_code=201,
 )
 async def add_policy_rule(
-    tenant_id: str,
     body: _AddRuleRequest,
+    tenant_id: str = Depends(caller_tenant_path),
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """
@@ -123,8 +123,8 @@ async def add_policy_rule(
     summary="Delete a custom classification rule",
 )
 async def delete_policy_rule(
-    tenant_id: str,
     rule_id:   str,
+    tenant_id: str = Depends(caller_tenant_path),
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """Delete a custom rule by ID. Built-in category patterns cannot be deleted."""
@@ -140,8 +140,8 @@ async def delete_policy_rule(
     summary="Test-classify a piece of text against the tenant's data policy",
 )
 async def classify_text(
-    tenant_id: str,
     body: _ClassifyRequest,
+    tenant_id: str = Depends(caller_tenant_path),
     auth: AuthResult = Depends(require_api_key),
 ) -> dict:
     """

@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 
 log = logging.getLogger("warden.api.push")
@@ -51,7 +52,7 @@ async def unregister_device(device_token: str) -> dict:
 
 
 @router.get("/devices", summary="List registered devices for a tenant", dependencies=[_Gate])
-async def list_devices(tenant_id: str = "default") -> dict:
+async def list_devices(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.push.registry import list_devices as _list
     devices = _list(tenant_id)
     return {
@@ -74,7 +75,7 @@ async def push_health() -> dict:
 
 
 @router.post("/test", summary="Send a test push to all tenant devices", dependencies=[_Gate])
-async def send_test_push(tenant_id: str = "default") -> dict:
+async def send_test_push(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.push.registry import get_tokens_for_tenant
     from warden.push.service import get_push_service
     tokens = get_tokens_for_tenant(tenant_id)

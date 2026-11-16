@@ -1066,9 +1066,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -1161,16 +1183,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "agent_id",
             "in": "query",
             "required": false,
@@ -1196,6 +1208,38 @@
               "minimum": 1,
               "default": 100,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -1246,9 +1290,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6117,16 +6183,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -6136,6 +6192,38 @@
               "minimum": 1,
               "default": 100,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6185,9 +6273,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6223,16 +6333,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -6242,6 +6342,38 @@
               "minimum": 1,
               "default": 1000,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6288,9 +6420,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6337,9 +6491,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6990,9 +7166,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7102,9 +7300,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7158,9 +7378,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7201,16 +7443,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "hours",
             "in": "query",
             "required": false,
@@ -7223,6 +7455,38 @@
               "title": "Hours"
             },
             "description": "Look-back window in hours"
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -7438,9 +7702,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7488,9 +7774,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7537,9 +7845,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -7610,22 +7940,6 @@
             }
           },
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -7642,6 +7956,38 @@
               "title": "Status"
             },
             "description": "PENDING | ACTIVE | DEGRADED | OFFLINE"
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -8132,16 +8478,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -8151,6 +8487,38 @@
               "minimum": 1,
               "default": 100,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -8198,16 +8566,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -8217,6 +8575,38 @@
               "minimum": 1,
               "default": 500,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -8254,15 +8644,33 @@
         "summary": "Scan file before AI upload",
         "description": "Scan a file for secrets, PII, and prompt-injection before uploading to an AI tool.\n\nReturns a risk assessment and a sanitized version of the text with secrets redacted.\nSafe for use on personal computers — no file content is stored or logged.",
         "operationId": "scan_file_filter_file_post",
+        "parameters": [
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_scan_file_filter_file_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -9130,17 +9538,12 @@
         "summary": "List all compliance gaps with remediation guidance (CP-30)",
         "description": "Returns all currently detected compliance gaps across GDPR, SOC 2,\nISO 27001, and HIPAA, with remediation instructions for each.\nFiltered by `severity` (high/medium/low) or `framework` (gdpr/soc2/iso27001/hipaa).",
         "operationId": "compliance_gaps_compliance_posture_gaps_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "severity",
             "in": "query",
@@ -9171,6 +9574,38 @@
                 }
               ],
               "title": "Framework"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9208,6 +9643,11 @@
         "summary": "Per-framework compliance detail (CP-30)",
         "description": "Returns score, status, passed/total controls, and gap list for a single\nframework: gdpr | soc2 | iso27001 | hipaa",
         "operationId": "compliance_framework_detail_compliance_posture__framework__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "framework",
@@ -9223,9 +9663,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9263,15 +9725,42 @@
         "summary": "Force cache invalidation and recompute posture (CP-30)",
         "description": "Clears the Redis cache and recomputes the posture report immediately.",
         "operationId": "compliance_recalculate_compliance_posture_recalculate_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9741,9 +10230,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9789,9 +10300,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9860,9 +10393,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9910,9 +10465,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -9960,9 +10537,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11480,6 +12079,11 @@
         ],
         "summary": "Get Intel Report",
         "operationId": "get_intel_report_community_intel__community_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11504,6 +12108,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11540,6 +12160,11 @@
         ],
         "summary": "Get Risk Score",
         "operationId": "get_risk_score_community_intel__community_id__risk_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11564,6 +12189,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11600,6 +12241,11 @@
         ],
         "summary": "Create Charter",
         "operationId": "create_charter_community_intel__community_id__charter_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11624,6 +12270,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11668,6 +12330,11 @@
         ],
         "summary": "Get Active Charter",
         "operationId": "get_active_charter_community_intel__community_id__charter_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11692,6 +12359,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11728,6 +12411,11 @@
         ],
         "summary": "List Charters",
         "operationId": "list_charters_community_intel__community_id__charter_history_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11752,6 +12440,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11788,6 +12492,11 @@
         ],
         "summary": "Publish Charter",
         "operationId": "publish_charter_community_intel__community_id__charter__charter_id__publish_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11821,6 +12530,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11857,6 +12582,11 @@
         ],
         "summary": "Accept Charter",
         "operationId": "accept_charter_community_intel__community_id__charter__charter_id__accept_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11890,6 +12620,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11936,6 +12682,11 @@
         ],
         "summary": "Pending Acceptances",
         "operationId": "pending_acceptances_community_intel__community_id__charter_pending_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -11960,6 +12711,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11996,6 +12763,11 @@
         ],
         "summary": "List Anomalies",
         "operationId": "list_anomalies_community_intel__community_id__anomalies_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -12033,6 +12805,22 @@
               ],
               "title": "X-Tenant-Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -12068,6 +12856,11 @@
         ],
         "summary": "Detect Anomaly Endpoint",
         "operationId": "detect_anomaly_endpoint_community_intel__community_id__anomalies_detect_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -12092,6 +12885,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12138,6 +12947,11 @@
         ],
         "summary": "List Oauth Grants",
         "operationId": "list_oauth_grants_community_intel__community_id__oauth_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -12174,6 +12988,22 @@
               ],
               "title": "X-Tenant-Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -12207,6 +13037,11 @@
         ],
         "summary": "Register Oauth Grant",
         "operationId": "register_oauth_grant_community_intel__community_id__oauth_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -12231,6 +13066,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12277,6 +13128,11 @@
         ],
         "summary": "Revoke Oauth Grant",
         "operationId": "revoke_oauth_grant_community_intel_oauth__grant_id__delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "grant_id",
@@ -12301,6 +13157,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12337,6 +13209,11 @@
         ],
         "summary": "Oauth Risk Summary",
         "operationId": "oauth_risk_summary_community_intel__community_id__oauth_summary_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "community_id",
@@ -12361,6 +13238,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12397,6 +13290,11 @@
         ],
         "summary": "Oauth Provider Catalog",
         "operationId": "oauth_provider_catalog_community_intel_oauth_catalog_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "x-tenant-id",
@@ -12412,6 +13310,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12537,6 +13451,22 @@
               ],
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -12602,10 +13532,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -12658,10 +13611,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -15583,9 +16559,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -15640,9 +16638,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -15692,16 +16712,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -15722,6 +16732,38 @@
               "minimum": 0,
               "default": 0,
               "title": "Offset"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -15954,9 +16996,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -15998,9 +17062,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -16491,9 +17577,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17364,16 +18472,12 @@
         ],
         "summary": "List AI vendors for a tenant",
         "operationId": "list_vendors_vendor_gov_vendors_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "status",
             "in": "query",
@@ -17421,6 +18525,38 @@
               ],
               "title": "Provider Type"
             }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -17456,6 +18592,11 @@
         ],
         "summary": "Get a specific vendor",
         "operationId": "get_vendor_vendor_gov_vendors__vendor_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "vendor_id",
@@ -17469,10 +18610,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17507,6 +18671,11 @@
         ],
         "summary": "Update a vendor record",
         "operationId": "update_vendor_vendor_gov_vendors__vendor_id__put",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "vendor_id",
@@ -17520,10 +18689,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17622,6 +18814,11 @@
         ],
         "summary": "List DPA records for a vendor",
         "operationId": "list_dpas_vendor_gov_vendors__vendor_id__dpa_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "vendor_id",
@@ -17635,10 +18832,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17675,16 +18895,12 @@
         ],
         "summary": "List DPAs expiring within N days",
         "operationId": "get_expiring_dpas_vendor_gov_dpa_expiring_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "within_days",
             "in": "query",
@@ -17693,6 +18909,38 @@
               "type": "integer",
               "default": 30,
               "title": "Within Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17729,14 +18977,42 @@
         ],
         "summary": "Vendor governance stats for a tenant",
         "operationId": "get_stats_vendor_gov_stats_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17816,16 +19092,12 @@
         ],
         "summary": "Monthly cost summary for a tenant",
         "operationId": "get_summary_financial_allocation_summary_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "period_month",
             "in": "query",
@@ -17840,6 +19112,38 @@
                 }
               ],
               "title": "Period Month"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17876,16 +19180,12 @@
         ],
         "summary": "Per-department breakdown over N months",
         "operationId": "get_departments_financial_allocation_departments_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "months",
             "in": "query",
@@ -17894,6 +19194,38 @@
               "type": "integer",
               "default": 3,
               "title": "Months"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17930,6 +19262,11 @@
         ],
         "summary": "Vendor spend over N months",
         "operationId": "get_vendor_spend_financial_allocation_vendors__vendor_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "vendor_id",
@@ -17941,15 +19278,6 @@
             }
           },
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "months",
             "in": "query",
             "required": false,
@@ -17957,6 +19285,38 @@
               "type": "integer",
               "default": 3,
               "title": "Months"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -17993,16 +19353,12 @@
         ],
         "summary": "Import cost entries from logs.json",
         "operationId": "import_logs_financial_allocation_import_logs_post",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "logs_path",
             "in": "query",
@@ -18017,6 +19373,38 @@
                 }
               ],
               "title": "Logs Path"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -18053,14 +19441,42 @@
         ],
         "summary": "Real-time budget status for all departments",
         "operationId": "get_status_financial_budget_status_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -18140,16 +19556,12 @@
         ],
         "summary": "List budget approval requests",
         "operationId": "list_approvals_financial_budget_approvals_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "status",
             "in": "query",
@@ -18164,6 +19576,38 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -18336,16 +19780,12 @@
         ],
         "summary": "List incidents for a tenant",
         "operationId": "list_incidents_incidents_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "severity",
             "in": "query",
@@ -18403,6 +19843,38 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -18438,14 +19910,42 @@
         ],
         "summary": "Incident stats for a tenant",
         "operationId": "get_stats_incidents_stats_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -19282,15 +20782,42 @@
         ],
         "summary": "List registered devices for a tenant",
         "operationId": "list_devices_push_devices_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -19350,15 +20877,42 @@
         ],
         "summary": "Send a test push to all tenant devices",
         "operationId": "send_test_push_push_test_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -19445,15 +20999,38 @@
         "summary": "Convert file and run the full Warden filter pipeline",
         "description": "Convert a file to Markdown and immediately pass it through SecretRedactor + SemanticGuard.",
         "operationId": "convert_and_scan_document_intel_convert_and_scan_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_convert_and_scan_document_intel_convert_and_scan_post"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -19461,8 +21038,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Convert And Scan Document Intel Convert And Scan Post"
                 }
               }
@@ -19478,12 +21055,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/document-intel/convert-batch": {
@@ -19938,6 +21510,11 @@
         ],
         "summary": "Provisioning result and current health",
         "operationId": "get_status_smb_suite_status__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -19956,6 +21533,22 @@
               "type": "string",
               "default": "",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -19992,16 +21585,12 @@
         ],
         "summary": "All 7 modules health check",
         "operationId": "health_check_smb_suite_health_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "community_id",
             "in": "query",
@@ -20010,6 +21599,38 @@
               "type": "string",
               "default": "",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20446,6 +22067,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -20499,6 +22136,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -20537,6 +22190,15 @@
         ],
         "parameters": [
           {
+            "name": "framework_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Framework Id"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20546,12 +22208,19 @@
             }
           },
           {
-            "name": "framework_id",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Framework Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20589,6 +22258,15 @@
         ],
         "parameters": [
           {
+            "name": "framework_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Framework Id"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20598,12 +22276,19 @@
             }
           },
           {
-            "name": "framework_id",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Framework Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20651,6 +22336,15 @@
         ],
         "parameters": [
           {
+            "name": "framework_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Framework Id"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20660,12 +22354,19 @@
             }
           },
           {
-            "name": "framework_id",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Framework Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20705,15 +22406,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "framework_id",
             "in": "path",
             "required": true,
@@ -20729,6 +22421,31 @@
             "schema": {
               "type": "string",
               "title": "Control Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20785,6 +22502,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -20838,6 +22571,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -20876,6 +22625,15 @@
         ],
         "parameters": [
           {
+            "name": "department",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Department"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20885,12 +22643,19 @@
             }
           },
           {
-            "name": "department",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Department"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20928,6 +22693,15 @@
         ],
         "parameters": [
           {
+            "name": "department",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Department"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20937,12 +22711,19 @@
             }
           },
           {
-            "name": "department",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Department"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -20982,6 +22763,15 @@
         ],
         "parameters": [
           {
+            "name": "department",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Department"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -20991,12 +22781,19 @@
             }
           },
           {
-            "name": "department",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Department"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21029,16 +22826,12 @@
         ],
         "summary": "AI usage analytics for a tenant",
         "operationId": "usage_summary_business_intelligence_usage_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "period_month",
             "in": "query",
@@ -21053,6 +22846,38 @@
                 }
               ],
               "title": "Period Month"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21089,16 +22914,12 @@
         ],
         "summary": "Threat intelligence dashboard",
         "operationId": "threat_summary_business_intelligence_threats_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "period_days",
             "in": "query",
@@ -21107,6 +22928,38 @@
               "type": "integer",
               "default": 30,
               "title": "Period Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21143,14 +22996,42 @@
         ],
         "summary": "Vendor performance scorecards",
         "operationId": "vendor_scorecards_business_intelligence_vendors_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21187,16 +23068,12 @@
         ],
         "summary": "Cost optimization insights",
         "operationId": "cost_insights_business_intelligence_costs_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "months",
             "in": "query",
@@ -21205,6 +23082,38 @@
               "type": "integer",
               "default": 3,
               "title": "Months"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21241,16 +23150,12 @@
         ],
         "summary": "Compliance posture score",
         "operationId": "compliance_score_business_intelligence_compliance_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "community_id",
             "in": "query",
@@ -21259,6 +23164,38 @@
               "type": "string",
               "default": "",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21295,16 +23232,12 @@
         ],
         "summary": "Community benchmarking",
         "operationId": "benchmarks_business_intelligence_benchmarks_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "community_id",
             "in": "query",
@@ -21313,6 +23246,38 @@
               "type": "string",
               "default": "",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21349,16 +23314,12 @@
         ],
         "summary": "Predictive incident analytics",
         "operationId": "incident_prediction_business_intelligence_predictions_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "horizon_days",
             "in": "query",
@@ -21367,6 +23328,38 @@
               "type": "integer",
               "default": 30,
               "title": "Horizon Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21446,16 +23439,12 @@
         ],
         "summary": "Executive summary (all modules)",
         "operationId": "executive_summary_business_intelligence_summary_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "community_id",
             "in": "query",
@@ -21464,6 +23453,38 @@
               "type": "string",
               "default": "",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21500,14 +23521,42 @@
         ],
         "summary": "Invalidate BI cache for a tenant",
         "operationId": "invalidate_cache_business_intelligence_cache_delete",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -21567,14 +23616,42 @@
         ],
         "summary": "Cache statistics for a tenant",
         "operationId": "get_cache_stats_business_intelligence_cache_stats_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -26660,6 +28737,11 @@
         ],
         "summary": "Download PDF invoice",
         "operationId": "get_invoice_tax_orders__order_id__invoice_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "order_id",
@@ -26673,10 +28755,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -26709,16 +28814,12 @@
         ],
         "summary": "Quarterly tax compliance report",
         "operationId": "quarterly_report_tax_reports_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "year",
             "in": "query",
@@ -26737,6 +28838,38 @@
               "type": "integer",
               "default": 2,
               "title": "Quarter"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -26964,10 +29097,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -27022,10 +29178,33 @@
           {
             "name": "tenant_id",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -27375,22 +29554,6 @@
         "operationId": "marketplace_analytics_summary_marketplace_analytics_summary_get",
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "community_id",
             "in": "query",
             "required": false,
@@ -27416,6 +29579,22 @@
               "minimum": 1,
               "default": 30,
               "title": "Period Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
             }
           }
         ],
@@ -27454,22 +29633,6 @@
         "operationId": "marketplace_volume_series_marketplace_analytics_volume_get",
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "community_id",
             "in": "query",
             "required": false,
@@ -27495,6 +29658,22 @@
               "minimum": 7,
               "default": 30,
               "title": "Period Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
             }
           }
         ],
@@ -27637,22 +29816,6 @@
         "operationId": "marketplace_agent_leaderboard_marketplace_analytics_agents_get",
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "community_id",
             "in": "query",
             "required": false,
@@ -27677,6 +29840,22 @@
               "maximum": 50,
               "default": 10,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
             }
           }
         ],
@@ -28378,22 +30557,6 @@
         "operationId": "list_agents_marketplace_agents_get",
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "community_id",
             "in": "query",
             "required": false,
@@ -28418,6 +30581,22 @@
               "maximum": 100,
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
             }
           }
         ],
@@ -32722,6 +34901,16 @@
         ],
         "parameters": [
           {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "query",
             "required": false,
@@ -32738,13 +34927,19 @@
             }
           },
           {
-            "name": "limit",
-            "in": "query",
+            "name": "x-admin-key",
+            "in": "header",
             "required": false,
             "schema": {
-              "type": "integer",
-              "default": 50,
-              "title": "Limit"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -32797,6 +34992,22 @@
                 }
               ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -32941,9 +35152,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -33827,6 +36060,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -33876,6 +36125,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -33937,6 +36202,22 @@
               "type": "string",
               "title": "Tenant Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -33990,6 +36271,15 @@
         ],
         "parameters": [
           {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          },
+          {
             "name": "tenant_id",
             "in": "path",
             "required": true,
@@ -33999,12 +36289,19 @@
             }
           },
           {
-            "name": "rule_id",
-            "in": "path",
-            "required": true,
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "title": "Rule Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -34055,6 +36352,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -34443,21 +36756,44 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "ip",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "title": "Ip"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35463,16 +37799,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -35496,6 +37822,38 @@
               "type": "integer",
               "default": 20,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35543,9 +37901,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35602,9 +37982,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35652,9 +38054,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35702,9 +38126,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35752,9 +38198,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35811,9 +38279,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35861,9 +38351,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35920,9 +38432,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35966,16 +38500,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -35983,6 +38507,38 @@
               "type": "integer",
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36026,16 +38582,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "status",
             "in": "query",
             "required": false,
@@ -36049,6 +38595,38 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36142,9 +38720,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36201,9 +38801,31 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "default",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36248,16 +38870,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "days",
             "in": "query",
             "required": false,
@@ -36265,6 +38877,38 @@
               "type": "integer",
               "default": 30,
               "title": "Days"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36309,16 +38953,6 @@
         ],
         "parameters": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "default",
-              "title": "Tenant Id"
-            }
-          },
-          {
             "name": "threshold_usd",
             "in": "query",
             "required": false,
@@ -36326,6 +38960,38 @@
               "type": "number",
               "default": 0.5,
               "title": "Threshold Usd"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -36932,16 +39598,12 @@
         ],
         "summary": "List refunds for tenant",
         "operationId": "list_refunds_acp_refunds_get",
-        "parameters": [
+        "security": [
           {
-            "name": "tenant_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
-          },
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
           {
             "name": "status",
             "in": "query",
@@ -36956,6 +39618,38 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37052,6 +39746,11 @@
         "summary": "Get Chain",
         "description": "Return paginated audit chain entries (newest first).",
         "operationId": "get_chain_billing_audit_chain__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -37083,6 +39782,22 @@
               "minimum": 0,
               "default": 0,
               "title": "Offset"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37120,6 +39835,11 @@
         "summary": "Verify Chain",
         "description": "Re-hash the full chain and confirm integrity.\n\nReturns {valid, entries, tip_hash, first_broken_seq}.\nHTTP 409 if chain is tampered.",
         "operationId": "verify_chain_billing_audit_verify__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -37128,6 +39848,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37165,6 +39901,11 @@
         "summary": "Get Summary",
         "description": "Return total spend, entry count, and tip hash.",
         "operationId": "get_summary_billing_audit_summary__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -37173,6 +39914,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37210,6 +39967,11 @@
         "summary": "Export Chain",
         "description": "Export full audit chain as JSONL (one entry per line).\nContent-Type: application/x-ndjson — import directly into Splunk/Elastic.",
         "operationId": "export_chain_billing_audit_export__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -37218,6 +39980,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37251,6 +40029,11 @@
         "summary": "Get Evm Anchors",
         "description": "Return EVM attestation anchor history for the tenant.",
         "operationId": "get_evm_anchors_billing_audit_evm__tenant_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenant_id",
@@ -37259,6 +40042,22 @@
             "schema": {
               "type": "string",
               "title": "Tenant Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37724,34 +40523,12 @@
         ],
         "summary": "Ai Market",
         "operationId": "ai_market__well_known_ai_market_json_get",
-        "parameters": [
-          {
-            "name": "x-tenant-id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "X-Tenant-Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
               }
             }
           }
@@ -37765,34 +40542,12 @@
         ],
         "summary": "Mcp Well Known",
         "operationId": "mcp_well_known__well_known_mcp_json_get",
-        "parameters": [
-          {
-            "name": "x-tenant-id",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "",
-              "title": "X-Tenant-Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
               }
             }
           }
@@ -38752,9 +41507,15 @@
             "title": "File"
           },
           "tenant_id": {
-            "type": "string",
-            "title": "Tenant Id",
-            "default": "default"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant Id"
           }
         },
         "type": "object",
@@ -38959,11 +41720,6 @@
             "contentMediaType": "application/octet-stream",
             "title": "File",
             "description": "File to scan (max 10 MB)"
-          },
-          "tenant_id": {
-            "type": "string",
-            "title": "Tenant Id",
-            "default": "default"
           },
           "strict": {
             "type": "boolean",

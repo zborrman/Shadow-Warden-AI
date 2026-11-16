@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, caller_tenant_scope, require_api_key
 from warden.runtime import runtime
 
 log = logging.getLogger("warden.api.threats")
@@ -168,7 +168,7 @@ def _require_threat_store():
     summary="Cross-session attacker profiles aggregated by IP + tenant",
     dependencies=[Depends(require_api_key)],
 )
-async def get_threat_profiles(tenant_id: str | None = None, limit: int = 50):
+async def get_threat_profiles(tenant_id: str | None = Depends(caller_tenant_scope), limit: int = 50):
     """Return attacker profiles sorted by most recent block activity."""
     store = _require_threat_store()
     return {"profiles": store.get_profiles(tenant_id=tenant_id, limit=limit)}
@@ -180,7 +180,7 @@ async def get_threat_profiles(tenant_id: str | None = None, limit: int = 50):
     summary="List all currently-blocked IPs",
     dependencies=[Depends(require_api_key)],
 )
-async def get_blocked_ips(tenant_id: str | None = None):
+async def get_blocked_ips(tenant_id: str | None = Depends(caller_tenant_scope)):
     store = _require_threat_store()
     return {"blocked_ips": store.get_blocked_ips(tenant_id=tenant_id)}
 
@@ -273,7 +273,7 @@ async def block_ip_range_endpoint(body: dict):
     summary="Remove an IP from the blocklist",
     dependencies=[Depends(require_api_key)],
 )
-async def unblock_ip(ip: str, tenant_id: str = "default"):
+async def unblock_ip(ip: str, tenant_id: str = Depends(caller_tenant)):
     store = _require_threat_store()
     found = store.unblock_ip(ip, tenant_id)
     if not found:

@@ -26,8 +26,10 @@ import re
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+
+from warden.auth_guard import caller_label
 
 log = logging.getLogger("warden.api.file_scan")
 
@@ -213,8 +215,8 @@ def _risk_level(findings: list[FileScanFinding], injection_found: bool) -> str:
 @router.post("/file", response_model=FileScanResponse, summary="Scan file before AI upload")
 async def scan_file(
     file: Annotated[UploadFile, File(description="File to scan (max 10 MB)")],
-    tenant_id: Annotated[str, Form()] = "default",
     strict: Annotated[bool, Form()] = False,
+    tenant_id: str = Depends(caller_label),
 ) -> FileScanResponse:
     """
     Scan a file for secrets, PII, and prompt-injection before uploading to an AI tool.

@@ -32,11 +32,10 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import caller_tenant, require_api_key
 from warden.config import settings
 
 log = logging.getLogger("warden.api.retention")
@@ -221,7 +220,7 @@ def enforce_retention(tenant_id: str = "default") -> dict:
 
 @router.get("/policy", summary="Get retention policy for tenant (CP-26)")
 async def get_policy(
-    tenant_id: Annotated[str, Query()] = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     policy   = get_effective_policy(tenant_id)
     overrides = _load_policy(tenant_id)
@@ -237,7 +236,7 @@ async def get_policy(
 @router.put("/policy", summary="Update retention windows per data_class (CP-26)")
 async def update_policy(
     body:      dict,
-    tenant_id: Annotated[str, Query()] = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     current = _load_policy(tenant_id)
     updated: dict[str, int] = {}
@@ -262,7 +261,7 @@ async def update_policy(
 @router.delete("/policy/{data_class}", summary="Reset a data_class to default retention (CP-26)")
 async def reset_policy(
     data_class: str,
-    tenant_id:  Annotated[str, Query()] = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     cls = data_class.upper()
     if cls not in _ALL_CLASSES:
@@ -280,7 +279,7 @@ async def reset_policy(
 
 @router.post("/enforce", summary="Trigger retention enforcement now (CP-26)")
 async def trigger_enforce(
-    tenant_id: Annotated[str, Query()] = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     stats = enforce_retention(tenant_id)
     return stats
@@ -288,7 +287,7 @@ async def trigger_enforce(
 
 @router.get("/stats", summary="Last enforcement run statistics (CP-26)")
 async def get_stats(
-    tenant_id: Annotated[str, Query()] = "default",
+    tenant_id: str = Depends(caller_tenant),
 ) -> dict:
     stats = _load_stats(tenant_id)
     if not stats:

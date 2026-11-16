@@ -8,9 +8,10 @@ Tier:   Community Business+ (budget_dashboard_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/financial/budget", tags=["Budget Dashboard"])
@@ -39,7 +40,7 @@ class ApprovalResolveRequest(BaseModel):
 
 
 @router.get("/status", summary="Real-time budget status for all departments", dependencies=[_Gate])
-async def get_status(tenant_id: str) -> dict:
+async def get_status(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.financial.budget import get_realtime_status
     return get_realtime_status(tenant_id)
 
@@ -58,7 +59,7 @@ async def set_cap(body: BudgetCapRequest) -> dict:
 
 
 @router.get("/approvals", summary="List budget approval requests", dependencies=[_Gate])
-async def list_approvals(tenant_id: str, status: str | None = None) -> dict:
+async def list_approvals(tenant_id: str = Depends(caller_tenant), status: str | None = None) -> dict:
     from warden.financial.budget import list_approvals as _list
     items = _list(tenant_id, status=status)
     return {"approvals": items, "count": len(items)}

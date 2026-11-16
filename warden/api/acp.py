@@ -25,7 +25,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/acp", tags=["acp"])
@@ -259,7 +259,7 @@ async def get_refund(refund_id: str) -> dict:
 
 
 @router.get("/refunds", summary="List refunds for tenant", dependencies=[_Gate])
-async def list_refunds(tenant_id: str, status: str | None = None) -> dict:
+async def list_refunds(tenant_id: str = Depends(caller_tenant), status: str | None = None) -> dict:
     from warden.protocols.acp.refund import list_refunds as _list
     refunds = _list(tenant_id, status)
     return {"refunds": [r.model_dump() for r in refunds], "count": len(refunds)}

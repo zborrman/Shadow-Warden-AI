@@ -8,9 +8,10 @@ Tier:   Individual+ (incident_register_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/incidents", tags=["Incident Register"])
@@ -53,7 +54,7 @@ async def create_incident(body: IncidentCreateRequest) -> dict:
 
 @router.get("", summary="List incidents for a tenant", dependencies=[_Gate])
 async def list_incidents(
-    tenant_id: str,
+    tenant_id: str = Depends(caller_tenant),
     severity:  str | None = None,
     status:    str | None = None,
     category:  str | None = None,
@@ -65,7 +66,7 @@ async def list_incidents(
 
 
 @router.get("/stats", summary="Incident stats for a tenant", dependencies=[_Gate])
-async def get_stats(tenant_id: str) -> dict:
+async def get_stats(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.communities.incident_register import get_incident_stats
     return get_incident_stats(tenant_id)
 

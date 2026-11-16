@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router  = APIRouter(prefix="/vendor-gov", tags=["Vendor Governance"])
@@ -68,7 +69,7 @@ async def create_vendor(body: VendorCreateRequest) -> dict:
 
 @router.get("/vendors", summary="List AI vendors for a tenant", dependencies=[_Gate])
 async def list_vendors(
-    tenant_id: str,
+    tenant_id: str = Depends(caller_tenant),
     status: str | None = None,
     risk_tier: str | None = None,
     provider_type: str | None = None,
@@ -79,7 +80,7 @@ async def list_vendors(
 
 
 @router.get("/vendors/{vendor_id}", summary="Get a specific vendor", dependencies=[_Gate])
-async def get_vendor(vendor_id: str, tenant_id: str) -> dict:
+async def get_vendor(vendor_id: str, tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.vendor_gov.registry import get_vendor as _get
     v = _get(vendor_id, tenant_id)
     if not v:
@@ -88,7 +89,7 @@ async def get_vendor(vendor_id: str, tenant_id: str) -> dict:
 
 
 @router.put("/vendors/{vendor_id}", summary="Update a vendor record", dependencies=[_Gate])
-async def update_vendor(vendor_id: str, tenant_id: str, body: VendorUpdateRequest) -> dict:
+async def update_vendor(vendor_id: str, body: VendorUpdateRequest, tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.vendor_gov.registry import update_vendor as _upd
     updated = _upd(
         vendor_id=vendor_id,
@@ -124,20 +125,20 @@ async def add_dpa(vendor_id: str, body: DPACreateRequest) -> dict:
 
 
 @router.get("/vendors/{vendor_id}/dpa", summary="List DPA records for a vendor", dependencies=[_Gate])
-async def list_dpas(vendor_id: str, tenant_id: str) -> dict:
+async def list_dpas(vendor_id: str, tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.vendor_gov.registry import list_dpas as _list
     dpas = _list(vendor_id, tenant_id)
     return {"dpas": [d.to_dict() for d in dpas], "count": len(dpas)}
 
 
 @router.get("/dpa/expiring", summary="List DPAs expiring within N days", dependencies=[_Gate])
-async def get_expiring_dpas(tenant_id: str, within_days: int = 30) -> dict:
+async def get_expiring_dpas(tenant_id: str = Depends(caller_tenant), within_days: int = 30) -> dict:
     from warden.vendor_gov.registry import get_expiring_dpas as _exp
     dpas = _exp(tenant_id, within_days=within_days)
     return {"expiring": [d.to_dict() for d in dpas], "count": len(dpas), "within_days": within_days}
 
 
 @router.get("/stats", summary="Vendor governance stats for a tenant", dependencies=[_Gate])
-async def get_stats(tenant_id: str) -> dict:
+async def get_stats(tenant_id: str = Depends(caller_tenant)) -> dict:
     from warden.vendor_gov.registry import get_vendor_stats
     return get_vendor_stats(tenant_id)

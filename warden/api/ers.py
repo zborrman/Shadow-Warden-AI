@@ -17,7 +17,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 
 from warden import entity_risk as _ers
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.client_ip import get_client_ip
 
 router = APIRouter(prefix="/ers", tags=["security"])
@@ -62,7 +62,7 @@ async def ers_score_self(request: Request, auth: AuthResult = Depends(require_ap
     summary="Reset ERS score for a given tenant+IP (admin — false-positive clearance)",
     dependencies=[Depends(require_api_key)],
 )
-async def ers_reset(tenant_id: str, ip: str):
+async def ers_reset(ip: str, tenant_id: str = Depends(caller_tenant)):
     """Clear all ERS signal counters for the specified entity."""
     entity_key = _ers.make_entity_key(tenant_id, ip)
     _ers.reset(entity_key)

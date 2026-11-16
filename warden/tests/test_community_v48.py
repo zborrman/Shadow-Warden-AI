@@ -338,9 +338,13 @@ class TestOAuthDiscovery:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestCommunityIntelAPI:
-    def test_report_requires_tenant(self, client):
+    def test_report_without_the_header_is_the_callers_own_tenant(self, client):
+        # The route used to answer 401 to a missing X-Tenant-ID and then act as
+        # whatever the header said. The tenant now comes from the API key, so
+        # the header is optional; a header naming another tenant is the 403 in
+        # test_caller_tenant.py.
         resp = client.get("/community-intel/com-1")
-        assert resp.status_code == 401
+        assert resp.status_code == 200
 
     def test_report_returns_shape(self, client):
         resp = client.get(
@@ -400,9 +404,9 @@ class TestCommunityIntelAPI:
         assert "severity" in data
         assert "action" in data
 
-    def test_oauth_list_requires_tenant(self, client):
+    def test_oauth_list_without_the_header_is_the_callers_own_tenant(self, client):
         resp = client.get("/community-intel/com-1/oauth")
-        assert resp.status_code == 401
+        assert resp.status_code == 200
 
     def test_oauth_register_via_api(self, client):
         resp = client.post(
