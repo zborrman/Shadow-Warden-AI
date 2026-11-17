@@ -330,7 +330,9 @@ def request_tenant(request: object, default: str = "unknown") -> str:
     tenant = getattr(state, "tenant", None)
     if isinstance(tenant, dict) and (tenant.get("tenant_id") or tenant.get("id")):
         return str(tenant.get("tenant_id") or tenant.get("id"))
-    headers = getattr(request, "headers", {}) or {}
+    raw = getattr(request, "headers", {}) or {}
+    # Starlette headers are case-insensitive; a plain mapping is not.
+    headers = {str(k).lower(): v for k, v in raw.items()}
     key = headers.get("x-api-key") or ""
     if not key:
         bearer = headers.get("authorization", "")
