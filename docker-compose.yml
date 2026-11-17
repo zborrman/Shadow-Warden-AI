@@ -748,6 +748,11 @@ services:
     environment:
       - LOGS_PATH=/data/logs.json
       - GDPR_LOG_RETENTION_DAYS=${GDPR_LOG_RETENTION_DAYS:-7}
+      # /api/v1 on this service is fail-closed on this key (503 without it). The
+      # dashboard proxy presents the gateway key, so that is the one accepted.
+      # Set explicitly: compose has no env_file, and a variable that is only in
+      # .env never reaches a container on its own.
+      - WARDEN_API_KEY=${WARDEN_API_KEY:-}
       # 9_Billing.py calls the gateway through this. Same default trap as above.
       - WARDEN_INTERNAL_URL=${WARDEN_INTERNAL_URL:-http://warden:8001}
     volumes:

@@ -51,6 +51,18 @@ log = logging.getLogger("warden.lemon_billing")
 _LS_API_KEY            = settings.lemonsqueezy_api_key
 _LS_STORE_ID           = settings.lemonsqueezy_store_id
 _LS_WEBHOOK_SECRET     = settings.lemonsqueezy_webhook_secret
+
+
+class WebhookNotConfiguredError(RuntimeError):
+    """The webhook has no secret to verify against, so nothing is processed."""
+
+
+def _unsigned_webhooks_allowed() -> bool:
+    """Unsigned events are accepted only where the tier header is: dev, test and
+    air-gapped runs with authentication switched off. Never with a real key."""
+    from warden.auth_guard import tier_header_trusted
+
+    return tier_header_trusted()
 _LS_VARIANT_TRIAL      = settings.lemonsqueezy_variant_trial
 _LS_VARIANT_INDIVIDUAL = settings.lemonsqueezy_variant_individual
 _LS_VARIANT_COMMUNITY  = settings.lemonsqueezy_variant_community
@@ -313,6 +325,14 @@ class LemonBilling:
         Returns the event_name string.
         Raises ValueError on invalid signature.
         """
+        if not _LS_WEBHOOK_SECRET and not _unsigned_webhooks_allowed():
+            # No secret used to mean "skip the check": the event below was then
+            # applied as sent. Production ran exactly like that (the secret was
+            # never set on the server), so an anonymous POST of a forged
+            # `subscription_created` would have put any tenant on a paid plan.
+            raise WebhookNotConfiguredError(
+                "LEMONSQUEEZY_WEBHOOK_SECRET is not set; the webhook is refused."
+            )
         if _LS_WEBHOOK_SECRET:
             # Fail-closed: if webhook secret is configured, a missing or invalid
             # X-Signature header is always rejected — prevents privilege-escalation

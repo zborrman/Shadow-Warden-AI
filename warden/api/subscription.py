@@ -95,12 +95,17 @@ async def billing_portal(tenant_id: str = Depends(_own_tenant)):
     include_in_schema=False,
 )
 async def billing_webhook(request: Request):
-    from warden.lemon_billing import get_lemon_billing  # noqa: PLC0415
+    from warden.lemon_billing import (  # noqa: PLC0415
+        WebhookNotConfiguredError,
+        get_lemon_billing,
+    )
     lb         = get_lemon_billing()
     payload    = await request.body()
     sig_header = request.headers.get("X-Signature", "")
     try:
         etype = lb.handle_webhook(payload, sig_header)
+    except WebhookNotConfiguredError as exc:
+        raise HTTPException(503, "Webhook secret not configured.") from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"received": True, "event_type": etype}

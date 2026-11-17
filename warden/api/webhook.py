@@ -29,6 +29,8 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from warden.lemon_billing import WebhookNotConfiguredError as _WebhookNotConfigured
+
 log = logging.getLogger("warden.api.webhook")
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -78,6 +80,10 @@ async def lemon_squeezy_webhook(
         from warden.lemon_billing import get_lemon_billing  # noqa: PLC0415
         billing    = get_lemon_billing()
         event_name = billing.handle_webhook(payload, x_signature or "")
+    except _WebhookNotConfigured as exc:
+        # Ahead of the generic handler below, which answers 200 {"ok": false}.
+        log.error("webhook: refused - no secret configured")
+        raise HTTPException(status_code=503, detail="Webhook secret not configured.") from exc
     except ValueError as exc:
         log.warning("webhook: signature rejected — %s", exc)
         raise HTTPException(status_code=400, detail="Invalid webhook signature.") from exc
