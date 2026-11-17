@@ -7,7 +7,13 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from warden.auth_guard import public_tenant_filter, require_api_key
+from warden.auth_guard import (
+    CallerTenant,
+    caller_binding,
+    optional_caller_binding,
+    public_tenant_filter,
+    require_api_key,
+)
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -119,7 +125,8 @@ def _kya_onboard(agent_id: str, owner_tenant_id: str) -> dict:
 
 
 @router.post("/agents/register", status_code=201)
-async def register_agent(body: AgentRegisterRequest, request: Request) -> dict:
+async def register_agent(body: AgentRegisterRequest, request: Request, _tenant_binding: CallerTenant = Depends(optional_caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.agent import AgentAlreadyRegisteredError, pubkey_to_agent_id
     from warden.marketplace.agent import register_agent as _register
 
@@ -180,7 +187,8 @@ async def get_agent(agent_id: str) -> dict:
 
 
 @router.put("/agents/{agent_id}/capabilities", dependencies=_WRITE)
-async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest) -> dict:
+async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.agent import update_capabilities as _update
     try:
         updated = _update(agent_id, body.tenant_id, body.capabilities)

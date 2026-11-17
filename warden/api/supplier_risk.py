@@ -8,9 +8,10 @@ Tier:   Community Business+ (supplier_risk_enabled)
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from warden.auth_guard import CallerTenant, caller_binding
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/supplier-risk", tags=["Supplier Risk Assessment"])
@@ -26,7 +27,8 @@ class AssessRequest(BaseModel):
 
 
 @router.post("/assess", summary="Run a supplier AI risk assessment", dependencies=[_Gate])
-async def assess(body: AssessRequest) -> dict:
+async def assess(body: AssessRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.communities.supplier_risk import assess_supplier
     return assess_supplier(
         community_id=body.community_id,

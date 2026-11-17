@@ -45,7 +45,13 @@ from pydantic import BaseModel, Field
 import warden.circuit_breaker as _cb
 from warden import entity_risk as _ers
 from warden import shadow_ban as _sban
-from warden.auth_guard import AuthResult, require_api_key, require_ext_auth
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    require_api_key,
+    require_ext_auth,
+)
 from warden.cache import _get_client as _get_redis
 from warden.cache import check_tenant_rate_limit
 from warden.client_ip import get_client_ip
@@ -619,8 +625,9 @@ async def filter_multimodal(
     payload:          _MultimodalRequest,
     request:          Request,
     background_tasks: BackgroundTasks,
-    auth:             AuthResult = Depends(require_api_key),
+    auth:             AuthResult = Depends(require_api_key), _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> _MultimodalResponse:
+    payload.tenant_id = _tenant_binding.bind(payload.tenant_id)
     from warden.metrics import (  # noqa: PLC0415
         AUDIO_GUARD_BLOCKS_TOTAL,
         IMAGE_GUARD_BLOCKS_TOTAL,

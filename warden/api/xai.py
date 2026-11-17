@@ -18,7 +18,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, caller_tenant, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    require_api_key,
+)
 from warden.billing.addons import require_addon_or_feature
 
 router = APIRouter(prefix="/xai", tags=["Explainable AI"])
@@ -75,7 +81,7 @@ async def explain(
 @router.post("/explain/batch", summary="Explain multiple filter decisions")
 async def explain_batch(
     body: BatchExplainRequest,
-    auth: AuthResult = AuthDep,
+    auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> list[dict]:
     """
     Explain up to 20 filter decisions in one call.
@@ -83,6 +89,7 @@ async def explain_batch(
     Returns a list in the same order as `request_ids`.
     Missing / not-found IDs return `{"found": false, "request_id": "..."}`.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.analytics.logger import read_by_request_id
     from warden.xai.chain import build_chain, chain_to_dict
 

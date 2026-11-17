@@ -29,7 +29,13 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
-from warden.auth_guard import AuthResult, public_tenant_filter, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    optional_caller_binding,
+    public_tenant_filter,
+    require_api_key,
+)
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
@@ -340,7 +346,7 @@ from warden.marketplace.api_agents import _authenticated_owner  # noqa: E402,F40
 
 
 @router.post("/register", status_code=201)
-async def register_market_agent(body: RegisterRequest, request: Request) -> dict:
+async def register_market_agent(body: RegisterRequest, request: Request, _tenant_binding: CallerTenant = Depends(optional_caller_binding)) -> dict:
     """M2M first-contact registration.
 
     Thin wrapper over /agents/register that serves as the canonical 'POST /register'
@@ -351,6 +357,7 @@ async def register_market_agent(body: RegisterRequest, request: Request) -> dict
     KYA registration and screening run inside `register_agent` itself, so this
     route and `POST /agents/register` onboard an agent identically.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.api_agents import AgentRegisterRequest, register_agent
     return await register_agent(
         AgentRegisterRequest(
@@ -360,6 +367,9 @@ async def register_market_agent(body: RegisterRequest, request: Request) -> dict
             capabilities=body.capabilities,
         ),
         request,
+        # Already bound above; passing the binding keeps a direct call from
+        # receiving the unresolved `Depends` default.
+        _tenant_binding,
     )
 
 
@@ -756,7 +766,11 @@ async def dispatch_action(
             except Exception as _ded_exc:
                 log.debug("x402 deduct fail-open: %s", _ded_exc)
             # LS metered billing — offloaded to BackgroundTasks (zero latency impact)
-            _tenant_id = request.headers.get("X-Tenant-ID", "")
+            # Metered usage is billed to this tenant. It came from `X-Tenant-ID`,
+            # so a caller could put its searches on someone else's invoice.
+            from warden.auth_guard import request_tenant
+
+            _tenant_id = request_tenant(request, default="")
             if _tenant_id:
                 background_tasks.add_task(_report_search_usage, _tenant_id)
 

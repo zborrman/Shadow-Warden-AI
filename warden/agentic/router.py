@@ -25,7 +25,13 @@ from pydantic import BaseModel, Field
 
 from warden.agentic.mandate import MandateResult, create_invoice, validate_mandate
 from warden.agentic.registry import get_registry
-from warden.auth_guard import AuthResult, caller_tenant, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    require_api_key,
+)
 
 log = logging.getLogger("warden.agentic.router")
 
@@ -83,8 +89,9 @@ async def list_agents(
 @router.post("/agents", summary="Register a new AI agent", status_code=201)
 async def register_agent(
     body: AgentRegisterRequest,
-    _auth: AuthResult = Depends(require_api_key),
+    _auth: AuthResult = Depends(require_api_key), _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     return get_registry().register_agent(
         tenant_id            = body.tenant_id,
         name                 = body.name,

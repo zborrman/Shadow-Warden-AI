@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant, caller_tenant_path
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant, caller_tenant_path
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/smb-suite", tags=["SMB Governance Suite"])
@@ -32,7 +32,8 @@ class ProvisionRequest(BaseModel):
 
 
 @router.post("/provision", summary="Provision all 7 SMB governance modules", dependencies=[_Gate])
-async def provision(body: ProvisionRequest) -> dict:
+async def provision(body: ProvisionRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.integrations.smb_suite import provision_suite
     cfg = {
         "monthly_budget_usd": body.monthly_budget_usd,

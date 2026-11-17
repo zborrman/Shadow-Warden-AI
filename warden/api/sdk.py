@@ -13,9 +13,10 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from warden.auth_guard import CallerTenant, caller_binding
 from warden.billing.feature_gate import require_feature
 from warden.sdk import __version__ as _sdk_version
 from warden.sdk.otel import (
@@ -58,12 +59,13 @@ async def sdk_stats() -> dict:
 
 
 @router.post("/ping", summary="Test-fire a synthetic span through the Warden /filter endpoint")
-async def sdk_ping(body: PingRequest) -> dict:
+async def sdk_ping(body: PingRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Constructs a synthetic span from the provided name + attributes and
     runs it through the Warden /filter endpoint, returning the result.
     Useful for smoke-testing SDK connectivity without a real OTel pipeline.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.sdk.otel import _span_to_text  # noqa: PLC0415
 
     class _FakeSpan:

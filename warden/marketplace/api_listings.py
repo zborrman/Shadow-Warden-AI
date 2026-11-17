@@ -10,7 +10,7 @@ import time
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, CallerTenant, caller_binding, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.marketplace.admin_guard import require_admin_key
@@ -53,7 +53,8 @@ class PurchaseRequest(BaseModel):
 
 
 @router.post("/listings", status_code=201, dependencies=_WRITE)
-async def create_listing(body: ListingCreateRequest) -> dict:
+async def create_listing(body: ListingCreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.listing import publish_listing
     # Sybil gate — flagged agents may not create new listings
     try:

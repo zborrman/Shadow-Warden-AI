@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 from warden.business_intelligence.models import ReportRequest
 from warden.business_intelligence.repository import (
@@ -69,7 +69,8 @@ async def incident_prediction(tenant_id: str = Depends(caller_tenant), horizon_d
 
 
 @router.post("/report", summary="Build a custom BI report", dependencies=[_Gate])
-async def build_report(body: ReportRequest) -> dict:
+async def build_report(body: ReportRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.business_intelligence.service import build_report
     try:
         return build_report(

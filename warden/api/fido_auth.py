@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import caller_tenant, require_api_key
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant, require_api_key
 
 router = APIRouter(prefix="/auth/fido", tags=["FIDO2 Auth"])
 
@@ -42,7 +42,8 @@ class AuthCompleteRequest(BaseModel):
 
 
 @router.post("/register/begin", summary="Start Passkey registration", dependencies=_ENROL)
-async def register_begin(body: RegistrationBeginRequest) -> dict:
+async def register_begin(body: RegistrationBeginRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.auth.fido import FIDOProvider
     return FIDOProvider().generate_registration_options(
         body.tenant_id, body.display_name or body.tenant_id
@@ -50,7 +51,8 @@ async def register_begin(body: RegistrationBeginRequest) -> dict:
 
 
 @router.post("/register/complete", summary="Complete Passkey registration", dependencies=_ENROL)
-async def register_complete(body: RegistrationCompleteRequest) -> dict:
+async def register_complete(body: RegistrationCompleteRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.auth.fido import FIDOProvider
     result = FIDOProvider().verify_registration(body.tenant_id, body.credential)
     if not result.get("verified"):

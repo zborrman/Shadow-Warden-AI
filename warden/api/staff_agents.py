@@ -24,7 +24,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import caller_tenant, require_api_key
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant, require_api_key
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,8 @@ class CreateTicketRequest(BaseModel):
 # ── Generic query endpoint ─────────────────────────────────────────────────────
 
 @router.post("/{agent_id}/query")
-async def agent_query(agent_id: str, req: AgentQueryRequest) -> dict[str, Any]:
+async def agent_query(agent_id: str, req: AgentQueryRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict[str, Any]:
+    req.tenant_id = _tenant_binding.bind(req.tenant_id)
     from warden.staff.agents.base import run_staff_query  # noqa: PLC0415
     result = await run_staff_query(
         agent_id=agent_id,
@@ -217,7 +218,8 @@ async def support_tickets(tenant_id: str = Depends(caller_tenant), status: str |
 
 
 @router.post("/support/tickets")
-async def create_support_ticket(req: CreateTicketRequest) -> dict:
+async def create_support_ticket(req: CreateTicketRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    req.tenant_id = _tenant_binding.bind(req.tenant_id)
     import time
     with _support_db() as db:
         now = int(time.time())

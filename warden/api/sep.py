@@ -42,7 +42,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, CallerTenant, caller_binding, require_api_key
 from warden.billing.feature_gate import require_feature
 
 router  = APIRouter(prefix="/sep", tags=["SEP — Syndicate Exchange Protocol"])
@@ -507,7 +507,7 @@ async def verify_transfer_proof(transfer_id: str, auth: AuthResult = AuthDep) ->
 @router.post("/knock", status_code=201, summary="Issue a Knock-and-Verify invitation")
 async def issue_knock(
     body: IssueKnockRequest,
-    auth: AuthResult = AuthDep,
+    auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> dict:
     """
     Invite an existing Shadow Warden tenant to join a community.
@@ -519,6 +519,7 @@ async def issue_knock(
     cannot impersonate the invite even if they obtain the token, because
     `verify_and_accept_knock()` asserts the claiming tenant_id matches.
     """
+    body.invitee_tenant_id = _tenant_binding.bind(body.invitee_tenant_id)
     from warden.communities.knock import issue_knock as _issue
     try:
         record, token = _issue(
@@ -545,7 +546,7 @@ async def issue_knock(
 @router.post("/knock/accept", summary="Accept a knock invitation (prove Shadow Warden tenancy)")
 async def accept_knock(
     body: AcceptKnockRequest,
-    auth: AuthResult = AuthDep,
+    auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> dict:
     """
     Accept a Knock-and-Verify invitation.
@@ -556,6 +557,7 @@ async def accept_knock(
 
     Returns the new MemberRecord.
     """
+    body.claiming_tenant_id = _tenant_binding.bind(body.claiming_tenant_id)
     from warden.communities.knock import verify_and_accept_knock
     try:
         knock_record, member = verify_and_accept_knock(

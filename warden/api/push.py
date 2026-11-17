@@ -21,7 +21,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 
 log = logging.getLogger("warden.api.push")
@@ -37,7 +37,8 @@ class RegisterRequest(BaseModel):
 
 
 @router.post("/register", summary="Register a device for push alerts", dependencies=[_Gate])
-async def register_device(body: RegisterRequest) -> dict:
+async def register_device(body: RegisterRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.push.registry import register_device as _reg
     return _reg(body.tenant_id, body.device_token, body.platform)
 

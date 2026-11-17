@@ -31,7 +31,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, caller_tenant, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    require_api_key,
+)
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/sovereign", tags=["Sovereign AI Cloud"])
@@ -230,7 +236,7 @@ async def list_tunnels(
 
 
 @router.post("/tunnels", status_code=201, summary="Register a MASQUE tunnel", dependencies=[_SovereignGate])
-async def register_tunnel(body: RegisterTunnelRequest, auth: AuthResult = AuthDep) -> dict:
+async def register_tunnel(body: RegisterTunnelRequest, auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Register a new MASQUE-over-HTTP/3 proxy tunnel.
 
@@ -242,6 +248,7 @@ async def register_tunnel(body: RegisterTunnelRequest, auth: AuthResult = AuthDe
     `POST /sovereign/tunnels/{id}/probe` to perform the first health-check
     and transition it to `ACTIVE`.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from dataclasses import asdict
 
     from warden.sovereign.tunnel import register_tunnel as _reg
@@ -370,7 +377,7 @@ async def deactivate_tunnel(tunnel_id: str, auth: AuthResult = AuthDep) -> None:
 # ── Routing endpoints ─────────────────────────────────────────────────────────
 
 @router.post("/route", summary="Get routing decision for a request", dependencies=[_SovereignGate])
-async def get_route(body: RouteRequest, auth: AuthResult = AuthDep) -> dict:
+async def get_route(body: RouteRequest, auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Determine which MASQUE tunnel and jurisdiction to use for a request.
 
@@ -386,6 +393,7 @@ async def get_route(body: RouteRequest, auth: AuthResult = AuthDep) -> dict:
     Use the `attest_id` from the subsequent `POST /sovereign/attest` call
     to close the attestation loop after the AI API responds.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from dataclasses import asdict
 
     from warden.sovereign.router import route
@@ -401,7 +409,7 @@ async def get_route(body: RouteRequest, auth: AuthResult = AuthDep) -> dict:
 # ── Attestation endpoints ─────────────────────────────────────────────────────
 
 @router.post("/attest", status_code=201, summary="Issue a sovereignty attestation", dependencies=[_SovereignGate])
-async def issue_attestation(body: AttestRequest, auth: AuthResult = AuthDep) -> dict:
+async def issue_attestation(body: AttestRequest, auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Issue a signed sovereignty attestation for a completed route decision.
 
@@ -413,6 +421,7 @@ async def issue_attestation(body: AttestRequest, auth: AuthResult = AuthDep) -> 
     - Linked to the filter pipeline via `request_id`
     - Verifiable via `GET /sovereign/attest/{id}/verify`
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from dataclasses import asdict
 
     from warden.sovereign.attestation import issue_attestation as _issue

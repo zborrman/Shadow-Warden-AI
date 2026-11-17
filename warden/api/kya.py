@@ -26,7 +26,7 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import CallerTenant, optional_caller_binding, require_api_key
 from warden.kya.did import is_valid_did, sign_trust_assertion, verify_signature
 from warden.kya.profile import (
     get_profile,
@@ -70,8 +70,9 @@ class VerifyRequest(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=dict)
-async def register(req: RegisterRequest) -> dict:
+async def register(req: RegisterRequest, _tenant_binding: CallerTenant = Depends(optional_caller_binding)) -> dict:
     """Register or upsert an agent DID."""
+    req.owner_tenant_id = _tenant_binding.bind(req.owner_tenant_id)
     if not is_valid_did(req.did):
         raise HTTPException(422, f"Invalid DID format: {req.did!r}")
     try:

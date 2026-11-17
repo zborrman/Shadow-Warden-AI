@@ -29,6 +29,7 @@ try:
 except Exception:  # noqa: BLE001
     _STAFF_GATE_DEP = []
 
+from warden.auth_guard import CallerTenant, caller_binding
 from warden.staff.boundaries import (
     BoundaryViolationError,
     get_registry,
@@ -163,7 +164,8 @@ def get_velocity_activity(limit: int = 50) -> list[dict[str, Any]]:
 
 
 @router.post("/intent/refund", dependencies=_STAFF_GATE_DEP)
-def sign_refund_intent(req: RefundIntentRequest) -> dict[str, Any]:
+def sign_refund_intent(req: RefundIntentRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict[str, Any]:
+    req.tenant_id = _tenant_binding.bind(req.tenant_id)
     reg = _registry()
     b = reg.get(req.agent_id)
     if b is None:

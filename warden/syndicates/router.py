@@ -94,17 +94,6 @@ def _require_super_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
-def _tenant_from_request(request: Request) -> str:
-    """Extract tenant_id from X-Warden-Tenant-ID header (set by OIDC guard)."""
-    tenant_id = request.headers.get("X-Warden-Tenant-ID", "")
-    if not tenant_id:
-        # Fall back to API key lookup
-        tenant_id = request.headers.get("X-Tenant-ID", "")
-    if not tenant_id:
-        raise HTTPException(status_code=401, detail="Tenant identification required")
-    return tenant_id
-
-
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
 class RegisterSyndicateRequest(BaseModel):

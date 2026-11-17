@@ -93,20 +93,27 @@ class TestGetTenantId:
         req = _Req(tenant={"tenant_id": "t-1", "id": "t-2"})
         assert g._get_tenant_id(req) == "t-1"
 
-    def test_non_dict_tenant_falls_back_to_header(self):
+    def test_non_dict_tenant_falls_back_to_header_in_dev_only(self, monkeypatch):
+        import warden.auth_guard as ag
+
         req = _Req(tenant="not-a-dict", headers={"X-Tenant-ID": "t-header"})
+        monkeypatch.setattr(ag, "tier_header_trusted", lambda: True)
         assert g._get_tenant_id(req) == "t-header"
+        # With auth on, the header names whose credits pay - so it is ignored.
+        monkeypatch.setattr(ag, "tier_header_trusted", lambda: False)
+        assert g._get_tenant_id(req) == "unknown"
 
     def test_no_tenant_no_header_returns_unknown(self):
         req = _Req()
         assert g._get_tenant_id(req) == "unknown"
 
-    def test_empty_dict_tenant_never_consults_header(self):
-        """The dict branch resolves entirely from the dict itself -- an empty
-        dict returns 'unknown' rather than falling through to X-Tenant-ID.
-        Only a non-dict `tenant` takes the header path (see the test above)."""
-        req = _Req(tenant={}, headers={"X-Tenant-ID": "t-header"})
-        assert g._get_tenant_id(req) == "unknown"
+    def test_the_key_decides_over_the_header(self, monkeypatch):
+        import warden.auth_guard as ag
+
+        monkeypatch.setattr(ag, "tier_header_trusted", lambda: False)
+        monkeypatch.setattr(ag, "resolve_tenant_id", lambda k: "t-key" if k == "k" else None)
+        req = _Req(headers={"X-API-Key": "k", "X-Tenant-ID": "t-victim"})
+        assert g._get_tenant_id(req) == "t-key"
 
 
 # ── Replay protection ─────────────────────────────────────────────────────────
