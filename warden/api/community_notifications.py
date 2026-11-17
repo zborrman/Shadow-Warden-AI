@@ -19,7 +19,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant, caller_tenant_scope, require_api_key
+from warden.auth_guard import (
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    caller_tenant_scope,
+    require_api_key,
+)
 from warden.communities.notifications import (
     VALID_CHANNELS,
     VALID_EVENTS,
@@ -66,7 +72,8 @@ class TestRequest(BaseModel):
 # ── Subscribe ─────────────────────────────────────────────────────────────────
 
 @router.post("/{community_id}/notifications/subscribe", status_code=201)
-async def subscribe_endpoint(community_id: str, req: SubscribeRequest) -> dict[str, Any]:
+async def subscribe_endpoint(community_id: str, req: SubscribeRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict[str, Any]:
+    req.tenant_id = _tenant_binding.bind(req.tenant_id)
     if req.channel not in VALID_CHANNELS:
         raise HTTPException(400, f"channel must be one of {VALID_CHANNELS}")
     if req.events:
@@ -125,7 +132,8 @@ async def patch_sub(
 # ── Test fire ─────────────────────────────────────────────────────────────────
 
 @router.post("/{community_id}/notifications/test")
-async def test_notification(community_id: str, req: TestRequest) -> dict[str, Any]:
+async def test_notification(community_id: str, req: TestRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict[str, Any]:
+    req.tenant_id = _tenant_binding.bind(req.tenant_id)
     if req.event_type not in VALID_EVENTS:
         raise HTTPException(400, f"event_type must be one of {list(VALID_EVENTS)}")
     sample_payloads: dict[str, dict] = {

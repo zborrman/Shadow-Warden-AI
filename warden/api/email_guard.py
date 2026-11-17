@@ -23,8 +23,10 @@ import re
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel, Field
+
+from warden.auth_guard import CallerTenant, optional_caller_binding
 
 log = logging.getLogger("warden.api.email_guard")
 
@@ -167,7 +169,7 @@ def _risk_level(findings: list[EmailFinding]) -> str:
     summary="Scan inbound email for prompt injection, phishing, PII",
 )
 async def scan_email(
-    body: Annotated[EmailScanRequest, Body()],
+    body: Annotated[EmailScanRequest, Body()], _tenant_binding: CallerTenant = Depends(optional_caller_binding),
 ) -> EmailScanResponse:
     """
     Scan an inbound email before it is processed by an AI pipeline or
@@ -175,6 +177,7 @@ async def scan_email(
 
     No email content is stored or logged (GDPR).
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     t0 = time.perf_counter()
 
     findings: list[EmailFinding] = []

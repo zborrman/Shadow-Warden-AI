@@ -71,7 +71,16 @@ def test_ownership_comes_from_the_credential_on_both_routes(client, route, monke
     import warden.auth_guard as ag
 
     monkeypatch.setattr(ag, "resolve_tenant_id", lambda key: "t-real" if key == "k" else None)
-    resp, _ = _register(client, route, headers={"X-API-Key": "k"}, tenant="t-victim")
+    monkeypatch.setattr(ag, "tier_header_trusted", lambda: False)
+
+    # A key that names someone else's tenant in the body is refused outright
+    # (re-audit 2026-11-16, body-field binding). It used to be accepted with
+    # the claim quietly dropped from the KYA owner; the victim never became the
+    # owner either way, but the agent row still carried the claimed tenant.
+    refused, _ = _register(client, route, headers={"X-API-Key": "k"}, tenant="t-victim")
+    assert refused.status_code == 403, refused.text
+
+    resp, _ = _register(client, route, headers={"X-API-Key": "k"}, tenant="t-real")
     assert resp.status_code == 201, resp.text
 
     from warden.marketplace.kya import get_kya_record

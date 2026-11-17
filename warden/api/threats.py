@@ -21,7 +21,14 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from warden.auth_guard import AuthResult, caller_tenant, caller_tenant_scope, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    caller_tenant_scope,
+    require_api_key,
+)
 from warden.runtime import runtime
 
 log = logging.getLogger("warden.api.threats")
@@ -191,12 +198,13 @@ async def get_blocked_ips(tenant_id: str | None = Depends(caller_tenant_scope)):
     summary="Manually block an IP address across the filter pipeline",
     dependencies=[Depends(require_api_key)],
 )
-async def block_ip(body: _BlockIpRequest):
+async def block_ip(body: _BlockIpRequest, _tenant_binding: CallerTenant = Depends(caller_binding)):
     """
     Add an IP to the blocklist.  All future requests from this IP will receive
     HTTP 403 before any other processing occurs.  Optionally provide an
     ISO-8601 ``expires_at`` for temporary blocks; omit for permanent.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     store = _require_threat_store()
     store.block_ip(
         ip         = body.ip,

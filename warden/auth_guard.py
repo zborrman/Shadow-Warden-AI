@@ -262,6 +262,93 @@ def caller_tenant_form(
     return bind_tenant(auth, tenant_id, x_admin_key)
 
 
+@dataclass(frozen=True)
+class CallerTenant:
+    """What a handler needs to bind a tenant that arrives in the request body.
+
+    ``tenant_id`` in a JSON body is caller-supplied text exactly like the query
+    parameter :func:`caller_tenant` replaced; the parameter scanner could not
+    see it, so 39 write routes protected only by a plan gate let a paying tenant
+    act on any other by naming it (re-audit 2026-11-16). Use::
+
+        caller: CallerTenant = Depends(caller_binding)
+        ...
+        body.tenant_id = caller.bind(body.tenant_id)
+
+    ``auth`` is ``None`` only on a route that is anonymous by design
+    (:func:`optional_caller_binding`).
+    """
+
+    auth: AuthResult | None
+    x_admin_key: str | None = None
+
+    def bind(self, claimed: str | None) -> str:
+        if self.auth is not None:
+            return bind_tenant(self.auth, claimed, self.x_admin_key)
+        claim = (claimed or "").strip()
+        # No key presented. Dev/test (auth off) keeps the claim, as the tier
+        # header does; so does the operator's admin key. Anyone else owns no
+        # tenant, and is recorded as exactly that.
+        if claim and (tier_header_trusted() or _is_operator_key(self.x_admin_key)):
+            return claim
+        return "anonymous"
+
+
+def caller_binding(
+    auth: AuthResult = Depends(require_api_key),
+    x_admin_key: str | None = Header(default=None),
+) -> CallerTenant:
+    """Dependency for an authenticated route whose body names a tenant."""
+    return CallerTenant(auth, x_admin_key)
+
+
+def optional_caller_binding(
+    x_api_key: str | None = Security(_API_KEY_HEADER),
+    x_admin_key: str | None = Header(default=None),
+) -> CallerTenant:
+    """For a route that is anonymous by design (registration, a free scanner).
+
+    A presented key binds exactly as :func:`caller_binding` does; no key binds
+    to ``"anonymous"``. It never raises for a missing key, so a public route
+    stays public.
+    """
+    tenant = resolve_tenant_id(x_api_key)
+    auth = AuthResult(api_key=x_api_key or "", tenant_id=tenant) if tenant else None
+    return CallerTenant(auth, x_admin_key)
+
+
+def request_tenant(request: object, default: str = "unknown") -> str:
+    """The tenant a request authenticates as, for code that only has the request.
+
+    Replaces ``request.headers.get("X-Tenant-ID")``. That header is written by
+    the caller, and the code reading it decided whose add-on was checked, whose
+    credits were spent and whose usage was billed. The answer is the tenant the
+    presented key resolves to; the header is honoured only where auth is off
+    (dev/test), as the tier header is.
+    """
+    state = getattr(request, "state", None)
+    tenant = getattr(state, "tenant", None)
+    if isinstance(tenant, dict) and (tenant.get("tenant_id") or tenant.get("id")):
+        return str(tenant.get("tenant_id") or tenant.get("id"))
+    headers = getattr(request, "headers", {}) or {}
+    key = headers.get("x-api-key") or ""
+    if not key:
+        bearer = headers.get("authorization", "")
+        if bearer[:7].lower() == "bearer ":
+            key = bearer[7:]
+    resolved = resolve_tenant_id(key)
+    if resolved:
+        return resolved
+    if tier_header_trusted():
+        return headers.get("x-tenant-id") or default
+    return default
+
+
+def _is_operator_key(x_admin_key: str | None) -> bool:
+    admin_key = os.getenv("ADMIN_KEY", "")
+    return bool(x_admin_key and admin_key and hmac.compare_digest(x_admin_key, admin_key))
+
+
 def _is_operator(auth: AuthResult, x_admin_key: str | None) -> bool:
     if auth.tenant_id == "default":
         return True

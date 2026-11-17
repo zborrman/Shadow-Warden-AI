@@ -31,6 +31,23 @@ decorators is two routes, and an admin dependency on one does not cover the
 other. A finding's key names the route (method and path), so adding a second
 URL to an already baselined handler is a new finding, not a free pass.
 
+Two more shapes (re-audit 2026-11-16). The first version saw parameters only,
+and the re-audit found the same claim arriving two other ways:
+
+* **a body field** - a handler takes a Pydantic model with a ``tenant*`` field
+  and reads ``body.tenant_id``. The model index is built from every module
+  under ``warden/``, so a model imported from ``schemas.py`` is still seen. It
+  is bound when the handler rebinds the field before use
+  (``body.tenant_id = caller.bind(body.tenant_id)``, or any call to
+  ``bind_tenant``/``bind`` with it), or rejects on a comparison with some
+  ``*.tenant_id``.
+* **a header read in code** - ``request.headers.get("X-Tenant-ID")`` anywhere
+  in a module, not only in a route signature. Bound when the value goes into
+  ``bind_tenant``/``bind``, or the read sits under ``if tier_header_trusted()``
+  (dev/test, where no key exists to derive a tenant from).
+
+A model passed whole to a helper that reads the tenant inside is not seen.
+
 Detection lives here; the merge gate is
 ``warden/tests/test_tenant_isolation.py`` (CI runs pytest, not pre-commit),
 which holds a may-only-shrink baseline. As a pre-commit hook this exits 1 on any
@@ -41,6 +58,7 @@ from __future__ import annotations
 import ast
 import json
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,6 +77,34 @@ _BINDING_DEPENDENCIES = frozenset({
 })
 
 BASELINE = Path(__file__).resolve().parent.parent / "tests" / "tenant_isolation_baseline.json"
+
+#: Headers that name a tenant. A client writes them; only a key proves one.
+_TENANT_HEADERS = frozenset({"x-tenant-id", "x-warden-tenant-id"})
+#: Calls that turn a claimed tenant into the authenticated one (or refuse it).
+_BINDERS = frozenset({"bind_tenant", "bind"})
+#: Calls in a handler body that admit only the operator. An operator acting on
+#: a named tenant is the legitimate case, as with `_BINDING_DEPENDENCIES`.
+_OPERATOR_CHECKS = frozenset({
+    "_require_admin", "require_admin", "_require_admin_key", "require_admin_key",
+    "verify_admin_key", "_require_super_admin",
+})
+#: Claims a route must take from the caller, because proving them is the route's
+#: job. Keyed like a finding without the route; each carries its reason, and
+#: test_tenant_isolation.py fails on an entry that no longer matches anything.
+PROVEN_CLAIMS: dict[str, str] = {
+    "warden/api/fido_auth.py::authenticate_begin::body.tenant_id":
+        "Passkey sign-in: the tenant is the account being signed into, and the "
+        "ceremony issues a challenge only that tenant's registered credential can answer.",
+    "warden/api/fido_auth.py::authenticate_complete::body.tenant_id":
+        "Passkey sign-in: the assertion is verified against the named tenant's "
+        "credential; a wrong name fails the signature check.",
+}
+
+#: Dependencies whose result is the caller's own, already-bound tenant.
+_BOUND_TENANT_DEPENDENCIES = frozenset({
+    "caller_tenant", "caller_tenant_path", "caller_tenant_header", "caller_tenant_form",
+    "_caller_tenant", "_own_tenant",
+})
 
 
 @dataclass(frozen=True)
@@ -214,6 +260,196 @@ def _compared_to_tenant_attr(
     return False
 
 
+# ── body fields ──────────────────────────────────────────────────────────────
+
+
+def _model_tenant_fields(tree: ast.Module) -> dict[str, set[str]]:
+    """``class X(BaseModel)`` -> the names of its fields that contain ``tenant``.
+
+    Inherits within the index: ``class B(A)`` gets A's tenant fields when A is a
+    model, in this module or (after merging) another one.
+    """
+    out: dict[str, set[str]] = {}
+    bases: dict[str, list[str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        base_names = [_call_name(b) for b in node.bases]
+        fields = {
+            stmt.target.id
+            for stmt in node.body
+            if isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and "tenant" in stmt.target.id.lower()
+        }
+        bases[node.name] = base_names
+        if "BaseModel" in base_names or fields:
+            out.setdefault(node.name, set()).update(fields)
+    for name, parents in bases.items():
+        for parent in parents:
+            if parent in out and name in out:
+                out[name] |= out[parent]
+    return {k: v for k, v in out.items() if v}
+
+
+_REPO_MODELS: dict[str, set[str]] | None = None
+
+
+def _repo_models() -> dict[str, set[str]]:
+    global _REPO_MODELS
+    if _REPO_MODELS is None:
+        root = Path(__file__).resolve().parents[1]
+        merged: dict[str, set[str]] = {}
+        for file in root.rglob("*.py"):
+            if "tests" in file.parts:
+                continue
+            try:
+                tree = ast.parse(file.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError, OSError):
+                continue
+            for name, fields in _model_tenant_fields(tree).items():
+                merged.setdefault(name, set()).update(fields)
+        _REPO_MODELS = merged
+    return _REPO_MODELS
+
+
+def _annotation_names(node: ast.AST | None) -> set[str]:
+    """``Model``, ``Model | None``, ``Optional[Model]``, ``list[Model]`` -> {"Model"}."""
+    names: set[str] = set()
+    if node is None:
+        return names
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Name):
+            names.add(sub.id)
+        elif isinstance(sub, ast.Attribute):
+            names.add(sub.attr)
+        elif isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+            names.add(sub.value.split("[")[0].split(".")[-1].strip())
+    return names
+
+
+def _is_field(node: ast.AST, obj: str, field: str) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == field
+        and isinstance(node.value, ast.Name)
+        and node.value.id == obj
+    )
+
+
+def _reads_field(fn: ast.AST, obj: str, field: str) -> bool:
+    return any(
+        isinstance(n, ast.Attribute) and _is_field(n, obj, field) and isinstance(n.ctx, ast.Load)
+        for n in ast.walk(fn)
+    )
+
+
+def _binder_takes(call: ast.AST, pred: Callable[[ast.AST], bool]) -> bool:
+    return (
+        isinstance(call, ast.Call)
+        and _call_name(call) in _BINDERS
+        and any(pred(a) for a in [*call.args, *(k.value for k in call.keywords)])
+    )
+
+
+def _calls_operator_check(fn: ast.AST) -> bool:
+    return any(
+        isinstance(n, ast.Call) and _call_name(n) in _OPERATOR_CHECKS for n in ast.walk(fn)
+    )
+
+
+def _bound_tenant_params(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    args = fn.args
+    positional = args.posonlyargs + args.args
+    defaults = [None] * (len(positional) - len(args.defaults)) + list(args.defaults)
+    pairs = list(zip(positional, defaults, strict=True)) + list(
+        zip(args.kwonlyargs, args.kw_defaults, strict=True)
+    )
+    return {
+        a.arg for a, d in pairs
+        if d is not None and _depends_target(d) in _BOUND_TENANT_DEPENDENCIES
+    }
+
+
+def _field_is_bound(fn: ast.AST, obj: str, field: str, rejecters: frozenset[str]) -> bool:
+    if _calls_operator_check(fn):
+        return True
+    bound_names = (
+        _bound_tenant_params(fn) if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef))
+        else set()
+    )
+    for node in ast.walk(fn):
+        # body.tenant_id = caller.bind(body.tenant_id)  /  bind_tenant(auth, body.tenant_id)
+        if _binder_takes(node, lambda a: _is_field(a, obj, field)):
+            return True
+        if isinstance(node, ast.If) and _raises(node.body, rejecters) | _raises(node.orelse, rejecters):
+            for cmp in ast.walk(node.test):
+                if not isinstance(cmp, ast.Compare):
+                    continue
+                ops = [cmp.left, *cmp.comparators]
+                if any(_is_field(o, obj, field) for o in ops) and any(
+                    (isinstance(o, ast.Attribute) and o.attr == "tenant_id"
+                     and not _is_field(o, obj, field))
+                    or (isinstance(o, ast.Name) and o.id in bound_names)
+                    for o in ops
+                ):
+                    return True
+    return False
+
+
+# ── header reads ─────────────────────────────────────────────────────────────
+
+
+def _header_name(call: ast.AST) -> str:
+    """``x.headers.get("X-Tenant-ID", ...)`` / ``x.headers["X-Tenant-ID"]`` -> lower name."""
+    target: ast.AST | None = None
+    if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == "get":
+        holder = call.func.value
+        if isinstance(holder, ast.Attribute) and holder.attr == "headers" and call.args:
+            target = call.args[0]
+    elif isinstance(call, ast.Subscript) and isinstance(call.value, ast.Attribute) and call.value.attr == "headers":
+        target = call.slice
+    if isinstance(target, ast.Constant) and isinstance(target.value, str):
+        return target.value.lower()
+    return ""
+
+
+def _under_trusted_dev_check(fn: ast.AST, read: ast.AST) -> bool:
+    for node in ast.walk(fn):
+        if (
+            isinstance(node, ast.If)
+            and any(
+                isinstance(c, ast.Call) and _call_name(c) == "tier_header_trusted"
+                for c in ast.walk(node.test)
+            )
+            and any(n is read for stmt in node.body for n in ast.walk(stmt))
+        ):
+            return True
+    return False
+
+
+def _header_is_bound(fn: ast.AST, read: ast.AST) -> bool:
+    if _under_trusted_dev_check(fn, read) or _calls_operator_check(fn):
+        return True
+    # bind_tenant(auth, request.headers.get("X-Tenant-ID")) - directly, or
+    # through a local it was assigned to.
+    names = {
+        t.id
+        for node in ast.walk(fn)
+        if isinstance(node, ast.Assign) and any(n is read for n in ast.walk(node.value))
+        for t in node.targets
+        if isinstance(t, ast.Name)
+    }
+    for node in ast.walk(fn):
+        if _binder_takes(
+            node,
+            lambda a: any(n is read for n in ast.walk(a))
+            or (isinstance(a, ast.Name) and a.id in names),
+        ):
+            return True
+    return False
+
+
 def _source_of(default: ast.AST | None) -> str:
     if default is None:
         return "path/query"
@@ -221,7 +457,9 @@ def _source_of(default: ast.AST | None) -> str:
     return name or "literal-default"
 
 
-def scan_source(src: str, path: str) -> list[Finding]:
+def scan_source(
+    src: str, path: str, models: dict[str, set[str]] | None = None
+) -> list[Finding]:
     try:
         tree = ast.parse(src)
     except SyntaxError:
@@ -229,11 +467,25 @@ def scan_source(src: str, path: str) -> list[Finding]:
     aliases, routers = _module_context(tree)
     rejecters = frozenset(_rejecters(tree))
     findings: list[Finding] = []
+    if models is None:
+        models = {**_repo_models()}
+    for name, fields in _model_tenant_fields(tree).items():
+        models.setdefault(name, set()).update(fields)
 
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         decorators = _route_decorators(fn)
+
+        # Header reads count in any function: a helper the route calls is
+        # where most of them live.
+        for node in ast.walk(fn):
+            header = _header_name(node)
+            if header in _TENANT_HEADERS and not _header_is_bound(fn, node):
+                route = ", ".join(_route_label(d) for d in decorators) or "helper"
+                findings.append(Finding(path, getattr(node, "lineno", fn.lineno), fn.name,
+                                        f"header:{header}", "header read", route))
+
         if not decorators:
             continue
 
@@ -258,6 +510,23 @@ def scan_source(src: str, path: str) -> list[Finding]:
             if bound_by & _BINDING_DEPENDENCIES:
                 continue
             route = _route_label(dec)
+            for arg, default in pairs:
+                # A request body is a parameter with no default, or `Body(...)`.
+                # Anything else (`auth: AuthResult = AuthDep`, `me = Depends(...)`)
+                # is resolved server-side - its tenant_id is the answer, not a claim.
+                if default is not None and _call_name(default) != "Body":
+                    continue
+                annotation = arg.annotation
+                for model in _annotation_names(annotation) & models.keys():
+                    for field in sorted(models[model]):
+                        if not _reads_field(fn, arg.arg, field):
+                            continue
+                        if _field_is_bound(fn, arg.arg, field, rejecters):
+                            continue
+                        if f"{path}::{fn.name}::{arg.arg}.{field}" in PROVEN_CLAIMS:
+                            continue
+                        findings.append(Finding(path, fn.lineno, fn.name,
+                                                f"{arg.arg}.{field}", "body", route))
             for arg, default in pairs:
                 if "tenant" not in arg.arg.lower():
                     continue

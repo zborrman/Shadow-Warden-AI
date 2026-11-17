@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/financial/allocation", tags=["Cost Allocation"])
@@ -31,7 +31,8 @@ class CostRecordRequest(BaseModel):
 
 
 @router.post("", summary="Record an AI cost entry", dependencies=[_Gate])
-async def record_cost(body: CostRecordRequest) -> dict:
+async def record_cost(body: CostRecordRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.financial.cost_allocation import record_cost as _rec
     alloc_id = _rec(
         tenant_id=body.tenant_id,

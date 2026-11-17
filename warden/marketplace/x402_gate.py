@@ -231,11 +231,11 @@ def _has_sufficient_balance(agent_id: str) -> bool:
 # ── Public gate API ────────────────────────────────────────────────────────────
 
 def _get_tenant_id(request: Request) -> str:
-    state = getattr(request, "state", None)
-    tenant = getattr(state, "tenant", None)
-    if isinstance(tenant, dict):
-        return tenant.get("tenant_id") or tenant.get("id") or "unknown"
-    return request.headers.get("X-Tenant-ID", "unknown")
+    # Whose balance pays for the call. A header the caller writes cannot be
+    # the answer: it named someone else's credits.
+    from warden.auth_guard import request_tenant
+
+    return request_tenant(request)
 
 
 #: `request.state` keys carrying the gate's outcome to whoever settles the call.

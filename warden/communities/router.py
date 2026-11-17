@@ -98,7 +98,6 @@ def _get_tenant(request: Request) -> dict:
     if hasattr(request.state, "tenant") and request.state.tenant:
         return request.state.tenant
 
-    header_tenant = request.headers.get("X-Tenant-ID", "")
     header_tier   = request.headers.get("X-Tenant-Tier", "") or "individual"
 
     # 2. Production: derive the tenant from the presented key.
@@ -118,8 +117,10 @@ def _get_tenant(request: Request) -> dict:
         return {"tenant_id": resolved, "tier": tier}
 
     # 3. Dev / air-gapped / test only: fall back to the header.
-    if tier_header_trusted() and header_tenant:
-        return {"tenant_id": header_tenant, "tier": header_tier}
+    if tier_header_trusted():
+        header_tenant = request.headers.get("X-Tenant-ID", "")
+        if header_tenant:
+            return {"tenant_id": header_tenant, "tier": header_tier}
 
     raise HTTPException(status_code=401, detail="Missing tenant authentication.")
 

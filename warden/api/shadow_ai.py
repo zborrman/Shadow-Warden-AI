@@ -25,7 +25,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import AuthResult, caller_tenant, require_api_key
+from warden.auth_guard import (
+    AuthResult,
+    CallerTenant,
+    caller_binding,
+    caller_tenant,
+    require_api_key,
+)
 from warden.billing.addons import require_addon_or_feature
 
 router = APIRouter(prefix="/shadow-ai", tags=["Shadow AI Governance"])
@@ -91,7 +97,7 @@ class GovernanceReport(BaseModel):
     summary="Scan subnet for Shadow AI endpoints",
     dependencies=[_ScanGate],
 )
-async def scan_subnet(body: ScanRequest, auth: AuthResult = AuthDep) -> ScanResponse:
+async def scan_subnet(body: ScanRequest, auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding)) -> ScanResponse:
     """
     Probe a subnet (CIDR /24 or smaller) for unauthorized AI API endpoints.
 
@@ -101,6 +107,7 @@ async def scan_subnet(body: ScanRequest, auth: AuthResult = AuthDep) -> ScanResp
 
     Omit `subnet` to get a report of DNS-telemetry findings only (no probing).
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.shadow_ai.discovery import ShadowAIDetector
 
     t0      = time.perf_counter()
@@ -124,7 +131,7 @@ async def scan_subnet(body: ScanRequest, auth: AuthResult = AuthDep) -> ScanResp
 
 
 @router.post("/dns-event", summary="Ingest a DNS telemetry event")
-async def ingest_dns_event(body: DnsEventRequest, auth: AuthResult = AuthDep) -> dict:
+async def ingest_dns_event(body: DnsEventRequest, auth: AuthResult = AuthDep, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Classify a single DNS query against the AI provider domain list.
 
@@ -135,6 +142,7 @@ async def ingest_dns_event(body: DnsEventRequest, auth: AuthResult = AuthDep) ->
         `{"match": true, ...finding}` — recognized AI provider domain.
         `{"match": false, "domain": "..."}` — not an AI domain.
     """
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.shadow_ai.discovery import ShadowAIDetector
 
     detector = ShadowAIDetector()

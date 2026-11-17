@@ -281,7 +281,11 @@ async def _check_payment(
 
         sig       = request.headers.get("PAYMENT-SIGNATURE", "")
         agent_id  = _extract_agent_id(sig)
-        tenant_id = request.headers.get("X-Tenant-ID", agent_id or "unknown")
+        # Whose credits are spent. `X-Tenant-ID` is written by the caller, so it
+        # spent another tenant's credits on request; the key decides now.
+        from warden.auth_guard import request_tenant
+
+        tenant_id = request_tenant(request, default=agent_id or "unknown")
 
         # 1. Flex Credits
         try:

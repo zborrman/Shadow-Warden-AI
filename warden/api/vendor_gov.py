@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router  = APIRouter(prefix="/vendor-gov", tags=["Vendor Governance"])
@@ -53,7 +53,8 @@ class DPACreateRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/vendors", summary="Register an AI vendor", dependencies=[_Gate])
-async def create_vendor(body: VendorCreateRequest) -> dict:
+async def create_vendor(body: VendorCreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.vendor_gov.registry import register_vendor
     v = register_vendor(
         tenant_id=body.tenant_id,
@@ -107,7 +108,8 @@ async def update_vendor(vendor_id: str, body: VendorUpdateRequest, tenant_id: st
 
 
 @router.post("/vendors/{vendor_id}/dpa", summary="Add a DPA record to a vendor", dependencies=[_Gate])
-async def add_dpa(vendor_id: str, body: DPACreateRequest) -> dict:
+async def add_dpa(vendor_id: str, body: DPACreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.vendor_gov.registry import add_dpa as _add
     from warden.vendor_gov.registry import get_vendor
     if not get_vendor(vendor_id, body.tenant_id):

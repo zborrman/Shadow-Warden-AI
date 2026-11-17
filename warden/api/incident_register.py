@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/incidents", tags=["Incident Register"])
@@ -36,7 +36,8 @@ class StatusUpdateRequest(BaseModel):
 
 
 @router.post("", summary="Log a new AI incident", dependencies=[_Gate])
-async def create_incident(body: IncidentCreateRequest) -> dict:
+async def create_incident(body: IncidentCreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.communities.incident_register import log_incident
     incident_id = log_incident(
         tenant_id=body.tenant_id,

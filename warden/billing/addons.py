@@ -433,11 +433,11 @@ def increment_seat_units(tenant_id: str, units: int = 1) -> int:
 
 def _get_tenant_id_from_request(request: Request) -> str:
     """Extract tenant_id from request state or headers."""
-    state  = getattr(request, "state", None)
-    tenant = getattr(state, "tenant", None)
-    if isinstance(tenant, dict):
-        return tenant.get("tenant_id") or tenant.get("id") or "unknown"
-    return request.headers.get("X-Tenant-ID", "unknown")
+    # The add-on check below asks "has THIS tenant paid?". Reading the tenant
+    # from `X-Tenant-ID` let a caller name a tenant that had paid and pass.
+    from warden.auth_guard import request_tenant
+
+    return request_tenant(request)
 
 
 # ── FastAPI dependency factory ────────────────────────────────────────────────

@@ -11,7 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from warden.auth_guard import caller_tenant
+from warden.auth_guard import CallerTenant, caller_binding, caller_tenant
 from warden.billing.feature_gate import require_feature
 
 router = APIRouter(prefix="/financial/budget", tags=["Budget Dashboard"])
@@ -46,7 +46,8 @@ async def get_status(tenant_id: str = Depends(caller_tenant)) -> dict:
 
 
 @router.post("/caps", summary="Set a budget cap for a department", dependencies=[_Gate])
-async def set_cap(body: BudgetCapRequest) -> dict:
+async def set_cap(body: BudgetCapRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.financial.budget import set_budget_cap
     cap_id = set_budget_cap(
         tenant_id=body.tenant_id,
@@ -66,7 +67,8 @@ async def list_approvals(tenant_id: str = Depends(caller_tenant), status: str | 
 
 
 @router.post("/approvals", summary="Request budget approval", dependencies=[_Gate])
-async def request_approval(body: ApprovalRequest) -> dict:
+async def request_approval(body: ApprovalRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.financial.budget import request_approval as _req
     approval_id = _req(
         tenant_id=body.tenant_id,

@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from warden.auth_guard import require_api_key
+from warden.auth_guard import CallerTenant, caller_binding, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.marketplace.rate_limit import marketplace_rate_limit
@@ -129,7 +129,7 @@ class KeyRotationRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/agents/{agent_id}/rotate-key", status_code=200, dependencies=_WRITE)
-def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
+def rotate_agent_key(agent_id: str, body: KeyRotationRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
     """
     Rotate the signing key for a marketplace agent.
 
@@ -140,6 +140,7 @@ def rotate_agent_key(agent_id: str, body: KeyRotationRequest) -> dict:
       4. Update agent record (public_key + last_key_rotation_at).
     """
     # Validate new key
+    body.tenant_id = _tenant_binding.bind(body.tenant_id)
     try:
         base64.b64decode(body.new_public_key, validate=True)
     except Exception as exc:

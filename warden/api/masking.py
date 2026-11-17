@@ -35,7 +35,7 @@ import time
 
 from fastapi import APIRouter, Depends, Request, status
 
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, CallerTenant, caller_binding, require_api_key
 from warden.limiter import limiter as _limiter
 from warden.limiter import tenant_limit as _tenant_limit
 from warden.masking.engine import get_engine as _get_masking_engine
@@ -161,7 +161,7 @@ async def unmask_text(
 async def filter_output(
     request:   Request,
     payload:   OutputScanRequest,
-    auth:      AuthResult = Depends(require_api_key),
+    auth:      AuthResult = Depends(require_api_key), _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> OutputScanResponse:
     """
     Scan AI-generated text **before it reaches the browser or downstream system**.
@@ -183,6 +183,7 @@ async def filter_output(
     - `sanitized`: the output with dangerous patterns stripped/escaped — safe to render.
     - `findings`: list of detected risks with OWASP category labels.
     """
+    payload.tenant_id = _tenant_binding.bind(payload.tenant_id)
     t0 = time.perf_counter()
 
     sanitizer = _get_output_sanitizer()
