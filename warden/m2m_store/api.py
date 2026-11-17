@@ -93,6 +93,7 @@ from warden.m2m_store.security import (
     validate_order_request,
 )
 from warden.m2m_store.store_agent import get_agent
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 
 log = logging.getLogger("warden.m2m_store.api")
 
@@ -281,7 +282,8 @@ async def add_product(product: Product, auth: AuthResult = OwnerDep):
 # ── Offers ────────────────────────────────────────────────────────────────────
 
 @router.post("/offers", response_model=dict, status_code=201)
-async def create_offer(body: OfferRequest, auth: AuthResult = AuthDep):
+async def create_offer(body: OfferRequest, auth: AuthResult = AuthDep, _agent_binding: CallerAgent = Depends(caller_agent_binding)):
+    body.agent_id = _agent_binding.bind(body.agent_id)
     try:
         validate_offer_request(body.product_id, body.agent_id)
     except PromptInjectionError as exc:

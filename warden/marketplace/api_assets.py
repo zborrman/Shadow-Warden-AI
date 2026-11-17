@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.auth_guard import CallerTenant, caller_binding, require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_assets")
@@ -38,7 +39,8 @@ def _resolve_keypair(community_id: str):
 
 
 @router.post("/assets", status_code=201, dependencies=_WRITE)
-async def register_asset(body: AssetRegisterRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def register_asset(body: AssetRegisterRequest, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.seller_agent_id = _agent_binding.bind(body.seller_agent_id)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.agent import get_agent as _get_agent
     from warden.marketplace.service import register_asset as _register

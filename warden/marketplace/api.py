@@ -39,6 +39,7 @@ from warden.auth_guard import (
 from warden.config import data_path
 from warden.db.connect import open_db
 from warden.db.ddl_registry import register
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.admin_guard import require_admin_key
 from warden.marketplace.analytics import agent_trade_totals, get_agent_leaderboard
 from warden.marketplace.service import VALID_ASSET_TYPES
@@ -608,6 +609,7 @@ async def dispatch_action(
     body: MarketAction,
     request: Request,
     background_tasks: BackgroundTasks,
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> dict:
     """Unified M2M action dispatcher (all 4 lifecycle stages).
 
@@ -627,6 +629,8 @@ async def dispatch_action(
             or body.payload.get("from_agent_id")
             or request.headers.get("X-Agent-ID", "")
         )
+        # Whichever spelling it came in, the buyer is the caller's own agent.
+        buyer_did = _agent_binding.bind(buyer_did)
         if buyer_did:
             try:
                 from warden.marketplace.brand_agent import BrandAgentFilter  # noqa: PLC0415
@@ -891,7 +895,7 @@ class ClearRequest(BaseModel):
 
 
 @router.post("/clear", dependencies=[Depends(require_api_key)])
-async def market_clear(body: ClearRequest) -> dict:
+async def market_clear(body: ClearRequest, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
     """Stage 4: execute final market clearing.
 
     Authenticated. Clearing auto-rejects every other pending negotiation for the
@@ -903,6 +907,7 @@ async def market_clear(body: ClearRequest) -> dict:
     negotiations for the same buyer, and dual-writes the clearing record
     to SQLite + PostgreSQL.
     """
+    body.buyer_agent_id = _agent_binding.bind(body.buyer_agent_id)
     from warden.marketplace.clearing import ClearingEngine  # noqa: PLC0415
 
     db_path = data_path("warden_marketplace.db", "MARKETPLACE_DB_PATH")
@@ -1010,6 +1015,7 @@ async def analytics_sql_query(
     body: AnalyticsQuery,
     request: Request,
     _: AuthResult = Depends(require_api_key),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> dict:
     """Execute a read-only SQL SELECT against the marketplace DB.
 
@@ -1025,6 +1031,7 @@ async def analytics_sql_query(
        is rejected.  This prevents one caller from reading another agent's
        escrows, negotiations, credits, or x402 balances.
     """
+    body.caller_agent_id = _agent_binding.bind(body.caller_agent_id)
     stmt = body.sql.strip()
     upper = stmt.upper()
     if not upper.startswith("SELECT"):
@@ -1042,7 +1049,8 @@ async def analytics_sql_query(
 
     # Resolve caller identity: body field takes priority over header.
     # Scoping is MANDATORY — an unscoped query could read every tenant's data.
-    caller_id = body.caller_agent_id or request.headers.get("X-Agent-ID")
+    # The header is a claim exactly like the body field, so it is bound too.
+    caller_id = body.caller_agent_id or _agent_binding.bind(request.headers.get("X-Agent-ID"))
     if not caller_id:
         return {
             "error": "caller_agent_id (or X-Agent-ID header) is required to scope the query.",

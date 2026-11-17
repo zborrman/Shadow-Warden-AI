@@ -86,39 +86,26 @@ _PROVEN_FIELDS = {
 # Why each unproven route is still here. A route in the baseline without a note
 # fails the test: an unexplained exemption is how a real hole hides among
 # accepted ones.
-_UNPROVEN_REASONS = {
-    "POST /marketplace/listings":
-        "publishes a listing as seller_agent_id; only a Sybil check on the claim",
-    "POST /marketplace/listings/{listing_id}/purchase":
-        "buys as buyer_agent_id — money moves on a claimed identity",
-    "POST /marketplace/escrow":
-        "escrow created over claimed buyer and seller",
-    "POST /marketplace/clear":
-        "clearing on a claimed buyer; this is the shape of the $0.01 settlement",
-    "POST /marketplace/negotiations":
-        "opens a negotiation between two claimed parties",
-    "POST /marketplace/assets":
-        "registers an asset as seller_agent_id",
-    "POST /marketplace/analytics/query":
-        "caller_agent_id scopes the query. The Confused Deputy check validates "
-        "the statement against that id, but the id itself is claimed, so a "
-        "tenant can read another agent's rows by naming it",
-    "POST /m2m-store/offers":
-        "offer generated for a claimed agent_id",
-    "POST /acp/cart":
-        "_effective_tenant binds the tenant, never the agent",
-    "POST /acp/cart/{cart_id}/checkout":
-        "same: tenant bound, agent claimed, and this one spends",
-    "POST /acp/refund":
-        "same; PENDING_REVIEW softens it but the claim still names the agent",
-    "POST /acp/token":
-        "issues a Shared Payment Token to a claimed agent_id",
-    "POST /a2a/tasks":
-        "caller_did recorded as the task's caller with no proof",
+# Why each unproven route is still here. A route in the baseline without a note
+# fails the test. Empty since the 2026-11-17 binding (#H-2 closed): every route
+# that names its acting agent binds it to the caller's tenant.
+_UNPROVEN_REASONS: dict[str, str] = {}
+
+# Fields that name the *other* party. A buyer opening escrow or a negotiation
+# names the seller on purpose, and that seller normally belongs to another
+# tenant; binding it to the caller would forbid every real trade. These are not
+# claims to act as someone, so they are recorded, with a reason, not bound.
+_COUNTERPARTY = {
+    "POST /marketplace/escrow": {
+        "seller_agent_id": "the payee of the buyer's escrow; the buyer is bound",
+    },
+    "POST /marketplace/negotiations": {
+        "seller_agent_id": "the party the buyer negotiates with; the buyer is bound",
+    },
 }
 
 _CHILD = r'''
-import json, logging, re, sys
+import inspect, json, logging, re, sys
 logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 import warden.main as m
 
@@ -151,6 +138,30 @@ def agent_fields(route):
                 out.add(name)
     return out
 
+def dependency_names(dep, out):
+    for sub in getattr(dep, "dependencies", []) or []:
+        out.add(getattr(getattr(sub, "call", None), "__name__", ""))
+        dependency_names(sub, out)
+    return out
+
+def bound_fields(route, fields):
+    """Fields this route verifiably binds - checked, not declared.
+
+    Needs both halves: the `caller_agent_binding` dependency resolved in the
+    route's own dependency tree, and a `<obj>.<field> = _agent_binding.bind(...)`
+    in the handler's source. Either alone is a binding that does not run.
+    """
+    if "caller_agent_binding" not in dependency_names(route.dependant, set()):
+        return []
+    try:
+        src = inspect.getsource(route.endpoint)
+    except (OSError, TypeError):
+        return []
+    return sorted(
+        f for f in fields
+        if re.search(r"\.%s\s*=\s*_agent_binding\.bind\(" % re.escape(f), src)
+    )
+
 def record(route, prefix=""):
     if type(route).__name__ == "_IncludedRouter":
         ctx = getattr(route, "include_context", None)
@@ -177,8 +188,9 @@ def record(route, prefix=""):
     fields = agent_fields(route)
     if not fields:
         return
+    bound = bound_fields(route, fields)
     for meth in sorted(methods):
-        rows[meth + " " + full] = sorted(fields)
+        rows[meth + " " + full] = {"fields": sorted(fields), "bound": bound}
 
 for route in m.app.routes:
     record(route)
@@ -214,8 +226,18 @@ def _measure() -> dict[str, list[str]]:
 
 
 @pytest.fixture(scope="module")
-def measured() -> dict[str, list[str]]:
-    return _measure()
+def raw() -> dict[str, dict[str, list[str]]]:
+    return _measure()  # type: ignore[return-value]
+
+
+@pytest.fixture(scope="module")
+def measured(raw: dict[str, dict[str, list[str]]]) -> dict[str, list[str]]:
+    return {r: v["fields"] for r, v in raw.items()}
+
+
+@pytest.fixture(scope="module")
+def bound(raw: dict[str, dict[str, list[str]]]) -> dict[str, set[str]]:
+    return {r: set(v["bound"]) for r, v in raw.items()}
 
 
 def test_measurement_is_not_vacuous(measured: dict[str, list[str]]) -> None:
@@ -232,7 +254,7 @@ def test_measurement_is_not_vacuous(measured: dict[str, list[str]]) -> None:
 
 
 def test_no_new_route_acts_on_an_unproven_agent_id(
-    measured: dict[str, list[str]],
+    measured: dict[str, list[str]], bound: dict[str, set[str]],
 ) -> None:
     baseline: dict[str, list[str]] = (
         json.loads(_BASELINE.read_text(encoding="utf-8")) if _BASELINE.is_file() else {}
@@ -251,7 +273,13 @@ def test_no_new_route_acts_on_an_unproven_agent_id(
           "same route is a separate claim and needs its own envelope."
     )
 
-    fresh = {r: f for r, f in measured.items() if r not in _PROVEN}
+    fresh = {}
+    for r, f in measured.items():
+        if r in _PROVEN:
+            continue
+        left = set(f) - bound.get(r, set()) - set(_COUNTERPARTY.get(r, {}))
+        if left:
+            fresh[r] = sorted(left)
 
     if os.getenv("UPDATE_ACTOR_PROOF_BASELINE") == "1":
         # Regeneration may only record a reduction. Writing whatever is measured
@@ -368,3 +396,16 @@ def test_the_proven_routes_still_call_the_proof() -> None:
         )
     for route, how in _PROVEN.items():
         assert "_assert_actor" in how, f"{route}: no mechanism named"
+
+
+def test_every_counterparty_field_is_measured_and_reasoned(
+    measured: dict[str, list[str]], bound: dict[str, set[str]],
+) -> None:
+    """A counterparty entry outliving its field would excuse whatever lands there."""
+    for route, fields in _COUNTERPARTY.items():
+        assert route in measured, f"{route} no longer measured; drop it from _COUNTERPARTY"
+        for field, why in fields.items():
+            assert field in measured[route], f"{route}: {field} gone"
+            assert field not in bound[route], f"{route}: {field} is bound - not a counterparty"
+            assert len(why) > 20
+        assert bound[route], f"{route}: names a counterparty but binds no actor"

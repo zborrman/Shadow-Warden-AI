@@ -21,6 +21,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.protocols.a2a.agent_card import build_agent_card
 from warden.protocols.a2a.task_lifecycle import (
     _HANDLERS,
@@ -84,8 +85,10 @@ async def submit_task(
     body:       TaskSubmit,
     background: BackgroundTasks,
     auth:       AuthResult = AuthDep,
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ):
     """Submit a new A2A task; dispatches handler asynchronously."""
+    body.caller_did = _agent_binding.bind(body.caller_did)
     if body.task_type not in _HANDLERS:
         raise HTTPException(
             status_code=422,

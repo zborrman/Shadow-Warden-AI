@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_escrow")
@@ -46,7 +47,8 @@ class DisputeRequest(BaseModel):
 
 
 @router.post("/escrow", status_code=201, dependencies=_WRITE)
-async def create_escrow(body: EscrowCreateRequest) -> dict:
+async def create_escrow(body: EscrowCreateRequest, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.buyer_agent_id = _agent_binding.bind(body.buyer_agent_id)
     from warden.marketplace.escrow import EscrowDeploymentError, EscrowService
     try:
         escrow = EscrowService().create_escrow(
