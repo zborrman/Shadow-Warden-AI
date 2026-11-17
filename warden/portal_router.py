@@ -35,9 +35,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from limits import parse as parse_limit
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from warden.config import settings
 from warden.db.connection import get_db
 from warden.db.sql_safety import safe_set_clause
+from warden.limiter import limiter as _limiter
 
 log = logging.getLogger("warden.portal")
 
@@ -76,10 +78,10 @@ def _send_email_sync(to: str, subject: str, body: str) -> None:
 async def _send_password_reset_email(to: str, token: str) -> None:
     """Send a password-reset link.  Falls back to logging when SMTP is unconfigured."""
     if not _SMTP_HOST or not _SMTP_USER:
-        log.warning(
-            "portal: SMTP not configured — reset token for %s: %s (set SMTP_HOST/USER in .env)",
-            to, token,
-        )
+        # Never the token, never the address: a reset token in a log line is a
+        # password for whoever can read the logs.
+        log.warning("portal: SMTP not configured — password reset email not sent "
+                    "(set SMTP_HOST/USER in .env)")
         return
 
     reset_link = f"{_PORTAL_URL}/reset-password/?token={token}"
@@ -93,9 +95,9 @@ async def _send_password_reset_email(to: str, token: str) -> None:
     loop = asyncio.get_running_loop()
     try:
         await loop.run_in_executor(None, _send_email_sync, to, "[Shadow Warden] Password reset", body)
-        log.info("portal: password reset email sent to %s", to)
+        log.info("portal: password reset email sent")
     except Exception as exc:
-        log.error("portal: failed to send reset email to %s: %s", to, exc, exc_info=True)
+        log.error("portal: failed to send reset email: %s", type(exc).__name__)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -301,10 +303,76 @@ def _reload_keys_file(tenant_id: str, key_hash: str, rate_limit: int, revoke: bo
         log.warning("portal: failed to update keys file — %s", exc)
 
 
+# ── Auth throttling ───────────────────────────────────────────────────────────
+#
+# Re-audit 2026-11-16: none of these routes had a limit of any kind, so a
+# password or a 6-digit TOTP code could be guessed at line rate. Two layers:
+#
+# * per client IP, on every route, through the shared (Redis-backed) limiter -
+#   all uvicorn workers count into one bucket;
+# * per account, on failures only (login: the email; TOTP: the user id), so an
+#   attacker rotating addresses still meets a ceiling. The account counter is
+#   hit for unknown emails too, so the lockout answer reveals nothing about
+#   which addresses are registered. It is temporary (one window) by design: a
+#   permanent lock would let anyone lock any customer out.
+
+_LOGIN_IP_LIMIT    = "10/minute"
+_REGISTER_IP_LIMIT = "5/hour"
+_TOTP_IP_LIMIT     = "10/minute"
+_RECOVERY_IP_LIMIT = "5/hour"
+_LOGIN_FAILURES    = "10/15 minutes"
+_TOTP_FAILURES     = "5/15 minutes"
+
+
+def _account_key(kind: str, ident: str) -> str:
+    # Hashed, so the limiter store never holds an email address.
+    return hashlib.sha256(f"{kind}:{ident.lower()}".encode()).hexdigest()[:32]
+
+
+def _account_locked(kind: str, ident: str, limit: str) -> bool:
+    try:
+        return not _limiter.limiter.test(parse_limit(limit), "portal-fail", _account_key(kind, ident))
+    except Exception as exc:  # limiter store down: the per-IP limit still applies
+        log.warning("portal: account lockout check unavailable: %s", type(exc).__name__)
+        return False
+
+
+def _record_failure(kind: str, ident: str, limit: str) -> None:
+    try:
+        _limiter.limiter.hit(parse_limit(limit), "portal-fail", _account_key(kind, ident))
+    except Exception as exc:
+        log.warning("portal: account lockout record unavailable: %s", type(exc).__name__)
+
+
+def _locked_out() -> HTTPException:
+    return HTTPException(
+        status_code=429,
+        detail="Too many failed attempts. Please try again later.",
+        headers={"Retry-After": "900"},
+    )
+
+
+_DUMMY_HASH: bytes | None = None
+
+
+def _dummy_hash() -> bytes:
+    """A hash at the real cost factor, so an unknown email costs what a known one does."""
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(16), bcrypt.gensalt())
+    return _DUMMY_HASH
+
+
+def _reset_token_hash(token: str) -> str:
+    # Stored hashed: a database read must not yield a usable reset link.
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 # ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/auth/register", status_code=201)
-async def register(body: _RegisterIn, db: AsyncSession = Depends(get_db)):
+@_limiter.limit(_REGISTER_IP_LIMIT)
+async def register(request: Request, body: _RegisterIn, db: AsyncSession = Depends(get_db)):
     """Create a new customer account + tenant."""
     email = body.email.lower()
     existing = await _get_user_by_email(db, email)
@@ -330,9 +398,21 @@ async def register(body: _RegisterIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/login")
-async def login(body: _LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
-    user = await _get_user_by_email(db, body.email.lower())
-    if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
+@_limiter.limit(_LOGIN_IP_LIMIT)
+async def login(
+    request: Request, body: _LoginIn, response: Response, db: AsyncSession = Depends(get_db)
+):
+    email = body.email.lower()
+    if _account_locked("login", email, _LOGIN_FAILURES):
+        raise _locked_out()
+    user = await _get_user_by_email(db, email)
+    stored = user["password_hash"].encode() if user else _dummy_hash()
+    try:
+        valid = bcrypt.checkpw(body.password.encode(), stored)
+    except ValueError:
+        valid = False
+    if not user or not valid:
+        _record_failure("login", email, _LOGIN_FAILURES)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     # If TOTP is enabled, issue a short-lived totp_session instead of full JWT
@@ -358,7 +438,10 @@ async def login(body: _LoginIn, response: Response, db: AsyncSession = Depends(g
 
 
 @router.post("/auth/totp/complete")
-async def totp_complete(body: _TotpCompleteIn, response: Response, db: AsyncSession = Depends(get_db)):
+@_limiter.limit(_TOTP_IP_LIMIT)
+async def totp_complete(
+    request: Request, body: _TotpCompleteIn, response: Response, db: AsyncSession = Depends(get_db)
+):
     """Step 2 of login when TOTP is enabled: verify 6-digit code and issue full JWT."""
     import pyotp  # noqa: PLC0415
 
@@ -374,8 +457,11 @@ async def totp_complete(body: _TotpCompleteIn, response: Response, db: AsyncSess
     if not user or not user.get("totp_enabled") or not user.get("totp_secret"):
         raise HTTPException(status_code=401, detail="TOTP not configured for this account.")
 
+    if _account_locked("totp", str(user["id"]), _TOTP_FAILURES):
+        raise _locked_out()
     totp = pyotp.TOTP(user["totp_secret"])
     if not totp.verify(body.code, valid_window=1):
+        _record_failure("totp", str(user["id"]), _TOTP_FAILURES)
         raise HTTPException(status_code=401, detail="Invalid authenticator code.")
 
     access  = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
@@ -518,7 +604,10 @@ async def logout(response: Response):
 
 
 @router.post("/auth/forgot-password", status_code=202)
-async def forgot_password(body: _ForgotPasswordIn, db: AsyncSession = Depends(get_db)):
+@_limiter.limit(_RECOVERY_IP_LIMIT)
+async def forgot_password(
+    request: Request, body: _ForgotPasswordIn, db: AsyncSession = Depends(get_db)
+):
     """Generate a reset token (email delivery is out-of-scope for v1 — token returned in response)."""
     user = await _get_user_by_email(db, body.email.lower())
     if not user:
@@ -527,7 +616,7 @@ async def forgot_password(body: _ForgotPasswordIn, db: AsyncSession = Depends(ge
     expires = datetime.now(UTC) + timedelta(hours=1)
     await db.execute(
         text("UPDATE warden_core.portal_users SET reset_token=:t, reset_expires=:e WHERE id=:id"),
-        {"t": token, "e": expires, "id": str(user["id"])},
+        {"t": _reset_token_hash(token), "e": expires, "id": str(user["id"])},
     )
     await db.commit()
     await _send_password_reset_email(body.email.lower(), token)
@@ -535,10 +624,13 @@ async def forgot_password(body: _ForgotPasswordIn, db: AsyncSession = Depends(ge
 
 
 @router.post("/auth/reset-password", status_code=200)
-async def reset_password(body: _ResetPasswordIn, db: AsyncSession = Depends(get_db)):
+@_limiter.limit(_RECOVERY_IP_LIMIT)
+async def reset_password(
+    request: Request, body: _ResetPasswordIn, db: AsyncSession = Depends(get_db)
+):
     row = await db.execute(
         text("SELECT * FROM warden_core.portal_users WHERE reset_token = :t"),
-        {"t": body.token},
+        {"t": _reset_token_hash(body.token)},
     )
     user = row.mappings().first()
     if not user:
