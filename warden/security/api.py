@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from warden.auth_guard import require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.security.certificate_authority import get_ca
 
@@ -45,8 +46,10 @@ class CertVerifyRequest(BaseModel):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/agents/{agent_id}/certificate", status_code=201, dependencies=_WRITE)
-def issue_certificate(agent_id: str, body: CertIssueRequest):
+def issue_certificate(agent_id: str, body: CertIssueRequest, _agent_binding: CallerAgent = Depends(caller_agent_binding)):
     """Issue an ANS X.509 certificate for an agent."""
+    # A certificate binds a public key to this agent id: only its owner mints one.
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     try:
         result = get_ca().issue_agent_certificate(
             agent_id=agent_id,
@@ -59,8 +62,9 @@ def issue_certificate(agent_id: str, body: CertIssueRequest):
 
 
 @router.delete("/agents/{agent_id}/certificate", dependencies=_WRITE)
-def revoke_certificate(agent_id: str):
+def revoke_certificate(agent_id: str, _agent_binding: CallerAgent = Depends(caller_agent_binding)):
     """Revoke the active certificate for an agent."""
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     revoked = get_ca().revoke_certificate(agent_id)
     if not revoked:
         raise HTTPException(status_code=404, detail=f"No active certificate for agent {agent_id!r}.")

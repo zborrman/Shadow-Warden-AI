@@ -132,11 +132,14 @@ async def update_agent(
     agent_id: str,
     body: AgentUpdateRequest,
     _auth: AuthResult = Depends(require_api_key),
+    _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> dict:
     reg      = get_registry()
     existing = reg.get_agent(agent_id)
     if existing is None:
         raise HTTPException(404, f"Agent {agent_id!r} not found.")
+    # The agent's limits belong to its tenant: another tenant is a 403.
+    _tenant_binding.bind(existing["tenant_id"])
     updated = reg.update_agent(agent_id, **body.model_dump(exclude_none=True))
     return updated
 
@@ -145,7 +148,12 @@ async def update_agent(
 async def revoke_agent(
     agent_id: str,
     _auth: AuthResult = Depends(require_api_key),
+    _tenant_binding: CallerTenant = Depends(caller_binding),
 ) -> dict:
+    existing = get_registry().get_agent(agent_id)
+    if existing is None:
+        raise HTTPException(404, f"Agent {agent_id!r} not found.")
+    _tenant_binding.bind(existing["tenant_id"])
     ok = get_registry().revoke_agent(agent_id)
     if not ok:
         raise HTTPException(404, f"Agent {agent_id!r} not found.")

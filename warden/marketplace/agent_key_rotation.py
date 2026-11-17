@@ -33,6 +33,7 @@ from pydantic import BaseModel
 from warden.auth_guard import CallerTenant, caller_binding, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.agent_key_rotation")
@@ -129,7 +130,7 @@ class KeyRotationRequest(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/agents/{agent_id}/rotate-key", status_code=200, dependencies=_WRITE)
-def rotate_agent_key(agent_id: str, body: KeyRotationRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+def rotate_agent_key(agent_id: str, body: KeyRotationRequest, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
     """
     Rotate the signing key for a marketplace agent.
 
@@ -141,6 +142,7 @@ def rotate_agent_key(agent_id: str, body: KeyRotationRequest, _tenant_binding: C
     """
     # Validate new key
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     try:
         base64.b64decode(body.new_public_key, validate=True)
     except Exception as exc:
