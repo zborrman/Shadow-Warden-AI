@@ -15,6 +15,18 @@ GET  /api/v1/stats              — aggregated statistics
 GET  /api/v1/threats            — threat-type breakdown
 GET  /api/v1/events/{request_id} — single event by request_id
 
+Access
+──────
+Everything under /api/v1 needs ``X-API-Key`` (ANALYTICS_API_KEY, or the
+gateway's WARDEN_API_KEY, which is what the dashboard proxy sends). With no key
+configured the routes answer 503 rather than serving the log to whoever asks.
+/health stays open for the compose healthcheck. /metrics answers the internal
+network only. The interactive docs are off.
+
+This service is reachable from the internet: the Cloudflare Tunnel maps
+analytics.shadow-warden-ai.com straight to this container, and Caddy is not on
+that path. For as long as it existed it had no authentication at all.
+
 GDPR notes:
   • No prompt content is stored in the log — only metadata.
   • The /api/v1/stats endpoint returns only aggregated counts.
@@ -22,6 +34,7 @@ GDPR notes:
 """
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import os
@@ -30,7 +43,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -44,8 +57,14 @@ log = logging.getLogger("analytics.api")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-LOGS_PATH          = Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data")) / "logs.json"
-SESSIONS_PATH      = Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data")) / "sessions.json"
+# compose sets LOGS_PATH=/data/logs.json and mounts the log there. This module
+# read only ANALYTICS_DATA_PATH, which nothing sets, so it looked in
+# /analytics/data - a directory that does not exist in the image - and reported
+# zero events on every route. That empty answer is the only reason the missing
+# authentication below never leaked a tenant's event log.
+_DATA_DIR          = Path(os.getenv("ANALYTICS_DATA_PATH", "/analytics/data"))
+LOGS_PATH          = Path(os.getenv("LOGS_PATH") or _DATA_DIR / "logs.json")
+SESSIONS_PATH      = Path(os.getenv("SESSIONS_PATH") or LOGS_PATH.parent / "sessions.json")
 LOG_RETENTION_DAYS = int(os.getenv("GDPR_LOG_RETENTION_DAYS", "30"))
 SESSION_TTL_SECONDS = int(os.getenv("AGENT_SESSION_TTL", "1800"))
 
@@ -59,11 +78,17 @@ app = FastAPI(
         "is stored (GDPR-compliant)."
     ),
     version="0.1.0",
+    # The spec and Swagger UI were served to the internet. Nothing consumes them.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    # No origin by default. The one browser consumer, the SOC dashboard, calls
+    # this service from its own server, not from the page.
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()],
     allow_methods=["GET"],
     allow_headers=["*"],
 )
@@ -91,6 +116,45 @@ except Exception as _exc:                          # pragma: no cover - defensiv
         "prometheus instrumentation unavailable (%s) — continuing without /metrics",
         _exc,
     )
+
+
+# ── Access ────────────────────────────────────────────────────────────────────
+
+_EDGE_HEADERS = ("cf-ray", "cf-connecting-ip")
+
+
+@app.middleware("http")
+async def _metrics_stay_internal(request: Request, call_next):
+    """Prometheus scrapes /metrics over the compose network. A request that
+    arrived through Cloudflare carries headers the edge adds and a client
+    cannot strip; that request gets a 404."""
+    if request.url.path.rstrip("/") == "/metrics" and any(
+        h in request.headers for h in _EDGE_HEADERS
+    ):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    return await call_next(request)
+
+
+def _accepted_keys() -> list[bytes]:
+    # Read per request, not at import: a module-level snapshot captures "" when
+    # the environment is populated after the import.
+    return [
+        k.encode()
+        for k in (os.getenv("ANALYTICS_API_KEY", ""), os.getenv("WARDEN_API_KEY", ""))
+        if k
+    ]
+
+
+def require_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> None:
+    keys = _accepted_keys()
+    if not keys:
+        raise HTTPException(status_code=503, detail="Analytics credential not configured")
+    presented = (x_api_key or "").encode()
+    if not presented or not any(hmac.compare_digest(presented, k) for k in keys):
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+api = APIRouter(dependencies=[Depends(require_key)])
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -166,7 +230,7 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "warden-analytics"}
 
 
-@app.get("/api/v1/events", tags=["analytics"])
+@api.get("/api/v1/events", tags=["analytics"])
 def list_events(
     limit: int = Query(default=100, ge=1, le=1000,
                        description="Maximum number of events to return."),
@@ -188,7 +252,7 @@ def list_events(
     return {"total": len(entries), "events": entries[:limit]}
 
 
-@app.get("/api/v1/events/{request_id}", tags=["analytics"])
+@api.get("/api/v1/events/{request_id}", tags=["analytics"])
 def get_event(request_id: str) -> dict[str, Any]:
     """Return a single event by its request_id."""
     for entry in _load():
@@ -197,7 +261,7 @@ def get_event(request_id: str) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=f"No event found for request_id={request_id!r}.")
 
 
-@app.get("/api/v1/stats", tags=["analytics"])
+@api.get("/api/v1/stats", tags=["analytics"])
 def stats(
     days: int = Query(default=7, ge=1, le=LOG_RETENTION_DAYS,
                       description="Number of past days to aggregate."),
@@ -241,7 +305,7 @@ def stats(
     }
 
 
-@app.get("/api/v1/attack-cost", tags=["analytics"])
+@api.get("/api/v1/attack-cost", tags=["analytics"])
 def attack_cost(
     days: int = Query(default=7, ge=1, le=LOG_RETENTION_DAYS,
                       description="Number of past days to aggregate."),
@@ -319,7 +383,7 @@ def attack_cost(
     }
 
 
-@app.get("/api/v1/threats", tags=["analytics"])
+@api.get("/api/v1/threats", tags=["analytics"])
 def threats(
     days: int = Query(default=7, ge=1, le=LOG_RETENTION_DAYS,
                       description="Number of past days to aggregate."),
@@ -345,7 +409,7 @@ def threats(
     }
 
 
-@app.get("/api/v1/agent-sessions", tags=["agent-monitoring"])
+@api.get("/api/v1/agent-sessions", tags=["agent-monitoring"])
 def list_agent_sessions(
     limit: int = Query(default=20, ge=1, le=200,
                        description="Maximum number of sessions to return."),
@@ -363,7 +427,7 @@ def list_agent_sessions(
     return {"total": len(sessions), "sessions": sessions[:limit]}
 
 
-@app.get("/api/v1/agent-sessions/{session_id}", tags=["agent-monitoring"])
+@api.get("/api/v1/agent-sessions/{session_id}", tags=["agent-monitoring"])
 def get_agent_session(session_id: str) -> dict[str, Any]:
     """Return the full session summary for a given session_id, or HTTP 404."""
     for session in _load_sessions():
@@ -378,7 +442,7 @@ def get_agent_session(session_id: str) -> dict[str, Any]:
 # ── Compliance endpoints ───────────────────────────────────────────────────────
 
 
-@app.get("/api/v1/compliance/roi", tags=["compliance"])
+@api.get("/api/v1/compliance/roi", tags=["compliance"])
 def compliance_roi(
     days: int = Query(default=30, ge=1, le=LOG_RETENTION_DAYS,
                       description="Number of past days to aggregate."),
@@ -428,7 +492,7 @@ def compliance_roi(
     }
 
 
-@app.get("/api/v1/compliance/agent-threats", tags=["compliance"])
+@api.get("/api/v1/compliance/agent-threats", tags=["compliance"])
 def compliance_agent_threats() -> dict[str, Any]:
     """
     Agent threat pattern breakdown from session data.
@@ -463,7 +527,7 @@ def compliance_agent_threats() -> dict[str, Any]:
     }
 
 
-@app.get("/api/v1/compliance/secrets", tags=["compliance"])
+@api.get("/api/v1/compliance/secrets", tags=["compliance"])
 def compliance_secrets(
     days: int = Query(default=30, ge=1, le=LOG_RETENTION_DAYS,
                       description="Number of past days to aggregate."),
@@ -504,3 +568,8 @@ def compliance_secrets(
 async def unhandled(request, exc: Exception):
     log.exception("Unhandled error: %s", exc)
     return JSONResponse(status_code=500, content={"detail": "Internal analytics error."})
+
+
+# Registered last: the routes above are declared on `api`, and a router is
+# copied into the app at include time.
+app.include_router(api)
