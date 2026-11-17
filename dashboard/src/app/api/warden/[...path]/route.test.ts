@@ -42,6 +42,11 @@ async function fetchMockResponse(body: string, init: ResponseInit = {}) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  // A fetch replaced with `vi.stubGlobal` is not a spy, so restoreAllMocks
+  // leaves it in place (Vitest 4 stopped clearing it as a side effect). Without
+  // this the next test spies on the previous test's stub and inherits its calls
+  // - which turns "fetch was never called" into a statement about another test.
+  vi.unstubAllGlobals();
   process.env = { ...ORIGINAL_ENV };
   delete process.env.DASHBOARD_API_KEY;
   delete process.env.WARDEN_API_KEY;
