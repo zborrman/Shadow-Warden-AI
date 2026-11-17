@@ -330,19 +330,27 @@ def request_tenant(request: object, default: str = "unknown") -> str:
     tenant = getattr(state, "tenant", None)
     if isinstance(tenant, dict) and (tenant.get("tenant_id") or tenant.get("id")):
         return str(tenant.get("tenant_id") or tenant.get("id"))
-    raw = getattr(request, "headers", {}) or {}
-    # Starlette headers are case-insensitive; a plain mapping is not.
-    headers = {str(k).lower(): v for k, v in raw.items()}
-    key = headers.get("x-api-key") or ""
+    raw = getattr(request, "headers", None)
+
+    def header(*spellings: str) -> str:
+        # Starlette headers are case-insensitive; a plain mapping is not, so
+        # ask for each spelling instead of rebuilding the mapping.
+        for name in spellings:
+            value = raw.get(name) if raw is not None else None
+            if isinstance(value, str) and value:
+                return value
+        return ""
+
+    key = header("x-api-key", "X-API-Key")
     if not key:
-        bearer = headers.get("authorization", "")
+        bearer = header("authorization", "Authorization")
         if bearer[:7].lower() == "bearer ":
             key = bearer[7:]
     resolved = resolve_tenant_id(key)
     if resolved:
         return resolved
     if tier_header_trusted():
-        return headers.get("x-tenant-id") or default
+        return header("x-tenant-id", "X-Tenant-ID") or default
     return default
 
 
