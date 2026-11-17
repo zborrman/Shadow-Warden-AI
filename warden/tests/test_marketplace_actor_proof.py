@@ -112,6 +112,7 @@ import warden.main as m
 PREFIXES = tuple(json.loads(sys.argv[2]))
 AGENT = re.compile(sys.argv[3], re.I)
 WRITE = {"POST", "PUT", "PATCH", "DELETE"}
+OPERATOR = {"require_admin_key", "verify_admin_key", "_require_admin", "_require_admin_key"}
 rows = {}
 
 def agent_fields(route):
@@ -122,6 +123,11 @@ def agent_fields(route):
     """
     out = set()
     dep = getattr(route, "dependant", None)
+    # A path id names the agent the write edits (PATCH /agents/{agent_id},
+    # POST /autonomy/{agent_id}); it is as much a claim as a body field.
+    for p in getattr(dep, "path_params", []) or []:
+        if AGENT.search(getattr(p, "name", "") or ""):
+            out.add(p.name)
     for p in getattr(dep, "body_params", []) or []:
         ann = getattr(p, "type_", None) or getattr(
             getattr(p, "field_info", None), "annotation", None)
@@ -151,15 +157,19 @@ def bound_fields(route, fields):
     route's own dependency tree, and a `<obj>.<field> = _agent_binding.bind(...)`
     in the handler's source. Either alone is a binding that does not run.
     """
-    if "caller_agent_binding" not in dependency_names(route.dependant, set()):
-        return []
+    deps = dependency_names(route.dependant, set())
     try:
         src = inspect.getsource(route.endpoint)
     except (OSError, TypeError):
         return []
+    # Operator-only: the admin key, not a tenant key, opens it.
+    if deps & OPERATOR or any(f"{name}(" in src for name in OPERATOR):
+        return sorted(fields)
+    if "caller_agent_binding" not in deps:
+        return []
     return sorted(
         f for f in fields
-        if re.search(r"\.%s\s*=\s*_agent_binding\.bind\(" % re.escape(f), src)
+        if re.search(r"(?:\.|\b)%s\s*=\s*_agent_binding\.bind\(" % re.escape(f), src)
     )
 
 def record(route, prefix=""):

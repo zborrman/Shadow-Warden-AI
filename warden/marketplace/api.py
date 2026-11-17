@@ -1534,7 +1534,10 @@ async def get_agent_kya(agent_id: str) -> dict:
     if record is None:
         from fastapi import HTTPException  # noqa: PLC0415
         raise HTTPException(status_code=404, detail=f"No KYA record for agent '{agent_id}'")
-    return record.to_dict()
+    # Public counterparty check: the verdict is public, the owner is not.
+    public = record.to_dict()
+    public.pop("owner_tenant_id", None)
+    return public
 
 
 class KYARevokeRequest(BaseModel):
@@ -1689,6 +1692,7 @@ async def set_autonomy_policy(
     body: AutonomyPolicyRequest,
     request: Request,
     auth: AuthResult = Depends(require_api_key),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> dict:
     """Register or update an autonomy policy for an agent.
 
@@ -1701,6 +1705,8 @@ async def set_autonomy_policy(
     caller set any agent to L3 with an arbitrary spend cap — i.e. switch off the
     approval gate on money movement from outside.
     """
+    # Another tenant's agent cannot be switched to L3 (or anything) from here.
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     from warden.marketplace.autonomy import AutonomyPolicy, set_policy  # noqa: PLC0415
 
     # `created_by` is attribution on a security policy, so it comes from the
@@ -1744,12 +1750,14 @@ async def get_autonomy_policy(agent_id: str) -> dict:
 async def delete_autonomy_policy(
     agent_id: str,
     _: AuthResult = Depends(require_api_key),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> dict:
     """Remove autonomy policy; agent reverts to L1 default.
 
     Authenticated: deletion is a downgrade to L1 (everything needs approval), so
     it fails safe — but it is still a remote edit of a security policy.
     """
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     from warden.marketplace.autonomy import delete_policy  # noqa: PLC0415
     deleted = delete_policy(agent_id)
     return {"agent_id": agent_id, "deleted": deleted, "fallback": "L1 default"}

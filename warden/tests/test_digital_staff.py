@@ -340,8 +340,11 @@ class TestDefaultBoundaries:
 
 class TestStaffAPI:
     @pytest.fixture(autouse=True)
-    def _client(self):
+    def _client(self, monkeypatch):
         from fastapi.testclient import TestClient
+        # Boundary writes are operator-only; present the operator key rather
+        # than depend on whether another test left ADMIN_KEY in the process.
+        monkeypatch.setenv("ADMIN_KEY", "staff-test-admin")
 
         from warden.main import app
         self.client = TestClient(app, raise_server_exceptions=True)
@@ -362,16 +365,16 @@ class TestStaffAPI:
         assert r.status_code == 404
 
     def test_suspend_and_restore(self):
-        r = self.client.post("/staff/boundaries/qa/suspend", headers={"X-Tenant-Tier": "lab"})
+        r = self.client.post("/staff/boundaries/qa/suspend", headers={"X-Tenant-Tier": "lab", "X-Admin-Key": "staff-test-admin"})
         assert r.status_code == 200
         assert r.json()["suspended"] is True
 
-        r = self.client.post("/staff/boundaries/qa/restore", headers={"X-Tenant-Tier": "lab"})
+        r = self.client.post("/staff/boundaries/qa/restore", headers={"X-Tenant-Tier": "lab", "X-Admin-Key": "staff-test-admin"})
         assert r.status_code == 200
         assert r.json()["suspended"] is False
 
     def test_suspend_unknown_404(self):
-        r = self.client.post("/staff/boundaries/nobody/suspend", headers={"X-Tenant-Tier": "lab"})
+        r = self.client.post("/staff/boundaries/nobody/suspend", headers={"X-Tenant-Tier": "lab", "X-Admin-Key": "staff-test-admin"})
         assert r.status_code == 404
 
     def test_sign_refund_intent_within_cap(self):

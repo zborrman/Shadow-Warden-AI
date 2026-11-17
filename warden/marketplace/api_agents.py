@@ -14,6 +14,7 @@ from warden.auth_guard import (
     public_tenant_filter,
     require_api_key,
 )
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
 
@@ -183,11 +184,17 @@ async def get_agent(agent_id: str) -> dict:
     agent = _get(agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found.")
-    return agent.to_dict()
+    # Anonymous directory: the owning tenant and the AP2 mandate id are the
+    # owner's business, not a stranger's.
+    public = agent.to_dict()
+    public.pop("tenant_id", None)
+    public.pop("mandate_id", None)
+    return public
 
 
 @router.put("/agents/{agent_id}/capabilities", dependencies=_WRITE)
-async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def update_capabilities(agent_id: str, body: CapabilitiesUpdateRequest, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.agent import update_capabilities as _update
     try:
@@ -238,8 +245,9 @@ async def get_agent_trust(agent_id: str) -> dict:
 
 
 @router.patch("/agents/{agent_id}", status_code=200, dependencies=_WRITE)
-async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
+async def patch_agent(agent_id: str, body: AgentPatchRequest, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
     """Update agent name and/or monthly budget limit."""
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     from warden.marketplace.agent import update_agent as _update
     updated = _update(agent_id, name=body.name, budget_limit=body.budget_limit)
     if not updated:
@@ -248,7 +256,10 @@ async def patch_agent(agent_id: str, body: AgentPatchRequest) -> dict:
 
 
 @router.put("/agents/{agent_id}/payout-address", status_code=200, dependencies=_WRITE)
-async def put_payout_address(agent_id: str, body: PayoutAddressRequest) -> dict:
+async def put_payout_address(
+    agent_id: str, body: PayoutAddressRequest,
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
+) -> dict:
     """Bind where this agent is paid when a trade settles on-chain.
 
     An API key identifies a *tenant*; it does not prove which agent chose the
@@ -258,6 +269,7 @@ async def put_payout_address(agent_id: str, body: PayoutAddressRequest) -> dict:
     turn it off. Every escrow snapshots this address at creation, so changing
     it never redirects a trade that is already funded.
     """
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     from warden.marketplace.agent import (
         PayoutAddressError,
         bind_payout_address,
@@ -276,7 +288,8 @@ async def put_payout_address(agent_id: str, body: PayoutAddressRequest) -> dict:
 
 
 @router.delete("/agents/{agent_id}", status_code=200, dependencies=_WRITE)
-async def deactivate_agent_endpoint(agent_id: str) -> dict:
+async def deactivate_agent_endpoint(agent_id: str, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     """Soft-delete an agent (status → inactive). Preserves audit trail."""
     from warden.marketplace.agent import deactivate_agent as _deactivate
     deactivated = _deactivate(agent_id)

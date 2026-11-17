@@ -18,7 +18,7 @@ import time
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, field_validator
 
 from warden.auth_guard import require_api_key
@@ -29,6 +29,7 @@ try:
 except Exception:  # noqa: BLE001
     _STAFF_GATE_DEP = []
 
+from warden.admin_guard import require_admin_key
 from warden.auth_guard import CallerTenant, caller_binding
 from warden.staff.boundaries import (
     BoundaryViolationError,
@@ -36,6 +37,16 @@ from warden.staff.boundaries import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def _require_admin(x_admin_key: str | None = Header(default=None)) -> None:
+    """Digital Staff boundaries are platform configuration (STAFF-01), not a
+    tenant setting: a plan gate let any tenant on the agent plan widen a staff
+    agent's tools or spend ceiling, or suspend one. Operator only."""
+    require_admin_key(x_admin_key)
+
+
+_OPERATOR_DEP = [*_STAFF_GATE_DEP, Depends(_require_admin)]
 router = APIRouter(
     prefix="/staff",
     tags=["Digital Staff"],
@@ -99,7 +110,7 @@ def get_boundary(agent_id: str) -> dict[str, Any]:
     return json.loads(b.to_redis())
 
 
-@router.put("/boundaries/{agent_id}", dependencies=_STAFF_GATE_DEP)
+@router.put("/boundaries/{agent_id}", dependencies=_OPERATOR_DEP)
 def update_boundary(agent_id: str, update: BoundaryUpdate) -> dict[str, Any]:
     import dataclasses  # noqa: PLC0415
     reg = _registry()
@@ -129,7 +140,7 @@ def update_boundary(agent_id: str, update: BoundaryUpdate) -> dict[str, Any]:
     return {"agent_id": agent_id, "updated": True, "fields": list(kwargs)}
 
 
-@router.post("/boundaries/{agent_id}/suspend", dependencies=_STAFF_GATE_DEP)
+@router.post("/boundaries/{agent_id}/suspend", dependencies=_OPERATOR_DEP)
 def suspend_agent(agent_id: str) -> dict[str, Any]:
     ok = _registry().suspend(agent_id)
     if not ok:
@@ -137,7 +148,7 @@ def suspend_agent(agent_id: str) -> dict[str, Any]:
     return {"agent_id": agent_id, "suspended": True, "ts": int(time.time())}
 
 
-@router.post("/boundaries/{agent_id}/restore", dependencies=_STAFF_GATE_DEP)
+@router.post("/boundaries/{agent_id}/restore", dependencies=_OPERATOR_DEP)
 def restore_agent(agent_id: str) -> dict[str, Any]:
     ok = _registry().restore(agent_id)
     if not ok:

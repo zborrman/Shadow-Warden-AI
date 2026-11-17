@@ -66,7 +66,10 @@ class CallerAgent:
     auth: AuthResult
     x_admin_key: str | None = None
 
-    def bind(self, agent_id: str | None) -> str:
+    def bind(self, agent_id: str | None, *, must_exist: bool = False) -> str:
+        """``must_exist`` for a route that edits the agent itself (path id): an
+        unknown id is a 404 there, so nobody can pre-seed a policy for an id a
+        victim registers later."""
         claimed = (agent_id or "").strip()
         if not claimed:
             return agent_id or ""
@@ -81,6 +84,8 @@ class CallerAgent:
             raise HTTPException(
                 status_code=503, detail="Agent ownership could not be verified."
             ) from None
+        if must_exist and not owners and get_agent(claimed) is None and get_profile(claimed) is None:
+            raise HTTPException(status_code=404, detail="Agent not found.")
         if owners and self.auth.tenant_id not in owners:
             raise HTTPException(
                 status_code=403,
