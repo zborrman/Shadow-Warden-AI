@@ -33,6 +33,7 @@ from warden.auth_guard import (
     require_api_key,
 )
 from warden.billing.feature_gate import require_feature
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 
 router = APIRouter(prefix="/acp", tags=["acp"])
 
@@ -140,7 +141,8 @@ async def acp_manifest() -> dict:
 # ── SPT endpoints ─────────────────────────────────────────────────────────────
 
 @router.post("/token", summary="Issue a Shared Payment Token (merchant)", dependencies=[_Gate])
-async def issue_token(body: IssueTokenRequest, auth: AuthResult = _AUTH) -> dict:
+async def issue_token(body: IssueTokenRequest, auth: AuthResult = _AUTH, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.agent_id = _agent_binding.bind(body.agent_id)
     from warden.protocols.acp.token_vault import issue_spt
     spt = issue_spt(
         merchant_id=_MERCHANT_ID,
@@ -178,7 +180,8 @@ async def revoke_token(token_id: str, auth: AuthResult = _AUTH) -> dict:
 # ── Cart endpoints ────────────────────────────────────────────────────────────
 
 @router.post("/cart", summary="Create a cart", dependencies=[_Gate])
-async def create_cart(body: CreateCartRequest, request: Request, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def create_cart(body: CreateCartRequest, request: Request, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.agent_id = _agent_binding.bind(body.agent_id)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.protocols.acp.cart import create_cart as _create
     redis = getattr(request.app.state, "redis", None)
@@ -220,7 +223,8 @@ async def add_item(cart_id: str, body: AddItemRequest, request: Request, auth: A
 
 
 @router.post("/cart/{cart_id}/checkout", summary="Checkout cart (dual-ceiling validated)", dependencies=[_Gate])
-async def checkout(cart_id: str, body: CheckoutRequest, request: Request, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def checkout(cart_id: str, body: CheckoutRequest, request: Request, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.agent_id = _agent_binding.bind(body.agent_id)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.protocols.acp.checkout import checkout as _checkout
     redis = getattr(request.app.state, "redis", None)
@@ -240,7 +244,8 @@ async def checkout(cart_id: str, body: CheckoutRequest, request: Request, auth: 
 # ── Refund endpoints ──────────────────────────────────────────────────────────
 
 @router.post("/refund", summary="Request a refund (PENDING_REVIEW)", dependencies=[_Gate])
-async def request_refund(body: RefundRequestBody, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def request_refund(body: RefundRequestBody, auth: AuthResult = _AUTH, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.agent_id = _agent_binding.bind(body.agent_id)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.protocols.acp.refund import request_refund as _request
     refund = _request(

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from warden.auth_guard import AuthResult, CallerTenant, caller_binding, require_api_key
 from warden.config import data_path
 from warden.db.connect import open_db
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.admin_guard import require_admin_key
 from warden.marketplace.rate_limit import marketplace_rate_limit
 from warden.observability import Reason, record_failopen
@@ -53,7 +54,8 @@ class PurchaseRequest(BaseModel):
 
 
 @router.post("/listings", status_code=201, dependencies=_WRITE)
-async def create_listing(body: ListingCreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding)) -> dict:
+async def create_listing(body: ListingCreateRequest, _tenant_binding: CallerTenant = Depends(caller_binding), _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.seller_agent_id = _agent_binding.bind(body.seller_agent_id)
     body.tenant_id = _tenant_binding.bind(body.tenant_id)
     from warden.marketplace.listing import publish_listing
     # Sybil gate — flagged agents may not create new listings
@@ -147,11 +149,13 @@ async def search_listings(
 async def buy_listing(
     listing_id: str, body: PurchaseRequest,
     idempotency_key: str = Header(default="", alias="Idempotency-Key"),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> dict:
     """Buy a listing. Requires an Idempotency-Key header (FT-3): without one, a
     retried call (double-submit, webhook retry) created a second purchase record
     + a second escrow for the same buyer intent — a real double-charge, not just
     a duplicate log row. A replayed key returns the original purchase unchanged."""
+    body.buyer_agent_id = _agent_binding.bind(body.buyer_agent_id)
     if not idempotency_key.strip():
         raise HTTPException(
             status_code=400,

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from warden.auth_guard import require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
 log = logging.getLogger("warden.marketplace.api_negotiations")
@@ -46,7 +47,8 @@ class OfferRequest(BaseModel):
 
 
 @router.post("/negotiations", status_code=201, dependencies=_WRITE)
-async def start_negotiation(body: NegotiationStartRequest) -> dict:
+async def start_negotiation(body: NegotiationStartRequest, _agent_binding: CallerAgent = Depends(caller_agent_binding)) -> dict:
+    body.buyer_agent_id = _agent_binding.bind(body.buyer_agent_id)
     from warden.marketplace.listing import get_listing as _get_listing
     from warden.marketplace.negotiation import NegotiationEngine
     listing = _get_listing(body.listing_id)
