@@ -29,6 +29,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
 from warden.auth_guard import require_api_key
 from warden.config import data_path
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.marketplace.maestro import get_maestro_service
 from warden.marketplace.rate_limit import marketplace_rate_limit
 
@@ -116,8 +117,10 @@ def _run_isolation_pipeline(agent_id: str) -> None:
 # ── REST endpoints ────────────────────────────────────────────────────────────
 
 @router.get("/agents/{agent_id}/maestro-report", dependencies=[Depends(require_api_key)])
-def maestro_report(agent_id: str, background_tasks: BackgroundTasks):
+def maestro_report(agent_id: str, background_tasks: BackgroundTasks, _agent_binding: CallerAgent = Depends(caller_agent_binding)):
     """Run a full MAESTRO threat audit for a single agent and return the report."""
+    # A high verdict isolates the agent, so this GET acts: owner or operator only.
+    agent_id = _agent_binding.bind(agent_id, must_exist=True)
     try:
         report = _svc.run_full_audit(agent_id)
         if report.overall_threat_level == "high":

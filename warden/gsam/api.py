@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from warden.auth_guard import AuthResult, require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 from warden.secret_keys import InsecureKeyError
 
 router = APIRouter(prefix="/gsam", tags=["GSAM"])
@@ -97,7 +98,11 @@ async def heatmap(hours: int = 24, auth: AuthResult = AuthDep) -> dict:
 
 
 @router.get("/agents/{agent_id}/stats")
-async def agent_stats(agent_id: str, hours: int = 24, auth: AuthResult = AuthDep) -> dict:
+async def agent_stats(
+    agent_id: str, hours: int = 24, auth: AuthResult = AuthDep,
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
+) -> dict:
+    agent_id = _agent_binding.bind(agent_id)
     from warden.gsam.quarantine import is_quarantined
     from warden.gsam.rollup import read_agent_stats
 

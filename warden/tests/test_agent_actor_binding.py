@@ -230,3 +230,52 @@ def test_staff_boundaries_are_operator_only(monkeypatch):
         method = c.put if path.endswith("support") else c.post
         resp = method(path, json={"allowed_tools": ["*"]}) if method is c.put else method(path)
         assert resp.status_code in (401, 403), (path, resp.status_code)
+
+
+# ── reads: an agent's escrows, stats, balance and audit belong to its tenant ──
+
+
+def test_escrows_are_the_callers_own(prod, monkeypatch):
+    import warden.marketplace.agent as agent_mod
+    import warden.marketplace.escrow as escrow_mod
+    from warden.marketplace.api_escrow import router
+
+    def esc(eid, buyer):
+        return SimpleNamespace(escrow_id=eid, status="FUNDED",
+                               to_dict=lambda: {"escrow_id": eid, "buyer": buyer, "created_at": eid})
+
+    book = {"did:a": [esc("e1", "did:a")], "did:b": [esc("e2", "did:b")]}
+    monkeypatch.setattr(escrow_mod.EscrowService, "list_escrows",
+                        lambda self, aid, role="any", limit=50: book.get(aid, []))
+    monkeypatch.setattr(escrow_mod.EscrowService, "list_all_escrows",
+                        lambda self, status=None, limit=50: [e for v in book.values() for e in v])
+    monkeypatch.setattr(agent_mod, "list_agents",
+                        lambda tenant_id=None, limit=50: [SimpleNamespace(agent_id="did:a")]
+                        if tenant_id == "tenant-a" else [])
+    c = _client(router)
+    url = _path(router, "/escrows", "GET")
+    assert [e["escrow_id"] for e in c.get(url).json()] == ["e1"]  # not the platform's
+    assert c.get(url, params={"agent_id": "did:b"}).status_code == 403
+
+
+def test_another_tenants_agent_audit_cannot_be_triggered(prod, monkeypatch):
+    import warden.marketplace.api_maestro as mae
+
+    ran: list[str] = []
+    monkeypatch.setattr(mae, "_svc", SimpleNamespace(
+        run_full_audit=lambda aid: ran.append(aid) or SimpleNamespace(
+            overall_threat_level="low", to_dict=lambda: {})))
+    c = _client(mae.router)
+    url = _path(mae.router, "/maestro-report", "GET").replace("{agent_id}", "did:b")
+    assert c.get(url).status_code == 403
+    assert ran == []
+
+
+def test_another_tenants_agent_stats_and_balance_are_hidden(prod, monkeypatch):
+    import warden.gsam.api as gsam
+    import warden.voice.api as voice
+
+    for router, suffix in ((gsam.router, "/stats"), (voice.router, "/x402/balance/{agent_id}")):
+        c = _client(router)
+        url = _path(router, suffix, "GET").replace("{agent_id}", "did:b")
+        assert c.get(url).status_code == 403, url
