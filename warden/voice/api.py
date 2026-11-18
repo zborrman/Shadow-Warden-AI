@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from pydantic import BaseModel
 
 from warden.auth_guard import require_api_key
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 
 log = logging.getLogger("warden.voice.api")
 
@@ -229,8 +230,9 @@ async def x402_confirm(body: X402Confirm):
 
 
 @router.get("/x402/balance/{agent_id}")
-async def x402_balance(agent_id: str):
+async def x402_balance(agent_id: str, _agent_binding: CallerAgent = Depends(caller_agent_binding)):
     _require_voice()
+    agent_id = _agent_binding.bind(agent_id)
     from warden.voice.x402 import X402Protocol  # noqa: PLC0415
     proto = X402Protocol()
     return {"agent_id": agent_id, "balance_usd": proto.get_balance(agent_id)}

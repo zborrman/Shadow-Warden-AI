@@ -66,6 +66,10 @@ class CallerAgent:
     auth: AuthResult
     x_admin_key: str | None = None
 
+    def acts_for_anyone(self) -> bool:
+        """Dev/test (auth off) or the operator: may read across tenants."""
+        return tier_header_trusted() or _is_operator(self.auth, self.x_admin_key)
+
     def bind(self, agent_id: str | None, *, must_exist: bool = False) -> str:
         """``must_exist`` for a route that edits the agent itself (path id): an
         unknown id is a 404 there, so nobody can pre-seed a policy for an id a

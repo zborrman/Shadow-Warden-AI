@@ -196,9 +196,23 @@ async def list_escrows(
     role:     str        = Query(default="any"),
     status:   str | None = Query(default=None),
     limit:    int        = Query(default=50, le=100),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ) -> list[dict]:
+    from warden.marketplace.agent import list_agents
     from warden.marketplace.escrow import EscrowService
     svc = EscrowService()
     if agent_id:
+        # Another tenant's agent is a 403: escrows are that tenant's money.
+        agent_id = _agent_binding.bind(agent_id)
         return [e.to_dict() for e in svc.list_escrows(agent_id, role=role, limit=limit)]
-    return [e.to_dict() for e in svc.list_all_escrows(status=status, limit=limit)]
+    if _agent_binding.acts_for_anyone():
+        return [e.to_dict() for e in svc.list_all_escrows(status=status, limit=limit)]
+    # No agent named: the caller's own agents' escrows, never the platform's.
+    # (This listed every escrow of every tenant to any key.)
+    seen: dict[str, dict] = {}
+    for agent in list_agents(tenant_id=_agent_binding.auth.tenant_id, limit=100):
+        for e in svc.list_escrows(agent.agent_id, role=role, limit=limit):
+            if status is None or e.status == status:
+                seen[e.escrow_id] = e.to_dict()
+    rows = sorted(seen.values(), key=lambda d: d.get("created_at", ""), reverse=True)
+    return rows[:limit]
