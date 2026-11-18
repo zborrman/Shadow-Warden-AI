@@ -18,6 +18,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
+_ADM = {"X-Admin-Key": "admin-secret"}
+
+
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
     import warden.analytics.logger as lg
@@ -26,6 +29,9 @@ def client(tmp_path, monkeypatch):
     # Point the logger at an isolated NDJSON file the endpoints will read/rewrite.
     logs = tmp_path / "logs.json"
     monkeypatch.setattr(lg, "LOGS_PATH", logs)
+    # Session and bulk purges are operator-only; tests that need the refusal
+    # delete the key themselves.
+    monkeypatch.setenv("ADMIN_KEY", "admin-secret")
 
     app = FastAPI()
     app.include_router(router)
@@ -46,7 +52,7 @@ class TestPurgeSession:
             {"request_id": sid[:8] + "-1", "tenant_id": "default"},
             {"request_id": "other999", "tenant_id": "default"},
         ])
-        r = c.delete(f"/gdpr/purge/session/{sid}")
+        r = c.delete(f"/gdpr/purge/session/{sid}", headers=_ADM)
         assert r.status_code == 200
         body = r.json()
         assert body["ok"] is True
@@ -56,7 +62,7 @@ class TestPurgeSession:
 
     def test_purge_missing_logs_is_still_ok(self, client):
         c, _logs = client
-        r = c.delete("/gdpr/purge/session/no-such-session")
+        r = c.delete("/gdpr/purge/session/no-such-session", headers=_ADM)
         assert r.status_code == 200
         assert r.json()["ok"] is True
 
@@ -64,7 +70,7 @@ class TestPurgeSession:
         """A corrupt NDJSON line must be preserved, not dropped, during purge."""
         c, logs = client
         logs.write_text('{ not json\n{"request_id":"other","tenant_id":"default"}\n', encoding="utf-8")
-        r = c.delete("/gdpr/purge/session/abcdef12")
+        r = c.delete("/gdpr/purge/session/abcdef12", headers=_ADM)
         assert r.status_code == 200
         assert "not json" in logs.read_text()   # malformed line survived
 
@@ -88,7 +94,7 @@ class TestPurgeSession:
         import warden.storage.s3 as s3
         monkeypatch.setattr(s3, "get_storage", lambda: _Storage())
         monkeypatch.setattr(cache, "_get_client", lambda: _Redis())
-        r = c.delete("/gdpr/purge/session/session-with-evidence")
+        r = c.delete("/gdpr/purge/session/session-with-evidence", headers=_ADM)
         assert r.status_code == 200
         assert r.json()["records_removed"] >= 3   # 1 MinIO + 2 Redis keys
 
@@ -251,13 +257,13 @@ class TestPostVariants:
         import warden.api.gdpr as g
         c, _ = client
         monkeypatch.setattr(g.event_logger, "purge_before", lambda dt: 4)
-        r = c.post("/gdpr/purge", json={"before": "2026-01-01T00:00:00Z"})
+        r = c.post("/gdpr/purge", json={"before": "2026-01-01T00:00:00Z"}, headers=_ADM)
         assert r.status_code == 200
         assert r.json()["removed"] == 4
 
     def test_post_purge_invalid_date_is_422(self, client):
         c, _ = client
-        r = c.post("/gdpr/purge", json={"before": "nonsense"})
+        r = c.post("/gdpr/purge", json={"before": "nonsense"}, headers=_ADM)
         assert r.status_code == 422
 
 
@@ -281,3 +287,36 @@ class TestRunRetentionPurge:
 
         monkeypatch.setattr(lg, "purge_old_entries", _boom)
         assert await g.run_retention_purge() == 0
+
+
+class TestSessionAndBulkPurgeAreOperatorOnly:
+    """Log entries carry no tenant, so a tenant key cannot be scoped to its own.
+
+    Before 2026-11-17 any key could erase every tenant's entries sharing a
+    session-id prefix, or delete ERS keys by a pattern it built (``*``).
+    """
+
+    def test_session_purge_refused_without_the_operator_key(self, client):
+        c, logs = client
+        _seed(logs, [{"request_id": "abcdefgh-1", "tenant_id": "other"}])
+        assert c.delete("/gdpr/purge/session/abcdefgh").status_code == 403
+        assert "abcdefgh-1" in logs.read_text(encoding="utf-8")
+
+    def test_bulk_purge_refused_without_the_operator_key(self, client):
+        c, _ = client
+        assert c.post("/gdpr/purge", json={"before": "2026-01-01T00:00:00Z"}).status_code == 403
+
+    def test_export_returns_only_the_callers_own_entry(self, client, monkeypatch):
+        import warden.api.gdpr as gdpr
+        from warden.auth_guard import AuthResult, require_api_key
+
+        monkeypatch.setattr(gdpr, "tier_header_trusted", lambda: False)
+        c, logs = client
+        _seed(logs, [{"request_id": "r-mine", "tenant_id": "tenant-a"},
+                     {"request_id": "r-theirs", "tenant_id": "tenant-b"},
+                     {"request_id": "r-unowned"}])
+        c.app.dependency_overrides[require_api_key] = lambda: AuthResult(api_key="k", tenant_id="tenant-a")
+        assert c.post("/gdpr/export", json={"request_id": "r-mine"}).status_code == 200
+        assert c.post("/gdpr/export", json={"request_id": "r-theirs"}).status_code == 404
+        assert c.post("/gdpr/export", json={"request_id": "r-unowned"}).status_code == 404
+        assert c.get("/gdpr/export/session/r-theirs").json()["record"] is None

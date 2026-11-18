@@ -28,7 +28,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from warden.analytics import logger as event_logger
-from warden.auth_guard import AuthResult, require_api_key
+from warden.auth_guard import AuthResult, require_api_key, tier_header_trusted
 from warden.config import settings
 
 log = logging.getLogger("warden.api.gdpr")
@@ -84,6 +84,17 @@ def require_admin_only(x_admin_key: str = Header("")) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cross-tenant bulk purge requires X-Admin-Key.",
         )
+
+def _own_entry_or_none(entry: dict | None, auth: AuthResult, x_admin_key: str) -> dict | None:
+    """A log entry for its own tenant, or the operator. Anyone else: not found.
+
+    Entries that record no tenant are the operator's to export - they cannot be
+    attributed, and handing them to any key was a cross-tenant read.
+    """
+    if entry is None or _is_admin(x_admin_key) or tier_header_trusted():
+        return entry
+    return entry if entry.get("tenant_id") and entry.get("tenant_id") == auth.tenant_id else None
+
 
 # Router-level auth: every /gdpr endpoint requires a valid API key. Without this
 # the path-based endpoints (DELETE /purge/tenant/{id}, GET /audit/{id}, session
@@ -141,6 +152,11 @@ class ExportResult(BaseModel):
         "logs.json, and its ERS keys from Redis. Idempotent — safe to call "
         "multiple times."
     ),
+    # Operator only (2026-11-17). Log entries carry no tenant, so a tenant key
+    # cannot be scoped to its own: this erased every tenant's entries whose id
+    # shared the first 8 characters, blanked any evidence bundle, and deleted
+    # ERS keys by a caller-built pattern - `*` wiped every shadow ban.
+    dependencies=[Depends(require_admin_only)],
 )
 async def purge_session(session_id: str) -> PurgeResult:
     removed = 0
@@ -211,13 +227,18 @@ async def purge_session(session_id: str) -> PurgeResult:
     response_model=ExportResult,
     summary="Export all metadata recorded for a session (Art. 20)",
 )
-async def export_session(session_id: str) -> ExportResult:
+async def export_session(
+    session_id: str,
+    auth: AuthResult = Depends(require_api_key),
+    x_admin_key: str = Header(""),
+) -> ExportResult:
     record = None
     try:
         from warden.analytics.logger import read_by_request_id  # noqa: PLC0415
         record = read_by_request_id(session_id)
     except Exception as exc:
         log.warning("GDPR export: log read failed — %s", exc)
+    record = _own_entry_or_none(record, auth, x_admin_key)
 
     _record_audit("export_session", session_id)
     return ExportResult(
@@ -396,8 +417,12 @@ class _GdprPurgeRequest(BaseModel):
     summary="Export log metadata for a specific request ID (GDPR Art. 15)",
     dependencies=[Depends(require_api_key)],
 )
-async def gdpr_export(body: _GdprExportRequest):
-    entry = event_logger.read_by_request_id(body.request_id)
+async def gdpr_export(
+    body: _GdprExportRequest,
+    auth: AuthResult = Depends(require_api_key),
+    x_admin_key: str = Header(""),
+):
+    entry = _own_entry_or_none(event_logger.read_by_request_id(body.request_id), auth, x_admin_key)
     if entry is None:
         raise HTTPException(
             status_code=404,
@@ -409,7 +434,9 @@ async def gdpr_export(body: _GdprExportRequest):
 @router.post(
     "/purge",
     summary="Delete log entries before a given date (GDPR Art. 17)",
-    dependencies=[Depends(require_api_key)],
+    # Every tenant's entries before the date: an operator action, exactly like
+    # DELETE /purge/before/{date}, which was already gated.
+    dependencies=[Depends(require_api_key), Depends(require_admin_only)],
 )
 async def gdpr_purge(body: _GdprPurgeRequest):
     try:

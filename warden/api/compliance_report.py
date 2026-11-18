@@ -29,6 +29,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse, Response
 
+from warden.api.agent_sandbox import owned_session
 from warden.auth_guard import AuthResult, caller_tenant, require_api_key
 from warden.config import settings
 
@@ -1233,7 +1234,7 @@ async def compliance_soc2_export(days: float = 30):
 @router.get(
     "/incident/{session_id}",
     summary="Incident Post-Mortem report for a session or ERS entity",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(owned_session)],
 )
 async def compliance_incident_report(
     session_id: str,
@@ -1293,7 +1294,7 @@ async def compliance_dashboard(days: float = 30):
 @router.get(
     "/evidence/{session_id}",
     summary="Export a cryptographically-signed evidence bundle for a session",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(owned_session)],
 )
 async def compliance_evidence_bundle(
     session_id: str,
