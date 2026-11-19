@@ -153,13 +153,18 @@ def test_writes_are_committed_and_visible_to_a_fresh_connection(db):
 # ── Isolation between threads ─────────────────────────────────────────────────
 
 def test_threads_never_share_a_connection(db):
-    seen: dict[int, int] = {}
+    # Hold the connection objects, not their id(): once one thread closes and
+    # frees its connection, CPython may hand the same address to the other
+    # thread's, and two distinct connections then compare equal by id().
+    seen: dict[int, object] = {}
     barrier = threading.Barrier(2)
+    both_open = threading.Barrier(2, timeout=10)
 
     def work():
         barrier.wait()
         with open_db("reusetest", db, module_default_path=db) as con:
-            seen[threading.get_ident()] = id(con)
+            seen[threading.get_ident()] = con
+            both_open.wait()
         close_cached_connections()
 
     threads = [threading.Thread(target=work) for _ in range(2)]
@@ -169,7 +174,8 @@ def test_threads_never_share_a_connection(db):
         t.join()
 
     assert len(seen) == 2
-    assert len(set(seen.values())) == 2, "two threads shared one connection"
+    first, second = seen.values()
+    assert first is not second, "two threads shared one connection"
 
 
 def test_concurrent_writers_all_commit(db):
