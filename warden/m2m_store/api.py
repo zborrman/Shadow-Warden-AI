@@ -312,7 +312,11 @@ async def extend_reservation(
     offer_id: str,
     agent_id: str = Query(...),
     auth: AuthResult = AuthDep,
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ):
+    # Only feeds the rate limiter, but naming another tenant's agent would
+    # spend that agent's budget.
+    agent_id = _agent_binding.bind(agent_id)
     inv = get_inventory()
     offer = inv.get_offer(offer_id, auth.tenant_id)
     if offer is None:

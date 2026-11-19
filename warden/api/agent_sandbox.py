@@ -21,11 +21,34 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from warden.agent_sandbox import get_registry as _get_sandbox_registry
-from warden.auth_guard import require_api_key
+from warden.auth_guard import AuthResult, _is_operator, require_api_key, tier_header_trusted
 from warden.runtime import runtime as _runtime
+
+
+def owned_session(
+    session_id: str,
+    auth: AuthResult = Depends(require_api_key),
+    x_admin_key: str | None = Header(default=None),
+) -> str:
+    """The session must be the caller's tenant's, or the caller the operator.
+
+    An agent session records the tenant that opened it. These routes took the
+    id from the path and served (or killed) any tenant's session to any key -
+    its tool timeline, its evidence bundle, or a kill-switch on it. Another
+    tenant's session reads as not found, so ids cannot be probed.
+    """
+    if tier_header_trusted() or _is_operator(auth, x_admin_key):
+        return session_id
+    monitor = _runtime.get("agent_monitor")
+    if monitor is None:
+        return session_id  # the handler answers 503
+    sess = monitor.get_session(session_id)
+    if not sess or sess.get("tenant_id") != auth.tenant_id:
+        raise HTTPException(status_code=404, detail=f"Session {session_id!r} not found.")
+    return session_id
 
 router = APIRouter(prefix="/api/agent", tags=["agent-sandbox"])
 
@@ -85,7 +108,7 @@ async def reload_agent_manifests():
 @router.get(
     "/session/{session_id}/verify",
     summary="Verify cryptographic attestation chain for an agent session",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(owned_session)],
 )
 async def verify_session_attestation(session_id: str):
     """
@@ -109,7 +132,7 @@ async def verify_session_attestation(session_id: str):
 @router.get(
     "/session/{session_id}",
     summary="Get metadata and events for an agent session",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(owned_session)],
 )
 async def get_agent_session(session_id: str):
     """Return full session metadata + tool event list for *session_id*."""
@@ -128,7 +151,7 @@ async def get_agent_session(session_id: str):
 @router.delete(
     "/session/{session_id}",
     summary="Kill-switch: immediately revoke an agent session",
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(owned_session)],
 )
 async def revoke_agent_session(
     session_id: str,

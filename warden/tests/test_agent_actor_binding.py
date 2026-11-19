@@ -279,3 +279,27 @@ def test_another_tenants_agent_stats_and_balance_are_hidden(prod, monkeypatch):
         c = _client(router)
         url = _path(router, suffix, "GET").replace("{agent_id}", "did:b")
         assert c.get(url).status_code == 403, url
+
+
+# ── agent sessions belong to the tenant that opened them ─────────────────────
+
+
+def test_another_tenants_session_is_not_found(prod, monkeypatch):
+    import warden.api.agent_sandbox as sb
+
+    monkeypatch.setattr(sb, "tier_header_trusted", lambda: False)
+    killed: list[str] = []
+    monitor = SimpleNamespace(
+        get_session=lambda sid: {"session_id": sid, "tenant_id": "tenant-b" if sid == "s-b" else "tenant-a"},
+        revoke_session=lambda sid, reason: killed.append(sid) or {"revoked": True},
+        verify_attestation=lambda sid: {"valid": True},
+    )
+    monkeypatch.setattr(sb, "_runtime", SimpleNamespace(
+        get=lambda name, default=None: monitor if name == "agent_monitor" else default))
+    c = _client(sb.router)
+    base = _path(sb.router, "/session/{session_id}", "GET")
+    assert c.get(base.replace("{session_id}", "s-b")).status_code == 404
+    assert c.delete(base.replace("{session_id}", "s-b")).status_code == 404
+    assert c.get(base.replace("{session_id}", "s-b") + "/verify").status_code == 404
+    assert killed == []
+    assert c.get(base.replace("{session_id}", "s-a")).status_code == 200

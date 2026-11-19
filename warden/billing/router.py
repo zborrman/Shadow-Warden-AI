@@ -42,6 +42,7 @@ from pydantic import BaseModel
 from warden.auth_guard import AuthResult, require_api_key
 from warden.billing.feature_gate import ANNUAL_PRICING, OVERAGE_PRICES, FeatureGate
 from warden.billing.pricing import TIER_PRICE_USD_MONTH
+from warden.marketplace.actor_binding import CallerAgent, caller_agent_binding
 
 log = logging.getLogger("warden.billing.router")
 
@@ -216,7 +217,10 @@ async def billing_upgrade(
     agent_id:       str | None = Query(default=None, description="Marketplace DID — bound to subscription for M2M billing"),
     success_url:    str | None = Query(default=None),
     cancel_url:     str | None = Query(default=None),
+    _agent_binding: CallerAgent = Depends(caller_agent_binding),
 ):
+    # The DID is attached to this tenant's subscription: it must be its own.
+    agent_id = _agent_binding.bind(agent_id) or None
     _success   = success_url  or f"{_PORTAL_BASE}/billing/success"
     _cancel    = cancel_url   or f"{_PORTAL_BASE}/billing/cancel"
 

@@ -111,7 +111,7 @@ import warden.main as m
 
 PREFIXES = tuple(json.loads(sys.argv[2]))
 AGENT = re.compile(sys.argv[3], re.I)
-WRITE = {"POST", "PUT", "PATCH", "DELETE"}
+WRITE = set(json.loads(sys.argv[4])) if len(sys.argv) > 4 else {"POST", "PUT", "PATCH", "DELETE"}
 OPERATOR = {"require_admin_key", "verify_admin_key", "_require_admin", "_require_admin_key"}
 rows = {}
 
@@ -125,7 +125,7 @@ def agent_fields(route):
     dep = getattr(route, "dependant", None)
     # A path id names the agent the write edits (PATCH /agents/{agent_id},
     # POST /autonomy/{agent_id}); it is as much a claim as a body field.
-    for p in getattr(dep, "path_params", []) or []:
+    for p in (getattr(dep, "path_params", []) or []) + (getattr(dep, "query_params", []) or []):
         if AGENT.search(getattr(p, "name", "") or ""):
             out.add(p.name)
     for p in getattr(dep, "body_params", []) or []:
@@ -210,7 +210,9 @@ with open(sys.argv[1], "w", encoding="utf-8") as fh:
 '''
 
 
-def _measure() -> dict[str, list[str]]:
+def _measure(
+    prefixes: tuple[str, ...] | None = None, methods: set[str] | None = None,
+) -> dict[str, dict[str, list[str]]]:
     """{"<METHOD> <path>": [agent fields]} for every write route in the cluster."""
     fd, out_path = tempfile.mkstemp(suffix=".json")
     os.close(fd)
@@ -223,7 +225,8 @@ def _measure() -> dict[str, list[str]]:
     try:
         proc = subprocess.run(
             [sys.executable, "-c", _CHILD, out_path,
-             json.dumps(list(_PREFIXES)), _AGENT_FIELD],
+             json.dumps(list(prefixes or _PREFIXES)), _AGENT_FIELD,
+             json.dumps(sorted(methods or {"POST", "PUT", "PATCH", "DELETE"}))],
             capture_output=True, text=True, timeout=600,
             cwd=str(_REPO_ROOT), env=env,
         )
@@ -237,7 +240,7 @@ def _measure() -> dict[str, list[str]]:
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, list[str]]]:
-    return _measure()  # type: ignore[return-value]
+    return _measure()
 
 
 @pytest.fixture(scope="module")
@@ -419,3 +422,68 @@ def test_every_counterparty_field_is_measured_and_reasoned(
             assert field not in bound[route], f"{route}: {field} is bound - not a counterparty"
             assert len(why) > 20
         assert bound[route], f"{route}: names a counterparty but binds no actor"
+
+
+# ── reads (2026-11-17) ───────────────────────────────────────────────────────
+#
+# Writes were guarded; reads were not, and the first look found every escrow on
+# the platform listed to any key, another tenant's agent audited-and-isolated by
+# a GET, and its stats and balance readable. Every GET route that takes an agent
+# id (path or query) must bind it - verified as for writes - or be listed here,
+# with the reason it is public or already scoped.
+_PUBLIC_AGENT_READS = {
+    "GET /acp/token/{token_id}":
+        "dry-run check of a Shared Payment Token; the unguessable token id is the "
+        "bearer secret and agent_id only narrows the check",
+    "GET /agents/activity":
+        "the query is scoped to the caller's tenant (caller_tenant); agent_id only "
+        "filters within it",
+    "GET /api/agent/manifest/{agent_id}":
+        "sandbox capability manifests are operator configuration, not tenant data",
+    "GET /compliance/evidence/{session_id}":
+        "agent_id is a label in the bundle; the session itself is owner-checked "
+        "(owned_session)",
+    "GET /kya/profile/{did}":
+        "public KYA lookup - a stranger checking an agent is the point of KYA",
+    "GET /kya/trust/{did}":
+        "public KYA trust score, same reason",
+    "GET /m2m-store/orders/history":
+        "list_orders is filtered by auth.tenant_id; agent_id narrows within it",
+    "GET /marketplace/agents/{agent_id}":
+        "public agent directory; tenant_id and mandate_id are stripped",
+    "GET /marketplace/agents/{agent_id}/certificate":
+        "a public certificate is meant to be fetched by counterparties",
+    "GET /marketplace/agents/{agent_id}/key-rotation-status":
+        "public rotation date and overdue flag of a public key",
+    "GET /marketplace/agents/{agent_id}/kya":
+        "public KYA verdict; owner_tenant_id is stripped",
+    "GET /marketplace/agents/{agent_id}/trust":
+        "public TrustRank and Sybil flag - the counterparty check",
+    "GET /marketplace/assets":
+        "public asset catalogue; agent_id filters by seller",
+    "GET /marketplace/autonomy/{agent_id}":
+        "public by the 2026-07-29 decision (test_money_writes_auth pins it): a "
+        "counterparty checks how autonomous an agent is before trading",
+    "GET /sep/federation/communities/{community_id}/federated-trust/check":
+        "public federated trust check of an agent DID",
+    "GET /staff/boundaries/{agent_id}":
+        "platform Digital Staff configuration; no tenant data (writes are "
+        "operator-only)",
+}
+
+
+def test_every_agent_read_is_bound_or_listed_public() -> None:
+    reads = _measure(prefixes=("/",), methods={"GET"})
+    unbound = sorted(
+        r for r, v in reads.items()
+        if set(v["fields"]) - set(v["bound"]) and r not in _PUBLIC_AGENT_READS
+    )
+    assert not unbound, (
+        "these GET routes take an agent id and neither bind it nor are listed "
+        "public:\n  " + "\n  ".join(unbound)
+        + "\n\nBind it (`_agent_binding.bind(...)`) or add the route to "
+          "_PUBLIC_AGENT_READS with the reason it is public."
+    )
+    stale = sorted(set(_PUBLIC_AGENT_READS) - set(reads))
+    assert not stale, f"listed public but no longer a route taking an agent id: {stale}"
+    assert all(len(why) > 30 for why in _PUBLIC_AGENT_READS.values())
