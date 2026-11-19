@@ -97,6 +97,31 @@ export interface SellerOrderRequest extends OrderRequestView {
   }
 }
 
+
+/** R8.1: one buyer of this store, built from its order requests. */
+export interface CustomerSummary {
+  id: string
+  store_id: string
+  name: string
+  email: string
+  country: string
+  orders: number
+  /** Agreed sales only (accepted, paid, shipped, completed), per currency, minor units. */
+  spent_minor: Record<string, number>
+  tags: string[]
+  first_seen_at: string
+  last_seen_at: string
+}
+
+export interface Customer extends CustomerSummary {
+  contact: SellerOrderRequest['contact']
+  notes: string
+  order_requests: {
+    id: string; status: OrderRequestStatus; currency: string; total_minor: number; created_at: string
+    items: { product_id: string; name: string; qty: number }[]
+  }[]
+}
+
 /** Moves the seller may make from each status; mirrors SELLER_MOVES in order_requests.py. */
 export const SELLER_MOVES: Partial<Record<OrderRequestStatus, OrderRequestStatus[]>> = {
   PENDING_MERCHANT: ['ACCEPTED', 'REJECTED'],
@@ -171,4 +196,12 @@ export const storeApi = {
     send<SellerOrderRequest>('patch', `/order-requests/${id}`, body),
   setPaymentLink: (id: string, url: string) =>
     send<SellerOrderRequest>('put', `/order-requests/${id}/payment-link`, { url }),
+  customers: (storeId: string, q = '') =>
+    get<CustomerSummary[]>(`/stores/${storeId}/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  customer: (storeId: string, id: string) => get<Customer>(`/stores/${storeId}/customers/${id}`),
+  updateCustomer: (storeId: string, id: string, body: { notes?: string; tags?: string[] }) =>
+    send<Customer>('patch', `/stores/${storeId}/customers/${id}`, body),
+  exportCustomer: (storeId: string, id: string) =>
+    get<Record<string, unknown>>(`/stores/${storeId}/customers/${id}/export`),
+  eraseCustomer: (storeId: string, id: string) => del(`/stores/${storeId}/customers/${id}`),
 }

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { ArrowLeft, FolderTree, Inbox, Package, Settings2, Truck } from 'lucide-react'
+import { ArrowLeft, FolderTree, Inbox, Package, Settings2, Truck, Users } from 'lucide-react'
 import clsx from 'clsx'
 import type { Store } from '@/lib/storeApi'
 import { ProductsTab } from './ProductsTab'
@@ -8,10 +8,12 @@ import { CategoriesTab } from './CategoriesTab'
 import { ShippingTab } from './ShippingTab'
 import { SettingsTab } from './SettingsTab'
 import { OrdersTab } from './OrdersTab'
+import { CustomersTab } from './CustomersTab'
 
 const TABS = [
   { id: 'products',   label: 'Products',   icon: Package    },
   { id: 'orders',     label: 'Orders',     icon: Inbox      },
+  { id: 'customers',  label: 'Customers',  icon: Users      },
   { id: 'categories', label: 'Categories', icon: FolderTree },
   { id: 'shipping',   label: 'Shipping',   icon: Truck      },
   { id: 'settings',   label: 'Settings',   icon: Settings2  },
@@ -60,6 +62,7 @@ export function StoreEditor({ store, onBack }: { store: Store; onBack: () => voi
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === 'products'   && <ProductsTab store={store} />}
         {tab === 'orders'     && <OrdersTab store={store} />}
+        {tab === 'customers'  && <CustomersTab store={store} />}
         {tab === 'categories' && <CategoriesTab store={store} />}
         {tab === 'shipping'   && <ShippingTab store={store} />}
         {tab === 'settings'   && <SettingsTab store={store} onDeleted={onBack} />}
