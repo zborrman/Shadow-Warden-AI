@@ -453,8 +453,8 @@ curl http://localhost:8001/health
               {[
                 ['Dev / Staging','< 5K','2 vCPU','4 GB','20 GB','Single compose, no MinIO'],
                 ['Small Production','5K – 50K','4 vCPU','8 GB','60 GB','Add Redis persistence'],
-                ['Mid-Market','50K – 500K','8 vCPU','16 GB','200 GB','Horizontal warden scaling'],
-                ['Large','500K+','16+ vCPU','32 GB','500 GB+','K8s Helm chart, HA Redis Cluster'],
+                ['Mid-Market','50K – 500K','8 vCPU','16 GB','200 GB','One host: scale up, not out'],
+                ['Large','500K+','16+ vCPU','32 GB','500 GB+','Multi-node is not supported yet'],
               ].map(([tier, rqd, cpu, ram, disk, notes], i) => (
                 <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
                   <td class="px-5 py-2.5 font-semibold text-white">{tier}</td>

@@ -24,7 +24,10 @@ global:
 # ── Warden (core API, port 8001) ───────────────────────────────────────────────
 warden:
   enabled: true
-  replicas: 2
+  # One replica: per-module state is node-local SQLite under WARDEN_DATA_DIR, so a
+  # second pod would keep a second, diverging copy (plan-85 P-5). Raise this only
+  # after those stores move to a shared database.
+  replicas: 1
   image:
     repository: shadow-warden-ai/warden
   resources:
@@ -38,9 +41,11 @@ warden:
   service:
     port: 8001
   autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 10
+    # Off for the same reason replicas is 1: more pods means more copies of
+    # node-local state, not more capacity.
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 1
     targetCPUUtilizationPercentage: 70
 redis:
   enabled: true

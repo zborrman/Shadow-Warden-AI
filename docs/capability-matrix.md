@@ -176,7 +176,7 @@ fail to start instead.
 | SLA service credits | `SELF-ATTESTED` (was `FABRICATED`; qualified 2026-08-29) | `docs/sla.md` §8 published a percentage schedule that reads as an automatic entitlement. Uptime **is** measured (`sova_sla_report`, error-budget burn monitors), but nothing turns a measured breach into a credit — no calculation, no issuance path, and no invoice to apply one to, since paid plans are not purchasable. §8 now carries a status note saying issuance is manual, pinned by `test_public_claims_reconciled.py`. ⚠️ This row was missed by the first claims sweep because the guard scoped itself to `site/`, `landing/`, `portal/` and `dashboard/` — **`docs/` is in the MkDocs nav and is just as public**. The guard now covers it. | Remove the note when a breach produces a credit on a real invoice without a human (P4 exit) |
 | Public status page | `BUILT` | `site/src/pages/status.astro` and `GET /deploy/status` both exist and are not connected to each other | P4 |
 | Encrypted offsite backup, restore drilled | `LIVE` | Restore drill completed at roughly 17s RTO, across two independent S3 targets | Safe to publish |
-| High availability | `FABRICATED` if implied | A single Hetzner VPS running 22 containers, with no redundancy. The Helm chart and Terraform exist and are not deployed. | State the single-host topology plainly |
+| High availability | `FABRICATED` if implied | A single Hetzner VPS running 22 containers, with no redundancy. The Helm chart (`charts/shadow-warden/`: gateway + Redis + worker only, one replica, render-tested in CI) and Terraform exist and are not deployed; multi-node is unsupported because module state is node-local SQLite. | State the single-host topology plainly |
 
 ---
 
