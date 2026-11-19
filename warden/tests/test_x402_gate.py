@@ -135,10 +135,15 @@ class TestNonceReplay:
         future = int(time.time()) + g._NONCE_TTL_SECONDS + 60
         assert g._consume_nonce("a1", "n-future", future) is False
 
-    def test_db_error_fails_open(self, monkeypatch):
-        # Unwritable DB path → nonce check must fail-OPEN (return True), never block.
-        monkeypatch.setattr(g, "_DB_PATH", "/root/nonexistent-dir/x402.db")
-        assert g._consume_nonce("a1", "n", int(time.time())) is True
+    def test_db_error_fails_closed(self, monkeypatch):
+        # Unwritable nonce record -> refuse (False). Returning True here let every
+        # replay through while the table was down; the client retries with a
+        # fresh nonce once it is back.
+        def _broken(*_a, **_k):
+            raise OSError("unwritable")
+
+        monkeypatch.setattr(g, "open_db", _broken)
+        assert g._consume_nonce("a1", "n", int(time.time())) is False
 
 
 # ── Balance + deduction ───────────────────────────────────────────────────────

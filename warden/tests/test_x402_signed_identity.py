@@ -76,3 +76,47 @@ def test_signature_from_wrong_key_is_rejected():
 def test_missing_signature_fields_rejected():
     payload = {"agent_id": "did:shadow:x", "nonce": "n", "issued_at": int(time.time())}
     assert _verify_payment_identity(payload) is None
+
+
+# ── A signed header pays for one call (MCP gateway replay) ────────────────────
+
+def test_a_signed_header_is_spent_on_first_use(monkeypatch, tmp_path):
+    # Before: mcp/gateway resolved the payer with _extract_agent_id, which never
+    # looked at the nonce, so one captured header spent the agent's balance on
+    # every replay, with no time limit.
+    import warden.marketplace.x402_gate as g
+    from warden.marketplace.x402_gate import _extract_fresh_agent_id
+
+    monkeypatch.setattr(g, "_DB_PATH", str(tmp_path / "x402.db"))
+    priv, pub_b64, agent_id = _keypair()
+    header = _signed_header(priv, agent_id, pub_b64)
+    assert _extract_fresh_agent_id(header) == agent_id
+    assert _extract_fresh_agent_id(header) is None
+
+
+def test_a_stale_signed_header_is_refused(monkeypatch, tmp_path):
+    import warden.marketplace.x402_gate as g
+    from warden.marketplace.x402_gate import _extract_fresh_agent_id
+
+    monkeypatch.setattr(g, "_DB_PATH", str(tmp_path / "x402.db"))
+    priv, pub_b64, agent_id = _keypair()
+    header = _signed_header(priv, agent_id, pub_b64, issued_at=int(time.time()) - 3600)
+    assert _extract_fresh_agent_id(header) is None
+
+
+def test_an_unwritable_nonce_record_refuses_the_payment(monkeypatch):
+    # Before: any DB error returned True, so replays passed while it was down.
+    import warden.marketplace.x402_gate as g
+
+    def _broken(*_a, **_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(g, "open_db", _broken)
+    assert g._consume_nonce("did:shadow:x", "n-1", int(time.time())) is False
+
+
+def test_mcp_gateway_spends_the_nonce():
+    import inspect
+
+    import warden.mcp.gateway as gw
+    assert "_extract_fresh_agent_id(sig)" in inspect.getsource(gw._check_payment)

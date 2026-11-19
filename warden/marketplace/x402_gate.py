@@ -178,12 +178,40 @@ def _extract_agent_id(sig_header: str) -> str | None:
     return _verify_payment_identity(_extract_sig_payload(sig_header))
 
 
+def _extract_fresh_agent_id(sig_header: str) -> str | None:
+    """Like :func:`_extract_agent_id`, and also spend the header's nonce.
+
+    A signed PAYMENT-SIGNATURE authorises one charge. Without this the MCP
+    gateway accepted the same header forever (it never checked the nonce or
+    ``issued_at``), so anyone who saw one agent's header could spend that
+    agent's balance on tools. A replayed or stale header resolves to None: the
+    caller then answers 402, exactly as for an unsigned one.
+    """
+    payload = _extract_sig_payload(sig_header)
+    agent_id = _verify_payment_identity(payload)
+    if not (agent_id and payload):
+        return agent_id
+    nonce, issued_at = payload.get("nonce"), payload.get("issued_at")
+    if not nonce or issued_at is None:
+        # Reachable only with X402_REQUIRE_SIGNED_PAYMENT=false (the documented
+        # insecure opt-out): a signed header always carries both.
+        return agent_id
+    try:
+        fresh = _consume_nonce(agent_id, str(nonce), int(issued_at))
+    except (TypeError, ValueError):
+        return None
+    return agent_id if fresh else None
+
+
 def _consume_nonce(agent_id: str, nonce: str, issued_at: int) -> bool:
     """Validate and consume a nonce for replay prevention.
 
     Returns True  — nonce is fresh and unused (access allowed).
-    Returns False — nonce already used or issued_at outside 5-min window (replay).
-    Fail-open: any DB error returns True to avoid blocking legitimate traffic.
+    Returns False — nonce already used, issued_at outside 5-min window (replay),
+    or the used-nonce record could not be written. Fail-CLOSED: "could not check
+    for a replay" must not read as "not a replay" (it used to return True, so a
+    replay went through whenever this table was unwritable). The caller answers
+    402 and the client retries with a fresh nonce.
     """
     now = int(time.time())
     if abs(now - issued_at) > _NONCE_TTL_SECONDS:
@@ -204,8 +232,8 @@ def _consume_nonce(agent_id: str, nonce: str, issued_at: int) -> bool:
                 log.warning("x402 replay: nonce already used agent=%s nonce=%.8s...", agent_id[:24], nonce)
                 return False
     except Exception as exc:
-        log.debug("x402 nonce check error (fail-open): %s", exc)
-        return True
+        log.warning("x402 nonce record unavailable, payment refused: %s", type(exc).__name__)
+        return False
 
 
 def _log_payment_bypassed(tenant_id: str, resource: str, reason: str) -> None:
