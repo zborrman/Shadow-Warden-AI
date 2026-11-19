@@ -130,7 +130,7 @@ def _gateway_call(monkeypatch, authorization: str, tool: str) -> list:
 
     monkeypatch.setattr(gw, "payment_gate_enabled", lambda: True)
     monkeypatch.setattr(credits, "get_balance", lambda _t: 0)
-    monkeypatch.setattr(x402, "_extract_agent_id", lambda _s: "agent-1")
+    monkeypatch.setattr(x402, "_extract_fresh_agent_id", lambda _s: "agent-1")
     monkeypatch.setattr(x402, "_has_sufficient_balance", lambda _a: True)
     monkeypatch.setattr(x402, "deduct_payment", _deduct)
     scope = {

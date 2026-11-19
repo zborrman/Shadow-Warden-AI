@@ -274,13 +274,13 @@ async def _check_payment(
     try:
         from warden.marketplace.x402_gate import (  # noqa: PLC0415
             _build_payment_required_header,
-            _extract_agent_id,
+            _extract_fresh_agent_id,
             _has_sufficient_balance,
             deduct_payment,
         )
 
         sig       = request.headers.get("PAYMENT-SIGNATURE", "")
-        agent_id  = _extract_agent_id(sig)
+        agent_id  = _extract_fresh_agent_id(sig)
         # Whose credits are spent. `X-Tenant-ID` is written by the caller, so it
         # spent another tenant's credits on request; the key decides now.
         from warden.auth_guard import request_tenant
