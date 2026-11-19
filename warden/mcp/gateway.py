@@ -328,7 +328,9 @@ async def _check_payment(
                 )
                 mac, preimage = parse_authorization_header(authz)
                 ok, claims = verify_macaroon(mac, preimage)
-                if ok:
+                # A macaroon is issued for one tool at one price: one paid for a
+                # cheap tool must not open an expensive one.
+                if ok and claims.get("tool_name") == tool_name:
                     log.debug("mcp: L402 OK agent=%s tool=%s", claims.get("agent_id"), tool_name)
                     return claims.get("agent_id", "l402"), None
             except Exception as l402_exc:  # noqa: BLE001

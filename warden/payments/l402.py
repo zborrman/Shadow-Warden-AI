@@ -99,8 +99,11 @@ def verify_macaroon(macaroon_b64: str, preimage_hex: str) -> tuple[bool, dict[st
     """
     Verify macaroon + preimage.  Returns (ok, claims).
 
-    ok=False reasons: bad HMAC, expired token, preimage mismatch.
-    Fail-open: on parse errors returns (True, {}) to not block valid callers.
+    ok=False reasons: bad HMAC, expired token, preimage mismatch, unparseable
+    token, or a signing key that cannot be resolved. Fail-CLOSED: this is a
+    payment proof, and a token that cannot be checked has proved nothing.
+    (It used to return ``(True, {})`` on any exception, so a garbage token -
+    one that is not base64, or not UTF-8 - read as paid.)
     """
     try:
         padded = macaroon_b64 + "==" * (4 - len(macaroon_b64) % 4)
@@ -135,8 +138,8 @@ def verify_macaroon(macaroon_b64: str, preimage_hex: str) -> tuple[bool, dict[st
             "expires_at":  int(expires_at),
         }
     except Exception as exc:  # noqa: BLE001
-        log.warning("l402: macaroon parse error (fail-open): %s", exc)
-        return True, {}
+        log.warning("l402: macaroon rejected, could not be verified: %s", type(exc).__name__)
+        return False, {"error": "unverifiable_macaroon"}
 
 
 def parse_authorization_header(authorization: str) -> tuple[str, str]:
