@@ -323,6 +323,7 @@ async def _check_payment(
         if authz.upper().startswith("L402 "):
             try:
                 from warden.payments.l402 import (  # noqa: PLC0415
+                    consume_macaroon,
                     parse_authorization_header,
                     verify_macaroon,
                 )
@@ -330,7 +331,11 @@ async def _check_payment(
                 ok, claims = verify_macaroon(mac, preimage)
                 # A macaroon is issued for one tool at one price: one paid for a
                 # cheap tool must not open an expensive one.
-                if ok and claims.get("tool_name") == tool_name:
+                if (
+                    ok
+                    and claims.get("tool_name") == tool_name
+                    and consume_macaroon(mac, claims.get("expires_at", 0))
+                ):
                     log.debug("mcp: L402 OK agent=%s tool=%s", claims.get("agent_id"), tool_name)
                     return claims.get("agent_id", "l402"), None
             except Exception as l402_exc:  # noqa: BLE001

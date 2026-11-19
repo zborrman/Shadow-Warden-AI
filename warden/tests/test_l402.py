@@ -140,17 +140,41 @@ def _gateway_call(monkeypatch, authorization: str, tool: str) -> list:
         "client": ("127.0.0.1", 1), "server": ("test", 80), "scheme": "http",
     }
     agent, err = asyncio.run(gw._check_payment(Request(scope), tool))
-    assert err is None and agent == "agent-1"
-    return deducted
+    assert err is None
+    return deducted if agent == "agent-1" else ["l402:" + str(agent)]
 
 
 def test_mcp_garbage_l402_does_not_skip_the_x402_charge(monkeypatch):
     # Before: verify_macaroon returned (True, {}) on a parse error, the gateway
     # returned early, and the funded agent's balance was never charged.
-    assert _gateway_call(monkeypatch, "L402 @@@not-base64@@@:00", "filter_text")
+    assert _gateway_call(monkeypatch, "L402 @@@not-base64@@@:00", "filter_text") == [
+        ("agent-1", "mcp:tools/call:filter_text")
+    ]
 
 
 def test_mcp_macaroon_for_another_tool_does_not_skip_the_charge(monkeypatch):
     from warden.payments.l402 import issue_macaroon
     tok = issue_macaroon("agent-1", "gateway_health", 1)  # cheap tool, no invoice hash
     assert _gateway_call(monkeypatch, f"L402 {tok}:", "filter_text")
+
+
+def test_mcp_macaroon_buys_one_call_not_many(monkeypatch, tmp_path):
+    # Before: a verified macaroon + preimage opened the tool for free on every
+    # call until it expired.
+    monkeypatch.setenv("L402_DB_PATH", str(tmp_path / "l402.db"))
+    from warden.payments.l402 import issue_macaroon
+    tok = issue_macaroon("agent-1", "filter_text", 1)
+    first = _gateway_call(monkeypatch, f"L402 {tok}:", "filter_text")
+    assert first == []  # paid by the macaroon: no x402 charge
+    second = _gateway_call(monkeypatch, f"L402 {tok}:", "filter_text")
+    assert second == [("agent-1", "mcp:tools/call:filter_text")]
+
+
+def test_unrecordable_macaroon_is_not_honoured(monkeypatch):
+    import warden.payments.l402 as l402
+
+    def _broken(*_a, **_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(l402, "open_db", _broken)
+    assert l402.consume_macaroon("tok", 0) is False
