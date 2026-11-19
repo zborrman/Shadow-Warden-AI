@@ -17,7 +17,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-
 _ADM = {"X-Admin-Key": "admin-secret"}
 
 
