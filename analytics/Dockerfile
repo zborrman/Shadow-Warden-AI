@@ -24,6 +24,11 @@ RUN pip install --no-cache-dir \
 # Copy the analytics service source
 COPY main.py /analytics/main.py
 
+# Non-root, same uid as the gateway (10001): the log it reads lives in a
+# mode-0700 directory owned by that uid, mounted read-only.
+RUN groupadd --gid 10001 analytics && useradd --uid 10001 --gid 10001 --no-create-home analytics
+USER 10001:10001
+
 EXPOSE 8002
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]

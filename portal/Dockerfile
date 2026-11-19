@@ -26,9 +26,13 @@ ENV PORT=3001
 # Copy standalone bundle + static assets.
 # `output: 'standalone'` does NOT bundle .next/static or public/ — both must be
 # copied explicitly or every /logo.png, /favicon.ico, ... 404s at runtime.
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+
+# Non-root (the image's built-in `node`, uid 1000). The app owns its files so
+# the ISR cache under .next/cache stays writable.
+USER node
 
 EXPOSE 3001
 
