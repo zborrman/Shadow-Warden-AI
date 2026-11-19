@@ -57,3 +57,15 @@ def test_validate_or_raise():
     s.phish_url_threshold = 9.0
     with pytest.raises(ConfigValidationError):
         s.validate_or_raise()
+
+
+def test_redacted_dump_masks_url_passwords():
+    # redis_url was logged as redis://:<password>@redis:6379/0 at every boot.
+    from warden.config import Settings
+    d = Settings(redis_url="redis://:hunter2secret@redis:6379/0").redacted_dump()
+    assert "hunter2secret" not in str(d)
+    assert d["redis_url"] == "redis://:***@redis:6379/0"
+    assert Settings(redis_url="redis://redis:6379/0").redacted_dump()["redis_url"] == (
+        "redis://redis:6379/0"
+    )
+    assert "pw9" not in str(Settings(redis_url="redis://user:pw9@h:1/0").redacted_dump())

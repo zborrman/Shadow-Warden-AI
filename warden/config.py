@@ -44,6 +44,7 @@ Testing overrides
 from __future__ import annotations
 
 import os
+import re
 import secrets
 from contextlib import suppress
 from dataclasses import dataclass, field, fields
@@ -2038,9 +2039,18 @@ class Settings:
             val = getattr(self, f.name)
             if val and any(h in f.name for h in self._SECRET_HINT):
                 out[f.name] = "***set***"
+            elif isinstance(val, str) and "@" in val:
+                # A URL can carry a password whatever the field is called:
+                # redis_url went out as redis://:<password>@redis:6379/0, into
+                # the container log and from there to Loki.
+                out[f.name] = _URL_PASSWORD.sub(r"\1***@", val)
             else:
                 out[f.name] = val
         return out
+
+
+# scheme://user:password@host -> scheme://user:***@host (user may be empty).
+_URL_PASSWORD = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://[^/@:\s]*:)[^/@\s]*@")
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
