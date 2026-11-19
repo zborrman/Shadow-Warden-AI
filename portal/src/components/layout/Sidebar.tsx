@@ -1,16 +1,11 @@
-﻿'use client'
+'use client'
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   ShieldCheck, LogOut, ExternalLink, ChevronDown,
-  Users, Network, Star, Database,
-  Zap, Eye, FileText, Bot, ScanSearch,
-  BarChart2, List, Search, Activity, GitBranch,
-  Key, Lock, Globe, Trash2, CreditCard,
-  BookOpen, DollarSign, Building2, AlertTriangle,
-  BookMarked, GraduationCap, ShieldAlert, Brain, Package,
-  Sun, Moon, ArrowLeftRight, LayoutDashboard, Store,
+  Key, CreditCard, BookOpen, DollarSign, BarChart2,
+  Sun, Moon, Store,
 } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
@@ -26,94 +21,46 @@ type NavGroup = {
   items: NavItem[]
 }
 
+// Only screens whose API a portal session can reach. The portal session is
+// accepted by /portal/* and by the store's owner routes (require_store_owner);
+// every other gateway route wants an X-API-Key. Items for those screens were
+// removed on 2026-11-19 - each one opened an empty page or the Overview again
+// (13 pointed at `?tab=` values no page reads). The pages stay in the repo; a
+// screen comes back to this menu when its API accepts the portal session.
 const groups: NavGroup[] = [
   {
-    id: 'community',
-    label: 'Business Community',
+    id: 'store',
+    label: 'Store',
     accent: '#BF5AF2',
     icon: '◈',
     items: [
-      { href: '/community-hub/',                       label: 'Community Hub',      icon: Users          },
-      { href: '/community-hub/',                        label: 'My Hub',              icon: LayoutDashboard},
-      { href: '/community-hub/agentic-commerce',       label: 'Agentic Commerce',    icon: ArrowLeftRight },
-      { href: '/store/manage/',                        label: 'Store Builder',       icon: Store          },
-      { href: '/communities/',                         label: 'Secure Vault',        icon: Database       },
-      { href: '/hub/',                                 label: 'SEP Hub',             icon: Network        },
-      { href: '/dashboard/?tab=reputation',            label: 'Reputation',          icon: Star           },
-      { href: '/dashboard/?tab=pods',                  label: 'Data Pods',           icon: Database       },
-      { href: '/communities/intelligence',             label: 'Business Intelligence',icon: Brain         },
-      { href: '/communities/smb-setup',                label: 'SMB Suite Wizard',    icon: Package        },
+      { href: '/store/manage/', label: 'Store Builder', icon: Store },
     ],
   },
   {
-    id: 'security',
-    label: 'Cyber Security',
-    accent: '#FF2D55',
-    icon: '◈',
-    items: [
-      { href: '/dashboard/?tab=events',    label: 'Filter Events',     icon: Zap        },
-      { href: '/dashboard/?tab=shadow-ai', label: 'Shadow AI',         icon: Eye        },
-      { href: '/dashboard/?tab=xai',       label: 'XAI Reports',       icon: FileText   },
-      { href: '/dashboard/?tab=agents',    label: 'Agent Monitor',     icon: Bot        },
-      { href: '/doc-scanner/',             label: 'Document Scanner',  icon: ScanSearch },
-    ],
-  },
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: 'account',
+    label: 'Account',
     accent: '#0A84FF',
     icon: '◈',
     items: [
-      { href: '/dashboard/',               label: 'Overview',       icon: BarChart2  },
-      { href: '/dashboard/?tab=log',       label: 'Event Log',      icon: List       },
-      { href: '/dashboard/?tab=intel',     label: 'Threat Intel',   icon: Search     },
-      { href: '/deployment/',              label: 'Infrastructure', icon: Activity   },
-      { href: '/dashboard/?tab=metrics',   label: 'Metrics',        icon: Activity   },
-      { href: '/dashboard/?tab=traces',    label: 'Traces',         icon: GitBranch  },
-    ],
-  },
-  {
-    id: 'smb',
-    label: 'SMB Governance',
-    accent: '#FF8C42',
-    icon: '◈',
-    items: [
-      { href: '/vendor-governance/', label: 'Vendor Governance', icon: Building2     },
-      { href: '/incidents/',         label: 'Incident Register', icon: AlertTriangle  },
-      { href: '/prompts/',           label: 'Prompt Library',    icon: BookMarked     },
-      { href: '/training/',          label: 'Training Records',  icon: GraduationCap  },
-      { href: '/cost-allocation/',   label: 'Cost Allocation',   icon: DollarSign     },
-      { href: '/supplier-risk/',     label: 'Supplier Risk',     icon: ShieldAlert    },
-      { href: '/intelligence/',      label: 'Business Intel',    icon: Brain          },
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    accent: '#30D158',
-    icon: '◈',
-    items: [
-      { href: '/api-keys/',                label: 'API Keys',         icon: Key         },
-      { href: '/settings/?tab=secrets',    label: 'Secrets Vault',    icon: Lock        },
-      { href: '/settings/?tab=sovereign',  label: 'Sovereign Routing',icon: Globe       },
-      { href: '/settings/?tab=gdpr',       label: 'GDPR Controls',    icon: Trash2      },
-      { href: '/settings/',                label: 'Billing',          icon: CreditCard  },
-      { href: '/compliance/',              label: 'Compliance',       icon: ShieldCheck },
+      { href: '/dashboard/', label: 'Overview', icon: BarChart2  },
+      { href: '/api-keys/',  label: 'API Keys', icon: Key        },
+      { href: '/settings/',  label: 'Settings', icon: CreditCard },
     ],
   },
 ]
 
 const singleLinks = [
-  { href: '/sdk/',                               label: 'SDK & API', accent: '#30D158', icon: BookOpen,    external: false },
-  { href: 'https://shadow-warden-ai.com#docs',  label: 'Docs',      accent: '#FFD60A', icon: BookOpen,    external: true  },
-  { href: '/settings/?tab=billing',             label: 'Price',     accent: '#FF8C42', icon: DollarSign,  external: false },
+  { href: '/sdk/',                                  label: 'SDK & API', accent: '#30D158', icon: BookOpen,   external: false },
+  { href: 'https://www.shadow-warden-ai.com/doc',   label: 'Docs',      accent: '#FFD60A', icon: BookOpen,   external: true  },
+  { href: 'https://www.shadow-warden-ai.com/price', label: 'Price',     accent: '#FF8C42', icon: DollarSign, external: true  },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
   const router   = useRouter()
   const { theme, toggle } = useTheme()
-  const [open, setOpen] = useState<Record<string, boolean>>({ dashboard: true })
+  const [open, setOpen] = useState<Record<string, boolean>>({ store: true, account: true })
 
   const isDark = theme === 'dark'
   const sidebarBg    = isDark ? '#0D0D14' : '#ffffff'

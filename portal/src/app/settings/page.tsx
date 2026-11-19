@@ -609,12 +609,8 @@ export default function SettingsPage() {
           <QuickNav />
           <ProfileSection />
           <NotificationsSection />
-          <SecuritySection />
-          <StorageSection />
-          <FinancialSection />
           <PasswordSection />
           <BillingSection />
-          <InstallSection />
         </div>
       </div>
     </>
