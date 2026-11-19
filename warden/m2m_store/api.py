@@ -65,6 +65,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from warden.admin_guard import require_admin_key
 from warden.auth_guard import AuthResult, require_api_key
 from warden.limiter import limiter as _limiter
+from warden.m2m_store import customers as cust
 from warden.m2m_store import media, plans
 from warden.m2m_store import order_requests as orq
 from warden.m2m_store import storefront as sf
@@ -706,6 +707,42 @@ async def set_order_payment_link(request_id: str, body: orq.PaymentLinkIn,
                                  auth: AuthResult = OwnerDep):
     with _store_errors():
         return orq.set_payment_link(request_id, auth.tenant_id, body.url)
+
+
+# ── Customers (R8.1) ──────────────────────────────────────────────────────────
+# The seller's own buyers, built from its order requests. Owner routes only:
+# another seller's customer reads as 404, never 403.
+
+@router.get("/stores/{store_id}/customers", response_model=list[dict])
+async def list_customers(store_id: str, q: str = Query(default="", max_length=100),
+                         auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.list_customers(store_id, auth.tenant_id, q)
+
+
+@router.get("/stores/{store_id}/customers/{customer_id}", response_model=dict)
+async def get_customer(store_id: str, customer_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.get_customer(store_id, auth.tenant_id, customer_id)
+
+
+@router.patch("/stores/{store_id}/customers/{customer_id}", response_model=dict)
+async def update_customer(store_id: str, customer_id: str, body: cust.CustomerPatch,
+                          auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.update_customer(store_id, auth.tenant_id, customer_id, body)
+
+
+@router.get("/stores/{store_id}/customers/{customer_id}/export", response_model=dict)
+async def export_customer(store_id: str, customer_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.export_customer(store_id, auth.tenant_id, customer_id)
+
+
+@router.delete("/stores/{store_id}/customers/{customer_id}", status_code=204)
+async def erase_customer(store_id: str, customer_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        cust.erase_customer(store_id, auth.tenant_id, customer_id)
 
 
 # ── Plans ─────────────────────────────────────────────────────────────────────
