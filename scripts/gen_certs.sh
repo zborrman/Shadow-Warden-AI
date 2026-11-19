@@ -221,7 +221,7 @@ print(d.get('warden', {}).get('mtls', {}).get('allowedCNs', ''))
                     | paste -sd ',' -)
                 info "Patching MTLS_ALLOWED_CNS:  $current_cns  →  ${new_cns:-<empty>}"
                 helm upgrade "$KUBE_RELEASE" \
-                    "$(cd "$(dirname "$0")/.." && pwd)/helm/shadow-warden" \
+                    "$(cd "$(dirname "$0")/.." && pwd)/charts/shadow-warden" \
                     --namespace "$KUBE_NAMESPACE" \
                     --reuse-values \
                     --set "warden.mtls.allowedCNs=${new_cns}" \
@@ -250,7 +250,7 @@ print(d.get('warden', {}).get('mtls', {}).get('allowedCNs', ''))
         echo ""
         echo "    kubectl not found. To enforce revocation, run:"
         echo "      bash scripts/gen_certs.sh kube-apply ${KUBE_NAMESPACE}"
-        echo "      helm upgrade $KUBE_RELEASE helm/shadow-warden \\"
+        echo "      helm upgrade $KUBE_RELEASE charts/shadow-warden \\"
         echo "        --namespace $KUBE_NAMESPACE --reuse-values \\"
         echo "        --set warden.mtls.allowedCNs=\"<list without $cn>\""
         echo "      kubectl rollout restart deploy/${KUBE_RELEASE}-warden -n ${KUBE_NAMESPACE}"

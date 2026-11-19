@@ -230,7 +230,7 @@ curl -o /etc/docker/seccomp/warden-seccomp.json \
 For Kubernetes (Helm values):
 
 ```yaml
-# helm/shadow-warden/values.yaml
+# charts/shadow-warden/values.yaml
 podSecurityContext:
   seccompProfile:
     type: RuntimeDefault   # or Localhost with a custom profile path

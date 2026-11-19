@@ -47,11 +47,11 @@ output "helm_deploy_command" {
     kubectl create namespace shadow-warden --dry-run=client -o yaml | kubectl apply -f -
 
     # 3. Create Key Vault secret store (CSI) for ANTHROPIC_API_KEY
-    #    See: helm/shadow-warden/templates/ — SecretProviderClass not included;
+    #    See: charts/shadow-warden/templates/ — SecretProviderClass not included;
     #    configure per your Key Vault CSI driver setup.
 
     # 4. Deploy with Helm
-    helm upgrade --install shadow-warden ./helm/shadow-warden \
+    helm upgrade --install shadow-warden ./charts/shadow-warden \
       --namespace shadow-warden \
       --set warden.image.repository=${azurerm_container_registry.main.login_server}/shadow-warden/gateway \
       --set warden.image.tag=${var.warden_image_tag} \

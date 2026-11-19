@@ -41,7 +41,7 @@ from `logs.json` (`warden/main.py:1865`) — that data exists, it is just never
 exported to Prometheus.
 
 Separately, ~204 distinct SQLite files are the primary store. 48 call sites pass
-`turso_name=`; 9 modules touch Postgres. `k8s/hpa.yaml` scales 2→10 replicas.
+`turso_name=`; 9 modules touch Postgres. `k8s/hpa.yaml` scaled 2→10 replicas (removed 2026-11-19; the remaining chart runs one).
 Node-local SQLite and 2+ replicas are mutually exclusive; today that is hidden
 because prod runs a single compose node at 0 rps.
 

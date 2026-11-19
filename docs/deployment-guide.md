@@ -2,6 +2,18 @@
 
 **Version:** 0.4.0 · **Audience:** Platform / DevSecOps engineers
 
+> **Status (2026-11-19): Kubernetes is not a supported deployment.** Production
+> runs from `docker-compose.yml` on a single host (see `docs/capability-matrix.md`,
+> "High availability"). The only Helm chart is `charts/shadow-warden/`; it is
+> lint- and render-tested in CI, has never been deployed, and covers only the
+> gateway, Redis, the ARQ worker and their secrets (its `values.yaml` header says
+> what it leaves out). It also runs one replica: module state lives in node-local
+> SQLite, so a second replica would split it (plan-85 P-5). The second chart this
+> guide was written against, `helm/shadow-warden/`, was removed - unmaintained
+> since 2026-05, never linted, and pinned to the `latest` image. Sections 4-11
+> below describe that removed chart and are kept for reference only; do not run
+> them as written.
+
 ---
 
 ## Table of Contents
