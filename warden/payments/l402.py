@@ -37,7 +37,9 @@ import secrets
 import time
 from typing import Any
 
-from warden.config import settings
+from warden.config import data_path, settings
+from warden.db.connect import open_db
+from warden.db.ddl_registry import register
 from warden.secret_keys import resolve_key
 
 log = logging.getLogger("warden.payments.l402")
@@ -140,6 +142,52 @@ def verify_macaroon(macaroon_b64: str, preimage_hex: str) -> tuple[bool, dict[st
     except Exception as exc:  # noqa: BLE001
         log.warning("l402: macaroon rejected, could not be verified: %s", type(exc).__name__)
         return False, {"error": "unverifiable_macaroon"}
+
+
+# ── Single use ─────────────────────────────────────────────────────────────────
+# A macaroon + preimage proves one invoice was paid; it must buy one call, not
+# every call until it expires.
+
+_USED_DDL = """
+    CREATE TABLE IF NOT EXISTS l402_used_macaroons (
+        token_hash TEXT PRIMARY KEY,
+        used_at    INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_l402_used_expiry ON l402_used_macaroons(expires_at);
+"""
+register("payments_l402", "warden.payments.l402", _USED_DDL)
+
+
+def _used_db_path() -> str:
+    return data_path("warden_l402.db", "L402_DB_PATH")
+
+
+def consume_macaroon(macaroon_b64: str, expires_at: int) -> bool:
+    """Record a verified macaroon as spent. True the first time, False after.
+
+    Fail-CLOSED: if the record cannot be written the macaroon is not honoured
+    (the caller then charges another way), because "could not check for a
+    replay" must not read as "not a replay".
+    """
+    token_hash = hashlib.sha256(macaroon_b64.encode()).hexdigest()
+    now = int(time.time())
+    path = _used_db_path()
+    try:
+        with open_db("payments_l402", path, module_default_path=path) as con:
+            con.execute("DELETE FROM l402_used_macaroons WHERE expires_at < ?", (now,))
+            cur = con.execute(
+                "INSERT OR IGNORE INTO l402_used_macaroons (token_hash, used_at, expires_at) "
+                "VALUES (?, ?, ?)",
+                (token_hash, now, max(int(expires_at), now)),
+            )
+            if cur.rowcount != 1:
+                log.warning("l402: macaroon replay refused")
+                return False
+            return True
+    except Exception as exc:
+        log.warning("l402: spent-token record unavailable, macaroon refused: %s", type(exc).__name__)
+        return False
 
 
 def parse_authorization_header(authorization: str) -> tuple[str, str]:
