@@ -14,9 +14,15 @@ import os
 import requests
 import streamlit as st
 
+from warden.config import settings
+
 _API = os.getenv("WARDEN_API_URL", "http://localhost:8001")
-_KEY = os.getenv("WARDEN_API_KEY", "")
+_KEY = settings.warden_api_key
 _HDR = {"X-API-Key": _KEY} if _KEY else {}
+# Boundary edits, suspend and restore are operator-only (X-Admin-Key) since
+# PR #766. Sent only on those writes; reads stay on the tenant key.
+_ADMIN_KEY = os.getenv("ADMIN_KEY", "")
+_ADMIN_HDR = {**_HDR, "X-Admin-Key": _ADMIN_KEY} if _ADMIN_KEY else _HDR
 
 st.set_page_config(page_title="Digital Staff", page_icon="🤖", layout="wide")
 st.title("Digital Staff — 20x Company Roster")
@@ -37,10 +43,14 @@ def _api(path: str) -> dict | list | None:
 
 
 def _post(path: str, **kw) -> dict | None:
+    if not _ADMIN_KEY:
+        st.error("ADMIN_KEY is not set for this dashboard: boundary changes need it.")
+        return None
     try:
-        r = requests.post(f"{_API}{path}", headers=_HDR, timeout=5, **kw)
+        r = requests.post(f"{_API}{path}", headers=_ADMIN_HDR, timeout=5, **kw)
         if r.ok:
             return r.json()
+        st.error(f"Gateway refused the change (HTTP {r.status_code}).")
     except Exception:  # noqa: BLE001
         pass
     return None
