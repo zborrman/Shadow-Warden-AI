@@ -48,6 +48,12 @@ services:
     image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
     container_name: warden-proxy
     restart: unless-stopped
+    # No limit before 2026-11-19: a runaway proxy could take the whole host. Live use ~30 MiB.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
     labels:
       - "autoheal=true"   # R3 — hung-but-not-crashed proxy gets auto-restarted
     logging:
@@ -559,6 +565,12 @@ services:
     image: minio/minio:latest@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: warden-minio
     restart: unless-stopped
+    # No limit before 2026-11-19. Live use ~210 MiB.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
     logging:
       driver: "json-file"
       options:
