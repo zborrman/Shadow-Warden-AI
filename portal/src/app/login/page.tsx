@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, AlertCircle, ShieldCheck, Zap, Lock } from 'lucide-react'
-import { login } from '@/lib/auth'
+import { completeTotp, login } from '@/lib/auth'
 
 const schema = z.object({
   email:    z.string().email('Invalid email'),
@@ -30,6 +30,9 @@ export default function LoginPage() {
   const router = useRouter()
   const [showPw, setShowPw] = useState(false)
   const [error, setError]   = useState('')
+  const [totpSession, setTotpSession] = useState('')
+  const [code, setCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver: zodResolver(schema),
   })
@@ -37,11 +40,28 @@ export default function LoginPage() {
   async function onSubmit(data: Form) {
     setError('')
     try {
-      await login(data.email, data.password)
+      const r = await login(data.email, data.password)
+      if ('requires_totp' in r) { setTotpSession(r.totp_session); return }
       router.replace('/dashboard/')
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setError(msg || 'Login failed. Please try again.')
+    }
+  }
+
+  async function onCode() {
+    setError('')
+    setVerifying(true)
+    try {
+      await completeTotp(totpSession, code)
+      router.replace('/dashboard/')
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(msg || 'That code did not work. Try the current one.')
+      // An expired step-one session cannot be retried with another code.
+      if (msg?.includes('expired')) { setTotpSession(''); setCode('') }
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -154,6 +174,29 @@ export default function LoginPage() {
               </div>
             )}
 
+            {totpSession ? (
+              <form onSubmit={e => { e.preventDefault(); if (code.length === 6) onCode() }} className="space-y-4">
+                <div>
+                  <label htmlFor="totp-code" className="label">Authentication code</label>
+                  <input id="totp-code" value={code}
+                         onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                         inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="123456"
+                         className="input font-mono tracking-[0.3em]" />
+                  <p className="text-[11px] mt-1.5" style={{ color: '#64748b' }}>
+                    Open your authenticator app and enter the 6-digit code for Shadow Warden AI.
+                  </p>
+                </div>
+                <button type="submit" disabled={verifying || code.length !== 6} className="btn-primary w-full">
+                  {verifying
+                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : 'Verify →'}
+                </button>
+                <button type="button" onClick={() => { setTotpSession(''); setCode(''); setError('') }}
+                        className="w-full text-[12px]" style={{ color: '#64748b' }}>
+                  Use a different account
+                </button>
+              </form>
+            ) : (<>
             <div>
               <label className="label">Email</label>
               <input
@@ -200,6 +243,7 @@ export default function LoginPage() {
                 ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : 'Sign In →'}
             </button>
+            </>)}
           </div>
 
           <p className="text-center text-[12px] mt-5" style={{ color: '#475569' }}>

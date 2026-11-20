@@ -4,13 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Check, Loader2, Mail, NotebookPen, Package, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { formatWhen } from '@/lib/prefs'
 import { errorMessage, storeApi, type JournalEntry } from '@/lib/storeApi'
 
-const when = (iso: string) => {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso
-    : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(d)
-}
+const when = (iso: string) => formatWhen(iso, true)
 
 const field = 'w-full rounded-md border border-white/10 bg-dark-900 p-2 text-sm text-slate-100 focus:border-brand-500/50 focus:outline-none'
 
