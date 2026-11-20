@@ -10,11 +10,14 @@
  *   POST /api/compliance/posture/recalculate
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePortalSession } from '@/lib/server/portalSession'
 
 const WARDEN_URL = process.env.WARDEN_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://warden:8001'
 const API_KEY    = process.env.WARDEN_API_KEY || ''
 
 async function proxy(req: NextRequest): Promise<NextResponse> {
+  const user = await requirePortalSession(req)
+  if (user instanceof NextResponse) return user
   // Strip /api/compliance prefix → /compliance/...
   const path   = req.nextUrl.pathname.replace(/^\/api\/compliance/, '/compliance')
   const qs     = req.nextUrl.search || ''

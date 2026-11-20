@@ -6,6 +6,7 @@ import {
   XCircle, Eye, EyeOff, Loader2, ScanSearch,
 } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
+import { sessionHeaders } from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export default function DocScannerPage() {
     fd.append('tenant_id', 'default')
 
     try {
-      const res  = await fetch('/api/doc-scanner', { method: 'POST', body: fd })
+      const res  = await fetch('/api/doc-scanner', { method: 'POST', body: fd, headers: sessionHeaders() })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail ?? `HTTP ${res.status}`)
       setResult(data as ScanResult)

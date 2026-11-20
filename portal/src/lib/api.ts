@@ -55,3 +55,8 @@ api.interceptors.response.use(
     return Promise.reject(err)
   }
 )
+
+/** Authorization header for the portal's own /api/* proxies, which check the session. */
+export function sessionHeaders(): Record<string, string> {
+  return _accessToken ? { Authorization: `Bearer ${_accessToken}` } : {}
+}

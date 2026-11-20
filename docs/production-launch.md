@@ -29,7 +29,7 @@ M2M Agentic Marketplace full-stack release.
 - [ ] `MARKETPLACE_CONTRACT_ADDRESS` — Sepolia escrow contract (or leave blank for off-chain)
 - [ ] `S3_ENABLED=true` + MinIO credentials configured
 - [ ] `ALLOW_UNAUTHENTICATED=false` — CRITICAL: never true in production
-- [ ] `CORS_ORIGINS` — includes `https://shadow-warden-ai.com,https://app.shadow-warden-ai.com,https://dash.shadow-warden-ai.com`
+- [ ] `CORS_ORIGINS` — includes `https://shadow-warden-ai.com,https://portal.shadow-warden-ai.com,https://dash.shadow-warden-ai.com`
 
 ### Infrastructure
 - [ ] SSL certificates: Caddy auto-provisions via ACME (requires DNS pointing to server)
@@ -164,7 +164,7 @@ curl -f http://localhost:8001/health
 | Service | URL |
 |---------|-----|
 | API Gateway | `https://api.shadow-warden-ai.com` |
-| Customer Portal | `https://app.shadow-warden-ai.com` |
+| Customer Portal | `https://portal.shadow-warden-ai.com` |
 | SOC Dashboard | `https://dash.shadow-warden-ai.com` |
 | API Docs (Redoc) | `https://docs.shadow-warden-ai.com` |
 | Grafana | `http://91.98.234.160:3000` |

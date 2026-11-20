@@ -745,7 +745,7 @@ class Settings:
         default_factory=lambda: _env("WARDEN_INTERNAL_URL", "http://localhost:8001")
     )
     billing_page_portal_url: str = field(
-        default_factory=lambda: _env("PORTAL_BASE_URL", "https://app.shadow-warden-ai.com")
+        default_factory=lambda: _env("PORTAL_BASE_URL", "https://portal.shadow-warden-ai.com")
     )
     billing_page_warden_url: str = field(
         default_factory=lambda: _env("WARDEN_BASE_URL", "https://api.shadow-warden-ai.com")
@@ -1701,7 +1701,7 @@ class Settings:
         default_factory=lambda: _env("PORTAL_FROM", "")
     )
     portal_url: str = field(
-        default_factory=lambda: _env("PORTAL_URL", "https://app.shadow-warden-ai.com")
+        default_factory=lambda: _env("PORTAL_URL", "https://portal.shadow-warden-ai.com")
     )
     # Random per-process default if unset — matches portal_router's prior behaviour.
     portal_jwt_secret: str = field(

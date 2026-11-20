@@ -4,12 +4,14 @@
  * All calls go through /api/marketplace/* (server-side proxy).
  */
 
+import { sessionHeaders } from './api'
+
 const BASE = '/api/marketplace'
 
 async function mFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...sessionHeaders(), ...(init?.headers ?? {}) },
   })
   if (!res.ok) {
     const body = await res.text().catch(() => res.statusText)

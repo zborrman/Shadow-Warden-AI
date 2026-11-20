@@ -757,7 +757,7 @@
     "version": "",
     "tier": "All",
     "status": "planned",
-    "description": "A 5-step guided setup wizard in the Tenant Portal (app.shadow-warden-ai.com). Steps: (1) Generate API key, (2) Choose tier, (3) Configure integrations, (4) Run first security scan, (5) Review dashboard. New tenants go from zero to live protection in under 5 minutes."
+    "description": "A 5-step guided setup wizard in the Tenant Portal (portal.shadow-warden-ai.com). Steps: (1) Generate API key, (2) Choose tier, (3) Configure integrations, (4) Run first security scan, (5) Review dashboard. New tenants go from zero to live protection in under 5 minutes."
   },
   {
     "id": "FE-16",

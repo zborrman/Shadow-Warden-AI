@@ -393,7 +393,7 @@ async def _check_payment(
 _DEFAULT_ALLOWED_ORIGINS = (
     "https://shadow-warden-ai.com",
     "https://www.shadow-warden-ai.com",
-    "https://app.shadow-warden-ai.com",
+    "https://portal.shadow-warden-ai.com",
     "https://docs.shadow-warden-ai.com",
 )
 

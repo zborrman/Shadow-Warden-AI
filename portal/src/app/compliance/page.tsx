@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, RefreshCw, AlertTriangle, CheckCircle, XCircle, ChevronRight } from 'lucide-react'
 import { useTheme } from '@/components/ui/ThemeProvider'
+import { sessionHeaders } from '@/lib/api'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,10 +67,10 @@ const MODULE_LINKS: Record<string, string> = {
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function fetchReport(tenantId: string): Promise<ComplianceReport> {
-  const res = await fetch(`/api/compliance/posture/recalculate?tenant_id=${tenantId}`, { method: 'POST' })
+  const res = await fetch(`/api/compliance/posture/recalculate?tenant_id=${tenantId}`, { method: 'POST', headers: sessionHeaders() })
   if (!res.ok) {
     // Fall back to GET posture
-    const r2 = await fetch(`/api/compliance/posture/gaps?tenant_id=${tenantId}`)
+    const r2 = await fetch(`/api/compliance/posture/gaps?tenant_id=${tenantId}`, { headers: sessionHeaders() })
     if (!r2.ok) throw new Error(`${r2.status}`)
     return r2.json()
   }
@@ -98,7 +99,7 @@ export default function CompliancePage() {
   })
 
   const recalcMutation = useMutation({
-    mutationFn: () => fetch('/api/compliance/posture/recalculate?tenant_id=default', { method: 'POST' }),
+    mutationFn: () => fetch('/api/compliance/posture/recalculate?tenant_id=default', { method: 'POST', headers: sessionHeaders() }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['compliance-posture'] }),
   })
 
