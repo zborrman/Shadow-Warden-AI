@@ -149,7 +149,9 @@ function ProductForm({ store, product, onDone, onCreated }: {
             className="space-y-5 rounded-xl border border-white/10 bg-dark-800 p-4 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <TextInput label="Name" value={name} onChange={e => setName(e.target.value)} maxLength={200} required />
-          <SelectInput label="Category" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
+          <SelectInput label="Category" value={categoryId} onChange={e => setCategoryId(e.target.value)}
+                       hint={categories.length ? undefined
+                             : 'No categories yet. Add them in the Categories tab, then pick one here.'}>
             <option value="">None</option>
             {categories.map(([c, d]) => <option key={c.id} value={c.id}>{'— '.repeat(d)}{c.name}</option>)}
           </SelectInput>
