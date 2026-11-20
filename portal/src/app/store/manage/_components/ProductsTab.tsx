@@ -78,6 +78,18 @@ function Thumb({ image, size = 40 }: { image?: ProductImage; size?: number }) {
   )
 }
 
+/** Common selling units; anything else goes through "Other". */
+const UNITS: [string, string][] = [
+  ['Count', ''], ['unit', 'unit (piece)'], ['pair', 'pair'], ['pack', 'pack'], ['set', 'set'], ['box', 'box'],
+  ['Weight', ''], ['g', 'gram (g)'], ['kg', 'kilogram (kg)'], ['oz', 'ounce (oz)'], ['lb', 'pound (lb)'],
+  ['Volume', ''], ['ml', 'millilitre (ml)'], ['l', 'litre (l)'], ['fl oz', 'fluid ounce (fl oz)'], ['gal', 'gallon (gal)'],
+  ['Length', ''], ['cm', 'centimetre (cm)'], ['m', 'metre (m)'], ['in', 'inch (in)'], ['ft', 'foot (ft)'], ['yd', 'yard (yd)'],
+  ['Area', ''], ['m²', 'square metre (m²)'], ['ft²', 'square foot (ft²)'],
+  ['Time', ''], ['hour', 'hour'], ['day', 'day'], ['month', 'month'],
+]
+const UNIT_VALUES = new Set(UNITS.filter(([, l]) => l).map(([v]) => v))
+const OTHER = '__other__'
+
 function ProductForm({ store, product, onDone, onCreated }: {
   store: Store; product: StoreProduct | null; onDone: () => void; onCreated: (p: StoreProduct) => void
 }) {
@@ -88,6 +100,7 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const [description, setDescription] = useState(product?.description ?? '')
   const [categoryId, setCategoryId] = useState(product?.category_id ?? '')
   const [unit, setUnit] = useState(product?.unit ?? 'unit')
+  const [otherUnit, setOtherUnit] = useState(!UNIT_VALUES.has(product?.unit ?? 'unit'))
   const [stock, setStock] = useState(String(product?.stock ?? 0))
   const [active, setActive] = useState(product?.active ?? true)
   const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(
@@ -160,7 +173,24 @@ function ProductForm({ store, product, onDone, onCreated }: {
         <div className="grid gap-4 sm:grid-cols-3">
           <TextInput label="Stock" type="number" min={0} step={1} value={stock} onChange={e => setStock(e.target.value)}
                      error={Number.isInteger(stockN) && stockN >= 0 ? undefined : 'A whole number, 0 or more'} />
-          <TextInput label="Unit" value={unit} onChange={e => setUnit(e.target.value)} maxLength={40} hint='e.g. "unit", "kg", "pack"' />
+          <div className="space-y-2">
+            <SelectInput label="Unit" value={otherUnit ? OTHER : unit}
+                         onChange={e => {
+                           if (e.target.value === OTHER) { setOtherUnit(true); setUnit('') }
+                           else { setOtherUnit(false); setUnit(e.target.value) }
+                         }}>
+              {groupUnits().map(([group, items]) => (
+                <optgroup key={group} label={group}>
+                  {items.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </optgroup>
+              ))}
+              <option value={OTHER}>Other…</option>
+            </SelectInput>
+            {otherUnit && (
+              <TextInput label="Your unit" value={unit} onChange={e => setUnit(e.target.value)} maxLength={40}
+                         placeholder="e.g. roll, sheet" />
+            )}
+          </div>
           <label className="flex items-center gap-3 self-end pb-2 text-sm text-slate-300">
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-sky-500" />
             Visible to buyers
@@ -276,4 +306,13 @@ function ImagesPanel({ store, product }: { store: Store; product: StoreProduct }
       )}
     </section>
   )
+}
+
+function groupUnits(): [string, [string, string][]][] {
+  const out: [string, [string, string][]][] = []
+  for (const [v, l] of UNITS) {
+    if (!l) out.push([v, []])
+    else out[out.length - 1][1].push([v, l])
+  }
+  return out
 }
