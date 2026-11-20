@@ -745,6 +745,38 @@ async def erase_customer(store_id: str, customer_id: str, auth: AuthResult = Own
         cust.erase_customer(store_id, auth.tenant_id, customer_id)
 
 
+# Journal (R8.2): the seller's log and message drafts. Nothing here sends mail.
+
+@router.get("/stores/{store_id}/customers/{customer_id}/journal", response_model=list[dict])
+async def customer_journal(store_id: str, customer_id: str, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.journal(store_id, auth.tenant_id, customer_id)
+
+
+@router.post("/stores/{store_id}/customers/{customer_id}/journal", response_model=dict,
+             status_code=201)
+async def add_journal_entry(store_id: str, customer_id: str, body: cust.JournalIn,
+                            auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.add_entry(store_id, auth.tenant_id, customer_id, body)
+
+
+@router.patch("/stores/{store_id}/customers/{customer_id}/journal/{entry_id}",
+              response_model=dict)
+async def update_journal_entry(store_id: str, customer_id: str, entry_id: str,
+                               body: cust.JournalPatch, auth: AuthResult = OwnerDep):
+    with _store_errors():
+        return cust.update_entry(store_id, auth.tenant_id, customer_id, entry_id, body)
+
+
+@router.delete("/stores/{store_id}/customers/{customer_id}/journal/{entry_id}",
+               status_code=204)
+async def delete_journal_entry(store_id: str, customer_id: str, entry_id: str,
+                               auth: AuthResult = OwnerDep):
+    with _store_errors():
+        cust.delete_entry(store_id, auth.tenant_id, customer_id, entry_id)
+
+
 # ── Plans ─────────────────────────────────────────────────────────────────────
 # The seller reads its own plan and may start its one trial. Putting a tenant on
 # a plan is the operator's act (X-Admin-Key) until a payment rail exists; the

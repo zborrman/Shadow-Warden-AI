@@ -18,7 +18,13 @@ where a persistent buyer record is forbidden - that contour is R8.5).
   requests themselves stay: they are the seller's commercial record, kept on
   that basis, and a later order from the same address starts a new card
   (the erased card's links stay, pointed at a tombstone, so it is not rebuilt).
-* No marketing consent is recorded or inferred here; R8.1 has no messaging.
+* No marketing consent is recorded or inferred here.
+* R8.2 journal: the seller's own log about a customer (calls, meetings) and
+  message drafts. The platform never sends a message: a draft is written here,
+  the seller sends it from its own mail client and marks it sent, which locks
+  it. The timeline also shows the status changes of the customer's order
+  requests, read from their history, so nothing is copied. Entries are sealed
+  like the notes and go with the card on erasure.
 """
 from __future__ import annotations
 
@@ -59,6 +65,19 @@ _DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_m2m_customer_orders_customer
         ON m2m_customer_orders(customer_id);
+    CREATE TABLE IF NOT EXISTS m2m_customer_journal (
+        id               TEXT PRIMARY KEY,
+        customer_id      TEXT NOT NULL,
+        store_id         TEXT NOT NULL,
+        seller_tenant_id TEXT NOT NULL,
+        kind             TEXT NOT NULL,
+        status           TEXT NOT NULL,
+        body_enc         TEXT NOT NULL,
+        created_at       TEXT NOT NULL,
+        updated_at       TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_m2m_customer_journal_customer
+        ON m2m_customer_journal(customer_id, created_at);
 """
 register("m2m_store", "customers", _DDL)
 
@@ -67,6 +86,11 @@ MAX_TAGS = 10
 MAX_TAG_LEN = 32
 MAX_LIST = 500
 _ERASED = "erased"
+MAX_SUBJECT = 200
+MAX_BODY = 5000
+MAX_ENTRIES = 500
+NOTE, MESSAGE = "note", "message"
+LOGGED, DRAFT, SENT = "LOGGED", "DRAFT", "SENT"
 # Statuses in which the seller agreed to sell: what the buyer "spent" with it.
 _COUNTED = frozenset({orq.ACCEPTED, orq.PAID, orq.SHIPPED, orq.COMPLETED})
 
@@ -90,6 +114,18 @@ class CustomerPatch(BaseModel):
             if t not in out:
                 out.append(t)
         return out
+
+
+class JournalIn(BaseModel):
+    kind: str = Field(pattern="^(note|message)$")
+    subject: str = Field(default="", max_length=MAX_SUBJECT)
+    body: str = Field(min_length=1, max_length=MAX_BODY)
+
+
+class JournalPatch(BaseModel):
+    subject: str | None = Field(default=None, max_length=MAX_SUBJECT)
+    body: str | None = Field(default=None, min_length=1, max_length=MAX_BODY)
+    sent: bool = False
 
 
 def _index_key() -> bytes:
@@ -246,6 +282,8 @@ def update_customer(store_id: str, tenant_id: str, customer_id: str,
 def export_customer(store_id: str, tenant_id: str, customer_id: str) -> dict[str, Any]:
     """Everything held about one person, for an access/portability request."""
     view = get_customer(store_id, tenant_id, customer_id)
+    view["journal"] = [e for e in journal(store_id, tenant_id, customer_id)
+                       if e["type"] != "order"]
     view["exported_at"] = _now()
     view["note"] = ("Order requests are listed in full because they hold this person's "
                     "data; erasing the customer removes the card, not the orders.")
@@ -260,4 +298,111 @@ def erase_customer(store_id: str, tenant_id: str, customer_id: str) -> None:
         # row holds, so deleting them would rebuild the card on the next read.
         con.execute("UPDATE m2m_customer_orders SET customer_id=? WHERE customer_id=?",
                     (_ERASED, customer_id))
+        con.execute("DELETE FROM m2m_customer_journal WHERE customer_id=?", (customer_id,))
         con.execute("DELETE FROM m2m_customers WHERE id=?", (customer_id,))
+
+
+# ── Journal (R8.2) ────────────────────────────────────────────────────────────
+
+def _screen(*texts: str) -> None:
+    for t in texts:
+        if t:
+            try:
+                validate_content_string(t, "journal")
+            except PromptInjectionError as exc:
+                raise sf.StoreInvalidError("the entry was refused") from exc
+
+
+def _entry_view(e: Any) -> dict[str, Any]:
+    body = orq._open(e["body_enc"])
+    return {"id": e["id"], "type": e["kind"], "status": e["status"],
+            "subject": body.get("subject", ""), "body": body.get("body", ""),
+            "at": e["created_at"], "updated_at": e["updated_at"]}
+
+
+def journal(store_id: str, tenant_id: str, customer_id: str) -> list[dict[str, Any]]:
+    """Newest first: the seller's entries and the order requests' status changes."""
+    sf.get_store(store_id, tenant_id)
+    with _db_lock, _conn() as con:
+        _card(store_id, tenant_id, customer_id, con)
+        out = [_entry_view(e) for e in con.execute(
+            "SELECT * FROM m2m_customer_journal WHERE customer_id=? AND seller_tenant_id=?",
+            (customer_id, tenant_id),
+        ).fetchall()]
+        for o in _orders(con, customer_id):
+            for h in json.loads(o["history_json"]):
+                if "status" in h and "event" not in h:
+                    out.append({"id": f"{o['id']}:{h['at']}", "type": "order",
+                                "request_id": o["id"], "status": h["status"],
+                                "by": h.get("by", ""), "at": h["at"]})
+    out.sort(key=lambda e: e["at"], reverse=True)
+    return out
+
+
+def add_entry(store_id: str, tenant_id: str, customer_id: str,
+              body: JournalIn) -> dict[str, Any]:
+    sf.get_store(store_id, tenant_id)
+    _screen(body.subject, body.body)
+    now = _now()
+    sealed = orq._seal({"subject": body.subject, "body": body.body})
+    with _db_lock, _conn() as con:
+        _card(store_id, tenant_id, customer_id, con)
+        eid = uuid.uuid4().hex
+        # One conditional INSERT, so two writers cannot pass the cap together.
+        cur = con.execute(
+            "INSERT INTO m2m_customer_journal(id, customer_id, store_id, seller_tenant_id,"
+            " kind, status, body_enc, created_at, updated_at)"
+            " SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM m2m_customer_journal"
+            " WHERE customer_id=?) < ?",
+            (eid, customer_id, store_id, tenant_id, body.kind,
+             DRAFT if body.kind == MESSAGE else LOGGED, sealed, now, now,
+             customer_id, MAX_ENTRIES),
+        )
+        if cur.rowcount != 1:
+            raise sf.StoreConflictError(f"a customer holds at most {MAX_ENTRIES} entries")
+        return _entry_view(con.execute(
+            "SELECT * FROM m2m_customer_journal WHERE id=?", (eid,)).fetchone())
+
+
+def _entry(con: Any, tenant_id: str, customer_id: str, entry_id: str) -> Any:
+    e = con.execute(
+        "SELECT * FROM m2m_customer_journal WHERE id=? AND customer_id=? AND seller_tenant_id=?",
+        (entry_id, customer_id, tenant_id),
+    ).fetchone()
+    if e is None:
+        raise sf.StoreNotFoundError("journal entry")
+    return e
+
+
+def update_entry(store_id: str, tenant_id: str, customer_id: str, entry_id: str,
+                 patch: JournalPatch) -> dict[str, Any]:
+    """Edit a draft, or mark it sent. A sent message and a logged note stay as written."""
+    sf.get_store(store_id, tenant_id)
+    _screen(patch.subject or "", patch.body or "")
+    with _db_lock, _conn() as con:
+        _card(store_id, tenant_id, customer_id, con)
+        e = _entry(con, tenant_id, customer_id, entry_id)
+        if e["status"] != DRAFT:
+            raise sf.StoreConflictError("only a draft message can be changed")
+        body = orq._open(e["body_enc"])
+        if patch.subject is not None:
+            body["subject"] = patch.subject
+        if patch.body is not None:
+            body["body"] = patch.body
+        cur = con.execute(
+            "UPDATE m2m_customer_journal SET body_enc=?, status=?, updated_at=?"
+            " WHERE id=? AND status=?",
+            (orq._seal(body), SENT if patch.sent else DRAFT, _now(), entry_id, DRAFT),
+        )
+        if cur.rowcount != 1:
+            raise sf.StoreConflictError("the entry changed meanwhile; reload it")
+        return _entry_view(con.execute(
+            "SELECT * FROM m2m_customer_journal WHERE id=?", (entry_id,)).fetchone())
+
+
+def delete_entry(store_id: str, tenant_id: str, customer_id: str, entry_id: str) -> None:
+    sf.get_store(store_id, tenant_id)
+    with _db_lock, _conn() as con:
+        _card(store_id, tenant_id, customer_id, con)
+        _entry(con, tenant_id, customer_id, entry_id)
+        con.execute("DELETE FROM m2m_customer_journal WHERE id=?", (entry_id,))

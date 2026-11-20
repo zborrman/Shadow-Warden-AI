@@ -122,6 +122,12 @@ export interface Customer extends CustomerSummary {
   }[]
 }
 
+/** One line of a customer's timeline: the seller's own entry, or an order status change. */
+export type JournalEntry =
+  | { id: string; type: 'note' | 'message'; status: 'LOGGED' | 'DRAFT' | 'SENT'
+      subject: string; body: string; at: string; updated_at: string }
+  | { id: string; type: 'order'; request_id: string; status: OrderRequestStatus; by: string; at: string }
+
 /** Moves the seller may make from each status; mirrors SELLER_MOVES in order_requests.py. */
 export const SELLER_MOVES: Partial<Record<OrderRequestStatus, OrderRequestStatus[]>> = {
   PENDING_MERCHANT: ['ACCEPTED', 'REJECTED'],
@@ -204,4 +210,13 @@ export const storeApi = {
   exportCustomer: (storeId: string, id: string) =>
     get<Record<string, unknown>>(`/stores/${storeId}/customers/${id}/export`),
   eraseCustomer: (storeId: string, id: string) => del(`/stores/${storeId}/customers/${id}`),
+  journal: (storeId: string, id: string) =>
+    get<JournalEntry[]>(`/stores/${storeId}/customers/${id}/journal`),
+  addJournal: (storeId: string, id: string, body: { kind: 'note' | 'message'; subject?: string; body: string }) =>
+    send<JournalEntry>('post', `/stores/${storeId}/customers/${id}/journal`, body),
+  updateJournal: (storeId: string, id: string, entryId: string,
+                  body: { subject?: string; body?: string; sent?: boolean }) =>
+    send<JournalEntry>('patch', `/stores/${storeId}/customers/${id}/journal/${entryId}`, body),
+  deleteJournal: (storeId: string, id: string, entryId: string) =>
+    del(`/stores/${storeId}/customers/${id}/journal/${entryId}`),
 }
