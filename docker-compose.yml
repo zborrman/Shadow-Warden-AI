@@ -1029,6 +1029,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.shadow-warden-ai.com}
+        # Error reports (EU region). Public by design; see portal/src/lib/sentryOptions.ts.
+        NEXT_PUBLIC_SENTRY_DSN: ${PORTAL_SENTRY_DSN:-https://ebd5afc38d02963aec54337c9fd6bbc0@o4512464582279168.ingest.de.sentry.io/4512464623501392}
     container_name: warden-portal
     restart: unless-stopped
     logging:
