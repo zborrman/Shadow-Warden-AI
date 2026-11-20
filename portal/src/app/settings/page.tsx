@@ -51,11 +51,17 @@ function AccountDetails() {
   })
   const { theme, toggle } = useTheme()
   const [prefs, setPrefs] = usePrefs()
+  // Zone list, browser zone and "now" exist only in the browser: reading them during
+  // the server render would differ from the client and break hydration.
   const [zones, setZones] = useState<string[]>([])
+  const [localZone, setLocalZone] = useState('')
+  const [now, setNow] = useState('')
   useEffect(() => {
     const all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf
     setZones(all ? all('timeZone') : [browserTimeZone()])
+    setLocalZone(browserTimeZone())
   }, [])
+  useEffect(() => { setNow(formatWhen(new Date().toISOString(), true, prefs)) }, [prefs])
   const m = me.data
 
   return (
@@ -93,11 +99,11 @@ function AccountDetails() {
         <Row label="Timezone" help="Dates in the portal are shown in this zone." htmlFor="set-tz">
           <select id="set-tz" className="input" value={prefs.timeZone}
                   onChange={e => setPrefs({ timeZone: e.target.value })}>
-            <option value="">Browser default ({browserTimeZone()})</option>
+            <option value="">Browser default{localZone && ` (${localZone})`}</option>
             {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
           </select>
         </Row>
-        <Row label="Use a 24-hour clock" help={`Now: ${formatWhen(new Date().toISOString(), true, prefs)}`}>
+        <Row label="Use a 24-hour clock" help={now ? `Now: ${now}` : undefined}>
           <Switch checked={!prefs.hour12} onChange={v => setPrefs({ hour12: !v })} label="Use a 24-hour clock" />
         </Row>
         <p className="px-5 py-3 text-xs text-slate-500">Preferences are saved on this device.</p>
