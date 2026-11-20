@@ -12,6 +12,11 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=https://api.shadow-warden-ai.com
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Sentry DSN for browser error reports (public by design: it ships in the bundle).
+# Empty means the SDK stays off.
+ARG NEXT_PUBLIC_SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+
 RUN npm run build
 
 # ── Stage 2: standalone Node.js server ────────────────────────────────────────
