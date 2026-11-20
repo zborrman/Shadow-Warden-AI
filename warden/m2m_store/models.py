@@ -71,8 +71,16 @@ class Product(BaseModel):
     stock: int = Field(default=0, ge=0)
     reserved: int = Field(default=0, ge=0)
     unit: str = "unit"
+    # GS1 GTIN (R8.3): digits only, check digit verified; "" when the seller has none.
+    gtin: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
     active: bool = True
+
+    @field_validator("gtin")
+    @classmethod
+    def _gtin(cls, value: str) -> str:
+        from .gtin import normalize
+        return normalize(value)
 
     @field_validator("currency")
     @classmethod

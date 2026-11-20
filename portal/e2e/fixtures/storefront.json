@@ -2,7 +2,7 @@
   "_comment": "Recorded by scripts/storefront_fixture.py from the real m2m_store router. Do not edit by hand.",
   "slug": "alpine",
   "store": {
-    "id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
+    "id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
     "slug": "alpine",
     "name": "Alpine Pantry",
     "description": "Cheese, honey and tea from the Alps.",
@@ -20,20 +20,20 @@
       "it"
     ],
     "active": true,
-    "created_at": "2026-11-06T19:02:54.982328+00:00",
+    "created_at": "2026-11-20T18:25:45.360319+00:00",
     "categories": [
       {
-        "id": "4fbc0ce6-8dea-4278-ab30-3735d7a3ad8f",
-        "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
+        "id": "513fdd7e-463d-4f06-8bfb-7684cacdc649",
+        "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
         "parent_id": "",
         "slug": "cheese",
         "name": "Cheese",
         "position": 0,
         "children": [
           {
-            "id": "146c18d1-c0ff-41e6-a5a4-f3bc67981cc2",
-            "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
-            "parent_id": "4fbc0ce6-8dea-4278-ab30-3735d7a3ad8f",
+            "id": "73fa4b93-3d66-4b00-b7b3-2f385f3c9713",
+            "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
+            "parent_id": "513fdd7e-463d-4f06-8bfb-7684cacdc649",
             "slug": "hard",
             "name": "Hard cheese",
             "position": 0,
@@ -42,8 +42,8 @@
         ]
       },
       {
-        "id": "fdf75e82-3a65-4104-bb93-ed30eb0a2eb5",
-        "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
+        "id": "915ef48b-547a-45fe-80bf-2abf30c3a223",
+        "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
         "parent_id": "",
         "slug": "tea",
         "name": "Tea",
@@ -69,17 +69,17 @@
     ],
     "categories": [
       {
-        "id": "4fbc0ce6-8dea-4278-ab30-3735d7a3ad8f",
-        "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
+        "id": "513fdd7e-463d-4f06-8bfb-7684cacdc649",
+        "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
         "parent_id": "",
         "slug": "cheese",
         "name": "Cheese",
         "position": 0,
         "children": [
           {
-            "id": "146c18d1-c0ff-41e6-a5a4-f3bc67981cc2",
-            "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
-            "parent_id": "4fbc0ce6-8dea-4278-ab30-3735d7a3ad8f",
+            "id": "73fa4b93-3d66-4b00-b7b3-2f385f3c9713",
+            "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
+            "parent_id": "513fdd7e-463d-4f06-8bfb-7684cacdc649",
             "slug": "hard",
             "name": "Hard cheese",
             "position": 0,
@@ -88,8 +88,8 @@
         ]
       },
       {
-        "id": "fdf75e82-3a65-4104-bb93-ed30eb0a2eb5",
-        "store_id": "a6ddd4e5-d408-4b78-aa64-e0aabbf8a7b6",
+        "id": "915ef48b-547a-45fe-80bf-2abf30c3a223",
+        "store_id": "ce13cd9f-2292-4335-9fe1-cec2520a3963",
         "parent_id": "",
         "slug": "tea",
         "name": "Tea",
@@ -99,11 +99,12 @@
     ],
     "products": [
       {
-        "id": "f1fae0ad-5f84-4158-9058-156f189dce18",
+        "id": "d133002f-1473-49e5-be1b-ac48f558dc9d",
         "name": "Gruyère AOP",
         "description": "Gruyère AOP, made in the Alps.",
-        "category_id": "146c18d1-c0ff-41e6-a5a4-f3bc67981cc2",
+        "category_id": "73fa4b93-3d66-4b00-b7b3-2f385f3c9713",
         "unit": "kg",
+        "gtin": "",
         "available": 12,
         "prices": [
           {
@@ -123,22 +124,23 @@
         },
         "images": [
           {
-            "id": "d75f5f3b5cce406fa65578549114fe11",
-            "url": "/m2m-store/storefront/alpine/images/d75f5f3b5cce406fa65578549114fe11",
+            "id": "635de3666ae846b9b078e74da8f58aea",
+            "url": "/m2m-store/storefront/alpine/images/635de3666ae846b9b078e74da8f58aea",
             "content_type": "image/png",
             "bytes": 138,
             "width": 64,
             "height": 64,
-            "created_at": "2026-11-06T19:02:55.149752+00:00"
+            "created_at": "2026-11-20T18:25:45.463085+00:00"
           }
         ]
       },
       {
-        "id": "1e2c3d23-c08d-42a3-b09a-df562b53af80",
+        "id": "cf7484c7-5bbd-44b7-90f2-4d920f0af20a",
         "name": "Alpine herb tea",
         "description": "Alpine herb tea, made in the Alps.",
-        "category_id": "fdf75e82-3a65-4104-bb93-ed30eb0a2eb5",
+        "category_id": "915ef48b-547a-45fe-80bf-2abf30c3a223",
         "unit": "piece",
+        "gtin": "",
         "available": 40,
         "prices": [
           {
@@ -158,13 +160,13 @@
         },
         "images": [
           {
-            "id": "33540cf3fd604d48af023ee7cbb1dbf8",
-            "url": "/m2m-store/storefront/alpine/images/33540cf3fd604d48af023ee7cbb1dbf8",
+            "id": "91ea28d4500f430eab97f7f4b8a3780e",
+            "url": "/m2m-store/storefront/alpine/images/91ea28d4500f430eab97f7f4b8a3780e",
             "content_type": "image/png",
             "bytes": 138,
             "width": 64,
             "height": 64,
-            "created_at": "2026-11-06T19:02:55.227059+00:00"
+            "created_at": "2026-11-20T18:25:45.511820+00:00"
           }
         ]
       }
@@ -172,7 +174,7 @@
     "count": 2
   },
   "quote": {
-    "zone_id": "dca1532e-dbf5-43a9-9693-288692c5b88f",
+    "zone_id": "c55e8265-37e5-436f-b119-b4de84051414",
     "zone": "DACH",
     "country": "DE",
     "currency": "EUR",
@@ -183,7 +185,7 @@
     "max_days": 5
   },
   "order_request": {
-    "id": "ae58c022faf845b19f2e67ca85ce77da",
+    "id": "2eceba0f3234494ea077bea5725cd39d",
     "status": "PENDING_MERCHANT",
     "currency": "EUR",
     "subtotal_minor": 6500,
@@ -196,7 +198,7 @@
     "buyer_tz": "Europe/Berlin",
     "items": [
       {
-        "product_id": "f1fae0ad-5f84-4158-9058-156f189dce18",
+        "product_id": "d133002f-1473-49e5-be1b-ac48f558dc9d",
         "name": "Gruyère AOP",
         "unit": "kg",
         "qty": 2,
@@ -207,13 +209,13 @@
     "history": [
       {
         "status": "PENDING_MERCHANT",
-        "at": "2026-11-06T19:02:55.342806+00:00",
+        "at": "2026-11-20T18:25:45.608177+00:00",
         "by": "buyer"
       }
     ],
     "payment_url": "",
-    "created_at": "2026-11-06T19:02:55.342806+00:00",
-    "updated_at": "2026-11-06T19:02:55.342806+00:00",
+    "created_at": "2026-11-20T18:25:45.608177+00:00",
+    "updated_at": "2026-11-20T18:25:45.608177+00:00",
     "store": "alpine"
   }
 }

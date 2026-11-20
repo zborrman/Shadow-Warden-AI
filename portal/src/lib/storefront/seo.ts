@@ -39,6 +39,7 @@ export function productJsonLd(store: PublicStore, p: FeedProduct) {
     '@type': 'Product',
     '@id': `${url}#product`,
     sku: p.id,
+    ...(p.gtin ? { gtin: p.gtin } : {}),
     name: p.name,
     ...(p.description ? { description: p.description } : {}),
     url,
