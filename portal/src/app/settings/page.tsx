@@ -8,27 +8,28 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import clsx from 'clsx'
-import { CreditCard, ExternalLink, Key, Lock, ShieldCheck, User } from 'lucide-react'
+import { CreditCard, Download, ExternalLink, Key, Lock, ShieldCheck, Trash2, User, UserX } from 'lucide-react'
 import { CopyField, Panel, Row, Switch } from '@/components/ui/settings'
-import { api } from '@/lib/api'
+import { api, setAccessToken } from '@/lib/api'
 import { TopBar } from '@/components/layout/TopBar'
 import { useTheme } from '@/components/ui/ThemeProvider'
 import { browserTimeZone, formatWhen, usePrefs } from '@/lib/prefs'
 
-type SectionId = 'details' | 'security' | 'billing'
+type SectionId = 'details' | 'security' | 'billing' | 'close'
 type NavItem = { id: SectionId; label: string; icon: React.ElementType } | { href: string; label: string; icon: React.ElementType }
 
 const NAV: { group: string; items: NavItem[] }[] = [
   { group: 'Account', items: [
     { id: 'details',  label: 'Account Details', icon: User },
     { id: 'security', label: 'Security',        icon: Lock },
+    { id: 'close',    label: 'Close Account',   icon: UserX },
   ] },
   { group: 'Organization', items: [
     { id: 'billing',     label: 'Plan & Usage', icon: CreditCard },
     { href: '/api-keys/', label: 'API Keys',    icon: Key },
   ] },
 ]
-const SECTION_IDS: SectionId[] = ['details', 'security', 'billing']
+const SECTION_IDS: SectionId[] = ['details', 'security', 'billing', 'close']
 
 interface Me {
   user_id: string; email: string; display_name: string | null; tenant_id: string; role: string
@@ -279,6 +280,92 @@ function PlanUsage() {
   )
 }
 
+// ── Close Account ────────────────────────────────────────────────────────────
+
+function CloseAccount() {
+  const totp = useQuery({
+    queryKey: ['totp-status'],
+    queryFn: () => api.get<{ totp_enabled: boolean }>('/auth/totp/status').then(r => r.data),
+  })
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const needsCode = Boolean(totp.data?.totp_enabled)
+  const ready = password !== '' && confirm === 'DELETE' && (!needsCode || code.length === 6)
+
+  const exportData = useMutation({
+    mutationFn: () => api.get('/me/export').then(r => r.data),
+    onSuccess: data => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'shadow-warden-account-export.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    onError: e => toast.error(detail(e, 'Could not prepare the export')),
+  })
+  const close = useMutation({
+    mutationFn: () => api.post('/me/close', { password, confirm, ...(needsCode ? { totp_code: code } : {}) }),
+    onSuccess: () => {
+      setAccessToken(null)
+      window.location.replace('/login/')
+    },
+    onError: e => toast.error(detail(e, 'The account was not closed')),
+  })
+
+  return (
+    <div className="space-y-5">
+      <Panel title="Your data">
+        <Row label="Download everything"
+             help="Your account, stores, products, shipping zones, order requests and customers (with their notes and journal), as one JSON file.">
+          <button type="button" className="btn-secondary" disabled={exportData.isPending} onClick={() => exportData.mutate()}>
+            <Download className="h-4 w-4" aria-hidden /> Export data
+          </button>
+        </Row>
+      </Panel>
+
+      <form onSubmit={e => { e.preventDefault(); if (ready) close.mutate() }}>
+        <Panel title="Close account" tone="danger">
+          <div className="px-5 py-4 text-sm text-slate-300">
+            <p>Closing is immediate and cannot be undone. It deletes:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-400">
+              <li>your login and API keys;</li>
+              <li>your stores&apos; products, photos, categories and shipping zones;</li>
+              <li>every order request and the buyers&apos; contact details, customer cards, notes and journal.</li>
+            </ul>
+            <p className="mt-2 text-slate-400">
+              Storefronts go offline at once. Their addresses stay reserved so no one else can trade under them.
+              Download your data first if you need your order history.
+            </p>
+          </div>
+          <Row label="Password" htmlFor="close-pw">
+            <input id="close-pw" type="password" autoComplete="current-password" className="input"
+                   value={password} onChange={e => setPassword(e.target.value)} />
+          </Row>
+          {needsCode && (
+            <Row label="Authentication code" help="From your authenticator app." htmlFor="close-code">
+              <input id="close-code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456"
+                     className="input w-32 font-mono tracking-[0.25em]" value={code}
+                     onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} />
+            </Row>
+          )}
+          <Row label="Type DELETE to confirm" htmlFor="close-confirm">
+            <input id="close-confirm" className="input font-mono" autoComplete="off" spellCheck={false}
+                   value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="DELETE" />
+          </Row>
+          <div className="flex justify-end px-5 py-3">
+            <button type="submit" disabled={!ready || close.isPending}
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">
+              <Trash2 className="h-4 w-4" aria-hidden /> Close my account
+            </button>
+          </div>
+        </Panel>
+      </form>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -333,6 +420,7 @@ export default function SettingsPage() {
           {section === 'details' && <AccountDetails />}
           {section === 'security' && <div className="space-y-5"><PasswordPanel /><TwoFactorPanel /></div>}
           {section === 'billing' && <PlanUsage />}
+          {section === 'close' && <CloseAccount />}
         </div>
       </div>
     </>

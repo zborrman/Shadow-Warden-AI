@@ -898,6 +898,7 @@
     "GET /portal/billing",
     "GET /portal/keys",
     "GET /portal/me",
+    "GET /portal/me/export",
     "GET /portal/stats/daily",
     "GET /portal/stats/flags",
     "GET /portal/stats/summary",
@@ -916,6 +917,7 @@
     "POST /portal/cert/apply",
     "POST /portal/keys",
     "POST /portal/me/change-password",
+    "POST /portal/me/close",
     "POST /portal/waitlist"
   ],
   "warden.protocols.a2a.api": [

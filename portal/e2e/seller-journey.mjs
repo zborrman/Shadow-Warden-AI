@@ -1,7 +1,8 @@
 // The seller's whole path, against a real gateway and a real Postgres:
 // register -> sign in -> create a store -> category -> shipping zone -> product
 // -> the buyer orders on the storefront -> the seller accepts the order, sees the
-// customer and writes in the journal -> settings (preferences + 2FA screen).
+// customer and writes in the journal -> settings (preferences + 2FA screen)
+// -> export the data -> close the account, which then cannot sign in.
 //
 // Every step goes through the UI a person uses, so a button that does nothing,
 // a form that never submits or a page that throws fails the build here instead
@@ -136,6 +137,30 @@ async function main() {
     await page.getByRole('button', { name: /set up/i }).click()
     await page.getByLabel(/qr code/i).waitFor()
     await page.getByRole('button', { name: /^cancel$/i }).click()
+  })
+
+  await at('export data, then close the account', async () => {
+    await page.goto(`${BASE}/settings/#close`)
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /export data/i }).click(),
+    ])
+    if (!download.suggestedFilename().endsWith('.json')) throw new Error('export is not a JSON file')
+    await page.getByLabel('Password').fill(PASSWORD)
+    await page.getByLabel(/type delete/i).fill('DELETE')
+    await page.getByRole('button', { name: /close my account/i }).click()
+    await page.waitForURL(/\/login\/?/)
+  })
+
+  await at('a closed account cannot sign in, and its storefront is gone', async () => {
+    await page.locator('input[name="email"]').fill(EMAIL)
+    await page.locator('input[name="password"]').fill(PASSWORD)
+    await page.getByRole('button', { name: /sign in/i }).click()
+    await page.getByText(/invalid email or password/i).waitFor()
+    const res = await page.goto(`${BASE}/s/${SLUG}/`)
+    if (res && res.status() === 200 && await page.getByText('Red paint').count()) {
+      throw new Error('the storefront still lists the product')
+    }
   })
 
   await browser.close()
