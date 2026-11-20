@@ -1271,7 +1271,7 @@ jobs:
     # skip every production deploy — which is exactly how a merged security fix
     # sat undeployed. The API deploy waits on the checks that actually validate
     # the API: test + lint.
-    needs: [test, lint, seller-e2e]
+    needs: [test, lint]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
 
     # One deploy at a time, against one server.
