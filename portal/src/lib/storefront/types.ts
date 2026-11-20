@@ -37,6 +37,8 @@ export interface FeedProduct {
   description: string
   category_id: string
   unit: string
+  /** GS1 GTIN, digits only; "" or absent when none. */
+  gtin?: string
   available: number
   prices: Price[]
   translations: Record<string, { name: string; description: string }>

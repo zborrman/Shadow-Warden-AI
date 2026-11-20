@@ -66,6 +66,7 @@ from warden.admin_guard import require_admin_key
 from warden.auth_guard import AuthResult, require_api_key
 from warden.limiter import limiter as _limiter
 from warden.m2m_store import customers as cust
+from warden.m2m_store import gtin as gtin_mod
 from warden.m2m_store import media, plans
 from warden.m2m_store import order_requests as orq
 from warden.m2m_store import storefront as sf
@@ -271,6 +272,9 @@ async def add_product(product: Product, auth: AuthResult = OwnerDep):
             raise HTTPException(status_code=409, detail="Product was deleted")
     with _store_errors():
         sf.check_placement(auth.tenant_id, product.store_id, product.category_id)
+    # One GTIN names one product: a second live product with it is a typing slip.
+    if gtin_mod.taken_by(auth.tenant_id, product.gtin, product.id):
+        raise HTTPException(status_code=409, detail="Another of your products already has this GTIN")
     try:
         saved = get_inventory().add_product(product, tenant_id=auth.tenant_id)
     except OwnershipError as exc:

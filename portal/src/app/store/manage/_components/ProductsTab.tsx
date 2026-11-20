@@ -9,6 +9,8 @@ import {
   LOCALES, MAX_IMAGE_BYTES, SETTLEMENT_CURRENCY, orderCurrencies, errorMessage, formatMoney, fromMinor, storeApi, toMinor,
   type ProductImage, type Store, type StoreProduct,
 } from '@/lib/storeApi'
+import { Barcode } from '@/components/ui/Barcode'
+import { checkGtin, isRestricted } from '@/lib/gtin'
 import { EmptyState, SelectInput, TextArea, TextInput } from './fields'
 import { flatten, useCategories } from './CategoriesTab'
 
@@ -101,6 +103,8 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const [categoryId, setCategoryId] = useState(product?.category_id ?? '')
   const [unit, setUnit] = useState(product?.unit ?? 'unit')
   const [otherUnit, setOtherUnit] = useState(!UNIT_VALUES.has(product?.unit ?? 'unit'))
+  const [gtinRaw, setGtinRaw] = useState(product?.gtin ?? '')
+  const gtin = checkGtin(gtinRaw)
   const [stock, setStock] = useState(String(product?.stock ?? 0))
   const [active, setActive] = useState(product?.active ?? true)
   const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(
@@ -115,13 +119,13 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const badPrice = store.currencies.filter(c => prices[c]?.trim() && minor[c] === null)
   const stockN = Number(stock)
   const valid = name.trim() && minor[SETTLEMENT_CURRENCY] !== null && badPrice.length === 0
-    && Number.isInteger(stockN) && stockN >= 0
+    && Number.isInteger(stockN) && stockN >= 0 && !gtin.error
 
   const save = useMutation({
     mutationFn: async () => {
       const saved = await storeApi.saveProduct({
         id: product?.id, store_id: store.id, category_id: categoryId,
-        name: name.trim(), description: description.trim(), unit: unit.trim() || 'unit',
+        name: name.trim(), description: description.trim(), unit: unit.trim() || 'unit', gtin: gtin.value,
         stock: stockN, active, price_minor: minor[SETTLEMENT_CURRENCY] as number,
       })
       await storeApi.setPrices(saved.id, store.currencies
@@ -168,6 +172,15 @@ function ProductForm({ store, product, onDone, onCreated }: {
             <option value="">None</option>
             {categories.map(([c, d]) => <option key={c.id} value={c.id}>{'— '.repeat(d)}{c.name}</option>)}
           </SelectInput>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
+          <TextInput label="Barcode (GTIN)" value={gtinRaw} onChange={e => setGtinRaw(e.target.value)}
+                     inputMode="numeric" maxLength={20} spellCheck={false} placeholder="e.g. 4006381333931"
+                     error={gtin.error}
+                     hint={!gtin.error && gtin.value && isRestricted(gtin.value)
+                       ? 'An in-store number: fine on your own labels, but marketplaces will not accept it.'
+                       : 'EAN-13, UPC-A, EAN-8 or GTIN-14 from your GS1 membership or the manufacturer. Optional.'} />
+          {gtin.value && !gtin.error && <Barcode gtin={gtin.value} />}
         </div>
         <TextArea label="Description" value={description} onChange={e => setDescription(e.target.value)} maxLength={4000} />
         <div className="grid gap-4 sm:grid-cols-3">

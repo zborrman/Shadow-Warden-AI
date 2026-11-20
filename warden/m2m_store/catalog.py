@@ -77,6 +77,7 @@ class AICatalog:
                     "currency":    "USD",
                     "available":   p.available,
                     "unit":        p.unit,
+                    "gtin":        p.gtin,
                 }
                 for p in products
                 if p.available > 0
