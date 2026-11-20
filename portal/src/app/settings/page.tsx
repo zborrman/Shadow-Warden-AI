@@ -8,7 +8,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import clsx from 'clsx'
-import { Check, Copy, CreditCard, ExternalLink, Key, Lock, ShieldCheck, User } from 'lucide-react'
+import { CreditCard, ExternalLink, Key, Lock, ShieldCheck, User } from 'lucide-react'
+import { CopyField, Panel, Row, Switch } from '@/components/ui/settings'
 import { api } from '@/lib/api'
 import { TopBar } from '@/components/layout/TopBar'
 import { useTheme } from '@/components/ui/ThemeProvider'
@@ -36,59 +37,6 @@ interface Me {
 
 const detail = (e: unknown, fallback: string) =>
   (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback
-
-// ── Layout primitives ────────────────────────────────────────────────────────
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="card overflow-hidden">
-      <h2 className="border-b border-white/[0.06] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-        {title}
-      </h2>
-      <div className="divide-y divide-white/[0.06]">{children}</div>
-    </section>
-  )
-}
-
-function Row({ label, help, htmlFor, children }: {
-  label: string; help?: React.ReactNode; htmlFor?: string; children: React.ReactNode
-}) {
-  return (
-    <div className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:items-center sm:gap-6">
-      <div>
-        {htmlFor ? <label htmlFor={htmlFor} className="text-sm font-medium text-slate-100">{label}</label>
-                 : <p className="text-sm font-medium text-slate-100">{label}</p>}
-        {help && <p className="mt-0.5 text-xs text-slate-400">{help}</p>}
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
-  )
-}
-
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}
-            className={clsx('relative h-6 w-11 rounded-full transition-colors',
-              checked ? 'bg-brand-400' : 'bg-white/10')}>
-      <span className={clsx('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-        checked && 'translate-x-5')} />
-    </button>
-  )
-}
-
-function CopyField({ value, label }: { value: string; label: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <div className="relative">
-      <input value={value} readOnly aria-label={label} className="input pr-10 font-mono text-xs opacity-70" />
-      <button type="button" aria-label={`Copy ${label}`}
-              onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
-        {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
-    </div>
-  )
-}
 
 // ── Account Details ──────────────────────────────────────────────────────────
 
