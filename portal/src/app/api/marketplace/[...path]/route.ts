@@ -4,11 +4,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePortalSession } from '@/lib/server/portalSession'
 
 const WARDEN_URL = process.env.WARDEN_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://warden:8001'
 const API_KEY    = process.env.WARDEN_API_KEY || ''
 
 async function proxy(req: NextRequest, params: { path: string[] }): Promise<NextResponse> {
+  const user = await requirePortalSession(req)
+  if (user instanceof NextResponse) return user
+  // The server key is one tenant: a write through it would act for that tenant,
+  // whoever is signed in. Reads only, until the portal has per-seller access.
+  if (req.method !== 'GET') {
+    return NextResponse.json({ detail: 'Not available from the portal.' }, { status: 403 })
+  }
   const rawQs = req.nextUrl.search || ''
   const qs    = rawQs || ''
   const rest  = params.path.join('/')

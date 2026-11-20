@@ -344,7 +344,7 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - CONTACT_TO_EMAIL=${CONTACT_TO_EMAIL:-vz@shadow-warden-ai.com}
       - PORTAL_FROM_EMAIL=${PORTAL_FROM_EMAIL:-}
-      - PORTAL_URL=${PORTAL_URL:-https://app.shadow-warden-ai.com}
+      - PORTAL_URL=${PORTAL_URL:-https://portal.shadow-warden-ai.com}
       # Dashboard auth
       - DASHBOARD_USERNAME=${DASHBOARD_USERNAME:-admin}
       - DASHBOARD_PASSWORD_HASH=${DASHBOARD_PASSWORD_HASH:-}
@@ -443,7 +443,7 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - WEEKLY_REPORT_FROM=${WEEKLY_REPORT_FROM:-}
       - WEEKLY_REPORT_REPLY_TO=${WEEKLY_REPORT_REPLY_TO:-}
-      - PORTAL_URL=${PORTAL_URL:-https://app.shadow-warden-ai.com}
+      - PORTAL_URL=${PORTAL_URL:-https://portal.shadow-warden-ai.com}
       - IMPACT_COST_PER_BLOCK_USD=${IMPACT_COST_PER_BLOCK_USD:-100.0}
       - GEO_WEBHOOK_URL=${GEO_WEBHOOK_URL:-}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}

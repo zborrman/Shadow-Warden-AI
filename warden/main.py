@@ -1181,7 +1181,7 @@ _DEFAULT_CORS = ",".join([
     "http://localhost:3000",
     "http://localhost:3001",
     # Portal (customer-facing SPA)
-    "https://app.shadow-warden-ai.com",
+    "https://portal.shadow-warden-ai.com",
     "https://shadow-warden-ai.com",
     "https://www.shadow-warden-ai.com",
     # Public API docs (Redoc at docs.shadow-warden-ai.com fetches /openapi-public.json)

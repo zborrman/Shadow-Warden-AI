@@ -157,7 +157,7 @@ class TestGetUpgradeUrl:
         # decorative: it accepts any spelling containing "shadow", the wrong one
         # included. The host is pinned exactly now; the zone itself is guarded by
         # warden/tests/test_no_dead_contact_domain.py.
-        assert url.startswith("https://app.shadow-warden-ai.com/"), url
+        assert url.startswith("https://portal.shadow-warden-ai.com/"), url
 
 
 class TestGetOveragePackUrl:

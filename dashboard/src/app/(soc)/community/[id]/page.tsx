@@ -684,7 +684,7 @@ export default function CommunityDetailPage() {
             <ChevronLeft size={12} /> Communities
           </button>
           <a
-            href={`https://app.shadow-warden-ai.com/community-hub/hub/${id}`}
+            href={`https://portal.shadow-warden-ai.com/community-hub/hub/${id}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-accent-purple/15 text-accent-purple hover:bg-accent-purple/25 transition-colors font-medium"

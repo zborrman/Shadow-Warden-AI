@@ -18,7 +18,7 @@ Create Community  →  Community Hub  →  Agentic Marketplace
 
 ### Navigate to the wizard
 
-Open the Portal at `https://app.shadow-warden-ai.com` and click **New Community** in the sidebar, or go to `/community-hub/create`.
+Open the Portal at `https://portal.shadow-warden-ai.com` and click **New Community** in the sidebar, or go to `/community-hub/create`.
 
 ### Step 1 — Basic Info
 
