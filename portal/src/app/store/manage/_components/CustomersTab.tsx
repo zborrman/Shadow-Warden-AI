@@ -10,6 +10,7 @@ import {
   type CustomerSummary, type Store,
 } from '@/lib/storeApi'
 import { EmptyState } from './fields'
+import { JournalPanel } from './JournalPanel'
 
 const when = (iso: string) => {
   const d = new Date(iso)
@@ -151,7 +152,8 @@ function CustomerDetail({ id, storeId, panel }: { id: string; storeId: string; p
   const dirty = notes !== null || tags !== null
 
   return (
-    <div id={panel} className="grid gap-4 border-t border-white/[0.06] p-4 md:grid-cols-2">
+    <div id={panel}>
+    <div className="grid gap-4 border-t border-white/[0.06] p-4 md:grid-cols-2">
       <div className="space-y-3 text-sm">
         <address className="not-italic text-slate-200">
           {k.name}<br />
@@ -211,6 +213,8 @@ function CustomerDetail({ id, storeId, panel }: { id: string; storeId: string; p
           </Button>
         </div>
       </div>
+    </div>
+    <JournalPanel storeId={storeId} customerId={id} email={k.email} panel={panel} />
     </div>
   )
 }
