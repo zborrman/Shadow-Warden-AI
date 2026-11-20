@@ -1133,6 +1133,24 @@
             "APIKeyHeader": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1365,6 +1383,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -1421,6 +1455,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -6080,15 +6130,38 @@
         "summary": "Scan subnet for Shadow AI endpoints",
         "description": "Probe a subnet (CIDR /24 or smaller) for unauthorized AI API endpoints.\n\nSends async HTTP probes to all hosts on common AI ports (80, 443, 8080,\n11434, 5000, 7860 …) and fingerprints responses against the AI provider\ndatabase (OpenAI, Ollama, Gradio, LocalAI, etc.).\n\nOmit `subnet` to get a report of DNS-telemetry findings only (no probing).",
         "operationId": "scan_subnet_shadow_ai_scan_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ScanRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -6111,12 +6184,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/shadow-ai/dns-event": {
@@ -6127,15 +6195,38 @@
         "summary": "Ingest a DNS telemetry event",
         "description": "Classify a single DNS query against the AI provider domain list.\n\nIntegrate with your DNS RPZ, Zeek, Suricata, or syslog forwarder to\nstream DNS events into the Shadow AI Governance engine.\n\nReturns:\n    `{\"match\": true, ...finding}` — recognized AI provider domain.\n    `{\"match\": false, \"domain\": \"...\"}` — not an AI domain.",
         "operationId": "ingest_dns_event_shadow_ai_dns_event_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DnsEventRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -6143,8 +6234,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Ingest Dns Event Shadow Ai Dns Event Post"
                 }
               }
@@ -6160,12 +6251,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/shadow-ai/findings": {
@@ -6871,6 +6957,22 @@
               "default": 24,
               "title": "Hours"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -7102,15 +7204,38 @@
         "summary": "Test-fire a synthetic span through the Warden /filter endpoint",
         "description": "Constructs a synthetic span from the provided name + attributes and\nruns it through the Warden /filter endpoint, returning the result.\nUseful for smoke-testing SDK connectivity without a real OTel pipeline.",
         "operationId": "sdk_ping_sdk_ping_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PingRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -7118,8 +7243,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Sdk Ping Sdk Ping Post"
                 }
               }
@@ -7228,15 +7353,38 @@
         "summary": "Explain multiple filter decisions",
         "description": "Explain up to 20 filter decisions in one call.\n\nReturns a list in the same order as `request_ids`.\nMissing / not-found IDs return `{\"found\": false, \"request_id\": \"...\"}`.",
         "operationId": "explain_batch_xai_explain_batch_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BatchExplainRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -7244,11 +7392,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
                   "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
                   "title": "Response Explain Batch Xai Explain Batch Post"
                 }
               }
@@ -7264,12 +7412,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/xai/report/{request_id}": {
@@ -8030,6 +8173,24 @@
             "APIKeyHeader": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -8274,15 +8435,38 @@
         "summary": "Get routing decision for a request",
         "description": "Determine which MASQUE tunnel and jurisdiction to use for a request.\n\nReturns:\n- `action`:  TUNNEL | DIRECT | BLOCK\n- `tunnel_id`: selected tunnel (null for DIRECT/BLOCK)\n- `jurisdiction`: selected jurisdiction code\n- `compliant`: whether the routing satisfies tenant policy\n- `frameworks`: compliance frameworks satisfied by this route\n- `reason`: plain-English routing explanation\n- `latency_hint_ms`: expected overhead from MASQUE tunneling\n\nUse the `attest_id` from the subsequent `POST /sovereign/attest` call\nto close the attestation loop after the AI API responds.",
         "operationId": "get_route_sovereign_route_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RouteRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -8290,8 +8474,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Get Route Sovereign Route Post"
                 }
               }
@@ -8307,12 +8491,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/sovereign/attest": {
@@ -8323,15 +8502,38 @@
         "summary": "Issue a sovereignty attestation",
         "description": "Issue a signed sovereignty attestation for a completed route decision.\n\nCall this after the AI API response is received to close the audit loop.\n\nThe attestation is:\n- Signed with HMAC-SHA256 (SOVEREIGN_ATTEST_KEY env var)\n- Stored in Redis for 7 years (SOC 2 audit retention)\n- Linked to the filter pipeline via `request_id`\n- Verifiable via `GET /sovereign/attest/{id}/verify`",
         "operationId": "issue_attestation_sovereign_attest_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AttestRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -8339,8 +8541,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Issue Attestation Sovereign Attest Post"
                 }
               }
@@ -8356,12 +8558,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/sovereign/attest/{attest_id}": {
@@ -8727,15 +8924,38 @@
         "summary": "Scan inbound email for prompt injection, phishing, PII",
         "description": "Scan an inbound email before it is processed by an AI pipeline or\ndisplayed to a user.  Returns risk level, findings, and a sanitized body.\n\nNo email content is stored or logged (GDPR).",
         "operationId": "scan_email_scan_email_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EmailScanRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -9971,6 +10191,22 @@
               "default": "json",
               "title": "Format"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -10083,6 +10319,22 @@
               "type": "string",
               "default": "",
               "title": "Entity Key"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -11525,15 +11777,38 @@
         "summary": "Issue a Knock-and-Verify invitation",
         "description": "Invite an existing Shadow Warden tenant to join a community.\n\nReturns a one-time `knock_token` valid for 72 hours.\nDeliver this token to the invitee (Slack, email, etc.).\n\nOnly the `invitee_tenant_id` can accept this knock — outsiders\ncannot impersonate the invite even if they obtain the token, because\n`verify_and_accept_knock()` asserts the claiming tenant_id matches.",
         "operationId": "issue_knock_sep_knock_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/IssueKnockRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -11541,8 +11816,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Issue Knock Sep Knock Post"
                 }
               }
@@ -11558,12 +11833,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/sep/knock/accept": {
@@ -11574,15 +11844,38 @@
         "summary": "Accept a knock invitation (prove Shadow Warden tenancy)",
         "description": "Accept a Knock-and-Verify invitation.\n\n`claiming_tenant_id` must match the `invitee_tenant_id` that was set\nwhen the knock was issued.  On success the claimant is added to the\ncommunity with the configured clearance and role.\n\nReturns the new MemberRecord.",
         "operationId": "accept_knock_sep_knock_accept_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AcceptKnockRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -11590,8 +11883,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Accept Knock Sep Knock Accept Post"
                 }
               }
@@ -11607,12 +11900,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/sep/knock/{token}": {
@@ -13376,6 +13664,22 @@
               "type": "string",
               "title": "Community Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -13697,6 +14001,22 @@
             "schema": {
               "type": "string",
               "title": "Community Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -16178,6 +16498,16 @@
               "type": "string",
               "title": "Session Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -16224,6 +16554,16 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -16459,15 +16799,32 @@
         ],
         "summary": "Export log metadata for a specific request ID (GDPR Art. 15)",
         "operationId": "gdpr_export_gdpr_export_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/_GdprExportRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -16488,12 +16845,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/gdpr/purge": {
@@ -16503,15 +16855,32 @@
         ],
         "summary": "Delete log entries before a given date (GDPR Art. 17)",
         "operationId": "gdpr_purge_gdpr_purge_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/_GdprPurgeRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -16532,12 +16901,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/community/posts": {
@@ -18317,15 +18681,38 @@
         ],
         "summary": "Unified text + image + audio threat filter (v1.4 Multi-Modal Guard)",
         "operationId": "filter_multimodal_filter_multimodal_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/_MultimodalRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -18348,12 +18735,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/agent/red-team": {
@@ -18431,6 +18813,29 @@
         ],
         "summary": "Register an AI vendor",
         "operationId": "create_vendor_vendor_gov_vendors_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -18762,6 +19167,11 @@
         ],
         "summary": "Add a DPA record to a vendor",
         "operationId": "add_dpa_vendor_gov_vendors__vendor_id__dpa_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "vendor_id",
@@ -18770,6 +19180,22 @@
             "schema": {
               "type": "string",
               "title": "Vendor Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -19049,15 +19475,38 @@
         ],
         "summary": "Record an AI cost entry",
         "operationId": "record_cost_financial_allocation_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CostRecordRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -19065,8 +19514,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Record Cost Financial Allocation Post"
                 }
               }
@@ -19513,15 +19962,38 @@
         ],
         "summary": "Set a budget cap for a department",
         "operationId": "set_cap_financial_budget_caps_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BudgetCapRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -19529,8 +20001,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Set Cap Financial Budget Caps Post"
                 }
               }
@@ -19642,6 +20114,29 @@
         ],
         "summary": "Request budget approval",
         "operationId": "request_approval_financial_budget_approvals_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -19739,6 +20234,29 @@
         ],
         "summary": "Log a new AI incident",
         "operationId": "create_incident_incidents_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -20080,15 +20598,38 @@
         ],
         "summary": "Run a supplier AI risk assessment",
         "operationId": "assess_supplier_risk_assess_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__api__supplier_risk__AssessRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -20096,8 +20637,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Assess Supplier Risk Assess Post"
                 }
               }
@@ -20695,15 +21236,38 @@
         ],
         "summary": "Register a device for push alerts",
         "operationId": "register_device_push_register_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__api__push__RegisterRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -20711,8 +21275,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Device Push Register Post"
                 }
               }
@@ -21467,15 +22031,38 @@
         ],
         "summary": "Provision all 7 SMB governance modules",
         "operationId": "provision_smb_suite_provision_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProvisionRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -21483,8 +22070,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Provision Smb Suite Provision Post"
                 }
               }
@@ -23396,15 +23983,38 @@
         ],
         "summary": "Build a custom BI report",
         "operationId": "build_report_business_intelligence_report_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReportRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -23412,8 +24022,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Build Report Business Intelligence Report Post"
                 }
               }
@@ -26683,15 +27293,38 @@
         ],
         "summary": "Create Offer",
         "operationId": "create_offer_m2m_store_offers_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__m2m_store__models__OfferRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -26699,8 +27332,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Create Offer M2M Store Offers Post"
                 }
               }
@@ -26716,12 +27349,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/m2m-store/offers/{offer_id}/reserve": {
@@ -26753,6 +27381,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -28449,6 +29093,558 @@
         }
       }
     },
+    "/m2m-store/stores/{store_id}/customers": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "List Customers",
+        "operationId": "list_customers_m2m_store_stores__store_id__customers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response List Customers M2M Store Stores  Store Id  Customers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/customers/{customer_id}": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Get Customer",
+        "operationId": "get_customer_m2m_store_stores__store_id__customers__customer_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Customer M2M Store Stores  Store Id  Customers  Customer Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Update Customer",
+        "operationId": "update_customer_m2m_store_stores__store_id__customers__customer_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Customer M2M Store Stores  Store Id  Customers  Customer Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Erase Customer",
+        "operationId": "erase_customer_m2m_store_stores__store_id__customers__customer_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/customers/{customer_id}/export": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Export Customer",
+        "operationId": "export_customer_m2m_store_stores__store_id__customers__customer_id__export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Export Customer M2M Store Stores  Store Id  Customers  Customer Id  Export Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/customers/{customer_id}/journal": {
+      "get": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Customer Journal",
+        "operationId": "customer_journal_m2m_store_stores__store_id__customers__customer_id__journal_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Customer Journal M2M Store Stores  Store Id  Customers  Customer Id  Journal Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Add Journal Entry",
+        "operationId": "add_journal_entry_m2m_store_stores__store_id__customers__customer_id__journal_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JournalIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Add Journal Entry M2M Store Stores  Store Id  Customers  Customer Id  Journal Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/m2m-store/stores/{store_id}/customers/{customer_id}/journal/{entry_id}": {
+      "patch": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Update Journal Entry",
+        "operationId": "update_journal_entry_m2m_store_stores__store_id__customers__customer_id__journal__entry_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JournalPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Update Journal Entry M2M Store Stores  Store Id  Customers  Customer Id  Journal  Entry Id  Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "M2M Store"
+        ],
+        "summary": "Delete Journal Entry",
+        "operationId": "delete_journal_entry_m2m_store_stores__store_id__customers__customer_id__journal__entry_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Customer Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/m2m-store/plan": {
       "get": {
         "tags": [
@@ -28906,15 +30102,38 @@
         ],
         "summary": "Start Passkey registration",
         "operationId": "register_begin_auth_fido_register_begin_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RegistrationBeginRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -28922,8 +30141,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Begin Auth Fido Register Begin Post"
                 }
               }
@@ -28939,12 +30158,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/auth/fido/register/complete": {
@@ -28954,15 +30168,38 @@
         ],
         "summary": "Complete Passkey registration",
         "operationId": "register_complete_auth_fido_register_complete_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RegistrationCompleteRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -28970,8 +30207,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Complete Auth Fido Register Complete Post"
                 }
               }
@@ -28987,12 +30224,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/auth/fido/authenticate/begin": {
@@ -29266,15 +30498,38 @@
         "summary": "Register Market Agent",
         "description": "M2M first-contact registration.\n\nThin wrapper over /agents/register that serves as the canonical 'POST /register'\nentry point described in the M2M Market Environment protocol.  Runs the same\nfederation deny-list check and DID derivation as the sub-router endpoint so\nexternal agents need only one discovery → register → protocol flow.\n\nKYA registration and screening run inside `register_agent` itself, so this\nroute and `POST /agents/register` onboard an agent identically.",
         "operationId": "register_market_agent_marketplace_register_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__marketplace__api__RegisterRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -29282,8 +30537,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Market Agent Marketplace Register Post"
                 }
               }
@@ -29310,15 +30565,38 @@
         "summary": "Dispatch Action",
         "description": "Unified M2M action dispatcher (all 4 lifecycle stages).\n\nStage 1 (Registration) → POST /register (separate endpoint)\nStage 2 (Search)       → action_type=\"search\"\nStage 3 (Negotiate)    → action_type=\"send_proposal\"|\"send_offer\"|\"send_message\"|...\nStage 4 (Clear)        → action_type=\"sending_payments\"|\"reject_proposal\"\n\nFor seller-facing actions (send_proposal, send_offer, send_message, negotiate, buy)\nthe Brand Agent filter validates the buyer's identity, trust score, and rate before\nrouting the request to the seller's catalog.",
         "operationId": "dispatch_action_marketplace_action_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/MarketAction"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -29326,8 +30604,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Dispatch Action Marketplace Action Post"
                 }
               }
@@ -29343,12 +30621,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/marketplace/protocol/schema/{action_name}": {
@@ -29404,15 +30677,38 @@
         "summary": "Market Clear",
         "description": "Stage 4: execute final market clearing.\n\nAuthenticated. Clearing auto-rejects every other pending negotiation for the\nnamed buyer, so an anonymous caller could cancel a competitor's in-flight\ndeals by clearing on their behalf. site/business-community/m2m-store.astro\nalready documents this endpoint as auth: API Key.\n\nAccepts the winning negotiation, auto-rejects all other pending\nnegotiations for the same buyer, and dual-writes the clearing record\nto SQLite + PostgreSQL.",
         "operationId": "market_clear_marketplace_clear_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ClearRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -29420,8 +30716,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Market Clear Marketplace Clear Post"
                 }
               }
@@ -29437,12 +30733,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/marketplace/analytics/query": {
@@ -29453,15 +30744,38 @@
         "summary": "Analytics Sql Query",
         "description": "Execute a read-only SQL SELECT against the marketplace DB.\n\nUsed by SOVA tool #32 (query_marketplace_db) and MCP marketplace-db server.\n\nSecurity layers:\n1. Authentication — requires a valid API key (require_api_key dependency).\n2. SELECT-only gate — rejects any non-SELECT statement, and additionally\n   rejects statements that smuggle a second statement or a DDL/DML keyword.\n3. Confused Deputy guard — a `caller_agent_id` is MANDATORY (via body or\n   X-Agent-ID header) and every query must be scoped to it; a query that\n   references a different agent's DID literal, or omits scoping entirely,\n   is rejected.  This prevents one caller from reading another agent's\n   escrows, negotiations, credits, or x402 balances.",
         "operationId": "analytics_sql_query_marketplace_analytics_query_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AnalyticsQuery"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -29469,8 +30783,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Analytics Sql Query Marketplace Analytics Query Post"
                 }
               }
@@ -29486,12 +30800,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/marketplace/stats": {
@@ -29938,6 +31247,11 @@
         "summary": "Get Soc2 Report",
         "description": "Compile SOC 2 Type II evidence for the requesting tenant over the period.\n\nReturns JSON summary (default) or a ZIP archive of all daily snapshots.\nGated to Pro+ tier. Evidence is GDPR-safe — all identifiers pseudonymised.\n\nArgs:\n    period_days: Look-back window (1–365 days). 90 = basic Type II window.\n    format: \"json\" for summary dict; \"zip\" for downloadable evidence archive.",
         "operationId": "get_soc2_report_marketplace_compliance_soc2_report_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
         "parameters": [
           {
             "name": "period_days",
@@ -30310,6 +31624,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -30410,6 +31740,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -30636,15 +31982,38 @@
         ],
         "summary": "Register Agent",
         "operationId": "register_agent_marketplace_agents_register_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__marketplace__api_agents__AgentRegisterRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -30652,8 +32021,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Agent Marketplace Agents Register Post"
                 }
               }
@@ -30736,6 +32105,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -30778,7 +32163,6 @@
           "Marketplace Agents"
         ],
         "summary": "Deactivate Agent Endpoint",
-        "description": "Soft-delete an agent (status → inactive). Preserves audit trail.",
         "operationId": "deactivate_agent_endpoint_marketplace_agents__agent_id__delete",
         "security": [
           {
@@ -30793,6 +32177,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -30842,6 +32242,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -30948,6 +32364,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -30996,6 +32428,24 @@
         "security": [
           {
             "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -31183,6 +32633,24 @@
         "security": [
           {
             "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -31391,6 +32859,22 @@
               "type": "string",
               "default": "",
               "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -31616,15 +33100,38 @@
         ],
         "summary": "Start Negotiation",
         "operationId": "start_negotiation_marketplace_negotiations_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NegotiationStartRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -31632,8 +33139,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Start Negotiation Marketplace Negotiations Post"
                 }
               }
@@ -31649,12 +33156,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/marketplace/negotiations/{negotiation_id}/offer": {
@@ -31831,15 +33333,38 @@
         ],
         "summary": "Create Escrow",
         "operationId": "create_escrow_marketplace_escrow_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EscrowCreateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -31847,8 +33372,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Create Escrow Marketplace Escrow Post"
                 }
               }
@@ -31864,12 +33389,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/marketplace/escrow/{escrow_id}/deposit-intent": {
@@ -32342,6 +33862,22 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -32645,6 +34181,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -32943,6 +34495,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -32996,6 +34564,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -33111,6 +34695,24 @@
         "security": [
           {
             "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -33884,6 +35486,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -34269,6 +35887,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35041,15 +36675,38 @@
         "summary": "Manually block an IP address across the filter pipeline",
         "description": "Add an IP to the blocklist.  All future requests from this IP will receive\nHTTP 403 before any other processing occurs.  Optionally provide an\nISO-8601 ``expires_at`` for temporary blocks; omit for permanent.",
         "operationId": "block_ip_threats_block_ip_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/_BlockIpRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -35070,12 +36727,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/api/ips/block": {
@@ -35320,6 +36972,22 @@
               "type": "string",
               "title": "Session Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -35365,6 +37033,22 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -35419,6 +37103,22 @@
               "type": "string",
               "default": "admin_kill_switch",
               "title": "Reason"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37234,15 +38934,38 @@
         "summary": "Scan AI output for OWASP LLM02 / LLM06 / LLM08 risks",
         "description": "Scan AI-generated text **before it reaches the browser or downstream system**.\n\nUnlike ``POST /filter`` (which scans *input* prompts), this endpoint scans\nthe AI model's *output* — catching content that is harmless as a prompt but\ndangerous once rendered.\n\n**OWASP LLM Top 10 coverage:**\n\n| Category | Risks detected |\n|----------|---------------|\n| LLM02 — Insecure Output Handling | XSS (`<script>`, `onerror=`, `javascript:`), HTML injection (`<iframe>`, `<object>`), Markdown link injection |\n| LLM06 — Sensitive Information Disclosure | System prompt leakage, CoT scratchpad echo, internal tool name disclosure |\n| LLM08 — Excessive Agency | Shell command injection, SQL injection, SSRF (internal IP / metadata endpoints), path traversal |\n\n**Response:**\n- `safe`: `true` when no risks detected.\n- `sanitized`: the output with dangerous patterns stripped/escaped — safe to render.\n- `findings`: list of detected risks with OWASP category labels.",
         "operationId": "filter_output_filter_output_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/OutputScanRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -37265,12 +38988,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/admin/weekly-report": {
@@ -37489,6 +39207,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -37548,6 +39282,22 @@
               "type": "string",
               "title": "Agent Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "responses": {
@@ -37596,6 +39346,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -37685,15 +39451,38 @@
         ],
         "summary": "Sign Refund Intent",
         "operationId": "sign_refund_intent_staff_intent_refund_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RefundIntentRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -37701,8 +39490,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Sign Refund Intent Staff Intent Refund Post"
                 }
               }
@@ -37718,12 +39507,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/staff/agents/{agent_id}/query": {
@@ -37746,6 +39530,22 @@
             "schema": {
               "type": "string",
               "title": "Agent Id"
+            }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
             }
           }
         ],
@@ -38666,6 +40466,24 @@
             "APIKeyHeader": []
           }
         ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -39141,15 +40959,38 @@
         ],
         "summary": "Issue a Shared Payment Token (merchant)",
         "operationId": "issue_token_acp_token_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/IssueTokenRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -39157,8 +40998,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Issue Token Acp Token Post"
                 }
               }
@@ -39174,12 +41015,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/acp/token/{token_id}": {
@@ -39296,15 +41132,38 @@
         ],
         "summary": "Create a cart",
         "operationId": "create_cart_acp_cart_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateCartRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -39312,8 +41171,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Create Cart Acp Cart Post"
                 }
               }
@@ -39329,12 +41188,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/acp/cart/{cart_id}": {
@@ -39461,6 +41315,22 @@
               "type": "string",
               "title": "Cart Id"
             }
+          },
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
           }
         ],
         "requestBody": {
@@ -39506,15 +41376,38 @@
         ],
         "summary": "Request a refund (PENDING_REVIEW)",
         "operationId": "request_refund_acp_refund_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RefundRequestBody"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -39522,8 +41415,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Request Refund Acp Refund Post"
                 }
               }
@@ -39539,12 +41432,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ]
+        }
       }
     },
     "/acp/refund/{refund_id}": {
@@ -40095,15 +41983,38 @@
         "summary": "Register",
         "description": "Register or upsert an agent DID.",
         "operationId": "register_kya_register_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-admin-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Admin-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/warden__api__kya__RegisterRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -40111,8 +42022,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Register Kya Register Post"
                 }
               }
@@ -42753,6 +44664,39 @@
         ],
         "title": "CreditsPurchaseRequest"
       },
+      "CustomerPatch": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "title": "CustomerPatch"
+      },
       "DPACreateRequest": {
         "properties": {
           "tenant_id": {
@@ -44290,6 +46234,69 @@
           "tenant_id"
         ],
         "title": "JoinIn"
+      },
+      "JournalIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^(note|message)$",
+            "title": "Kind"
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Subject",
+            "default": ""
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "body"
+        ],
+        "title": "JournalIn"
+      },
+      "JournalPatch": {
+        "properties": {
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "sent": {
+            "type": "boolean",
+            "title": "Sent",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "JournalPatch"
       },
       "KYARevokeRequest": {
         "properties": {
@@ -45963,6 +47970,11 @@
             "type": "string",
             "title": "Unit",
             "default": "unit"
+          },
+          "gtin": {
+            "type": "string",
+            "title": "Gtin",
+            "default": ""
           },
           "metadata": {
             "additionalProperties": true,
