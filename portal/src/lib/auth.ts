@@ -5,8 +5,22 @@ export interface LoginResult {
   expires_in: number
 }
 
-export async function login(email: string, password: string): Promise<LoginResult> {
-  const { data } = await api.post<LoginResult>('/auth/login', { email, password })
+/** With two-factor on, the server answers with a short-lived session instead of a token. */
+export interface TotpChallenge {
+  requires_totp: true
+  totp_session: string
+}
+
+export async function login(email: string, password: string): Promise<LoginResult | TotpChallenge> {
+  const { data } = await api.post<LoginResult | TotpChallenge>('/auth/login', { email, password })
+  if ('requires_totp' in data) return data
+  setAccessToken(data.access_token)
+  return data
+}
+
+/** Second step of a two-factor sign-in: the 6-digit code from the authenticator app. */
+export async function completeTotp(totp_session: string, code: string): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>('/auth/totp/complete', { totp_session, code })
   setAccessToken(data.access_token)
   return data
 }

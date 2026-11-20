@@ -1,616 +1,384 @@
 ﻿'use client'
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+// Settings: a section list on the left, one panel of labelled rows on the right.
+// Every control here is backed by a working endpoint or by this device's own
+// storage; nothing is shown that does not do something.
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { QRCodeSVG } from 'qrcode.react'
+import clsx from 'clsx'
+import { Check, Copy, CreditCard, ExternalLink, Key, Lock, ShieldCheck, User } from 'lucide-react'
 import { api } from '@/lib/api'
 import { TopBar } from '@/components/layout/TopBar'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import {
-  User, Bell, Lock, CreditCard, CheckCircle2, AlertCircle, Copy, Check,
-  Shield, Database, DollarSign, Package, Trash2, Key, Bot, ChevronRight,
-} from 'lucide-react'
+import { useTheme } from '@/components/ui/ThemeProvider'
+import { browserTimeZone, formatWhen, usePrefs } from '@/lib/prefs'
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
-function Section({ title, description, icon: Icon, children }: {
-  title: string; description: string; icon: React.ElementType; children: React.ReactNode
+type SectionId = 'details' | 'security' | 'billing'
+type NavItem = { id: SectionId; label: string; icon: React.ElementType } | { href: string; label: string; icon: React.ElementType }
+
+const NAV: { group: string; items: NavItem[] }[] = [
+  { group: 'Account', items: [
+    { id: 'details',  label: 'Account Details', icon: User },
+    { id: 'security', label: 'Security',        icon: Lock },
+  ] },
+  { group: 'Organization', items: [
+    { id: 'billing',     label: 'Plan & Usage', icon: CreditCard },
+    { href: '/api-keys/', label: 'API Keys',    icon: Key },
+  ] },
+]
+const SECTION_IDS: SectionId[] = ['details', 'security', 'billing']
+
+interface Me {
+  user_id: string; email: string; display_name: string | null; tenant_id: string; role: string
+  created_at: string | null; last_login_at: string | null
+}
+
+const detail = (e: unknown, fallback: string) =>
+  (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback
+
+// ── Layout primitives ────────────────────────────────────────────────────────
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="card overflow-hidden">
+      <h2 className="border-b border-white/[0.06] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        {title}
+      </h2>
+      <div className="divide-y divide-white/[0.06]">{children}</div>
+    </section>
+  )
+}
+
+function Row({ label, help, htmlFor, children }: {
+  label: string; help?: React.ReactNode; htmlFor?: string; children: React.ReactNode
 }) {
   return (
-    <div className="card p-6">
-      <div className="flex items-start gap-4 mb-5">
-        <div className="w-9 h-9 rounded-xl bg-brand-400/10 flex items-center justify-center shrink-0">
-          <Icon className="w-4.5 h-4.5 text-brand-400" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-white">{title}</h2>
-          <p className="text-sm text-slate-400 mt-0.5">{description}</p>
-        </div>
+    <div className="grid gap-3 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:items-center sm:gap-6">
+      <div>
+        {htmlFor ? <label htmlFor={htmlFor} className="text-sm font-medium text-slate-100">{label}</label>
+                 : <p className="text-sm font-medium text-slate-100">{label}</p>}
+        {help && <p className="mt-0.5 text-xs text-slate-400">{help}</p>}
       </div>
-      {children}
+      <div className="min-w-0">{children}</div>
     </div>
   )
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
-function Toast({ msg, ok }: { msg: string; ok: boolean }) {
+function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <div className={`fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium shadow-xl z-50 ${
-      ok ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'
-    }`}>
-      {ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-      {msg}
-    </div>
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}
+            className={clsx('relative h-6 w-11 rounded-full transition-colors',
+              checked ? 'bg-brand-400' : 'bg-white/10')}>
+      <span className={clsx('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+        checked && 'translate-x-5')} />
+    </button>
   )
 }
 
-// ── Profile section ───────────────────────────────────────────────────────────
-const profileSchema = z.object({ display_name: z.string().max(80) })
-type ProfileForm = z.infer<typeof profileSchema>
-
-function ProfileSection() {
-  const qc = useQueryClient()
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => api.get('/me').then(r => r.data) })
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<ProfileForm>({
-    resolver: zodResolver(profileSchema),
-    values: { display_name: me?.display_name || '' },
-  })
-  const mut = useMutation({
-    mutationFn: (d: ProfileForm) => api.patch('/me', d),
-    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['me'] }); showToast('Profile updated', true) },
-    onError:    () => showToast('Failed to update profile', false),
-  })
-  function showToast(msg: string, ok: boolean) {
-    setToast({ msg, ok })
-    setTimeout(() => setToast(null), 3000)
-  }
-
-  return (
-    <Section title="Profile" description="Your account details" icon={User}>
-      <form onSubmit={handleSubmit(d => mut.mutateAsync(d))} className="space-y-4 max-w-sm">
-        <div>
-          <label className="label">Email</label>
-          <input value={me?.email || ''} readOnly className="input opacity-60 cursor-not-allowed" />
-        </div>
-        <div>
-          <label className="label">Display name</label>
-          <input {...register('display_name')} className="input" placeholder="Your name" />
-        </div>
-        <div>
-          <label className="label">Tenant ID</label>
-          <TenantIdField value={me?.tenant_id || ''} />
-        </div>
-        <button type="submit" disabled={isSubmitting || mut.isPending} className="btn-primary">
-          {(isSubmitting || mut.isPending)
-            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : 'Save Changes'}
-        </button>
-      </form>
-      {toast && <Toast {...toast} />}
-    </Section>
-  )
-}
-
-function TenantIdField({ value }: { value: string }) {
+function CopyField({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="relative">
-      <input value={value} readOnly className="input opacity-60 cursor-not-allowed pr-10 font-mono text-xs" />
-      <button
-        type="button"
-        onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-      >
-        {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+      <input value={value} readOnly aria-label={label} className="input pr-10 font-mono text-xs opacity-70" />
+      <button type="button" aria-label={`Copy ${label}`}
+              onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
+        {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
     </div>
   )
 }
 
-// ── Notifications section ─────────────────────────────────────────────────────
-function NotificationsSection() {
+// ── Account Details ──────────────────────────────────────────────────────────
+
+function AccountDetails() {
   const qc = useQueryClient()
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: () => api.get('/me').then(r => r.data) })
-  const mut = useMutation({
-    mutationFn: (d: { notify_high?: boolean; notify_block?: boolean }) => api.patch('/me', d),
-    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['me'] }); showToast('Saved', true) },
-    onError:    () => showToast('Failed to save', false),
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.get<Me>('/me').then(r => r.data) })
+  const [name, setName] = useState<string | null>(null)
+  const save = useMutation({
+    mutationFn: (display_name: string) => api.patch('/me', { display_name }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['me'] }); setName(null); toast.success('Name saved') },
+    onError: e => toast.error(detail(e, 'Could not save the name')),
   })
-  function showToast(msg: string, ok: boolean) {
-    setToast({ msg, ok })
-    setTimeout(() => setToast(null), 2500)
-  }
-
-  function Toggle({ label, desc, checked, field }: {
-    label: string; desc: string; checked: boolean
-    field: 'notify_high' | 'notify_block'
-  }) {
-    return (
-      <label className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] cursor-pointer hover:bg-white/[0.05] transition-colors">
-        <div>
-          <p className="text-sm font-medium text-white">{label}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{desc}</p>
-        </div>
-        <div
-          onClick={() => mut.mutate({ [field]: !checked })}
-          className={`w-11 h-6 rounded-full transition-colors duration-200 relative cursor-pointer ${checked ? 'bg-brand-400' : 'bg-white/10'}`}
-        >
-          <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
-        </div>
-      </label>
-    )
-  }
+  const { theme, toggle } = useTheme()
+  const [prefs, setPrefs] = usePrefs()
+  const [zones, setZones] = useState<string[]>([])
+  useEffect(() => {
+    const all = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf
+    setZones(all ? all('timeZone') : [browserTimeZone()])
+  }, [])
+  const m = me.data
 
   return (
-    <Section title="Notifications" description="Choose when to receive alerts" icon={Bell}>
-      <div className="space-y-3 max-w-sm">
-        <Toggle label="High-risk alerts"  desc="Notify when HIGH risk signals are detected" checked={me?.notify_high  ?? true} field="notify_high"  />
-        <Toggle label="Block-level alerts" desc="Notify when requests are fully blocked"     checked={me?.notify_block ?? true} field="notify_block" />
-      </div>
-      {toast && <Toast {...toast} />}
-    </Section>
+    <div className="space-y-5">
+      <Panel title="Account">
+        <Row label="Name" help="Shown in the portal and to your team." htmlFor="set-name">
+          <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (name !== null) save.mutate(name.trim()) }}>
+            <input id="set-name" className="input" maxLength={80} placeholder="Your name"
+                   value={name ?? m?.display_name ?? ''} onChange={e => setName(e.target.value)} />
+            <button type="submit" className="btn-secondary shrink-0" disabled={name === null || save.isPending}>Save</button>
+          </form>
+        </Row>
+        <Row label="Email" help="Your sign-in address. It cannot be changed here.">
+          <input value={m?.email ?? ''} readOnly aria-label="Email" className="input opacity-70" />
+        </Row>
+        <Row label="Tenant ID" help="Identifies your organization in API calls and support requests.">
+          <CopyField value={m?.tenant_id ?? ''} label="Tenant ID" />
+        </Row>
+        <Row label="Member since">
+          <p className="text-sm text-slate-300">
+            {m?.created_at ? formatWhen(m.created_at, false, prefs) : '—'}
+            {m?.last_login_at && <span className="text-slate-500"> · last sign-in {formatWhen(m.last_login_at, true, prefs)}</span>}
+          </p>
+        </Row>
+      </Panel>
+
+      <Panel title="Preferences">
+        <Row label="Theme" help="Light or dark interface." htmlFor="set-theme">
+          <select id="set-theme" className="input" value={theme}
+                  onChange={e => { if (e.target.value !== theme) toggle() }}>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </Row>
+        <Row label="Timezone" help="Dates in the portal are shown in this zone." htmlFor="set-tz">
+          <select id="set-tz" className="input" value={prefs.timeZone}
+                  onChange={e => setPrefs({ timeZone: e.target.value })}>
+            <option value="">Browser default ({browserTimeZone()})</option>
+            {zones.map(z => <option key={z} value={z}>{z.replace(/_/g, ' ')}</option>)}
+          </select>
+        </Row>
+        <Row label="Use a 24-hour clock" help={`Now: ${formatWhen(new Date().toISOString(), true, prefs)}`}>
+          <Switch checked={!prefs.hour12} onChange={v => setPrefs({ hour12: !v })} label="Use a 24-hour clock" />
+        </Row>
+        <p className="px-5 py-3 text-xs text-slate-500">Preferences are saved on this device.</p>
+      </Panel>
+    </div>
   )
 }
 
-// ── Password section ──────────────────────────────────────────────────────────
-const pwSchema = z.object({
-  current_password: z.string().min(1, 'Required'),
-  new_password:     z.string().min(8, 'Min 8 characters'),
-  confirm:          z.string(),
-}).refine(d => d.new_password === d.confirm, { message: "Passwords don't match", path: ['confirm'] })
-type PwForm = z.infer<typeof pwSchema>
+// ── Security ─────────────────────────────────────────────────────────────────
 
-function PasswordSection() {
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PwForm>({
-    resolver: zodResolver(pwSchema),
+function PasswordPanel() {
+  const [cur, setCur] = useState('')
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const mismatch = again !== '' && next !== again
+  const valid = cur !== '' && next.length >= 8 && next === again
+  const change = useMutation({
+    mutationFn: () => api.post('/me/change-password', { current_password: cur, new_password: next }),
+    onSuccess: () => { setCur(''); setNext(''); setAgain(''); toast.success('Password changed') },
+    onError: e => toast.error(detail(e, 'Could not change the password')),
   })
-  const mut = useMutation({
-    mutationFn: (d: PwForm) => api.post('/me/change-password', {
-      current_password: d.current_password, new_password: d.new_password,
-    }),
-    onSuccess: () => { reset(); showToast('Password changed', true) },
-    onError:   (e: unknown) => {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      showToast(msg || 'Failed to change password', false)
-    },
-  })
-  function showToast(msg: string, ok: boolean) {
-    setToast({ msg, ok })
-    setTimeout(() => setToast(null), 3500)
-  }
-
   return (
-    <Section title="Password" description="Change your login password" icon={Lock}>
-      <form onSubmit={handleSubmit(d => mut.mutateAsync(d))} className="space-y-4 max-w-sm">
-        <div>
-          <label className="label">Current password</label>
-          <input {...register('current_password')} type="password" className="input" placeholder="••••••••" />
-          {errors.current_password && <p className="text-red-400 text-xs mt-1">{errors.current_password.message}</p>}
+    <Panel title="Password">
+      <form onSubmit={e => { e.preventDefault(); if (valid) change.mutate() }}>
+        <Row label="Current password" htmlFor="pw-cur">
+          <input id="pw-cur" type="password" autoComplete="current-password" className="input"
+                 value={cur} onChange={e => setCur(e.target.value)} />
+        </Row>
+        <Row label="New password" help="At least 8 characters." htmlFor="pw-new">
+          <input id="pw-new" type="password" autoComplete="new-password" className="input"
+                 value={next} onChange={e => setNext(e.target.value)} />
+        </Row>
+        <Row label="Confirm new password" htmlFor="pw-again"
+             help={mismatch ? <span className="text-red-400">The passwords do not match.</span> : undefined}>
+          <input id="pw-again" type="password" autoComplete="new-password" className="input"
+                 value={again} onChange={e => setAgain(e.target.value)} />
+        </Row>
+        <div className="flex justify-end px-5 py-3">
+          <button type="submit" className="btn-primary" disabled={!valid || change.isPending}>Change password</button>
         </div>
-        <div>
-          <label className="label">New password</label>
-          <input {...register('new_password')} type="password" className="input" placeholder="Min. 8 characters" />
-          {errors.new_password && <p className="text-red-400 text-xs mt-1">{errors.new_password.message}</p>}
-        </div>
-        <div>
-          <label className="label">Confirm new password</label>
-          <input {...register('confirm')} type="password" className="input" placeholder="Repeat new password" />
-          {errors.confirm && <p className="text-red-400 text-xs mt-1">{errors.confirm.message}</p>}
-        </div>
-        <button type="submit" disabled={isSubmitting || mut.isPending} className="btn-primary">
-          {(isSubmitting || mut.isPending)
-            ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            : 'Change Password'}
-        </button>
       </form>
-      {toast && <Toast {...toast} />}
-    </Section>
+    </Panel>
   )
 }
 
-// ── Billing section ───────────────────────────────────────────────────────────
-function BillingSection() {
-  const { data: billing } = useQuery({
-    queryKey: ['billing'],
-    queryFn:  () => api.get('/billing').then(r => r.data),
+function TwoFactorPanel() {
+  const qc = useQueryClient()
+  const status = useQuery({
+    queryKey: ['totp-status'],
+    queryFn: () => api.get<{ totp_enabled: boolean }>('/auth/totp/status').then(r => r.data),
   })
-  const used  = billing?.requests_used  ?? 0
-  const quota = billing?.requests_quota ?? 10000
-  const pct   = Math.min(100, Math.round((used / quota) * 100))
-
-  return (
-    <Section title="Billing" description="Your current plan and usage" icon={CreditCard}>
-      <div className="space-y-4 max-w-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Plan</span>
-          <span className="badge badge-active">{billing?.plan ?? 'Starter'}</span>
-        </div>
-        <div>
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-400">Requests this month</span>
-            <span className="text-white font-medium">{used.toLocaleString()} / {quota.toLocaleString()}</span>
-          </div>
-          <div className="h-2 bg-white/[0.05] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${pct > 80 ? 'bg-amber-500' : 'bg-brand-400'}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="text-xs text-slate-500 mt-1.5">{pct}% of monthly quota used</p>
-        </div>
-        <div className="pt-2">
-          <button className="btn-secondary w-full" disabled>
-            Upgrade Plan — Coming Soon
-          </button>
-        </div>
-      </div>
-    </Section>
-  )
-}
-
-// ── Security Engine section ───────────────────────────────────────────────────
-function SecuritySection() {
-  const { data: health } = useQuery({
-    queryKey: ['health'],
-    queryFn:  () => api.get('/health').then(r => r.data),
-    refetchInterval: 30_000,
-  })
-
-  const strategies = [
-    { key: 'gaslight', label: 'Gaslight', desc: 'Prompt injection — returns convincing fake response', color: 'text-amber-400' },
-    { key: 'delay',    label: 'Delay',    desc: 'Bot / credential stuffing — adds async delay cost',  color: 'text-amber-400' },
-    { key: 'standard', label: 'Standard', desc: 'All other threats — immediate block response',        color: 'text-slate-400' },
-  ]
-
-  const strict = health?.strict ?? false
-  const evolution = health?.evolution ?? false
-  const failStrategy = health?.fail_strategy ?? '—'
-
-  return (
-    <Section title="Security Engine" description="Live status of detection pipeline layers" icon={Shield}>
-      <div className="space-y-3 max-w-lg">
-        {/* Status chips */}
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {[
-            { label: 'Strict Mode',      active: strict,    on: 'On', off: 'Off' },
-            { label: 'Evolution Engine', active: evolution, on: 'Active', off: 'Air-gapped' },
-            { label: 'Fail Strategy',    active: failStrategy === 'closed', on: 'Closed', off: failStrategy || 'Open' },
-          ].map(({ label, active, on, off }) => (
-            <div key={label} className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-              <span className={`text-xs font-semibold ${active ? 'text-amber-400' : 'text-green-400'}`}>
-                {active ? on : off}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Shadow ban strategies */}
-        <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] overflow-hidden">
-          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-4 py-2.5 border-b border-white/[0.06]">
-            Shadow Ban Strategies
-          </p>
-          {strategies.map(s => (
-            <div key={s.key} className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] last:border-0">
-              <div>
-                <p className="text-sm font-medium text-white">{s.label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
-              </div>
-              <span className={`text-xs font-mono ${s.color}`}>{s.key}</span>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-xs text-slate-500">
-          Configure thresholds via environment variables — see <span className="text-brand-400">Settings → Detection</span> in the admin panel.
-        </p>
-      </div>
-    </Section>
-  )
-}
-
-// ── Storage section ───────────────────────────────────────────────────────────
-function StorageSection() {
-  const { data: health } = useQuery({
-    queryKey: ['health'],
-    queryFn:  () => api.get('/health').then(r => r.data),
-  })
-
-  const s3Enabled = health?.s3_enabled ?? false
-
-  return (
-    <Section title="Object Storage" description="MinIO / S3 evidence vault and log shipping status" icon={Database}>
-      <div className="space-y-3 max-w-lg">
-        <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <div>
-            <p className="text-sm font-medium text-white">S3 Storage</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {s3Enabled
-                ? 'Evidence bundles and analytics logs shipping to object storage'
-                : 'Disabled — set S3_ENABLED=true and restart to activate'}
-            </p>
-          </div>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-            s3Enabled
-              ? 'text-green-400 bg-green-400/10 border-green-400/20'
-              : 'text-slate-400 bg-white/5 border-white/10'
-          }`}>
-            {s3Enabled ? 'Active' : 'Disabled'}
-          </span>
-        </div>
-
-        {[
-          { label: 'Evidence Vault',  val: 'warden-evidence/bundles/<session>.json', desc: 'SHA-256 signed per session' },
-          { label: 'Analytics Logs',  val: 'warden-logs/logs/<date>/<req>.json',     desc: 'NDJSON, GDPR-compliant metadata only' },
-        ].map(({ label, val, desc }) => (
-          <div key={label} className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <p className="text-sm font-medium text-white mb-0.5">{label}</p>
-            <p className="font-mono text-xs text-brand-400">{val}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
-          </div>
-        ))}
-
-        <p className="text-xs text-slate-500">
-          Storage errors are fail-open — never block the filter pipeline. Background <span className="font-mono text-slate-400">ThreadPoolExecutor(max_workers=2)</span>.
-        </p>
-      </div>
-    </Section>
-  )
-}
-
-// ── Financial section ─────────────────────────────────────────────────────────
-function FinancialSection() {
-  const MULTIPLIERS: Record<string, number> = {
-    generic: 1.0, finance: 2.4, healthcare: 3.2, tech: 1.8,
-    retail: 1.5, government: 1.9, legal: 2.1,
+  const [setup, setSetup] = useState<{ secret: string; otpauth_uri: string } | null>(null)
+  const [code, setCode] = useState('')
+  const [disabling, setDisabling] = useState(false)
+  const done = (msg: string) => {
+    setSetup(null); setCode(''); setDisabling(false)
+    qc.invalidateQueries({ queryKey: ['totp-status'] })
+    toast.success(msg)
   }
-  const [industry, setIndustry] = useState('generic')
-  const [requests, setRequests] = useState(100_000)
-
-  const mul       = MULTIPLIERS[industry] ?? 1.0
-  const incident  = Math.round(4_880_000 * mul * 0.012)
-  const inference = Math.round(requests * 0.015 * 0.0008 * 12)
-  const secops    = Math.round(Math.max(1, Math.round(requests / 50_000)) * 2.5 * 85 * 12)
-  const annual    = incident + inference + secops
-  const fmt = (v: number) => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  const start = useMutation({
+    mutationFn: () => api.post<{ secret: string; otpauth_uri: string }>('/auth/totp/setup').then(r => r.data),
+    onSuccess: setSetup,
+    onError: e => toast.error(detail(e, 'Could not start the setup')),
+  })
+  const confirm = useMutation({
+    mutationFn: () => api.post('/auth/totp/confirm', { code }),
+    onSuccess: () => done('Two-factor authentication is on'),
+    onError: e => toast.error(detail(e, 'That code did not work')),
+  })
+  const disable = useMutation({
+    mutationFn: () => api.post('/auth/totp/disable', { code }),
+    onSuccess: () => done('Two-factor authentication is off'),
+    onError: e => toast.error(detail(e, 'That code did not work')),
+  })
+  const codeInput = (id: string) => (
+    <input id={id} value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+           inputMode="numeric" autoComplete="one-time-code" placeholder="123456"
+           className="input w-32 font-mono tracking-[0.25em]" />
+  )
+  const on = status.data?.totp_enabled
 
   return (
-    <Section title="Dollar Impact" description="Estimated annual value delivered — IBM 2024 benchmarks" icon={DollarSign}>
-      <div className="space-y-4 max-w-lg">
-        {/* Controls */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Industry</label>
-            <select
-              value={industry}
-              onChange={e => setIndustry(e.target.value)}
-              className="input"
-            >
-              <option value="generic">Generic</option>
-              <option value="finance">Finance / Banking</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="tech">Technology</option>
-              <option value="retail">Retail</option>
-              <option value="government">Government</option>
-              <option value="legal">Legal / Professional</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Monthly requests</label>
-            <input
-              type="number"
-              value={requests}
-              min={100}
-              step={1000}
-              onChange={e => setRequests(Number(e.target.value))}
-              className="input"
-            />
-          </div>
-        </div>
+    <Panel title="Two-factor authentication">
+      <Row label="Authenticator app"
+           help="After your password, sign-in asks for a 6-digit code from an app such as Google Authenticator, 1Password or Authy.">
+        {status.isLoading ? <p className="text-sm text-slate-400">Checking…</p>
+          : on ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 text-sm text-green-400"><ShieldCheck className="h-4 w-4" /> On</span>
+              {!disabling && <button type="button" className="btn-secondary" onClick={() => setDisabling(true)}>Turn off</button>}
+            </div>
+          ) : !setup ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm text-slate-400">Off</span>
+              <button type="button" className="btn-primary" disabled={start.isPending} onClick={() => start.mutate()}>
+                Set up
+              </button>
+            </div>
+          ) : null}
+      </Row>
 
-        {/* Results */}
-        <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-          {[
-            { label: 'Incident Prevention',  value: fmt(incident),  sub: `IBM $4.88M × ${mul}× industry × 1.2% rate` },
-            { label: 'Inference Savings',    value: fmt(inference), sub: 'Shadow-banned requests × $0.0008 avg cost × 12mo' },
-            { label: 'SecOps Efficiency',    value: fmt(secops),    sub: '2.5h triage × $85/hr × incidents/yr' },
-          ].map(({ label, value, sub }) => (
-            <div key={label} className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] last:border-0 bg-white/[0.02]">
-              <div>
-                <p className="text-sm font-medium text-white">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{sub}</p>
+      {setup && (
+        <form onSubmit={e => { e.preventDefault(); if (code.length === 6) confirm.mutate() }}>
+          <Row label="1. Scan this code" help="Or, on the phone, type the key below into the app.">
+            <div className="space-y-3">
+              <div className="inline-block rounded-lg bg-white p-3">
+                <QRCodeSVG value={setup.otpauth_uri} size={152} aria-label="QR code for the authenticator app" />
               </div>
-              <span className="text-sm font-semibold text-green-400 font-mono">{value}</span>
+              <CopyField value={setup.secret.replace(/(.{4})/g, '$1 ').trim()} label="Setup key" />
             </div>
-          ))}
-          <div className="flex items-center justify-between px-4 py-3.5 bg-green-500/5 border-t border-green-500/20">
-            <p className="text-sm font-bold text-white">Annual Value Delivered</p>
-            <span className="text-base font-bold text-green-400 font-mono">{fmt(annual)}</span>
-          </div>
-        </div>
+          </Row>
+          <Row label="2. Enter the code it shows" htmlFor="totp-confirm">
+            <div className="flex flex-wrap gap-2">
+              {codeInput('totp-confirm')}
+              <button type="submit" className="btn-primary" disabled={code.length !== 6 || confirm.isPending}>Turn on</button>
+              <button type="button" className="btn-secondary" onClick={() => { setSetup(null); setCode('') }}>Cancel</button>
+            </div>
+          </Row>
+        </form>
+      )}
 
-        <p className="text-xs text-slate-500">
-          Live data available via <span className="font-mono text-brand-400">GET /financial/impact</span> — reads from logs.json, Redis ERS, and Prometheus.
-        </p>
-      </div>
-    </Section>
+      {on && disabling && (
+        <form onSubmit={e => { e.preventDefault(); if (code.length === 6) disable.mutate() }}>
+          <Row label="Confirm with a current code" help="Turning it off makes your password the only thing protecting the account."
+               htmlFor="totp-disable">
+            <div className="flex flex-wrap gap-2">
+              {codeInput('totp-disable')}
+              <button type="submit" className="btn-secondary text-red-300" disabled={code.length !== 6 || disable.isPending}>
+                Turn off
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => { setDisabling(false); setCode('') }}>Cancel</button>
+            </div>
+          </Row>
+        </form>
+      )}
+    </Panel>
   )
 }
 
-// ── Install / Uninstall section ───────────────────────────────────────────────
-function CodeBlock({ children }: { children: string }) {
-  const [copied, setCopied] = useState(false)
+// ── Plan & Usage ─────────────────────────────────────────────────────────────
+
+function PlanUsage() {
+  const billing = useQuery({
+    queryKey: ['billing'],
+    queryFn: () => api.get<{ plan?: string; requests_used?: number; requests_quota?: number }>('/billing').then(r => r.data),
+  })
+  const used = billing.data?.requests_used ?? 0
+  const quota = billing.data?.requests_quota ?? 0
+  const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0
   return (
-    <div className="relative group">
-      <pre className="bg-black/40 border border-white/[0.07] rounded-xl p-4 text-xs font-mono text-slate-300 overflow-x-auto leading-relaxed whitespace-pre">{children}</pre>
-      <button
-        onClick={() => { navigator.clipboard.writeText(children); setCopied(true); setTimeout(() => setCopied(false), 1500) }}
-        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/10 text-slate-300 hover:text-white"
-      >
-        {copied ? '✓ Copied' : 'Copy'}
-      </button>
-    </div>
+    <Panel title="Subscription">
+      <Row label="Plan">
+        <span className="badge badge-active">{billing.data?.plan ?? '—'}</span>
+      </Row>
+      <Row label="API requests this month" help={quota > 0 ? `${pct}% of the monthly allowance` : undefined}>
+        <div className="space-y-2">
+          <p className="text-sm text-slate-100">{used.toLocaleString()}{quota > 0 && ` / ${quota.toLocaleString()}`}</p>
+          {quota > 0 && (
+            <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]" role="progressbar"
+                 aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Monthly allowance used">
+              <div className={clsx('h-full rounded-full', pct > 80 ? 'bg-amber-500' : 'bg-brand-400')} style={{ width: `${pct}%` }} />
+            </div>
+          )}
+        </div>
+      </Row>
+      <Row label="Plans and prices">
+        <a href="https://www.shadow-warden-ai.com/price" target="_blank" rel="noreferrer"
+           className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:underline">
+          Compare plans <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </Row>
+    </Panel>
   )
 }
 
-function InstallSection() {
-  // Mirrors docker-compose.yml default profile (22 services). node-exporter and
-  // cadvisor sit behind `--profile monitoring` and are listed separately below.
-  const services = [
-    { name: 'proxy',        port: '80/443',    desc: 'Caddy v2 — TLS, QUIC/H3, HSTS, hostname routing' },
-    { name: 'warden',       port: '8001',      desc: 'FastAPI gateway — /filter, agents, all API routes' },
-    { name: 'arq-worker',   port: '—',         desc: 'ARQ worker — SOVA cron jobs, Evolution, healer' },
-    { name: 'portal',       port: '3001',      desc: 'Next.js tenant portal (this app)' },
-    { name: 'dashboard',    port: '3002',      desc: 'Next.js SOC dashboard' },
-    { name: 'analytics',    port: '8002',      desc: 'Streamlit — analytics and enterprise consoles' },
-    { name: 'admin',        port: '8502',      desc: 'Streamlit admin console' },
-    { name: 'postgres',     port: '5432',      desc: 'TimescaleDB — probe hypertable, retention policies' },
-    { name: 'redis',        port: '6379',      desc: 'Cache, ERS, SOVA memory, rate-limit' },
-    { name: 'clickhouse',   port: '8123',      desc: 'Columnar store for GSAM telemetry' },
-    { name: 'minio',        port: '9000/9091', desc: 'On-prem S3 — Evidence Vault + screencasts' },
-    { name: 'minio-init',   port: '—',         desc: 'Bucket bootstrap sidecar (exits after init)' },
-    { name: 'prometheus',   port: '9090',      desc: 'Metrics scrape' },
-    { name: 'grafana',      port: '3000',      desc: 'SLO alerts + dashboards' },
-    { name: 'loki',         port: '3100',      desc: 'Log aggregation' },
-    { name: 'promtail',     port: '—',         desc: 'Ships container logs to Loki' },
-    { name: 'jaeger',       port: '16686',     desc: 'Trace UI — OTel spans' },
-    { name: 'otel-collector', port: '4317',    desc: 'OTLP gRPC collector — traces to Jaeger' },
-    { name: 'redis-exporter',    port: '9121', desc: 'Redis metrics for Prometheus' },
-    { name: 'postgres-exporter', port: '9187', desc: 'Postgres metrics for Prometheus' },
-    { name: 'autoheal',     port: '—',         desc: 'Restarts containers that fail their healthcheck' },
-    { name: 'cloudflared',  port: '—',         desc: 'Cloudflare Tunnel — public ingress' },
-  ]
+// ── Page ─────────────────────────────────────────────────────────────────────
 
-  return (
-    <Section title="Install / Uninstall" description={`Shadow Warden AI v7.10 — Docker Compose, ${services.length} services, single command`} icon={Package}>
-      <div className="space-y-5 max-w-xl">
-
-        {/* Quick Start */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Quick Start</p>
-          <CodeBlock>{`# 1. Clone
-git clone https://github.com/zborrman/Shadow-Warden-AI.git
-cd Shadow-Warden-AI
-
-# 2. Configure
-cp .env.example .env
-# Edit: SECRET_KEY  WARDEN_API_KEY  POSTGRES_PASS
-# Optional: ANTHROPIC_API_KEY  SLACK_WEBHOOK_URL
-
-# 3. Start all ${services.length} services
-docker compose up --build -d
-
-# 4. Verify
-python scripts/warden_doctor.py \\
-  --url http://localhost --key $WARDEN_API_KEY`}</CodeBlock>
-          <p className="text-xs text-slate-500 mt-2">First run downloads PyTorch CPU wheels (~200 MB) and <span className="font-mono text-slate-400">all-MiniLM-L6-v2</span> (~80 MB). Cached on rebuild.</p>
-        </div>
-
-        {/* One-click SMB */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">One-Click SMB Installer</p>
-          <CodeBlock>{`curl -fsSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | sudo bash`}</CodeBlock>
-          <p className="text-xs text-slate-500 mt-1.5">Handles Docker detection, .env keygen, MinIO bucket init, health checks, and smoke test.</p>
-        </div>
-
-        {/* Services */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Services ({services.length})</p>
-          <div className="rounded-xl border border-white/[0.06] overflow-hidden text-xs">
-            {services.map((s, i) => (
-              <div key={s.name} className={`flex items-start gap-3 px-4 py-2.5 ${i < services.length - 1 ? 'border-b border-white/[0.04]' : ''}`}>
-                <span className="font-mono text-brand-400 w-20 flex-shrink-0 pt-0.5">{s.name}</span>
-                <span className="font-mono text-slate-500 w-16 flex-shrink-0 pt-0.5">{s.port}</span>
-                <span className="text-slate-400">{s.desc}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            <span className="font-mono text-slate-400">node-exporter</span> and <span className="font-mono text-slate-400">cadvisor</span> are opt-in: <span className="font-mono text-slate-400">docker compose --profile monitoring up -d</span>.
-          </p>
-        </div>
-
-        {/* Update */}
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Update to Latest</p>
-          <CodeBlock>{`git pull origin main
-docker compose pull
-docker compose up --build -d`}</CodeBlock>
-        </div>
-
-        {/* Uninstall */}
-        <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Trash2 className="w-4 h-4 text-red-400" />
-            <p className="text-sm font-semibold text-red-400">Uninstall</p>
-          </div>
-          <div className="space-y-2">
-            <div>
-              <p className="text-xs text-slate-400 mb-1.5">Stop containers — keep volumes (data safe)</p>
-              <CodeBlock>{`docker compose down`}</CodeBlock>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1.5">Full wipe — removes ALL data volumes (irreversible)</p>
-              <CodeBlock>{`docker compose down -v --rmi all`}</CodeBlock>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1.5">Remove named model volume only</p>
-              <CodeBlock>{`docker volume rm shadow-warden-ai_warden-models`}</CodeBlock>
-            </div>
-          </div>
-          <p className="text-xs text-red-400/70 mt-3">⚠ Back up your MinIO evidence vault before running the full wipe. <code>-v</code> permanently deletes all database data and logs.</p>
-        </div>
-
-      </div>
-    </Section>
-  )
-}
-
-// ── Quick-nav cards for sub-sections ─────────────────────────────────────────
-function QuickNav() {
-  const items = [
-    { href: '/settings/api-keys',      icon: Key,    label: 'API Keys',          desc: 'Create, rotate, revoke per-tenant keys',           color: 'text-brand-400', bg: 'bg-brand-400/10' },
-    { href: '/settings/secrets',       icon: Shield, label: 'Secrets Vault',     desc: 'Fernet-encrypted secrets at rest',                 color: 'text-green-400', bg: 'bg-green-400/10' },
-    { href: '/settings/agents',        icon: Bot,    label: 'Agent Config',      desc: 'Tune thresholds and toggle AI agents',             color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    { href: '/settings/notifications', icon: Bell,   label: 'Notifications',     desc: 'Slack, Teams, PagerDuty, Telegram, Email',         color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { href: '/settings/compliance',    icon: Shield, label: 'Compliance & Security', desc: 'SOC 2 Type II evidence — download artifacts',   color: 'text-cyan-400',  bg: 'bg-cyan-400/10' },
-  ]
-  return (
-    <div className="card p-6">
-      <h2 className="font-semibold text-white mb-4">Settings Sections</h2>
-      <div className="grid grid-cols-2 gap-3">
-        {items.map(({ href, icon: Icon, label, desc, color, bg }) => (
-          <a key={href} href={href}
-             className="flex items-start gap-3 p-4 rounded-xl hover:bg-white/[0.03] transition-colors border border-white/[0.06]">
-            <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
-              <Icon className={`w-4 h-4 ${color}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white">{label}</p>
-              <p className="text-xs text-slate-500 mt-0.5">{desc}</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
-          </a>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const [section, setSection] = useState<SectionId>('details')
+  useEffect(() => {
+    const read = () => {
+      const h = window.location.hash.slice(1) as SectionId
+      if (SECTION_IDS.includes(h)) setSection(h)
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [])
+  const title = NAV.flatMap(g => g.items).find(i => 'id' in i && i.id === section)?.label ?? 'Settings'
+
   return (
     <>
       <TopBar title="Settings" />
-      <div className="flex-1 p-6">
-        <div className="max-w-2xl space-y-5">
-          <QuickNav />
-          <ProfileSection />
-          <NotificationsSection />
-          <PasswordSection />
-          <BillingSection />
+      <div className="flex flex-1 flex-col gap-6 p-6 md:flex-row">
+        <nav aria-label="Settings sections" className="shrink-0 md:w-52">
+          {NAV.map(g => (
+            <div key={g.group} className="mb-4">
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{g.group}</p>
+              <ul className="space-y-0.5">
+                {g.items.map(item => {
+                  const Icon = item.icon
+                  const cls = 'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors'
+                  return (
+                    <li key={item.label}>
+                      {'id' in item ? (
+                        <a href={`#${item.id}`} aria-current={section === item.id ? 'page' : undefined}
+                           className={clsx(cls, section === item.id
+                             ? 'bg-brand-400/10 font-medium text-slate-100'
+                             : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200')}>
+                          <Icon className="h-4 w-4" aria-hidden /> {item.label}
+                        </a>
+                      ) : (
+                        <Link href={item.href} className={clsx(cls, 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200')}>
+                          <Icon className="h-4 w-4" aria-hidden /> {item.label}
+                        </Link>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        <div className="min-w-0 max-w-3xl flex-1 space-y-5">
+          <h1 className="text-lg font-semibold text-slate-100">{title}</h1>
+          {section === 'details' && <AccountDetails />}
+          {section === 'security' && <div className="space-y-5"><PasswordPanel /><TwoFactorPanel /></div>}
+          {section === 'billing' && <PlanUsage />}
         </div>
       </div>
     </>

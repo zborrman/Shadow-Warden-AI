@@ -9,14 +9,11 @@ import {
   errorMessage, formatMoney, storeApi,
   type CustomerSummary, type Store,
 } from '@/lib/storeApi'
+import { formatWhen } from '@/lib/prefs'
 import { EmptyState } from './fields'
 import { JournalPanel } from './JournalPanel'
 
-const when = (iso: string) => {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso
-    : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(d)
-}
+const when = (iso: string) => formatWhen(iso)
 
 const spent = (m: Record<string, number>) =>
   Object.entries(m).map(([cur, v]) => formatMoney(v, cur)).join(' · ') || '—'

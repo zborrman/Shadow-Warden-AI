@@ -49,8 +49,8 @@ export default function RegisterPage() {
     setError('')
     try {
       await registerUser(data.email, data.password, data.display_name)
-      await login(data.email, data.password)
-      router.replace('/dashboard/')
+      const r = await login(data.email, data.password)
+      router.replace('requires_totp' in r ? '/login/' : '/dashboard/')
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setError(msg || 'Registration failed. Please try again.')
