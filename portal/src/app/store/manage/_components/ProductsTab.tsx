@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ImagePlus, Languages, Loader2, Package, Plus, Save, Trash2, X } from 'lucide-react'
+import { ImagePlus, Languages, Loader2, Package, Plus, Save, Tags, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import {
   LOCALES, MAX_IMAGE_BYTES, SETTLEMENT_CURRENCY, orderCurrencies, errorMessage, formatMoney, fromMinor, storeApi, toMinor,
@@ -13,12 +13,14 @@ import { Barcode } from '@/components/ui/Barcode'
 import { checkGtin, isRestricted } from '@/lib/gtin'
 import { EmptyState, SelectInput, TextArea, TextInput } from './fields'
 import { flatten, useCategories } from './CategoriesTab'
+import { LabelsPanel } from './LabelsPanel'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
 export function ProductsTab({ store }: { store: Store }) {
   const products = useQuery({ queryKey: ['m2m-products', store.id], queryFn: () => storeApi.products(store.id) })
   const [editing, setEditing] = useState<StoreProduct | 'new' | null>(null)
+  const [labels, setLabels] = useState(false)
 
   if (editing) {
     const current = editing === 'new' ? null
@@ -29,9 +31,15 @@ export function ProductsTab({ store }: { store: Store }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {Boolean(products.data?.length) && (
+          <Button variant="outline" onClick={() => setLabels(v => !v)} aria-expanded={labels}><Tags /> Print labels</Button>
+        )}
         <Button onClick={() => setEditing('new')}><Plus /> New product</Button>
       </div>
+      {labels && products.data && products.data.length > 0 && (
+        <LabelsPanel store={store} products={products.data} onClose={() => setLabels(false)} />
+      )}
       {products.isLoading && <p className="text-sm text-slate-500">Loading products…</p>}
       {products.isError && <p className="text-sm text-red-400" role="alert">{errorMessage(products.error)}</p>}
       {products.data && products.data.length === 0 && (
@@ -105,6 +113,8 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const [otherUnit, setOtherUnit] = useState(!UNIT_VALUES.has(product?.unit ?? 'unit'))
   const [gtinRaw, setGtinRaw] = useState(product?.gtin ?? '')
   const gtin = checkGtin(gtinRaw)
+  const [fnsku, setFnsku] = useState(product?.fnsku ?? '')
+  const fnskuError = fnsku && !/^[A-Za-z0-9]{10}$/.test(fnsku.trim()) ? '10 letters and digits, e.g. X001ABC2DE' : undefined
   const [stock, setStock] = useState(String(product?.stock ?? 0))
   const [active, setActive] = useState(product?.active ?? true)
   const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(
@@ -119,13 +129,14 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const badPrice = store.currencies.filter(c => prices[c]?.trim() && minor[c] === null)
   const stockN = Number(stock)
   const valid = name.trim() && minor[SETTLEMENT_CURRENCY] !== null && badPrice.length === 0
-    && Number.isInteger(stockN) && stockN >= 0 && !gtin.error
+    && Number.isInteger(stockN) && stockN >= 0 && !gtin.error && !fnskuError
 
   const save = useMutation({
     mutationFn: async () => {
       const saved = await storeApi.saveProduct({
         id: product?.id, store_id: store.id, category_id: categoryId,
         name: name.trim(), description: description.trim(), unit: unit.trim() || 'unit', gtin: gtin.value,
+        fnsku: fnsku.trim().toUpperCase(),
         stock: stockN, active, price_minor: minor[SETTLEMENT_CURRENCY] as number,
       })
       await storeApi.setPrices(saved.id, store.currencies
@@ -181,6 +192,9 @@ function ProductForm({ store, product, onDone, onCreated }: {
                        ? 'An in-store number: fine on your own labels, but marketplaces will not accept it.'
                        : 'EAN-13, UPC-A, EAN-8 or GTIN-14 from your GS1 membership or the manufacturer. Optional.'} />
           {gtin.value && !gtin.error && <Barcode gtin={gtin.value} />}
+          <TextInput label="Amazon FNSKU" value={fnsku} onChange={e => setFnsku(e.target.value)}
+                     maxLength={12} spellCheck={false} placeholder="e.g. X001ABC2DE" error={fnskuError}
+                     hint="Only if you sell this item through FBA. From Seller Central; never shown to buyers." />
         </div>
         <TextArea label="Description" value={description} onChange={e => setDescription(e.target.value)} maxLength={4000} />
         <div className="grid gap-4 sm:grid-cols-3">

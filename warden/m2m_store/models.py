@@ -73,8 +73,19 @@ class Product(BaseModel):
     unit: str = "unit"
     # GS1 GTIN (R8.3): digits only, check digit verified; "" when the seller has none.
     gtin: str = ""
+    # Amazon FNSKU (R8.4): the code FBA scans, printed by the seller since Amazon
+    # stopped US prep/labelling on 2026-01-01. Seller-side only, never in a feed.
+    fnsku: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
     active: bool = True
+
+    @field_validator("fnsku")
+    @classmethod
+    def _fnsku(cls, value: str) -> str:
+        v = (value or "").strip().upper()
+        if v and (len(v) != 10 or not v.isascii() or not v.isalnum()):
+            raise ValueError("an FNSKU is 10 letters and digits, e.g. X001ABC2DE")
+        return v
 
     @field_validator("gtin")
     @classmethod
