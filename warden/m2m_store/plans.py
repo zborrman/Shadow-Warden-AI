@@ -64,6 +64,12 @@ _PLANS_DDL = """
         tenant_id TEXT PRIMARY KEY,
         started_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS m2m_label_usage (
+        tenant_id TEXT NOT NULL,
+        month     TEXT NOT NULL,
+        labels    INTEGER NOT NULL DEFAULT 0 CHECK (labels >= 0),
+        PRIMARY KEY (tenant_id, month)
+    );
 """
 
 register("m2m_store", "plans", _PLANS_DDL)
@@ -245,7 +251,43 @@ def usage(tenant_id: str) -> dict[str, int]:
             " AND COALESCE(json_extract(data_json,'$.deleted_at'),'')=''",
             (tenant_id,),
         ).fetchone()[0]
-    return {"stores": int(stores), "products": int(products)}
+        labels = con.execute(
+            "SELECT labels FROM m2m_label_usage WHERE tenant_id=? AND month=?",
+            (tenant_id, _month()),
+        ).fetchone()
+    return {"stores": int(stores), "products": int(products),
+            "labels_month": int(labels[0]) if labels else 0}
+
+
+def _month() -> str:
+    return datetime.now(UTC).strftime("%Y-%m")
+
+
+def take_labels(tenant_id: str, count: int) -> dict[str, int]:
+    """
+    Count ``count`` printed labels against this month's allowance, or refuse.
+
+    Labels are drawn in the browser, so this meter is the gate: the portal asks
+    before it builds the PDF. One conditional upsert, so two tabs printing at
+    once cannot both pass the last free label.
+    """
+    if count < 1 or count > 5_000:
+        raise PlanInvalidError("between 1 and 5000 labels at a time")
+    state = get_plan(tenant_id)
+    limit = pricing.store_plan_limits(state.plan)["labels_month"]
+    month = _month()
+    with _db_lock, _conn() as con:
+        cur = con.execute(
+            "INSERT INTO m2m_label_usage(tenant_id, month, labels) SELECT ?,?,? WHERE ? <= ?"
+            " ON CONFLICT(tenant_id, month) DO UPDATE SET labels = labels + excluded.labels"
+            " WHERE labels + excluded.labels <= ?",
+            (tenant_id, month, count, count, limit, limit),
+        )
+        if cur.rowcount != 1:
+            raise PlanLimitError("labels_month", limit, state.plan)
+        used = con.execute("SELECT labels FROM m2m_label_usage WHERE tenant_id=? AND month=?",
+                           (tenant_id, month)).fetchone()[0]
+    return {"used": int(used), "limit": limit}
 
 
 def history(tenant_id: str, limit: int = 50) -> list[dict[str, Any]]:
