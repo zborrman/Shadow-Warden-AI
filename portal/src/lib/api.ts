@@ -22,11 +22,16 @@ api.interceptors.request.use(cfg => {
 // Auto-refresh on 401
 let _refreshing: Promise<string> | null = null
 
+// On these a 401 is the answer (wrong password or code), not an expired
+// session: refreshing and reloading /login/ would wipe the form and hide the
+// message, and on change-password or close it would sign the person out.
+const ANSWERS_401 = /\/auth\/(login|register|refresh|totp\/complete|forgot-password|reset-password)\/?$|\/me\/(change-password|close)\/?$/
+
 api.interceptors.response.use(
   r => r,
   async err => {
     const original = err.config
-    if (err.response?.status === 401 && !original._retry) {
+    if (err.response?.status === 401 && !original._retry && !ANSWERS_401.test(original.url ?? '')) {
       original._retry = true
       try {
         if (!_refreshing) {
