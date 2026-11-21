@@ -13,6 +13,7 @@ import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const BASE = (process.env.PORTAL_URL || 'http://localhost:3001').replace(/\/$/, '')
+const API = (process.env.API_URL || 'http://localhost:8001').replace(/\/$/, '')
 const run = Date.now().toString(36)
 const EMAIL = `seller-${run}@example.org`
 const PASSWORD = `E2e-${run}-Passw0rd!`
@@ -157,10 +158,10 @@ async function main() {
     await page.locator('input[name="password"]').fill(PASSWORD)
     await page.getByRole('button', { name: /sign in/i }).click()
     await page.getByText(/invalid email or password/i).waitFor()
-    const res = await page.goto(`${BASE}/s/${SLUG}/`)
-    if (res && res.status() === 200 && await page.getByText('Red paint').count()) {
-      throw new Error('the storefront still lists the product')
-    }
+    // The gateway is asked, not the page: storefront pages are cached for 60 s
+    // (ISR), so the rendered page outlives the store by up to that long.
+    const r = await fetch(`${API}/m2m-store/storefront/${SLUG}`)
+    if (r.status !== 404) throw new Error(`the store still answers (${r.status})`)
   })
 
   await browser.close()
