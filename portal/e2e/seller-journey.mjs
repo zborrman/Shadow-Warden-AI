@@ -91,9 +91,21 @@ async function main() {
     await page.getByLabel(/^stock/i).fill('10')
     await page.getByLabel(/^unit/i).selectOption('l')
     await page.getByLabel(/^usd/i).fill('12.50')
+    await page.getByLabel(/barcode \(gtin\)/i).fill('4006381333931')
+    await page.getByRole('img', { name: /barcode 4006381333931/i }).waitFor()
     await page.getByRole('button', { name: /create product/i }).click()
     // A created product reopens in edit mode, where photos can be added.
     await page.getByText('Edit product').waitFor()
+  })
+
+  await at('print product labels (PDF)', async () => {
+    await page.getByRole('button', { name: /close/i }).first().click()
+    await page.getByRole('button', { name: /print labels/i }).click()
+    const [pdf] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /download pdf/i }).click(),
+    ])
+    if (!pdf.suggestedFilename().endsWith('.pdf')) throw new Error('labels are not a PDF')
   })
 
   await at('buyer orders on the storefront', async () => {
@@ -119,6 +131,11 @@ async function main() {
     await page.getByText('Ada Buyer').first().waitFor()
     await page.getByRole('button', { name: /^accept$/i }).first().click()
     await page.getByText(/accepted/i).first().waitFor()
+    const [label] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: /shipping label/i }).first().click(),
+    ])
+    if (!label.suggestedFilename().startsWith('shipping-label-')) throw new Error('no shipping label')
   })
 
   await at('customer card and journal', async () => {

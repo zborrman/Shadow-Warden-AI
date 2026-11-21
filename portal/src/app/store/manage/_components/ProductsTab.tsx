@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ImagePlus, Languages, Loader2, Package, Plus, Save, Trash2, X } from 'lucide-react'
+import { ImagePlus, Languages, Loader2, Package, Plus, Save, Tags, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import {
   LOCALES, MAX_IMAGE_BYTES, SETTLEMENT_CURRENCY, orderCurrencies, errorMessage, formatMoney, fromMinor, storeApi, toMinor,
@@ -13,12 +13,14 @@ import { Barcode } from '@/components/ui/Barcode'
 import { checkGtin, isRestricted } from '@/lib/gtin'
 import { EmptyState, SelectInput, TextArea, TextInput } from './fields'
 import { flatten, useCategories } from './CategoriesTab'
+import { LabelsPanel } from './LabelsPanel'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
 export function ProductsTab({ store }: { store: Store }) {
   const products = useQuery({ queryKey: ['m2m-products', store.id], queryFn: () => storeApi.products(store.id) })
   const [editing, setEditing] = useState<StoreProduct | 'new' | null>(null)
+  const [labels, setLabels] = useState(false)
 
   if (editing) {
     const current = editing === 'new' ? null
@@ -29,9 +31,15 @@ export function ProductsTab({ store }: { store: Store }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {Boolean(products.data?.length) && (
+          <Button variant="outline" onClick={() => setLabels(v => !v)} aria-expanded={labels}><Tags /> Print labels</Button>
+        )}
         <Button onClick={() => setEditing('new')}><Plus /> New product</Button>
       </div>
+      {labels && products.data && products.data.length > 0 && (
+        <LabelsPanel store={store} products={products.data} onClose={() => setLabels(false)} />
+      )}
       {products.isLoading && <p className="text-sm text-slate-500">Loading products…</p>}
       {products.isError && <p className="text-sm text-red-400" role="alert">{errorMessage(products.error)}</p>}
       {products.data && products.data.length === 0 && (

@@ -3,12 +3,13 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
-import { ChevronDown, Loader2, Mail, Phone, RefreshCw } from 'lucide-react'
+import { ChevronDown, FileDown, Loader2, Mail, Phone, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui'
 import {
   errorMessage, formatMoney, SELLER_MOVES, storeApi,
   type OrderRequestStatus, type SellerOrderRequest, type Store,
 } from '@/lib/storeApi'
+import { hasNonLatin1, shippingLabelPdf } from '@/lib/labels'
 import { EmptyState } from './fields'
 
 const LABEL: Record<OrderRequestStatus, string> = {
@@ -121,15 +122,15 @@ export function OrdersTab({ store }: { store: Store }) {
         />
       ) : (
         <ul className="space-y-3">
-          {orders.data.map(o => <OrderCard key={o.id} order={o} storeId={store.id} ownName={ownName} />)}
+          {orders.data.map(o => <OrderCard key={o.id} order={o} storeId={store.id} storeName={store.name} ownName={ownName} />)}
         </ul>
       )}
     </div>
   )
 }
 
-function OrderCard({ order: o, storeId, ownName }: {
-  order: SellerOrderRequest; storeId: string; ownName: Map<string, string>
+function OrderCard({ order: o, storeId, storeName, ownName }: {
+  order: SellerOrderRequest; storeId: string; storeName: string; ownName: Map<string, string>
 }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(o.status === 'PENDING_MERCHANT')
@@ -239,6 +240,25 @@ function OrderCard({ order: o, storeId, ownName }: {
             )}
 
             {o.status === 'ACCEPTED' && <PaymentLink order={o} storeId={storeId} />}
+
+            {['ACCEPTED', 'PAID', 'SHIPPED'].includes(o.status) && (
+              <div>
+                <Button size="sm" variant="outline" onClick={() => shippingLabelPdf({
+                  from: storeName,
+                  to: { name: c.name, line1: c.address_line1, line2: c.address_line2, city: c.city,
+                        postal: c.postal_code, region: c.region, country: o.country, phone: c.phone },
+                  reference: o.id.slice(0, 8).toUpperCase(),
+                  items: o.items.map(i => `${i.qty} x ${i.name}`).join(', '),
+                }).save(`shipping-label-${o.id.slice(0, 8)}.pdf`)}>
+                  <FileDown /> Shipping label (100 × 150 mm)
+                </Button>
+                {hasNonLatin1(`${c.name} ${c.address_line1} ${c.address_line2} ${c.city} ${c.region}`) && (
+                  <p className="mt-1 text-xs text-amber-300">
+                    This address uses letters outside the Latin alphabet; the PDF prints them as “?”. Write the label by hand.
+                  </p>
+                )}
+              </div>
+            )}
 
             {moves.length > 0 && (
               <div className="space-y-2 border-t border-white/[0.06] pt-3">
