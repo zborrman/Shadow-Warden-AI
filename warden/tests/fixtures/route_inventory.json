@@ -759,6 +759,7 @@
     "PATCH /m2m-store/stores/{store_id}",
     "PATCH /m2m-store/stores/{store_id}/customers/{customer_id}",
     "PATCH /m2m-store/stores/{store_id}/customers/{customer_id}/journal/{entry_id}",
+    "POST /m2m-store/labels/usage",
     "POST /m2m-store/offers",
     "POST /m2m-store/offers/{offer_id}/challenge",
     "POST /m2m-store/offers/{offer_id}/reserve",

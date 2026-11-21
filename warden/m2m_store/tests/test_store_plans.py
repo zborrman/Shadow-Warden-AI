@@ -117,8 +117,8 @@ class TestLimits:
         assert r.status_code == 200
         body = r.json()
         assert body["plan"] == "store_free" and body["source"] == "default"
-        assert body["limits"] == {"stores": 1, "products": 25, "locales": 2}
-        assert body["usage"] == {"stores": 0, "products": 0}
+        assert body["limits"] == {"stores": 1, "products": 25, "locales": 2, "labels_month": 30}
+        assert body["usage"] == {"stores": 0, "products": 0, "labels_month": 0}
         assert body["trial_available"] is True
 
     def test_the_plan_response_carries_no_price(self, client):
@@ -201,7 +201,7 @@ class TestDowngradeKeepsData:
 
         plan = client.get(f"{API}/plan", headers=_as("tenant-a")).json()
         assert plan["plan"] == "store_free"
-        assert plan["usage"] == {"stores": 3, "products": 3}      # over the limit, intact
+        assert plan["usage"] == {"stores": 3, "products": 3, "labels_month": 0}      # over the limit, intact
         assert len(client.get(f"{API}/stores", headers=_as("tenant-a")).json()) == 3
         for i in range(3):                                         # still published
             assert client.get(f"{API}/storefront/s{i}").status_code == 200
@@ -309,3 +309,26 @@ class TestGrantIsOperatorOnly:
         events = [(e["event"], e["source"]) for e in r.json()["history"]]
         assert sorted(events) == sorted(
             [("granted", "founding"), ("revoked", "admin"), ("trial_started", "trial")])
+
+
+class TestLabelMeter:
+    """R8.4 labels are drawn in the browser; this meter is the free plan's gate."""
+
+    def test_free_plan_prints_thirty_a_month_then_stops(self, client):
+        h = _as("tenant-labels")
+        r = client.post(f"{API}/labels/usage", headers=h, json={"count": 25})
+        assert r.status_code == 200 and r.json() == {"used": 25, "limit": 30}
+        over = client.post(f"{API}/labels/usage", headers=h, json={"count": 6})
+        assert over.status_code == 403 and over.json()["detail"]["limit"] == "labels_month"
+        assert client.post(f"{API}/labels/usage", headers=h, json={"count": 5}).json()["used"] == 30
+        assert client.get(f"{API}/plan", headers=h).json()["usage"]["labels_month"] == 30
+
+    def test_a_paid_plan_is_not_metered_in_practice(self, client):
+        from warden.m2m_store import plans
+        plans.grant_plan("tenant-guardian", "store_seller", source="admin", actor="test")
+        r = client.post(f"{API}/labels/usage", headers=_as("tenant-guardian"), json={"count": 5000})
+        assert r.status_code == 200 and r.json()["used"] == 5000
+
+    def test_a_count_must_be_sensible(self, client):
+        for bad in (0, -1, 5001):
+            assert client.post(f"{API}/labels/usage", headers=_as("tenant-x"), json={"count": bad}).status_code == 422

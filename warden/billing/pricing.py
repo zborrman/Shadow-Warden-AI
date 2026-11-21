@@ -162,11 +162,24 @@ ANNUAL_PRICING: dict[str, dict[str, Any]] = {
 #
 # Same rules as the gateway ladder: one table, annual derived, never typed in.
 
+# Seller ladder (2026-11-21, docs/monetization-seller-ladder.md): priced on what
+# a seller protects - catalog size and channels - not on a share of revenue.
+# Internal keys stay stable; STORE_PLAN_NAMES is what a seller would read.
 STORE_PLAN_PRICE_USD_MONTH: dict[str, float] = {
     "store_free":     0.0,
-    "store_seller":   15.0,
-    "store_business": 39.0,
+    "store_seller":   29.0,
+    "store_business": 79.0,
+    "store_fortress": 199.0,
 }
+
+STORE_PLAN_NAMES: dict[str, str] = {
+    "store_free":     "Free",
+    "store_seller":   "Guardian",
+    "store_business": "Shield",
+    "store_fortress": "Fortress",
+}
+
+LABELS_UNLIMITED: int = 1_000_000
 
 # What a plan may hold. Every key must appear on every plan, and the ladder must
 # be monotone - a higher plan never allows less (test_store_plans.py asserts both).
@@ -176,10 +189,14 @@ STORE_PLAN_PRICE_USD_MONTH: dict[str, float] = {
 #     platform moves no money, so there is nothing to meter;
 #   * photos per product - 8 everywhere (media.MAX_IMAGES_PER_PRODUCT); a thin
 #     storefront sells nothing and makes the free plan a bad advertisement.
+#   * labels_month - printed labels per calendar month. Labels are the paid
+#     plans' everyday tool, so only the free plan is metered; "unlimited" is a
+#     ceiling no seller reaches, which keeps the ladder monotone.
 STORE_PLAN_LIMITS: dict[str, dict[str, int]] = {
-    "store_free":     {"stores": 1, "products": 25,    "locales": 2},
-    "store_seller":   {"stores": 1, "products": 500,   "locales": 5},
-    "store_business": {"stores": 5, "products": 5_000, "locales": 5},
+    "store_free":     {"stores": 1,  "products": 25,     "locales": 2, "labels_month": 30},
+    "store_seller":   {"stores": 1,  "products": 100,    "locales": 5, "labels_month": LABELS_UNLIMITED},
+    "store_business": {"stores": 3,  "products": 500,    "locales": 5, "labels_month": LABELS_UNLIMITED},
+    "store_fortress": {"stores": 10, "products": 5_000,  "locales": 5, "labels_month": LABELS_UNLIMITED},
 }
 
 STORE_DEFAULT_PLAN: str = "store_free"

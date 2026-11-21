@@ -61,6 +61,7 @@ from fastapi import (
     Response,
 )
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field
 
 from warden.admin_guard import require_admin_key
 from warden.auth_guard import AuthResult, require_api_key
@@ -797,6 +798,19 @@ async def get_store_plan(auth: AuthResult = OwnerDep):
         "usage": plans.usage(auth.tenant_id),
         "trial_available": plans.trial_available(auth.tenant_id),
     }
+
+
+class LabelUseIn(BaseModel):
+    count: int = Field(ge=1, le=5_000)
+
+
+@router.post("/labels/usage", response_model=dict)
+async def use_labels(body: LabelUseIn, auth: AuthResult = OwnerDep):
+    """Count labels about to be printed against the plan's monthly allowance (403 when over)."""
+    try:
+        return plans.take_labels(auth.tenant_id, body.count)
+    except plans.PlanLimitError as exc:
+        raise _plan_limit(exc) from exc
 
 
 @router.post("/plan/trial", response_model=dict, status_code=201)
