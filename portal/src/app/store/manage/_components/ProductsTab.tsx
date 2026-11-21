@@ -14,6 +14,7 @@ import { checkGtin, isRestricted } from '@/lib/gtin'
 import { EmptyState, SelectInput, TextArea, TextInput } from './fields'
 import { flatten, useCategories } from './CategoriesTab'
 import { LabelsPanel } from './LabelsPanel'
+import { ListingCheck } from './ListingCheck'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
@@ -197,6 +198,7 @@ function ProductForm({ store, product, onDone, onCreated }: {
                      hint="Only if you sell this item through FBA. From Seller Central; never shown to buyers." />
         </div>
         <TextArea label="Description" value={description} onChange={e => setDescription(e.target.value)} maxLength={4000} />
+        <ListingCheck name={name} description={description} />
         <div className="grid gap-4 sm:grid-cols-3">
           <TextInput label="Stock" type="number" min={0} step={1} value={stock} onChange={e => setStock(e.target.value)}
                      error={Number.isInteger(stockN) && stockN >= 0 ? undefined : 'A whole number, 0 or more'} />
