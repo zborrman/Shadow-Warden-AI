@@ -61,6 +61,8 @@ export interface StoreProduct {
   unit: string
   /** GS1 GTIN, digits only; "" when none. */
   gtin: string
+  /** Amazon FNSKU, 10 letters and digits; "" when none. Seller-side only. */
+  fnsku: string
   active: boolean
   prices: Price[]
   translations: Record<string, { name: string; description: string }>
@@ -176,7 +178,7 @@ export const storeApi = {
   products:      (storeId: string) => get<StoreProduct[]>(`/stores/${storeId}/products`),
   saveProduct:   (body: {
     id?: string; store_id: string; category_id: string; name: string; description: string
-    price_minor: number; stock: number; unit: string; gtin: string; active: boolean
+    price_minor: number; stock: number; unit: string; gtin: string; fnsku: string; active: boolean
   }) => send<{ id: string; name: string }>('post', '/products', body),
   deleteProduct: (id: string) => del(`/products/${id}`),
   setPrices:     (id: string, prices: Price[]) => send<Price[]>('put', `/products/${id}/prices`, prices),
