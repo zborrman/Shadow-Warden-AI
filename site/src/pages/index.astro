@@ -56,6 +56,9 @@ const softwareApplication = {
   .idx-tag { font-family:var(--font-mono);font-size:clamp(12px,1.3vw,15px);color:#6b7c96;margin-bottom:18px; }
   .idx-sub { font-size:15px;line-height:1.75;color:#94a3b8;max-width:440px;margin:0 0 30px; }
   .idx-btns { display:flex;gap:11px;flex-wrap:wrap; }
+  .idx-sellers { display:inline-flex;align-items:center;gap:10px;margin-top:18px;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:#e0e7ff;border:1px solid rgba(129,140,248,.35);background:rgba(99,102,241,.08);transition:border-color .2s; }
+  .idx-sellers:hover { border-color:rgba(129,140,248,.7); }
+  .idx-sellers-tag { font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:5px;color:#03050f;background:#a5b4fc; }
   .idx-btn-p { display:inline-flex;align-items:center;gap:7px;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;color:#070910;background:#80b4fd;box-shadow:color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px,color(display-p3 0.38 0.61 0.96 / 0.10) 0px 1px 1px 0px;transition:background 150ms ease,box-shadow 150ms ease; }
   .idx-btn-p:hover{background:#9dc5fe;box-shadow:color(display-p3 0.50 0.72 1.0 / 0.30) 0px -5px 12px 0px inset,color(display-p3 0.50 0.72 1.0 / 0.20) 0px 3px 6px 0px,color(display-p3 0.50 0.72 1.0 / 0.12) 0px 1px 2px 0px;}
   .idx-btn-g { display:inline-flex;align-items:center;gap:7px;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;color:#a8b8d0;border:1px solid rgba(255,255,255,.1);transition:border-color .2s,color .2s; }
@@ -93,6 +96,10 @@ const softwareApplication = {
           <a href="https://portal.shadow-warden-ai.com" target="_blank" class="idx-btn-p">Start Free — $0</a>
           <a href="/agentic" class="idx-btn-g">Explore Marketplace →</a>
         </div>
+        <a href="/sellers" class="idx-sellers">
+          <span class="idx-sellers-tag">New</span>
+          Selling on Amazon or your own shop? Print FNSKU and barcode labels, keep your customers →
+        </a>
       </div>
       <div>
         <div class="idx-term">
