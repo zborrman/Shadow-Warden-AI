@@ -26,6 +26,7 @@ Environment variables
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -35,6 +36,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
+import pyotp
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -47,6 +49,7 @@ from warden.config import settings
 from warden.db.connection import get_db
 from warden.db.sql_safety import safe_set_clause
 from warden.limiter import limiter as _limiter
+from warden.m2m_store.closure import export_tenant, purge_tenant
 
 log = logging.getLogger("warden.portal")
 
@@ -206,6 +209,13 @@ class _PatchMeIn(BaseModel):
 class _ChangePasswordIn(BaseModel):
     current_password: str
     new_password:     str = Field(..., min_length=8)
+
+
+class _CloseAccountIn(BaseModel):
+    password:  str = Field(..., min_length=1, max_length=200)
+    totp_code: str | None = Field(None, min_length=6, max_length=6)
+    # Typed by the person, so a stray request cannot close an account.
+    confirm:   str
 
 
 class _ForgotPasswordIn(BaseModel):
@@ -716,6 +726,83 @@ async def change_password(
     )
     await db.commit()
     return {"detail": "Password changed."}
+
+
+# ── Data export + account closure (GDPR Art. 15/17/20) ───────────────────────
+
+@router.get("/me/export")
+async def export_me(
+    me: _PortalUser = Depends(require_portal_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Everything held for this account: profile, stores, catalog, order requests, customers."""
+    user = await _get_user_by_id(db, me.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    store = await asyncio.to_thread(export_tenant, me.tenant_id)
+    return {
+        "account": {
+            "email": user["email"], "display_name": user["display_name"],
+            "tenant_id": user["tenant_id"], "role": user["role"],
+            "created_at": user["created_at"].isoformat() if user["created_at"] else None,
+        },
+        **store,
+    }
+
+
+@router.post("/me/close")
+@_limiter.limit(_LOGIN_IP_LIMIT)
+async def close_account(
+    request: Request,
+    body: _CloseAccountIn,
+    response: Response,
+    me: _PortalUser = Depends(require_portal_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Close the account at once. Password (and the authenticator code when 2FA is
+    on) is asked again, so a stolen session alone cannot do it. The last owner
+    of a tenant takes the tenant's store data with it (warden.m2m_store.closure)
+    and its API keys; anyone else only removes their own login.
+    """
+    if body.confirm != "DELETE":
+        raise HTTPException(status_code=422, detail='Type DELETE to confirm.')
+    user = await _get_user_by_id(db, me.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    try:
+        ok = bcrypt.checkpw(body.password.encode(), user["password_hash"].encode())
+    except ValueError:
+        ok = False
+    if not ok:
+        raise HTTPException(status_code=401, detail="Password incorrect.")
+    if user.get("totp_enabled") and not (
+        body.totp_code and pyotp.TOTP(user["totp_secret"]).verify(body.totp_code, valid_window=1)
+    ):
+        raise HTTPException(status_code=401, detail="Authenticator code required.")
+
+    others = (await db.execute(
+        text("SELECT COUNT(*) AS n FROM warden_core.portal_users WHERE tenant_id=:tid AND id<>:id"),
+        {"tid": me.tenant_id, "id": me.user_id},
+    )).mappings().first()
+    last_owner = me.role == "owner" and not (others and others["n"])
+
+    removed: dict[str, int] = {}
+    if last_owner:
+        removed = await asyncio.to_thread(purge_tenant, me.tenant_id)
+        await db.execute(text("DELETE FROM warden_core.portal_api_keys WHERE tenant_id=:tid"),
+                         {"tid": me.tenant_id})
+    else:
+        # Keys this person made stay with the tenant; only the reference to them goes.
+        await db.execute(text("UPDATE warden_core.portal_api_keys SET created_by=NULL WHERE created_by=:id"),
+                         {"id": me.user_id})
+    await db.execute(text("DELETE FROM warden_core.portal_users WHERE id=:id"), {"id": me.user_id})
+    await db.commit()
+
+    response.delete_cookie(_COOKIE_NAME)
+    log.info("portal: account closed [tenant=%s last_owner=%s store_rows=%d]",
+             me.tenant_id, last_owner, sum(removed.values()))
+    return {"closed": True, "store_data_removed": last_owner}
 
 
 # ── /keys ─────────────────────────────────────────────────────────────────────
