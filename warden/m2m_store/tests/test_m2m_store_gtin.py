@@ -101,3 +101,15 @@ def test_one_number_names_one_product_per_seller(client):
     osid = client.post(f"{API}/stores", headers=other, json={
         "slug": "other", "name": "Other", "default_currency": "USD", "currencies": ["USD"]}).json()["id"]
     assert _product(client, other, osid, gtin="4006381333931").status_code == 201
+
+
+def test_fnsku_is_normalised_checked_and_kept_off_the_public_feed(client):
+    sid, _pids, h = _shop(client)
+    r = _product(client, h, sid, fnsku=" x001abc2de ")
+    assert r.status_code == 201, r.text
+    owner = client.get(f"{API}/stores/{sid}/products", headers=h).json()
+    assert [p["fnsku"] for p in owner if p["id"] == r.json()["id"]] == ["X001ABC2DE"]
+    feed = client.get(f"{API}/storefront/acme/catalog/ucp").json()
+    assert all("fnsku" not in p for p in feed["products"])
+    for bad in ("X001ABC2D", "X001ABC2DE1", "X001-ABC2D", "Х001ABC2DE"):  # last one has a Cyrillic Х
+        assert _product(client, h, sid, fnsku=bad).status_code == 422, bad
