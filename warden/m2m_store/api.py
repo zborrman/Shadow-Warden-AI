@@ -800,6 +800,18 @@ async def get_store_plan(auth: AuthResult = OwnerDep):
     }
 
 
+class ListingTextIn(BaseModel):
+    name: str = Field(default="", max_length=500)
+    description: str = Field(default="", max_length=8_000)
+
+
+@router.post("/listing-lint", response_model=list[dict])
+async def listing_lint(body: ListingTextIn, auth: AuthResult = OwnerDep):
+    """Claims in a product's own text that need proof or a registration (EPA, FDA, FTC, EU)."""
+    from warden.m2m_store.listing_lint import lint
+    return lint({"name": body.name, "description": body.description})
+
+
 class LabelUseIn(BaseModel):
     count: int = Field(ge=1, le=5_000)
 
