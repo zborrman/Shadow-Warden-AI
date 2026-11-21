@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { FileCode2, FileDown, X } from 'lucide-react'
 import { Button } from '@/components/ui'
-import { formatMoney, type Store, type StoreProduct } from '@/lib/storeApi'
+import { errorMessage, formatMoney, storeApi, type Store, type StoreProduct } from '@/lib/storeApi'
 import {
   hasNonLatin1, productLabelsPdf, productLabelsZpl, type LabelKind, type LabelLayout,
 } from '@/lib/labels'
@@ -37,6 +37,24 @@ export function LabelsPanel({ store, products, onClose }: {
   const countOf = (p: StoreProduct) => copies[`${kind}:${p.id}`] ?? (code(p) ? 1 : 0)
   const [layout, setLayout] = useState<LabelLayout>('a4-3x8')
   const [withPrice, setWithPrice] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [limitNote, setLimitNote] = useState('')
+
+  // The plan's monthly allowance is counted before anything is drawn.
+  const metered = async (make: () => void) => {
+    setBusy(true); setLimitNote('')
+    try {
+      await storeApi.useLabels(total)
+      make()
+    } catch (e) {
+      const d = (e as { response?: { status?: number; data?: { detail?: { limit?: string; max?: number } } } }).response
+      setLimitNote(d?.status === 403 && d.data?.detail?.limit === 'labels_month'
+        ? `Your plan prints ${d.data.detail.max} labels a month, and this would go past it. A paid plan prints without a monthly limit.`
+        : errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const priceOf = (p: StoreProduct) => {
     const pr = p.prices.find(x => x.currency === store.default_currency) ?? p.prices[0]
@@ -111,6 +129,7 @@ export function LabelsPanel({ store, products, onClose }: {
           Some names use letters outside the Latin alphabet; the label prints those letters as “?”.
         </p>
       )}
+      {limitNote && <p className="text-sm text-amber-300" role="alert">{limitNote}</p>}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
           {total} {total === 1 ? 'label' : 'labels'}
@@ -122,12 +141,12 @@ export function LabelsPanel({ store, products, onClose }: {
           {kind === 'gtin' && ' Products without a barcode print with name and price only.'}
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={total === 0} title="2 × 1 in, 203 dpi, for Zebra-compatible printers"
-                  onClick={() => download(new Blob([productLabelsZpl(items(), kind)], { type: 'text/plain' }), `${store.slug}-${kind}-labels.zpl`)}>
+          <Button variant="outline" disabled={total === 0 || busy} title="2 × 1 in, 203 dpi, for Zebra-compatible printers"
+                  onClick={() => metered(() => download(new Blob([productLabelsZpl(items(), kind)], { type: 'text/plain' }), `${store.slug}-${kind}-labels.zpl`))}>
             <FileCode2 /> ZPL
           </Button>
-          <Button disabled={total === 0}
-                  onClick={() => download(productLabelsPdf(items(), layout, kind).output('blob'), `${store.slug}-${kind}-labels.pdf`)}>
+          <Button disabled={total === 0 || busy}
+                  onClick={() => metered(() => download(productLabelsPdf(items(), layout, kind).output('blob'), `${store.slug}-${kind}-labels.pdf`))}>
             <FileDown /> Download PDF
           </Button>
         </div>

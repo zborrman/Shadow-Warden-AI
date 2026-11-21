@@ -221,6 +221,8 @@ export const storeApi = {
   updateJournal: (storeId: string, id: string, entryId: string,
                   body: { subject?: string; body?: string; sent?: boolean }) =>
     send<JournalEntry>('patch', `/stores/${storeId}/customers/${id}/journal/${entryId}`, body),
+  /** Counts labels against the plan's monthly allowance before they are drawn (403 plan_limit when over). */
+  useLabels: (count: number) => send<{ used: number; limit: number }>('post', '/labels/usage', { count }),
   deleteJournal: (storeId: string, id: string, entryId: string) =>
     del(`/stores/${storeId}/customers/${id}/journal/${entryId}`),
 }
