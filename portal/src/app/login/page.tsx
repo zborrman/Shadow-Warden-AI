@@ -66,7 +66,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div translate="no" className="min-h-screen flex">
 
       {/* ── Left panel (hero) ── */}
       <div className="hidden lg:flex flex-col justify-between w-[46%] relative overflow-hidden px-12 py-12"

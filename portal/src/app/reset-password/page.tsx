@@ -33,7 +33,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div translate="no" className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center card p-8 space-y-4">
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
           <p className="text-white font-semibold">Invalid reset link</p>
@@ -50,7 +50,7 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div translate="no" className="min-h-screen flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center card p-8 space-y-4">
           <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto" />
           <p className="text-white font-semibold">Password updated</p>
@@ -75,7 +75,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div translate="no" className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
 
         <div className="text-center mb-8">
