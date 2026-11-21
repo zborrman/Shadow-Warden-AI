@@ -65,6 +65,13 @@ const addons = [
   { key: 'addonAgenticPack', name: 'Agentic Commerce Pack',   price: 15, tier: 'Community Biz+',   desc: 'AI procurement with mandate controls, UCP store discovery, AP2 payment execution, MCP agent intents, vendor validation, and BI spend analytics.' },
   { key: 'addonEdgePacks',   name: 'ARC Edge Agent Packs',    price: 15, tier: 'Community Biz+',   desc: 'Plug-and-play edge analytics agents: Crop Health Monitor (NDVI), Yield Optimizer, Disease Detector (Claude Vision). Deploy as marketplace agents.' },
 ];
+
+// Checkout URL per plan and billing period, read by the configurator script.
+const planUrls = Object.fromEntries(tiers.map(t => {
+  const v = VARIANT_IDS[t.key];
+  const url = (id: string) => id === 'contact' ? 'mailto:sales@shadow-warden-ai.com' : id ? checkoutUrl(id, { embed: true }) : '';
+  return [t.key, { monthly: url(v?.monthly ?? v?.once ?? ''), annual: url(v?.annual ?? v?.once ?? '') }];
+}));
 ---
 
 <BaseLayout
@@ -74,267 +81,149 @@ const addons = [
 >
   <div class="pt-14" style="background:#03050f">
 
-    <!-- Hero -->
-    <section class="py-20 text-center relative overflow-hidden">
-      <div class="absolute inset-0 pointer-events-none"
-           style="background:radial-gradient(ellipse 800px 400px at 50% 0%,rgba(249,115,22,0.07) 0%,transparent 70%)"></div>
-      <div class="relative z-10 mx-auto max-w-3xl px-4">
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#f97316;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2)">
-          ◇ Transparent Pricing
-        </div>
-        <h1 class="text-[clamp(32px,5vw,60px)] font-black leading-tight tracking-tight mb-4" style="color:#f1f5f9">
-          The right plan for<br/>
-          <span style="background:linear-gradient(135deg,#f97316,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">every threat model</span>
-        </h1>
-        <p class="text-[16px] mb-8 max-w-xl mx-auto" style="color:#94a3b8">
-          14-day trial on all paid plans — no card required. Cancel anytime.
+    <!-- Plan configurator: choices on the left, a sticky summary on the right. -->
+    <section id="calculator" class="py-14">
+      <div class="mx-auto max-w-6xl px-4 lg:px-8">
+        <h1 class="text-[clamp(28px,4vw,40px)] font-black tracking-tight mb-2" style="color:#f1f5f9">Choose your plan</h1>
+        <p class="text-[14px] mb-10" style="color:#94a3b8">
+          14-day trial on paid plans, no card required. Cancel anytime. Prices in USD.
         </p>
 
-        <!-- Monthly / Annual toggle -->
-        <div class="inline-flex items-center gap-3 p-1 rounded-xl" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08)">
-          <button id="billing-monthly"
-                  class="billing-toggle active px-5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  aria-pressed="true">Monthly</button>
-          <button id="billing-annual"
-                  class="billing-toggle px-5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  aria-pressed="false">
-            Annual
-            <span class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold" style="color:#10b981;background:rgba(16,185,129,0.15)">−15%</span>
-          </button>
-        </div>
-      </div>
-    </section>
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <div class="space-y-10 min-w-0">
 
-    <!-- Tier cards -->
-    <section class="pb-20">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8">
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {tiers.map(t => {
-            const varId    = VARIANT_IDS[t.key];
-            const monthlyId = varId?.monthly ?? varId?.once ?? '';
-            const annualId  = varId?.annual  ?? varId?.once ?? '';
-            const monthlyUrl = monthlyId === 'contact'
-              ? 'mailto:sales@shadow-warden-ai.com'
-              : checkoutUrl(monthlyId, { embed: true });
-            const annualUrl = annualId === 'contact'
-              ? 'mailto:sales@shadow-warden-ai.com'
-              : checkoutUrl(annualId, { embed: true });
-
-            return (
-              <div id={t.key} class={`tier-card relative rounded-2xl p-5 flex flex-col${t.highlight ? ' highlight' : ''}`}
-                   style={`border:1px solid ${t.highlight ? t.color + '50' : 'rgba(255,255,255,0.07)'};background:${t.highlight ? t.tint : 'rgba(255,255,255,0.02)'}`}>
-
-                {t.tag && (
-                  <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap"
-                       style={`color:${t.color};background:#03050f;border:1px solid ${t.color}60`}>
-                    {t.tag}
-                  </div>
-                )}
-
-                <!-- Header -->
-                <div class="mb-4">
-                  <div class="text-[13px] font-semibold mb-3" style={`color:${t.color}`}>{t.name}</div>
-                  <div class="flex items-baseline gap-1.5">
-                    <span class="price-monthly text-[32px] font-black" style="color:#f1f5f9">
+            <!-- 1. Plan -->
+            <fieldset>
+              <legend class="cfg-h2">Plan</legend>
+              <div class="grid gap-3 sm:grid-cols-3">
+                {tiers.map((t, i) => (
+                  <label class="cfg-option" data-plan-card={t.key}>
+                    <input type="radio" name="cfg-plan" value={t.key} class="sr-only"
+                           checked={t.key === 'individual'} data-rank={i}
+                           data-name={t.name} data-monthly={t.price_monthly} data-annual={t.price_annual} />
+                    <span class="cfg-radio" aria-hidden="true"></span>
+                    <span class="block text-[14px] font-semibold" style="color:#f1f5f9">{t.name}</span>
+                    <span class="block mt-1 text-[22px] font-black" style="color:#f1f5f9">
                       {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}`}
+                      {t.price_monthly > 0 && <span class="text-[12px] font-medium" style="color:#64748b">/mo</span>}
                     </span>
-                    <span class="price-annual text-[32px] font-black hidden" style="color:#f1f5f9">
-                      {t.price_annual === 0 ? 'Free' : `$${(t.price_annual / 12).toFixed(2)}`}
+                    <span class="block mt-1 text-[12px]" style="color:#64748b">
+                      {t.features[0]}{t.price_annual > 0 && ` · or $${t.price_annual.toFixed(2)}/yr`}
                     </span>
-                    {t.price_monthly > 0 && (
-                      <span class="text-[12px]" style="color:#475569">
-                        <span class="price-monthly">/mo</span>
-                        <span class="price-annual hidden">/mo<br/><small style="font-size:10px;color:#334155">(billed ${t.price_annual.toFixed(2)}/yr)</small></span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <!-- CTA button -->
-                {false ? (
-                  <a href="mailto:sales@shadow-warden-ai.com"
-                     class="tier-cta block text-center mb-4 py-2.5 rounded-xl text-[13px] font-semibold text-white"
-                     style={`background:linear-gradient(135deg,${t.color}cc,${t.color});box-shadow:0 4px 16px ${t.color}33`}>
-                    Contact Sales
-                  </a>
-                ) : t.key === 'starter' ? (
-                  <a href="https://portal.shadow-warden-ai.com"
-                     class="tier-cta block text-center mb-4 py-2.5 rounded-xl text-[13px] font-semibold"
-                     style={`border:1px solid ${t.color}50;color:${t.color};background:rgba(255,255,255,0.02)`}>
-                    {t.cta}
-                  </a>
-                ) : (
-                  <button
-                    class="tier-cta ls-buy-btn mb-4 py-2.5 rounded-xl text-[13px] font-semibold text-white w-full"
-                    data-monthly-url={monthlyUrl}
-                    data-annual-url={annualUrl}
-                    style={`background:linear-gradient(135deg,${t.color}cc,${t.color});box-shadow:0 4px 16px ${t.color}33`}>
-                    {t.cta}
-                  </button>
-                )}
-
-                <!-- Features -->
-                <ul class="flex-1 space-y-1.5">
-                  {(t.features ?? []).map(f => (
-                    <li class="flex items-start gap-2 text-[12px]" style="color:#94a3b8">
-                      <span style={`color:${t.color};flex-shrink:0`}>✓</span>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                  {(t.addons ?? []).map(a => (
-                    <li class="flex items-start gap-2 text-[12px]" style="color:#64748b">
-                      <span style="flex-shrink:0">⊕</span>
-                      <span>{a}</span>
-                    </li>
-                  ))}
-                  {(t.missing ?? []).map(m => (
-                    <li class="flex items-start gap-2 text-[12px]" style="color:#2d3748">
-                      <span style="flex-shrink:0">—</span>
-                      <span style="text-decoration:line-through">{m}</span>
-                    </li>
-                  ))}
-                </ul>
+                  </label>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </fieldset>
 
-      </div>
-    </section>
+            <!-- 2. What is included -->
+            <div>
+              <h2 class="cfg-h2">What's included</h2>
+              {tiers.map(t => (
+                <div class="cfg-table" data-included-for={t.key} hidden={t.key !== 'individual'}>
+                  <div class="cfg-row cfg-row-head"><span>Product</span><span>Plan</span></div>
+                  {t.features.map(f => (
+                    <div class="cfg-row"><span>{f}</span><span class="cfg-ok">Included</span></div>
+                  ))}
+                  {(t.addons ?? []).map((a: string) => (
+                    <div class="cfg-row"><span>{a}</span><span class="cfg-muted">Add-on</span></div>
+                  ))}
+                  {(t.missing ?? []).map((m: string) => (
+                    <div class="cfg-row"><span class="cfg-muted">{m}</span><span class="cfg-muted">Not in this plan</span></div>
+                  ))}
+                </div>
+              ))}
+            </div>
 
-    <!-- Add-ons -->
-    <section class="pb-24 border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-7xl px-4 lg:px-8 pt-16">
-        <div class="text-center mb-10">
-          <h2 class="text-[22px] font-bold mb-2" style="color:#f1f5f9">Add-ons & Extensions</h2>
-          <p class="text-[13px]" style="color:#64748b">Enhance any paid plan. Cancel independently.</p>
-        </div>
-
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {addons.map((a: any) => {
-            const varId = VARIANT_IDS[a.key];
-            const monthlyId = varId?.monthly ?? '';
-            const url = monthlyId ? checkoutUrl(monthlyId, { embed: true }) : '#';
-            return (
-              <div class="addon-card p-5 rounded-2xl flex flex-col gap-3"
-                   style={`background:rgba(255,255,255,0.02);border:1px solid ${a.planned ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.07)'}`}>
-                <div class="flex items-start justify-between gap-3">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap mb-0.5">
-                      <div class="text-[14px] font-semibold" style="color:#f1f5f9">{a.name}</div>
-                      {a.planned && (
-                        <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
-                              style="color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25)">
-                          📋 Planned
+            <!-- 3. Add-ons -->
+            <fieldset>
+              <legend class="cfg-h2">Add-ons</legend>
+              <p class="text-[13px] mb-4" style="color:#64748b">Each add-on is its own subscription: added after the plan, cancelled on its own.</p>
+              <div class="space-y-3">
+                {addons.map((a: any) => {
+                  const varId = VARIANT_IDS[a.key];
+                  const url = varId?.monthly ? checkoutUrl(varId.monthly, { embed: true }) : '';
+                  const rank = ADDON_MIN_RANK[a.tier] ?? 1;
+                  return (
+                    <label class="cfg-addon" data-addon={a.key} data-min-rank={rank}>
+                      <input type="checkbox" class="cfg-check" value={a.key} disabled={a.planned}
+                             data-name={a.name} data-price={a.price} data-url={url} />
+                      <span class="min-w-0 flex-1">
+                        <span class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                          <span class="text-[14px] font-semibold" style="color:#f1f5f9">
+                            {a.name}
+                            {a.planned && <span class="ml-2 cfg-badge">Planned</span>}
+                          </span>
+                          <span class="text-[15px] font-semibold" style="color:#f1f5f9">
+                            +${a.price}<span class="text-[12px] font-normal" style="color:#64748b"> / month</span>
+                          </span>
                         </span>
-                      )}
-                    </div>
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                      <div class="text-[11px] px-2 py-0.5 rounded-md inline-block" style="color:#f97316;background:rgba(249,115,22,0.1)">{a.tier}</div>
-                      {a.id && <span class="text-[10px] font-mono" style="color:#334155">{a.id}</span>}
-                    </div>
-                  </div>
-                  <div class="text-right flex-shrink-0">
-                    <div class="text-[20px] font-black" style={a.planned ? 'color:#f59e0b' : 'color:#f97316'}>${a.price}</div>
-                    <div class="text-[10px]" style="color:#475569">/mo</div>
-                  </div>
-                </div>
-
-                {a.bullets ? (
-                  <ul class="space-y-1 flex-1">
-                    {a.bullets.map((b: string) => (
-                      <li class="flex items-start gap-1.5 text-[11px]" style="color:#64748b">
-                        <span style="color:#38bdf8;flex-shrink:0;margin-top:1px">◆</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p class="text-[12px] leading-relaxed flex-1" style="color:#64748b">{a.desc}</p>
-                )}
-
-                {a.planned ? (
-                  <a href={`mailto:sales@shadow-warden-ai.com?subject=${a.id}%20${encodeURIComponent(a.name)}%20Availability`}
-                     class="w-full py-2 rounded-lg text-[12px] font-semibold text-center transition-colors block"
-                     style="color:#f59e0b;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.05)"
-                     onmouseover="this.style.background='rgba(245,158,11,0.10)'"
-                     onmouseout="this.style.background='rgba(245,158,11,0.05)'">
-                    Notify me when available →
-                  </a>
-                ) : (
-                  <button
-                    class="ls-buy-btn w-full py-2 rounded-lg text-[12px] font-semibold transition-colors"
-                    data-monthly-url={url}
-                    data-annual-url={url}
-                    style="color:#f97316;border:1px solid rgba(249,115,22,0.3);background:rgba(249,115,22,0.05)">
-                    Add to plan →
-                  </button>
-                )}
+                        <span class="block mt-1 text-[12px] leading-relaxed" style="color:#64748b">{a.desc}</span>
+                        <span class="cfg-addon-note block mt-1 text-[11px]" style="color:#f59e0b" hidden>
+                          Needs {a.tier.replace('+', '')} or higher.
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
+            </fieldset>
 
-    <!-- Cost calculator -->
-    <section id="calculator" class="pb-24 border-t" style="border-color:rgba(128,180,253,0.15)">
-      <div class="mx-auto max-w-3xl px-4 pt-16">
-        <div class="text-center mb-8">
-          <h2 class="text-[22px] font-bold mb-1" style="color:#f1f5f9">Cost Calculator</h2>
-          <p class="text-[13px]" style="color:#64748b">Pick a plan and add-ons. Add-ons a plan cannot take are disabled. Follows the Monthly / Annual toggle above.</p>
-        </div>
-
-        <div class="rounded-2xl p-6 space-y-5" style="background:#0a0d18;border:1px solid rgba(128,180,253,0.2)">
-          <div>
-            <label for="calc-tier" class="text-[11px] font-semibold tracking-widest uppercase block mb-2" style="color:#94a3b8">Base plan</label>
-            <select id="calc-tier"
-                    class="w-full rounded-xl px-4 py-3 text-[13px] font-medium cursor-pointer"
-                    style="background:#03050f;border:1px solid rgba(128,180,253,0.25);color:#f1f5f9;outline:none">
-              {tiers.map((t, i) => (
-                <option value={t.key} data-price={t.price_monthly} data-rank={i} selected={t.key === 'communityBusiness'}>
-                  {t.name} — {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}/mo`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <fieldset>
-            <legend class="text-[11px] font-semibold tracking-widest uppercase block mb-2" style="color:#94a3b8">Add-ons</legend>
-            <div class="space-y-2">
-              {addons.filter(a => !a.planned).map(a => (
-                <label class="calc-addon flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer"
-                       style="border:1px solid rgba(255,255,255,0.07)"
-                       data-min-rank={ADDON_MIN_RANK[a.tier] ?? 0}>
-                  <span class="flex items-center gap-2.5">
-                    <input type="checkbox" class="calc-addon-check w-3.5 h-3.5" data-price={a.price} data-name={a.name} style="accent-color:#80b4fd" />
-                    <span class="text-[12px]" style="color:#cbd5e1">{a.name}</span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="color:#f97316;background:rgba(249,115,22,0.08)">{a.tier}</span>
+            <!-- 4. Billing period -->
+            <fieldset>
+              <legend class="cfg-h2">Pay monthly or yearly</legend>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="cfg-option">
+                  <input type="radio" name="cfg-period" value="monthly" class="sr-only" checked />
+                  <span class="cfg-radio" aria-hidden="true"></span>
+                  <span class="flex justify-between text-[14px] font-semibold" style="color:#f1f5f9">
+                    Monthly <span id="cfg-monthly-price"></span>
                   </span>
-                  <span class="text-[12px] font-bold shrink-0" style="color:#f97316">+${a.price}/mo</span>
+                  <span class="block mt-1 text-[12px]" style="color:#64748b">Billed each month. Cancel anytime.</span>
                 </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div class="rounded-xl p-5" style="background:rgba(128,180,253,0.06);border:1px solid rgba(128,180,253,0.2)">
-            <div class="flex items-end justify-between gap-4 mb-3">
-              <div>
-                <div class="text-[11px] font-semibold tracking-widest uppercase mb-1" style="color:#94a3b8">Per month</div>
-                <div id="calc-monthly" class="text-[36px] font-black leading-none" style="color:#f1f5f9" aria-live="polite">—</div>
+                <label class="cfg-option">
+                  <input type="radio" name="cfg-period" value="annual" class="sr-only" />
+                  <span class="cfg-radio" aria-hidden="true"></span>
+                  <span class="flex justify-between text-[14px] font-semibold" style="color:#f1f5f9">
+                    <span>Yearly <span class="cfg-badge cfg-badge-save">save 15%</span></span>
+                    <span><s id="cfg-annual-list" style="color:#64748b;font-weight:400"></s> <span id="cfg-annual-price"></span></span>
+                  </span>
+                  <span class="block mt-1 text-[12px]" style="color:#64748b">The plan is billed once a year. Add-ons stay monthly.</span>
+                </label>
               </div>
-              <div class="text-right">
-                <div class="text-[11px] font-semibold tracking-widest uppercase mb-1" style="color:#94a3b8">Per year</div>
-                <div id="calc-yearly" class="text-[22px] font-black" style="color:#10b981">—</div>
-                <div id="calc-basis" class="text-[10px]" style="color:#64748b">billed monthly</div>
-              </div>
-            </div>
-            <div id="calc-breakdown" class="mt-4 pt-4 border-t space-y-1.5 text-[12px]" style="border-color:rgba(255,255,255,0.06);color:#94a3b8"></div>
+            </fieldset>
           </div>
+
+          <!-- Summary -->
+          <aside class="lg:sticky lg:top-24 space-y-4" aria-label="Plan summary">
+            <div class="cfg-card">
+              <h2 class="px-5 py-4 text-[16px] font-bold border-b" style="color:#f1f5f9;border-color:rgba(255,255,255,0.08)">Plan Summary</h2>
+              <div class="px-5 py-4 space-y-2 text-[13px]" id="cfg-lines"></div>
+              <div class="px-5 py-4 border-t" style="border-color:rgba(255,255,255,0.08)">
+                <div class="flex justify-between text-[16px] font-bold" style="color:#f1f5f9">
+                  <span>Total</span><span id="cfg-total"></span>
+                </div>
+                <p class="mt-1 text-[12px]" style="color:#64748b" id="cfg-basis"></p>
+              </div>
+            </div>
+            <div class="cfg-card px-5 py-4">
+              <div class="flex justify-between items-baseline text-[16px] font-bold" style="color:#f1f5f9">
+                <span>Due today</span><span>$0 <span class="text-[11px] font-normal" style="color:#64748b">USD</span></span>
+              </div>
+              <p class="mt-1 text-[12px]" style="color:#64748b" id="cfg-due-note"></p>
+              <button type="button" id="cfg-cta" class="mt-4 w-full rounded-xl py-3 text-[14px] font-semibold text-white"
+                      style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></button>
+              <div id="cfg-addon-ctas" class="mt-3 space-y-2"></div>
+              <p class="mt-3 text-center text-[11px]" style="color:#475569">Payments are processed by Lemon Squeezy.</p>
+            </div>
+            <p class="text-center text-[12px]" style="color:#64748b">
+              Questions? <a href="/contact" style="color:#818cf8">Contact us</a>
+            </p>
+          </aside>
         </div>
       </div>
     </section>
+
+    <script type="application/json" id="cfg-plan-urls" set:html={JSON.stringify(planUrls)} />
 
     <!-- ── Profit & ROI Estimator ──────────────────────────────────────── -->
     <section id="roi-estimator" class="pb-24 border-t" style="border-color:rgba(16,185,129,0.15)">
@@ -538,6 +427,36 @@ const addons = [
 <LemonSqueezyCheckout />
 
 <style>
+  .cfg-h2 { display:block; font-size:18px; font-weight:700; color:#f1f5f9; margin-bottom:12px; }
+  .cfg-option { position:relative; display:block; cursor:pointer; padding:16px 16px 16px 44px; border-radius:12px;
+    border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.02); transition:border-color .15s, background .15s; }
+  .cfg-option:hover { border-color:rgba(129,140,248,0.45); }
+  .cfg-option.is-checked { border-color:#818cf8; background:rgba(99,102,241,0.10); }
+  .cfg-option:has(input:focus-visible) { outline:2px solid #818cf8; outline-offset:2px; }
+  .cfg-option:has(input:disabled) { opacity:.5; cursor:not-allowed; }
+  .cfg-radio { position:absolute; left:16px; top:19px; width:16px; height:16px; border-radius:999px; border:2px solid #475569; }
+  .cfg-option.is-checked .cfg-radio { border-color:#818cf8; box-shadow:inset 0 0 0 3px #03050f; background:#818cf8; }
+  .cfg-table { border:1px solid rgba(255,255,255,0.10); border-radius:12px; overflow:hidden; }
+  .cfg-row { display:flex; justify-content:space-between; gap:16px; padding:11px 16px; font-size:13px; color:#cbd5e1;
+    border-top:1px solid rgba(255,255,255,0.06); }
+  .cfg-row-head { border-top:0; background:rgba(255,255,255,0.03); font-weight:600; color:#94a3b8; }
+  .cfg-ok { color:#94a3b8; }
+  .cfg-muted { color:#475569; }
+  .cfg-addon { display:flex; gap:12px; cursor:pointer; padding:16px; border-radius:12px;
+    border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.02); }
+  .cfg-addon.is-checked { border-color:#818cf8; background:rgba(99,102,241,0.08); }
+  .cfg-addon.is-disabled { opacity:.55; cursor:not-allowed; }
+  /* Drawn, not native: the light theme inverts the page, and a native white box turns black. */
+  .cfg-check { appearance:none; margin-top:3px; width:16px; height:16px; flex-shrink:0; border-radius:4px;
+    border:2px solid #475569; background:transparent; display:grid; place-content:center; cursor:inherit; }
+  .cfg-check:checked { background:#818cf8; border-color:#818cf8; }
+  .cfg-check:checked::after { content:''; width:8px; height:4px; border-left:2px solid #03050f;
+    border-bottom:2px solid #03050f; transform:rotate(-45deg) translate(1px,-1px); }
+  .cfg-check:focus-visible { outline:2px solid #818cf8; outline-offset:2px; }
+  .cfg-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:700;
+    color:#f59e0b; background:rgba(245,158,11,0.12); vertical-align:middle; }
+  .cfg-badge-save { color:#f472b6; background:rgba(244,114,182,0.12); }
+  .cfg-card { border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.03); }
   .billing-toggle {
     color: #64748b;
     background: transparent;
@@ -599,28 +518,6 @@ const addons = [
 
 <script>
 (function () {
-  // Billing toggle
-  const monthlyBtn = document.getElementById('billing-monthly')!;
-  const annualBtn  = document.getElementById('billing-annual')!;
-  let   isAnnual   = localStorage.getItem('sw-billing') === 'annual';
-
-  function apply(annual: boolean) {
-    isAnnual = annual;
-    localStorage.setItem('sw-billing', annual ? 'annual' : 'monthly');
-    monthlyBtn.classList.toggle('active', !annual);
-    annualBtn.classList.toggle('active', annual);
-    monthlyBtn.setAttribute('aria-pressed', String(!annual));
-    annualBtn.setAttribute('aria-pressed', String(annual));
-    document.querySelectorAll('.price-monthly').forEach(el =>
-      (el as HTMLElement).classList.toggle('hidden', annual));
-    document.querySelectorAll('.price-annual').forEach(el =>
-      (el as HTMLElement).classList.toggle('hidden', !annual));
-  }
-
-  monthlyBtn.addEventListener('click', () => apply(false));
-  annualBtn.addEventListener('click',  () => apply(true));
-  apply(isAnnual);
-
   // ── ROI Estimator ───────────────────────────────────────────────────────────
   (function roiEstimator() {
     // Tier config — all costs in CENTS to avoid float drift
@@ -779,71 +676,104 @@ const addons = [
     calc();
   })();
 
-  // Buy buttons
-  document.querySelectorAll<HTMLButtonElement>('.ls-buy-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const url = isAnnual
-        ? (btn.dataset.annualUrl ?? btn.dataset.monthlyUrl ?? '')
-        : (btn.dataset.monthlyUrl ?? '');
-      if (!url || url === '#') return;
-      if (url.startsWith('mailto:')) { window.location.href = url; return; }
-      if (typeof (window as any).lsCheckout === 'function') {
-        (window as any).lsCheckout(url);
-      } else {
-        window.open(url, '_blank', 'noopener');
-      }
-    });
-  });
 })();
 </script>
 
 <script>
+// Plan configurator: the summary is recomputed from the checked inputs, which
+// carry the prices rendered from the same `tiers` / `addons` data as the page.
 (function () {
-  // Prices are list prices from warden/billing/pricing.py; annual = monthly × 12 × 0.85.
-  const ANNUAL_DISCOUNT = 0.15;
-  const select = document.getElementById('calc-tier') as HTMLSelectElement | null;
-  if (!select) return;
-  const annualBtn = document.getElementById('billing-annual')!;
-  const checks = Array.from(document.querySelectorAll<HTMLInputElement>('.calc-addon-check'));
-  const money = (n: number) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null
+  const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+  const planInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="cfg-plan"]'))
+  const periodInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="cfg-period"]'))
+  const addonInputs = Array.from(document.querySelectorAll<HTMLInputElement>('.cfg-check'))
+  const PLAN_URLS: Record<string, { monthly: string; annual: string }> =
+    JSON.parse(document.getElementById('cfg-plan-urls')?.textContent || '{}')
 
-  function recalc() {
-    const annual = annualBtn.classList.contains('active');
-    const opt = select!.options[select!.selectedIndex];
-    const rank = Number(opt.dataset.rank ?? 0);
-    const base = Number(opt.dataset.price ?? 0);
-    const rows: Array<[string, number]> = [[opt.text.split(' —')[0], base]];
+  const saved = localStorage.getItem('sw-billing')
+  if (saved === 'annual') periodInputs.forEach(i => { i.checked = i.value === 'annual' })
 
-    checks.forEach(c => {
-      const row = c.closest<HTMLElement>('.calc-addon')!;
-      const allowed = rank >= Number(row.dataset.minRank ?? 0);
-      c.disabled = !allowed;
-      if (!allowed) c.checked = false;
-      row.style.opacity = allowed ? '1' : '0.4';
-      row.style.cursor = allowed ? 'pointer' : 'not-allowed';
-      if (c.checked) rows.push([c.dataset.name ?? '', Number(c.dataset.price ?? 0)]);
-    });
-
-    const factor = annual ? 1 - ANNUAL_DISCOUNT : 1;
-    const listMonthly = rows.reduce((sum, [, p]) => sum + p, 0);
-    document.getElementById('calc-monthly')!.textContent = money(listMonthly * factor);
-    document.getElementById('calc-yearly')!.textContent = money(listMonthly * 12 * factor);
-    document.getElementById('calc-basis')!.textContent = annual ? 'billed annually (−15%)' : 'billed monthly';
-    document.getElementById('calc-breakdown')!.replaceChildren(...rows.map(([name, p]) => {
-      const line = document.createElement('div');
-      line.className = 'flex justify-between';
-      const a = document.createElement('span'); a.textContent = name;
-      const b = document.createElement('span'); b.textContent = `${money(p * factor)}/mo`;
-      b.style.color = '#f1f5f9';
-      line.append(a, b);
-      return line;
-    }));
+  function open(url: string) {
+    if (!url) return
+    if (url.startsWith('mailto:') || url.startsWith('http') && !url.includes('lemonsqueezy')) { window.location.href = url; return }
+    const ls = (window as unknown as { lsCheckout?: (u: string) => void }).lsCheckout
+    if (typeof ls === 'function') ls(url)
+    else window.open(url, '_blank', 'noopener')
   }
 
-  select.addEventListener('change', recalc);
-  checks.forEach(c => c.addEventListener('change', recalc));
-  document.getElementById('billing-monthly')!.addEventListener('click', recalc);
-  annualBtn.addEventListener('click', recalc);
-  recalc();
-})();
+  function render() {
+    const plan = planInputs.find(i => i.checked) ?? planInputs[0]
+    const annual = periodInputs.find(i => i.checked)?.value === 'annual'
+    localStorage.setItem('sw-billing', annual ? 'annual' : 'monthly')
+    const rank = Number(plan.dataset.rank)
+    const monthly = Number(plan.dataset.monthly)
+    const yearly = Number(plan.dataset.annual)
+    const free = monthly === 0
+
+    document.querySelectorAll<HTMLElement>('[data-plan-card]').forEach(c =>
+      c.classList.toggle('is-checked', c.dataset.planCard === plan.value))
+    document.querySelectorAll<HTMLElement>('[data-included-for]').forEach(t => {
+      t.hidden = t.dataset.includedFor !== plan.value
+    })
+    periodInputs.forEach(i => i.closest('.cfg-option')?.classList.toggle('is-checked', i.checked))
+    periodInputs.forEach(i => { i.disabled = free })
+
+    // Add-ons need a high enough plan; one that does not fit is unticked.
+    addonInputs.forEach(i => {
+      const row = i.closest<HTMLElement>('.cfg-addon')!
+      const fits = rank >= Number(row.dataset.minRank)
+      if (!fits) i.checked = false
+      i.disabled = !fits || row.querySelector('.cfg-badge') !== null
+      row.classList.toggle('is-disabled', i.disabled)
+      row.classList.toggle('is-checked', i.checked)
+      const note = row.querySelector<HTMLElement>('.cfg-addon-note')
+      if (note) note.hidden = fits
+    })
+    const picked = addonInputs.filter(i => i.checked)
+
+    $('cfg-monthly-price')!.textContent = free ? 'Free' : `${money(monthly)}/mo`
+    $('cfg-annual-list')!.textContent = free ? '' : money(monthly * 12)
+    $('cfg-annual-price')!.textContent = free ? '' : `${money(yearly)}/yr`
+
+    const lines: [string, string][] = [[`${plan.dataset.name} plan`,
+      free ? 'Free' : annual ? `${money(yearly)}/yr` : `${money(monthly)}/mo`]]
+    picked.forEach(i => lines.push([i.dataset.name!, `${money(Number(i.dataset.price))}/mo`]))
+    $('cfg-lines')!.replaceChildren(...lines.map(([name, price]) => {
+      const row = document.createElement('div')
+      row.className = 'flex justify-between gap-3'
+      row.innerHTML = '<span style="color:#cbd5e1"></span><span style="color:#f1f5f9;font-weight:600"></span>'
+      row.children[0].textContent = name
+      row.children[1].textContent = price
+      return row
+    }))
+
+    const addonsMonthly = picked.reduce((s, i) => s + Number(i.dataset.price), 0)
+    const perMonth = (annual ? yearly / 12 : monthly) + addonsMonthly
+    $('cfg-total')!.textContent = free && !addonsMonthly ? 'Free' : `${money(Math.round(perMonth * 100) / 100)}/mo`
+    $('cfg-basis')!.textContent = free ? 'No card, no charge.'
+      : annual ? `Plan billed ${money(yearly)} once a year${addonsMonthly ? '; add-ons monthly' : ''}.`
+      : 'Billed monthly.'
+    $('cfg-due-note')!.textContent = free ? 'The Starter plan is free.' : 'Paid plans start with a 14-day trial.'
+
+    const cta = $('cfg-cta') as HTMLButtonElement
+    cta.textContent = free ? 'Create a free account' : `Start ${plan.dataset.name} trial`
+    cta.onclick = () => free
+      ? window.location.assign('https://portal.shadow-warden-ai.com/register/')
+      : open(annual ? PLAN_URLS[plan.value]?.annual : PLAN_URLS[plan.value]?.monthly)
+
+    $('cfg-addon-ctas')!.replaceChildren(...picked.map(i => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'w-full rounded-xl py-2 text-[12px] font-semibold'
+      b.style.cssText = 'color:#c7d2fe;border:1px solid rgba(129,140,248,0.35);background:rgba(129,140,248,0.06)'
+      b.textContent = `Add ${i.dataset.name}`
+      b.onclick = () => open(i.dataset.url || '')
+      return b
+    }))
+  }
+
+  ;[...planInputs, ...periodInputs, ...addonInputs].forEach(i => i.addEventListener('change', render))
+  render()
+})()
 </script>
