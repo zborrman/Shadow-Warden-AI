@@ -69,7 +69,7 @@ const features = [
 const steps = [
   ['Create your account', 'Free to start. No card.'],
   ['Add your products', 'Prices, photos, barcodes and, for FBA items, the FNSKU from Seller Central.'],
-  ['Print and sell', 'Download label sheets or ZPL, and share your storefront link.'],
+  ['Check and print', 'Run the catalog check on your export, then download label sheets or ZPL.'],
 ];
 
 const faq = [
@@ -102,7 +102,7 @@ const faq = [
           </p>
           <div class="flex flex-wrap gap-3">
             <a href={`${PORTAL}/register/`} class="sl-btn-p">Start free</a>
-            <a href="/contact?topic=catalog-check" class="sl-btn-g">Get a free catalog check →</a>
+            <a href="#catalog-check" class="sl-btn-g">Check your catalog free →</a>
           </div>
           <p class="mt-4 text-[12px]" style="color:#64748b">No card. Data stored in Germany (EU).</p>
         </div>
@@ -206,14 +206,21 @@ const faq = [
 
     <!-- Catalog check offer -->
     <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
-      <div class="mx-auto max-w-4xl px-4 lg:px-8 py-16">
+      <div id="catalog-check" class="mx-auto max-w-4xl px-4 lg:px-8 py-16">
         <div class="sl-offer">
           <h2 class="text-[24px] font-black mb-3" style="color:#f1f5f9">Free catalog check</h2>
-          <p class="text-[14px] leading-relaxed mb-6" style="color:#cbd5e1">
-            Send us a product export and we review it by hand: missing or invalid barcodes, items you send to FBA without
-            an FNSKU, and EU listings without product-safety details. You get a short list of what to fix. No account needed.
+          <p class="text-[14px] leading-relaxed mb-3" style="color:#cbd5e1">
+            <b>Check it yourself in a minute.</b> Upload your Amazon Active Listings Report or a Shopify product CSV: every
+            barcode gets its check digit verified, and titles and descriptions are scanned for claims that need proof or a
+            registration. The file is read in your browser.
           </p>
-          <a href="/contact?topic=catalog-check" class="sl-btn-p">Request a check</a>
+          <p class="text-[13px] leading-relaxed mb-6" style="color:#94a3b8">
+            Prefer a person? Send us the export and we review it by hand, including FNSKU labels and EU product-safety details.
+          </p>
+          <div class="flex flex-wrap justify-center gap-3">
+            <a href={`${PORTAL}/register/`} class="sl-btn-p">Check my catalog — free account</a>
+            <a href="/contact?topic=catalog-check" class="sl-btn-g">Ask for a manual review</a>
+          </div>
         </div>
       </div>
     </section>
