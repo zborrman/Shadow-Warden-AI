@@ -226,6 +226,9 @@ export const storeApi = {
   /** Claims in a product's own text that need proof or a registration (EPA, FDA, FTC, EU). */
   lintListing: (body: { name: string; description: string }) =>
     send<{ term: string; category: string; field: string; basis: string; suggestion: string }[]>('post', '/listing-lint', body),
+  /** The text check for every row of a catalog export, in order (max 2000). */
+  lintListings: (items: { name: string; description: string }[]) =>
+    send<{ term: string; category: string; field: string; basis: string; suggestion: string }[][]>('post', '/listing-lint/batch', { items }),
   /** Counts labels against the plan's monthly allowance before they are drawn (403 plan_limit when over). */
   useLabels: (count: number) => send<{ used: number; limit: number }>('post', '/labels/usage', { count }),
   deleteJournal: (storeId: string, id: string, entryId: string) =>

@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Activity, ArrowLeft, FolderTree, Inbox, Package, Settings2, Truck, Users } from 'lucide-react'
+import { Activity, ArrowLeft, ClipboardCheck, FolderTree, Inbox, Package, Settings2, Truck, Users } from 'lucide-react'
 import type { Store } from '@/lib/storeApi'
 import { SectionNav } from '@/components/ui/settings'
 import { ProductsTab } from './ProductsTab'
@@ -10,8 +10,9 @@ import { SettingsTab } from './SettingsTab'
 import { OrdersTab } from './OrdersTab'
 import { CustomersTab } from './CustomersTab'
 import { AccountHealthTab } from './AccountHealthTab'
+import { CatalogCheckTab } from './CatalogCheckTab'
 
-type TabId = 'products' | 'categories' | 'orders' | 'customers' | 'shipping' | 'settings' | 'health'
+type TabId = 'products' | 'categories' | 'orders' | 'customers' | 'shipping' | 'settings' | 'health' | 'catalog'
 
 const GROUPS: { group: string; items: { id: TabId; label: string; icon: React.ElementType }[] }[] = [
   { group: 'Catalog', items: [
@@ -27,6 +28,7 @@ const GROUPS: { group: string; items: { id: TabId; label: string; icon: React.El
     { id: 'settings', label: 'Settings', icon: Settings2 },
   ] },
   { group: 'Amazon', items: [
+    { id: 'catalog', label: 'Catalog check', icon: ClipboardCheck },
     { id: 'health', label: 'Account health', icon: Activity },
   ] },
 ]
@@ -63,6 +65,7 @@ export function StoreEditor({ store, onBack }: { store: Store; onBack: () => voi
           {tab === 'shipping'   && <ShippingTab store={store} />}
           {tab === 'settings'   && <SettingsTab store={store} onDeleted={onBack} />}
           {tab === 'health'     && <AccountHealthTab />}
+          {tab === 'catalog'    && <CatalogCheckTab />}
         </div>
       </div>
     </div>
