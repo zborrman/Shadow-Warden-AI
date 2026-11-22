@@ -113,3 +113,17 @@ def test_fnsku_is_normalised_checked_and_kept_off_the_public_feed(client):
     assert all("fnsku" not in p for p in feed["products"])
     for bad in ("X001ABC2D", "X001ABC2DE1", "X001-ABC2D", "Х001ABC2DE"):  # last one has a Cyrillic Х
         assert _product(client, h, sid, fnsku=bad).status_code == 422, bad
+
+
+def test_gpsr_details_are_kept_checked_and_shown_on_the_storefront(client):
+    sid, _pids, h = _shop(client)
+    gpsr = {"manufacturer": "Acme Ltd", "manufacturer_address": "1 Road, Leeds, UK",
+            "eu_rp": "Acme EU GmbH", "eu_rp_address": "2 Str, Berlin, DE",
+            "eu_rp_contact": "safety@acme.example", "warnings": "  Not for children under 3. ", "manufacturer_contact": ""}
+    r = _product(client, h, sid, gpsr=gpsr)
+    assert r.status_code == 201, r.text
+    feed = client.get(f"{API}/storefront/acme/catalog/ucp").json()
+    shown = next(p["gpsr"] for p in feed["products"] if p["id"] == r.json()["id"])
+    assert shown["warnings"] == "Not for children under 3." and "manufacturer_contact" not in shown
+    assert _product(client, h, sid, gpsr={"price": "x"}).status_code == 422
+    assert _product(client, h, sid, gpsr={"eu_rp": "x" * 501}).status_code == 422

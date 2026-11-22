@@ -265,7 +265,7 @@ async def add_product(product: Product, auth: AuthResult = OwnerDep):
     # `metadata` is returned to other tenants' buying agents by /catalog just like
     # the named fields, so an unscreened dict was a way around this screen.
     _screen(product.name, product.description, product.category, product.unit,
-            *_strings_in(product.metadata))
+            *_strings_in(product.metadata), *product.gpsr.values())
     product.deleted_at = ""
     if product.id:
         existing = get_inventory().get_product(product.id)

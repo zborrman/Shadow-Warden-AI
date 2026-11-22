@@ -39,6 +39,8 @@ export interface FeedProduct {
   unit: string
   /** GS1 GTIN, digits only; "" or absent when none. */
   gtin?: string
+  /** GPSR Art. 19 details (manufacturer, EU responsible person, warnings); only filled keys. */
+  gpsr?: Partial<Record<'manufacturer' | 'manufacturer_address' | 'manufacturer_contact' | 'eu_rp' | 'eu_rp_address' | 'eu_rp_contact' | 'warnings', string>>
   available: number
   prices: Price[]
   translations: Record<string, { name: string; description: string }>

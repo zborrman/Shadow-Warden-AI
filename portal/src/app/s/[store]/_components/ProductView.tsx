@@ -93,8 +93,34 @@ export function ProductView({ product }: { product: FeedProduct }) {
           {descriptionOf(product) && (
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{descriptionOf(product)}</p>
           )}
+          <ProductSafety g={product.gpsr} t={t} />
         </div>
       </div>
     </div>
+  )
+}
+
+/** GPSR Art. 19: who made it, who answers for it in the EU, and how to use it safely. */
+function ProductSafety({ g, t }: { g?: FeedProduct['gpsr']; t: { productSafety: string; manufacturer: string; euResponsiblePerson: string; safetyInfo: string } }) {
+  if (!g || Object.keys(g).length === 0) return null
+  const party = (name?: string, address?: string, contact?: string) =>
+    [name, address, contact].filter(Boolean).join(' · ')
+  const rows: [string, string][] = [
+    [t.manufacturer, party(g.manufacturer, g.manufacturer_address, g.manufacturer_contact)],
+    [t.euResponsiblePerson, party(g.eu_rp, g.eu_rp_address, g.eu_rp_contact)],
+    [t.safetyInfo, g.warnings ?? ''],
+  ].filter((r): r is [string, string] => Boolean(r[1]))
+  return (
+    <details className="rounded-lg border border-white/10 p-3 text-sm">
+      <summary className="cursor-pointer font-medium text-slate-200">{t.productSafety}</summary>
+      <dl className="mt-2 space-y-2">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-xs text-slate-400">{k}</dt>
+            <dd className="whitespace-pre-line text-slate-200">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   )
 }
