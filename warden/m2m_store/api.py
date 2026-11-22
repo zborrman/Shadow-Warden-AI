@@ -812,6 +812,18 @@ async def listing_lint(body: ListingTextIn, auth: AuthResult = OwnerDep):
     return lint({"name": body.name, "description": body.description})
 
 
+class ListingBatchIn(BaseModel):
+    # A whole catalog export at once; text only, no buyer data in a listings report.
+    items: list[ListingTextIn] = Field(max_length=2_000)
+
+
+@router.post("/listing-lint/batch", response_model=list[list[dict]])
+async def listing_lint_batch(body: ListingBatchIn, auth: AuthResult = OwnerDep):
+    """The same check for every row of a catalog export, in order."""
+    from warden.m2m_store.listing_lint import lint
+    return [lint({"name": i.name, "description": i.description}) for i in body.items]
+
+
 class LabelUseIn(BaseModel):
     count: int = Field(ge=1, le=5_000)
 

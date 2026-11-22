@@ -332,3 +332,12 @@ class TestLabelMeter:
     def test_a_count_must_be_sensible(self, client):
         for bad in (0, -1, 5001):
             assert client.post(f"{API}/labels/usage", headers=_as("tenant-x"), json={"count": bad}).status_code == 422
+
+
+def test_listing_lint_batch_checks_every_row_in_order(client):
+    rows = [{"name": "Antibacterial mug"}, {"name": "Plain mug"}, {"name": "x", "description": "Non-toxic paint"}]
+    r = client.post(f"{API}/listing-lint/batch", headers=_as("tenant-batch"), json={"items": rows})
+    assert r.status_code == 200
+    assert [[f["term"] for f in row] for row in r.json()] == [["antibacterial"], [], ["non-toxic"]]
+    too_many = client.post(f"{API}/listing-lint/batch", headers=_as("tenant-batch"), json={"items": [{"name": "a"}] * 2001})
+    assert too_many.status_code == 422
