@@ -574,7 +574,7 @@ def store_ucp_catalog(slug: str) -> dict[str, Any]:
         "products": [
             {
                 "id": p.id, "name": p.name, "description": p.description,
-                "category_id": p.category_id, "unit": p.unit, "gtin": p.gtin,
+                "category_id": p.category_id, "unit": p.unit, "gtin": p.gtin, "gpsr": p.gpsr,
                 "available": p.available,
                 "prices": get_prices(p.id), "translations": get_translations(p.id),
                 "images": public_images(store["slug"], p.id),

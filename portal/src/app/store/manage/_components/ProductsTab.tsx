@@ -115,6 +115,8 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const [gtinRaw, setGtinRaw] = useState(product?.gtin ?? '')
   const gtin = checkGtin(gtinRaw)
   const [fnsku, setFnsku] = useState(product?.fnsku ?? '')
+  const [gpsr, setGpsr] = useState<Record<string, string>>(product?.gpsr ?? {})
+  const setG = (k: string) => (e: { target: { value: string } }) => setGpsr(g => ({ ...g, [k]: e.target.value }))
   const fnskuError = fnsku && !/^[A-Za-z0-9]{10}$/.test(fnsku.trim()) ? '10 letters and digits, e.g. X001ABC2DE' : undefined
   const [stock, setStock] = useState(String(product?.stock ?? 0))
   const [active, setActive] = useState(product?.active ?? true)
@@ -137,7 +139,7 @@ function ProductForm({ store, product, onDone, onCreated }: {
       const saved = await storeApi.saveProduct({
         id: product?.id, store_id: store.id, category_id: categoryId,
         name: name.trim(), description: description.trim(), unit: unit.trim() || 'unit', gtin: gtin.value,
-        fnsku: fnsku.trim().toUpperCase(),
+        fnsku: fnsku.trim().toUpperCase(), gpsr,
         stock: stockN, active, price_minor: minor[SETTLEMENT_CURRENCY] as number,
       })
       await storeApi.setPrices(saved.id, store.currencies
@@ -199,6 +201,30 @@ function ProductForm({ store, product, onDone, onCreated }: {
         </div>
         <TextArea label="Description" value={description} onChange={e => setDescription(e.target.value)} maxLength={4000} />
         <ListingCheck name={name} description={description} />
+        <details className="rounded-lg border border-white/10 p-3" open={Object.values(gpsr).some(Boolean)}>
+          <summary className="cursor-pointer text-sm font-medium text-slate-200">
+            EU product safety (GPSR){' '}
+            <span className="text-xs font-normal text-slate-400">
+              {gpsr.manufacturer && gpsr.manufacturer_address && (gpsr.manufacturer_contact || gpsr.eu_rp_contact)
+                ? '· details filled' : '· needed to sell to EU consumers'}
+            </span>
+          </summary>
+          <p className="mt-2 text-xs text-slate-400">
+            Shown to buyers on the product page, as the EU General Product Safety Regulation asks of online offers. A
+            manufacturer outside the EU also needs a responsible person inside it.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <TextInput label="Manufacturer" value={gpsr.manufacturer ?? ''} onChange={setG('manufacturer')} maxLength={500} />
+            <TextInput label="Manufacturer address" value={gpsr.manufacturer_address ?? ''} onChange={setG('manufacturer_address')} maxLength={500} />
+            <TextInput label="Manufacturer email or website" value={gpsr.manufacturer_contact ?? ''} onChange={setG('manufacturer_contact')} maxLength={500} />
+            <TextInput label="EU responsible person" value={gpsr.eu_rp ?? ''} onChange={setG('eu_rp')} maxLength={500} />
+            <TextInput label="EU responsible person address" value={gpsr.eu_rp_address ?? ''} onChange={setG('eu_rp_address')} maxLength={500} />
+            <TextInput label="EU responsible person email or website" value={gpsr.eu_rp_contact ?? ''} onChange={setG('eu_rp_contact')} maxLength={500} />
+          </div>
+          <div className="mt-3">
+            <TextArea label="Warnings and safety information" value={gpsr.warnings ?? ''} onChange={setG('warnings')} maxLength={2000} />
+          </div>
+        </details>
         <div className="grid gap-4 sm:grid-cols-3">
           <TextInput label="Stock" type="number" min={0} step={1} value={stock} onChange={e => setStock(e.target.value)}
                      error={Number.isInteger(stockN) && stockN >= 0 ? undefined : 'A whole number, 0 or more'} />

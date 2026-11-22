@@ -54,6 +54,13 @@ def _check_settlement(value: str) -> str:
     return code
 
 
+# GPSR Art. 19 information an online listing to EU consumers carries.
+GPSR_KEYS = frozenset({
+    "manufacturer", "manufacturer_address", "manufacturer_contact",
+    "eu_rp", "eu_rp_address", "eu_rp_contact", "warnings",
+})
+
+
 class Product(BaseModel):
     id: str = ""
     # Seller tenant. Set by the server from the caller's API key, never
@@ -76,8 +83,26 @@ class Product(BaseModel):
     # Amazon FNSKU (R8.4): the code FBA scans, printed by the seller since Amazon
     # stopped US prep/labelling on 2026-01-01. Seller-side only, never in a feed.
     fnsku: str = ""
+    # EU General Product Safety Regulation (R8.5c), Art. 19: an online offer to EU
+    # consumers shows the manufacturer, the EU responsible person and the safety
+    # information. Public on the storefront by law; keys limited to GPSR_KEYS.
+    gpsr: dict[str, str] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     active: bool = True
+
+    @field_validator("gpsr")
+    @classmethod
+    def _gpsr(cls, value: dict[str, str]) -> dict[str, str]:
+        out: dict[str, str] = {}
+        for k, v in (value or {}).items():
+            if k not in GPSR_KEYS:
+                raise ValueError(f"unknown product-safety field: {k}")
+            text = str(v).strip()
+            if len(text) > (2000 if k == "warnings" else 500):
+                raise ValueError(f"{k} is too long")
+            if text:
+                out[k] = text
+        return out
 
     @field_validator("fnsku")
     @classmethod
