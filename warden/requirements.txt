@@ -4,11 +4,11 @@
 # into app.routes — runtime serving is unaffected (both include patterns return
 # 200), only route-inventory introspection needed teaching to expand that node
 # (done: warden/tests/test_route_inventory.py). The old <0.136 / <1.0 cap is lifted.
-fastapi>=0.162.5
+fastapi>=0.165.0
 starlette>=1.10.0
 uvicorn[standard]>=0.54.0
-pydantic>=2.14.3
-python-multipart>=0.0.33
+pydantic>=2.14.4
+python-multipart>=0.0.34
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 # slowapi wraps limits.io for FastAPI; uses Redis as the shared state store
@@ -54,7 +54,7 @@ prometheus-client>=0.26.0
 # ‼ Do NOT add torch here — it would let pip pull the CUDA build from PyPI.
 
 # Transformers (HuggingFace) — used by SemanticGuard for embedding-based analysis
-transformers>=5.22.2
+transformers>=5.23.0
 
 # Fast sentence embeddings — local, no API calls, GDPR-safe
 sentence-transformers>=6.3.0
@@ -72,7 +72,7 @@ cryptography>=50.0.2
 # anthropic SDK — used by EvolutionEngine to call Claude Opus for auto rule
 # generation when a high-severity attack is blocked.
 # ANTHROPIC_API_KEY must be set in the environment / docker-compose.yml.
-anthropic>=2.8.0
+anthropic>=2.12.0
 
 # ── OpenTelemetry distributed tracing (optional, OTEL_ENABLED=true) ──────────
 # Install to enable Jaeger tracing across filter pipeline stages.
@@ -85,14 +85,14 @@ opentelemetry-instrumentation-fastapi>=0.66b2
 # ── ONNX Runtime (optional, ONNX_MODEL_PATH=...) ─────────────────────────────
 # 2-4x faster MiniLM CPU inference vs. PyTorch.
 # Export model once with: python scripts/export_onnx.py
-onnxruntime>=1.31.1
+onnxruntime>=1.32.0
 onnxscript>=0.7.2            # required by torch.onnx.export in PyTorch 2.x
 
 # ── PostgreSQL support (optional, DATABASE_URL=postgresql+asyncpg://...) ─────
 # Required when DATABASE_URL points to PostgreSQL instead of SQLite.
 # asyncpg  — async driver for FastAPI / SQLAlchemy async engine
 # psycopg2 — sync driver for migration scripts and CLI tools
-sqlalchemy[asyncio]>=2.1.8
+sqlalchemy[asyncio]>=2.1.9
 asyncpg>=0.32.0
 alembic>=1.20.1
 psycopg2-binary>=2.9.13
@@ -118,9 +118,9 @@ bcrypt>=4.0.0
 # python-jose — signs and verifies JWTs for the customer portal.
 python-jose[cryptography]>=3.3.0
 # email-validator — required by pydantic EmailStr used in portal_router models.
-email-validator>=2.1.0
+email-validator>=2.4.0
 # pyotp — RFC 6238 TOTP for Google Authenticator MFA.
-pyotp>=2.9.0
+pyotp>=2.12.1
 
 # ── SAML 2.0 SSO (optional — only required when SAML_SP_ENTITY_ID is set) ────
 # python3-saml — SAML 2.0 SP; wraps lxml + xmlsec for signature validation.
@@ -153,13 +153,13 @@ PyJWT>=2.15.1
 # faiss-cpu>=1.8.0
 
 # ── TTL-aware in-process cache (used by m2m_store offer dict) ────────────────
-cachetools>=8.0.0
+cachetools>=8.0.2
 
 # ── GSAM observations stream (warden/gsam/) ───────────────────────────────────
 # clickhouse-connect — HTTP client for the ClickHouse OLAP observations table.
 # Import is guarded: when missing or GSAM_CLICKHOUSE_ENABLED=false the collector
 # spools to NDJSON and the app runs normally (fail-open).
-clickhouse-connect>=1.12.0
+clickhouse-connect>=1.13.0
 
 # ── WebAuthn / FIDO2 passkey authentication ───────────────────────────────────
 # py-webauthn — server-side WebAuthn library for FIDO2 passkey registration and
@@ -201,7 +201,7 @@ soundfile>=0.12.0
 # ── v1.5 Redaction & Content Synthesis ────────────────────────────────────────
 # opencv-python-headless — Haar cascade face detection + morphological text-zone
 # detection for ImageRedactor.  Headless variant has no GUI deps (~15 MB).
-opencv-python-headless>=4.9.0
+opencv-python-headless>=5.1.0.95
 
 # ── v2.1 Data-Gravity Hybrid Hub — S3-compatible on-prem object storage ──────
 # boto3 — AWS SDK; used by warden/storage/s3.py for MinIO + real S3.
