@@ -115,6 +115,8 @@ function ProductForm({ store, product, onDone, onCreated }: {
   const [gtinRaw, setGtinRaw] = useState(product?.gtin ?? '')
   const gtin = checkGtin(gtinRaw)
   const [fnsku, setFnsku] = useState(product?.fnsku ?? '')
+  const [drafting, setDrafting] = useState(false)
+  const [draftNote, setDraftNote] = useState('')
   const [gpsr, setGpsr] = useState<Record<string, string>>(product?.gpsr ?? {})
   const setG = (k: string) => (e: { target: { value: string } }) => setGpsr(g => ({ ...g, [k]: e.target.value }))
   const fnskuError = fnsku && !/^[A-Za-z0-9]{10}$/.test(fnsku.trim()) ? '10 letters and digits, e.g. X001ABC2DE' : undefined
@@ -272,6 +274,29 @@ function ProductForm({ store, product, onDone, onCreated }: {
               <Languages className="h-3.5 w-3.5" /> Translations
             </legend>
             <p className="text-xs text-slate-500">Name and description above are the English text. Leave a language empty to show English.</p>
+            {product?.id && (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" size="sm" variant="outline" disabled={drafting}
+                        onClick={async () => {
+                          setDrafting(true); setDraftNote('')
+                          try {
+                            const d = await storeApi.translateDraft(product.id, otherLocales)
+                            setI18n(t => ({ ...t, ...d }))
+                            setDraftNote('Drafts filled in. Read them, change what you need, then save.')
+                          } catch (e) {
+                            const r = (e as { response?: { status?: number; data?: { detail?: { error?: string } } } }).response
+                            setDraftNote(r?.status === 403 && r.data?.detail?.error === 'ai_budget'
+                              ? "This month's AI allowance on your plan is used up."
+                              : errorMessage(e))
+                          } finally {
+                            setDrafting(false)
+                          }
+                        }}>
+                  {drafting ? <Loader2 className="animate-spin" /> : <Languages />} Draft translations with AI
+                </Button>
+                {draftNote && <span className="text-xs text-slate-400" role="status">{draftNote}</span>}
+              </div>
+            )}
             {otherLocales.map(l => (
               <div key={l} className="grid gap-3 rounded-lg border border-white/[0.06] p-3 sm:grid-cols-2">
                 <TextInput label={`${LOCALES.find(x => x.code === l)?.label ?? l} name`} value={i18n[l]?.name ?? ''}

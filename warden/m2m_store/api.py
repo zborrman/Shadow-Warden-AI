@@ -824,6 +824,50 @@ async def listing_lint_batch(body: ListingBatchIn, auth: AuthResult = OwnerDep):
     return [lint({"name": i.name, "description": i.description}) for i in body.items]
 
 
+class TranslateIn(BaseModel):
+    locales: list[str] = Field(min_length=1, max_length=4)
+
+
+@router.post("/products/{product_id}/translate-draft", response_model=dict)
+async def translate_draft(product_id: str, body: TranslateIn, auth: AuthResult = OwnerDep):
+    """AI draft of a product's translations (R8.6a). Returns drafts; saves nothing."""
+    import asyncio
+
+    from warden.m2m_store import assist
+    try:
+        with _store_errors():
+            return await asyncio.to_thread(assist.translate_product, product_id, auth.tenant_id, body.locales)
+    except assist.AssistBudgetError as exc:
+        raise HTTPException(status_code=403, detail={"error": "ai_budget", "budget_usd": exc.budget}) from exc
+    except assist.AssistUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+class ChatTurn(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(max_length=2_000)
+
+
+class ConsultIn(BaseModel):
+    messages: list[ChatTurn] = Field(min_length=1, max_length=20)
+
+
+@router.post("/assistant/chat", response_model=dict)
+async def assistant_chat(body: ConsultIn, auth: AuthResult = OwnerDep):
+    """The seller consultant (R8.6b): one reply; the conversation stays in the browser."""
+    import asyncio
+
+    from warden.m2m_store import assist
+    try:
+        with _store_errors():
+            reply = await asyncio.to_thread(assist.consult, auth.tenant_id, [t.model_dump() for t in body.messages])
+    except assist.AssistBudgetError as exc:
+        raise HTTPException(status_code=403, detail={"error": "ai_budget", "budget_usd": exc.budget}) from exc
+    except assist.AssistUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"reply": reply}
+
+
 class LabelUseIn(BaseModel):
     count: int = Field(ge=1, le=5_000)
 
