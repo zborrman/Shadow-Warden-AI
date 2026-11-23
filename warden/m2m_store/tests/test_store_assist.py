@@ -42,7 +42,8 @@ def client():
 
 class _FakeClient:
     def __init__(self, reply: str):
-        self.reply, self.calls = reply, []
+        self.reply = reply
+        self.calls: list[dict] = []
         self.messages = self
 
     def create(self, **kw):
