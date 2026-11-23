@@ -13,7 +13,7 @@
     "test:links": "tsc src/lib/internal-links.ts --outDir .tmp-links --module esnext --target es2022 --moduleResolution bundler && node scripts/check-internal-links.mjs"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.107.1",
+    "@tanstack/react-query": "^5.108.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -22,7 +22,7 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^2.12.7",
-    "tailwind-merge": "^2.5.2"
+    "tailwind-merge": "^2.6.2"
   },
   "devDependencies": {
     "@types/node": "^20",
