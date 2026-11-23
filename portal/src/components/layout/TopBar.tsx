@@ -1,7 +1,9 @@
 'use client'
+// Page header in the console layout: a breadcrumb on the left, the signed-in
+// account on the right.
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Bell, User } from 'lucide-react'
 
 export function TopBar({ title }: { title: string }) {
   const { data: me } = useQuery({
@@ -9,25 +11,23 @@ export function TopBar({ title }: { title: string }) {
     queryFn:  () => api.get('/me').then(r => r.data),
     staleTime: 60_000,
   })
+  const name: string = me?.display_name || me?.email?.split('@')[0] || ''
 
   return (
-    <header className="h-16 border-b border-white/[0.06] flex items-center justify-between px-6 bg-dark-900/50 backdrop-blur-sm shrink-0">
-      <h1 className="text-lg font-semibold text-white">{title}</h1>
-      <div className="flex items-center gap-3">
-        <button className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors">
-          <Bell className="w-4 h-4" />
-        </button>
-        <div className="flex items-center gap-2.5 pl-3 border-l border-white/[0.06]">
-          <div className="w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center shrink-0">
-            <User className="w-4 h-4 text-white" />
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-medium text-white leading-none">
-              {me?.display_name || me?.email?.split('@')[0] || '…'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">{me?.tenant_id || '…'}</p>
-          </div>
-        </div>
+    <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] bg-dark-900 px-6">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+        <Link href="/dashboard/" className="text-slate-400 hover:text-slate-200">Shadow Warden</Link>
+        <span className="text-slate-500" aria-hidden>/</span>
+        <h1 className="font-semibold text-slate-100">{title}</h1>
+      </nav>
+      <div className="flex items-center gap-2.5">
+        <span className="hidden text-right sm:block">
+          <span className="block text-sm font-medium leading-none text-slate-100">{name || '…'}</span>
+          <span className="mt-0.5 block text-xs text-slate-400">{me?.tenant_id || '…'}</span>
+        </span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-xs font-bold text-white" aria-hidden>
+          {(name || 'SW').slice(0, 2).toUpperCase()}
+        </span>
       </div>
     </header>
   )
