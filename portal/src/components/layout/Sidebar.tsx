@@ -1,205 +1,147 @@
 'use client'
-import { useState } from 'react'
+// Portal shell: an icon rail (sections) beside a collapsible panel (the pages of
+// the current section), the layout of a settings console. One component, used by
+// every signed-in layout, so the whole portal moves together.
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  ShieldCheck, LogOut, ExternalLink, ChevronDown,
-  Key, CreditCard, BookOpen, DollarSign, BarChart2,
-  Sun, Moon, Store,
+  BarChart2, BookOpen, ChevronsLeft, ChevronsRight, ExternalLink,
+  Key, LogOut, Moon, Settings, Store, Sun,
 } from 'lucide-react'
-import { logout } from '@/lib/auth'
-import { useRouter } from 'next/navigation'
 import clsx from 'clsx'
+import { logout } from '@/lib/auth'
 import { useTheme } from '@/components/ui/ThemeProvider'
 
-type NavItem = { href: string; label: string; icon: React.ElementType }
-type NavGroup = {
-  id: string
-  label: string
-  accent: string
-  icon: string
-  items: NavItem[]
-}
+type Item = { href: string; label: string; external?: boolean }
+type Section = { id: string; label: string; icon: React.ElementType; groups: { label: string; items: Item[] }[] }
 
-// Only screens whose API a portal session can reach. The portal session is
-// accepted by /portal/* and by the store's owner routes (require_store_owner);
-// every other gateway route wants an X-API-Key. Items for those screens were
-// removed on 2026-11-19 - each one opened an empty page or the Overview again
-// (13 pointed at `?tab=` values no page reads). The pages stay in the repo; a
-// screen comes back to this menu when its API accepts the portal session.
-const groups: NavGroup[] = [
-  {
-    id: 'store',
-    label: 'Store',
-    accent: '#BF5AF2',
-    icon: '◈',
-    items: [
-      { href: '/store/manage/', label: 'Store Builder', icon: Store },
-    ],
-  },
-  {
-    id: 'account',
-    label: 'Account',
-    accent: '#0A84FF',
-    icon: '◈',
-    items: [
-      { href: '/dashboard/', label: 'Overview', icon: BarChart2  },
-      { href: '/api-keys/',  label: 'API Keys', icon: Key        },
-      { href: '/settings/',  label: 'Settings', icon: CreditCard },
-    ],
-  },
+// Only screens whose API a portal session can reach (see 2026-11-19 cut): the
+// portal session is accepted by /portal/* and the store's owner routes.
+const SECTIONS: Section[] = [
+  { id: 'store', label: 'Store', icon: Store, groups: [
+    { label: 'Store', items: [{ href: '/store/manage/', label: 'Store Builder' }] },
+  ] },
+  { id: 'overview', label: 'Overview', icon: BarChart2, groups: [
+    { label: 'Account', items: [{ href: '/dashboard/', label: 'Overview' }] },
+  ] },
+  { id: 'keys', label: 'API Keys', icon: Key, groups: [
+    { label: 'Developer', items: [{ href: '/api-keys/', label: 'API Keys' }, { href: '/sdk/', label: 'SDK & API' }] },
+  ] },
+  { id: 'settings', label: 'Settings', icon: Settings, groups: [
+    { label: 'Account', items: [{ href: '/settings/', label: 'Account settings' }] },
+  ] },
+  { id: 'resources', label: 'Docs', icon: BookOpen, groups: [
+    { label: 'Resources', items: [
+      { href: 'https://www.shadow-warden-ai.com/doc', label: 'Documentation', external: true },
+      { href: 'https://www.shadow-warden-ai.com/price', label: 'Pricing', external: true },
+      { href: 'https://www.shadow-warden-ai.com', label: 'Website', external: true },
+    ] },
+  ] },
 ]
 
-const singleLinks = [
-  { href: '/sdk/',                                  label: 'SDK & API', accent: '#30D158', icon: BookOpen,   external: false },
-  { href: 'https://www.shadow-warden-ai.com/doc',   label: 'Docs',      accent: '#FFD60A', icon: BookOpen,   external: true  },
-  { href: 'https://www.shadow-warden-ai.com/price', label: 'Price',     accent: '#FF8C42', icon: DollarSign, external: true  },
-]
+const trim = (p: string) => p.replace(/\/$/, '')
+const owns = (s: Section, path: string) =>
+  s.groups.some(g => g.items.some(i => !i.external && trim(path).startsWith(trim(i.href))))
 
 export function Sidebar() {
-  const pathname = usePathname()
-  const router   = useRouter()
+  const pathname = usePathname() || '/'
+  const router = useRouter()
   const { theme, toggle } = useTheme()
-  const [open, setOpen] = useState<Record<string, boolean>>({ store: true, account: true })
+  const current = SECTIONS.find(s => owns(s, pathname)) ?? SECTIONS[1]
+  const [picked, setPicked] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const section = SECTIONS.find(s => s.id === picked) ?? current
 
-  const isDark = theme === 'dark'
-  const sidebarBg    = isDark ? '#0D0D14' : '#ffffff'
-  const borderColor  = isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0'
-  const textMuted    = isDark ? '#8E8E9E' : '#64748b'
-  const dividerBg    = isDark ? 'rgba(255,255,255,0.05)' : '#e2e8f0'
+  // Browser-only preference read after hydration (server render is always expanded).
+  useEffect(() => { setCollapsed(localStorage.getItem('sw_nav_collapsed') === '1') }, [])
+  useEffect(() => { setPicked(null) }, [pathname])
 
-  async function handleLogout() {
+  function setCollapse(v: boolean) {
+    setCollapsed(v)
+    localStorage.setItem('sw_nav_collapsed', v ? '1' : '0')
+  }
+
+  async function signOut() {
     await logout()
     router.replace('/login/')
   }
 
-  function isGroupActive(group: NavGroup) {
-    return group.items.some(i => pathname.startsWith(i.href.split('?')[0].replace(/\/$/, '')))
-  }
+  const railBtn = 'flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium transition-colors'
 
   return (
-    <aside className="w-64 h-screen flex flex-col shrink-0 overflow-y-auto"
-           style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
-
-      {/* Logo */}
-      <div className="px-5 py-4 shrink-0" style={{ borderBottom: `1px solid ${borderColor}` }}>
-        <Link href="/dashboard/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-sm"
-               style={{ background: 'linear-gradient(135deg,#FF2D55,#FF6B35)', boxShadow: '0 0 14px rgba(255,45,85,0.35)' }}>
-            🛡️
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="text-[13px] font-bold" style={{ color: isDark ? '#ffffff' : '#0f172a' }}>Shadow Warden</span>
-            <span className="text-[9px] font-bold tracking-wider" style={{ color: '#FF2D55' }}>v7.10 · LIVE</span>
-          </div>
+    <div className="flex h-screen shrink-0">
+      {/* Rail */}
+      <nav aria-label="Sections" className="flex w-[72px] flex-col items-center gap-1 border-r border-white/[0.06] bg-dark-950 py-3">
+        <Link href="/dashboard/" aria-label="Shadow Warden home"
+              className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
+          SW
         </Link>
-      </div>
-
-      {/* Grouped nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {groups.map(group => {
-          const isOpen = open[group.id] ?? false
-          const active = isGroupActive(group)
+        {SECTIONS.map(s => {
+          const Icon = s.icon
+          const on = s.id === section.id
           return (
-            <div key={group.id}>
-              {/* Group header */}
-              <button
-                onClick={() => setOpen(s => ({ ...s, [group.id]: !isOpen }))}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all duration-150"
-                style={{
-                  color: active || isOpen ? group.accent : textMuted,
-                  background: active || isOpen ? `color-mix(in srgb,${group.accent} 8%,transparent)` : 'transparent',
-                }}
-              >
-                <span className="text-[10px]" style={{ color: group.accent }}>{group.icon}</span>
-                <span className="flex-1 text-left">{group.label}</span>
-                <ChevronDown
-                  className="w-3.5 h-3.5 shrink-0 transition-transform duration-200"
-                  style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                />
-              </button>
-
-              {/* Group items */}
-              {isOpen && (
-                <div className="mt-0.5 ml-3 pl-3 space-y-0.5"
-                     style={{ borderLeft: `1px solid color-mix(in srgb,${group.accent} 20%,transparent)` }}>
-                  {group.items.map(({ href, label, icon: Icon }) => {
-                    const base = href.split('?')[0].replace(/\/$/, '')
-                    const isActive = pathname.replace(/\/$/, '') === base
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-100"
-                        style={{
-                          color: isActive ? group.accent : textMuted,
-                          background: isActive ? `color-mix(in srgb,${group.accent} 10%,transparent)` : 'transparent',
-                        }}
-                      >
-                        <Icon className="w-3.5 h-3.5 shrink-0" />
-                        {label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <button key={s.id} type="button" aria-current={on ? 'true' : undefined}
+                    onClick={() => { setPicked(s.id); if (collapsed) setCollapse(false) }}
+                    className={clsx(railBtn, on ? 'text-white' : 'text-slate-400 hover:text-slate-200')}>
+              <span className={clsx('flex h-9 w-9 items-center justify-center rounded-lg',
+                                    on ? 'bg-brand-500/25 ring-1 ring-brand-500/60' : 'hover:bg-white/[0.06]')}>
+                <Icon className="h-[18px] w-[18px]" />
+              </span>
+              {s.label}
+            </button>
           )
         })}
-
-        {/* Divider */}
-        <div className="my-2 mx-3 h-px" style={{ background: dividerBg }} />
-
-        {/* Single links: Docs + Price */}
-        {singleLinks.map(({ href, label, accent, icon: Icon, external }) => (
-          <Link
-            key={href}
-            href={href}
-            target={external ? '_blank' : undefined}
-            rel={external ? 'noopener noreferrer' : undefined}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all duration-150"
-            style={{ color: accent }}
-          >
-            <Icon className="w-3.5 h-3.5 shrink-0" />
-            {label}
-            {external && <ExternalLink className="w-3 h-3 ml-auto opacity-50" />}
-          </Link>
-        ))}
+        <div className="mt-auto flex flex-col items-center gap-1">
+          <button type="button" onClick={toggle} aria-label="Toggle theme" className={clsx(railBtn, 'text-slate-400 hover:text-slate-200')}>
+            {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+          </button>
+          <button type="button" onClick={signOut} aria-label="Sign out" className={clsx(railBtn, 'text-slate-400 hover:text-red-400')}>
+            <LogOut className="h-[18px] w-[18px]" />
+          </button>
+        </div>
       </nav>
 
-      {/* Bottom actions */}
-      <div className="px-2 py-3 shrink-0" style={{ borderTop: `1px solid ${borderColor}` }}>
-        {/* Theme toggle */}
-        <button
-          onClick={toggle}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] transition-all duration-150"
-          style={{ color: textMuted }}
-          aria-label="Toggle theme"
-        >
-          {isDark
-            ? <Sun className="w-3.5 h-3.5 shrink-0" />
-            : <Moon className="w-3.5 h-3.5 shrink-0" />}
-          {isDark ? 'Light mode' : 'Dark mode'}
-        </button>
-
-        <a
-          href="https://shadow-warden-ai.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] transition-all"
-          style={{ color: textMuted }}
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          Back to Website
-        </a>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] text-slate-400 hover:text-red-400 transition-all"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          Sign out
-        </button>
-      </div>
-    </aside>
+      {/* Panel */}
+      {collapsed ? (
+        <div className="flex w-6 items-start justify-center border-r border-white/[0.06] bg-dark-900 pt-4">
+          <button type="button" aria-label="Expand navigation" onClick={() => setCollapse(false)}
+                  className="text-slate-400 hover:text-slate-200"><ChevronsRight className="h-4 w-4" /></button>
+        </div>
+      ) : (
+        <aside aria-label={`${section.label} pages`} className="flex w-60 flex-col overflow-y-auto border-r border-white/[0.06] bg-dark-900">
+          <div className="flex h-12 items-center justify-between px-4">
+            <span className="text-sm font-semibold text-slate-100">{section.label}</span>
+            <button type="button" aria-label="Collapse navigation" onClick={() => setCollapse(true)}
+                    className="text-slate-400 hover:text-slate-200"><ChevronsLeft className="h-4 w-4" /></button>
+          </div>
+          <div className="space-y-5 px-2 pb-4">
+            {section.groups.map(g => (
+              <div key={g.label}>
+                <p className="px-3 pb-1.5 text-[13px] font-semibold text-slate-200">{g.label}</p>
+                <ul className="space-y-0.5">
+                  {g.items.map(i => {
+                    const on = !i.external && trim(pathname) === trim(i.href)
+                    return (
+                      <li key={i.href}>
+                        <Link href={i.href} target={i.external ? '_blank' : undefined}
+                              rel={i.external ? 'noopener noreferrer' : undefined}
+                              aria-current={on ? 'page' : undefined}
+                              className={clsx('flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+                                on ? 'border-brand-500/60 bg-brand-500/20 text-white'
+                                   : 'border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-200')}>
+                          <span className="flex-1">{i.label}</span>
+                          {i.external && <ExternalLink className="h-3 w-3 opacity-60" />}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
+    </div>
   )
 }
