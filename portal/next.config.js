@@ -23,7 +23,18 @@ const nextConfig = {
   output: 'standalone',   // Node.js server — required for /api/hub/* server-side proxy
   poweredByHeader: false,
   async headers() {
-    return [{ source: '/:path*', headers: SECURITY_HEADERS }];
+    return [
+      { source: '/:path*', headers: SECURITY_HEADERS },
+      // Pages are prerendered, and Next answers them with only
+      // `s-maxage=31536000`, which leaves a browser free to reuse its copy
+      // heuristically. After a deploy that is the old page. `no-cache` makes
+      // the browser revalidate every document; hashed /_next/static assets are
+      // excluded so they keep their immutable caching.
+      {
+        source: '/((?!_next/static|_next/image|favicon|logo|accessibility-widget).*)',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
+      },
+    ];
   },
   trailingSlash: true,    // /dashboard → /dashboard/index.html
   images: { unoptimized: true },
