@@ -80,6 +80,24 @@ const GET_ALLOW: RegExp[] = [
   /^\/document-intel\/stats$/,
   /^\/smb-suite\/health$/,
 
+  // Former "SOON" sidebar pages (read-only). Each line is a page's call site.
+  /^\/sep\/(list|search|peerings|pods)$/,
+  /^\/sep\/knock\/pending$/,
+  /^\/public\/leaderboard$/,
+  /^\/shadow-ai\/(findings|policy|providers)$/,
+  /^\/xai\/dashboard$/,
+  new RegExp(`^/xai/report/${SEG}(/pdf)?$`),
+  /^\/gsam\/heatmap$/,
+  new RegExp(`^/api/agent/session/${SEG}(/verify)?$`),
+  /^\/rules$/,
+  /^\/training\/programs$/,
+  /^\/secrets\/(stats|vaults|inventory)$/,
+  /^\/sovereign\/(policy|jurisdictions|tunnels)$/,
+  /^\/gdpr\/retention-policy$/,
+  /^\/api\/compliance\/gdpr\/ropa$/,
+  /^\/billing\/(status|quota|addons)$/,
+  /^\/billing\/addons\/tenant$/,
+
   // Marketplace
   /^\/marketplace\/analytics\/(summary|volume|agents)$/,
   /^\/marketplace\/agents$/,
