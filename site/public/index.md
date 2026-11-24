@@ -1,33 +1,48 @@
 # Shadow Warden AI
 
-> Zero-trust AI security gateway. Every prompt, completion and agent tool call
-> passes a nine-stage filter before it reaches a model or the outside world.
+> A workspace for Amazon sellers: catch listing, labelling, barcode and
+> account-health risks early, from the seller's own data. Independent of
+> Amazon; it never logs in to Seller Central and never asks for an Amazon
+> password.
 
 - Homepage: <https://shadow-warden-ai.com/>
+- For sellers: <https://shadow-warden-ai.com/sellers>
 - Machine index: <https://shadow-warden-ai.com/llms.txt>
 - Agent instructions (when to use this): <https://shadow-warden-ai.com/.well-known/agent-instructions.md>
 - OpenAPI 3.1: <https://shadow-warden-ai.com/openapi.json>
 - API base URL: `https://api.shadow-warden-ai.com`
 
-## What it does
+## Available now
 
-`POST /filter` runs text through nine stages and returns a decision plus a
-reason, so a caller can allow, redact or block before spending model tokens:
+- **Listing check**: flags pesticide, medical, green and absolute claims in the
+  seller's own titles and descriptions, each with its public basis (EPA/FIFRA,
+  FDA, FTC Green Guides, EU 2024/825). Advice only; it cannot know what a
+  marketplace will remove.
+- **Account-health calculator**: order defect, late shipment, cancellation and
+  valid-tracking rates from numbers the seller types. Nothing is read from Amazon.
+- **GTIN check**: GS1 check digit verified before a number is saved. A valid
+  check digit does not mean GS1 licensed the number.
+- **Labels**: print-ready FNSKU and barcode labels (A4, US Letter, 50 x 25 mm
+  rolls, ZPL). Not tested by any fulfilment centre.
+- **EU product safety (GPSR)**: manufacturer, EU responsible person and warnings
+  shown on the seller's storefront. Entered by the seller, not verified by us.
+- **Own storefront and customer list**: five languages; the platform sends no
+  email and moves no money.
 
-1. **TopologicalGatekeeper** — n-gram point cloud, Betti numbers β₀/β₁
-2. **ObfuscationDecoder** — base64/hex/ROT13/Caesar/word-split/UUencode/homoglyph, depth 3
-3. **SecretRedactor** — 15 secret patterns plus a Shannon-entropy scan for unknown secrets
-4. **SemanticGuard** — rule engine with compound-risk escalation
-5. **HyperbolicBrain** — MiniLM embeddings projected onto a Poincaré ball
-6. **CausalArbiter** — Bayesian DAG for the gray zone
-7. **ERS** — sliding-window reputation, shadow ban above a score threshold
-8. **PhishGuard** — URL and lure analysis
-9. **Decision** — verdict, risk score, and the stage that produced it
+## In development (not available)
 
-Content is never logged. Only metadata (type, length, timing) is written, which
-is what makes the audit trail GDPR-safe.
+Account-health history from uploaded reports, an evidence vault for invoices
+and certificates, and an appeal (plan of action) workspace.
 
-## Interfaces
+## What it will not do
+
+It never acts inside Seller Central, never sends messages or appeals on the
+seller's behalf, and does not decide anything for Amazon: it estimates risk.
+No tool can guarantee an account stays open.
+
+## Developer interfaces (the screening engine)
+
+The workspace runs on a text-screening gateway that also has a public API.
 
 | Interface | Entry point |
 |---|---|
