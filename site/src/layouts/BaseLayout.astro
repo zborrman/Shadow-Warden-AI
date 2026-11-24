@@ -50,7 +50,7 @@ const structuredData = {
       name: 'Shadow Warden AI',
       url: SITE_URL,
       logo: `${SITE_URL}/logo.png`,
-      description: 'Zero-trust AI security gateway and machine-to-machine agent marketplace.',
+      description: 'A workspace for Amazon sellers to catch listing, labelling and account-health risks early. Independent of Amazon.',
       sameAs: ['https://github.com/zborrman/Shadow-Warden-AI'],
       // An agent asked to verify who this is, or to reach a human, should not
       // have to scrape the contact page. contactType + email is what
@@ -282,12 +282,12 @@ if (breadcrumbs && currentPath !== '/') {
 <body>
   <!-- Top announcement banner -->
   <div id="top-banner" style="background:#0c1020;border-bottom:1px solid rgba(128,180,253,0.14);position:fixed;top:0;left:0;right:0;z-index:60;height:36px">
-    <a href="/doc/api-reference"
+    <a href="/sellers"
        class="flex items-center justify-center gap-2 px-4 py-2 transition-colors"
        style="text-decoration:none;color:#a8b8d0"
        onmouseover="this.style.color='#f0f4fc'" onmouseout="this.style.color='#a8b8d0'">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">Shadow Warden AI — Gateway <span style="color:#6b7c96;font-weight:400;font-family:var(--sw-font-mono)">{PRODUCT.display}</span> — Explore the API Reference</span>
+      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">For Amazon sellers — check your catalog free</span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </a>
     <button id="banner-close" aria-label="Dismiss" type="button"
@@ -585,8 +585,8 @@ if (breadcrumbs && currentPath !== '/') {
                  style="height:40px;width:auto;border-radius:6px;display:block" />
           </div>
           <p class="text-[13px] leading-relaxed max-w-xs" style="color:#64748b">
-            Zero-trust AI security gateway. {PRODUCT.defenseLayers}-layer defense pipeline.
-            Controls mapped to SOC 2, GDPR and OWASP LLM Top 10 (self-attested).
+            A workspace for Amazon sellers: listing, label and account-health risks, found early.
+            Independent of Amazon. Data stored in the EU.
           </p>
           <div class="flex items-center gap-3 mt-4">
             <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
