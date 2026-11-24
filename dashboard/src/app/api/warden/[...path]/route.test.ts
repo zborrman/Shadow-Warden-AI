@@ -113,6 +113,31 @@ describe("path allowlist", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  // The pages that replaced the sidebar's "SOON" items read these. A path that
+  // falls off the list would turn a live page into DataUnavailable silently.
+  it.each([
+    "sep/list", "sep/search", "sep/peerings", "sep/pods", "sep/knock/pending",
+    "public/leaderboard", "shadow-ai/findings", "shadow-ai/policy", "shadow-ai/providers",
+    "xai/dashboard", "xai/report/req_1", "xai/report/req_1/pdf", "gsam/heatmap",
+    "api/agent/session/ses_1", "api/agent/session/ses_1/verify", "rules",
+    "training/programs", "secrets/stats", "secrets/vaults", "secrets/inventory",
+    "sovereign/policy", "sovereign/jurisdictions", "sovereign/tunnels",
+    "gdpr/retention-policy", "api/compliance/gdpr/ropa",
+    "billing/status", "billing/quota", "billing/addons", "billing/addons/tenant",
+  ])("forwards the page read GET /%s", async path => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(await fetchMockResponse("{}")));
+    const res = await GET(req(`/${path}`, { cookie: "warden_auth=secret" }), params(path));
+    expect(res.status).toBe(200);
+  });
+
+  it.each(["sep/pods/p1/probe", "gdpr/purge/tenant/t1", "secrets/vaults/v1", "billing/addons/grant"])(
+    "does not open neighbouring routes: GET /%s stays 404",
+    async path => {
+      const res = await GET(req(`/${path}`, { cookie: "warden_auth=secret" }), params(path));
+      expect(res.status).toBe(404);
+    },
+  );
+
   it("allows a listed GET route through to fetch", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(await fetchMockResponse('{"ok":true}')));
     const res = await GET(req("/health", { cookie: "warden_auth=secret" }), params("health"));

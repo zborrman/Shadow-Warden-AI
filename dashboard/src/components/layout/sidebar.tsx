@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -32,11 +32,11 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/community",           icon: Users,        label: "Communities" },
       { href: "/community/governance",icon: ShieldCheck, label: "Governance" },
-      { href: "/community/sep",       icon: Network,  label: "SEP Hub",          soon: true },
-      { href: "/community/peering",   icon: Zap,      label: "Peering",          soon: true },
-      { href: "/community/knock",     icon: Key,      label: "Knock Invitations",soon: true },
-      { href: "/community/pods",      icon: Globe,    label: "Data Pods",        soon: true },
-      { href: "/community/reputation",icon: TrendingUp,label: "Reputation",      soon: true },
+      { href: "/community/sep",       icon: Network,  label: "SEP Hub" },
+      { href: "/community/peering",   icon: Zap,      label: "Peering" },
+      { href: "/community/knock",     icon: Key,      label: "Knock Invitations" },
+      { href: "/community/pods",      icon: Globe,    label: "Data Pods" },
+      { href: "/community/reputation",icon: TrendingUp,label: "Reputation" },
     ],
   },
   {
@@ -48,10 +48,10 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/events",   icon: Shield,        label: "Filter Events" },
       { href: "/sandbox",  icon: FlaskConical,  label: "Filter Sandbox" },
-      { href: "/threats",  icon: AlertTriangle, label: "Shadow AI",    soon: true },
-      { href: "/xai",      icon: Eye,           label: "XAI Reports",  soon: true },
-      { href: "/agents",   icon: Cpu,           label: "Agent Monitor",soon: true },
-      { href: "/evolution",icon: Zap,           label: "Evolution Log", soon: true },
+      { href: "/shadow-ai", icon: AlertTriangle, label: "Shadow AI" },
+      { href: "/xai",      icon: Eye,           label: "XAI Reports" },
+      { href: "/agents",   icon: Cpu,           label: "Agent Monitor" },
+      { href: "/evolution",icon: Zap,           label: "Evolution Log" },
     ],
   },
   {
@@ -85,9 +85,9 @@ const GROUPS: NavGroup[] = [
       { href: "/smb",           icon: Shield,        label: "SMB Overview" },
       { href: "/budget",        icon: DollarSign,    label: "Budget Dashboard" },
       { href: "/intelligence",  icon: TrendingUp,    label: "Business Intelligence" },
-      { href: "/smb/vendors",   icon: FileText,      label: "Vendor Governance",   soon: true },
-      { href: "/smb/incidents", icon: AlertTriangle, label: "Incident Register",   soon: true },
-      { href: "/smb/training",  icon: BookOpen,      label: "Training Records",    soon: true },
+      { href: "/smb/vendors",   icon: FileText,      label: "Vendor Governance" },
+      { href: "/smb/incidents", icon: AlertTriangle, label: "Incident Register" },
+      { href: "/smb/training",  icon: BookOpen,      label: "Training Records" },
     ],
   },
   {
@@ -98,10 +98,10 @@ const GROUPS: NavGroup[] = [
     icon: Settings,
     items: [
       { href: "/settings",            icon: Key,      label: "API Keys" },
-      { href: "/settings/secrets",    icon: Lock,     label: "Secrets Vault",    soon: true },
-      { href: "/settings/sovereign",  icon: Globe,    label: "Sovereign Routing",soon: true },
-      { href: "/settings/gdpr",       icon: FileText, label: "GDPR Controls",   soon: true },
-      { href: "/settings/billing",    icon: DollarSign,label: "Billing",         soon: true },
+      { href: "/settings/secrets",    icon: Lock,     label: "Secrets Vault" },
+      { href: "/settings/sovereign",  icon: Globe,    label: "Sovereign Routing" },
+      { href: "/settings/gdpr",       icon: FileText, label: "GDPR Controls" },
+      { href: "/settings/billing",    icon: DollarSign,label: "Billing" },
     ],
   },
 ];
