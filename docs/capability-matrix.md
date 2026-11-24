@@ -292,4 +292,16 @@ End-to-end encryption using the community
 # requests are stored for evolution (brain/dataset.py), so "stored" overclaims.
 content never stored
 Built for GDPR: content is never stored
+# Seller protection (SP-06): we estimate risk from the seller's own data; Amazon
+# decides. Nothing can prevent a suspension or promise a reinstatement, and we
+# never connect to Seller Central (SP-01).
+prevents suspension
+prevent suspensions
+suspension-proof
+ban-proof
+guaranteed reinstatement
+guarantee reinstatement
+Amazon-approved
+monitors your Amazon account
+Seller Central integration
 ```
