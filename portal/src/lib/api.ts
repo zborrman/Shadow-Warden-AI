@@ -22,6 +22,26 @@ api.interceptors.request.use(cfg => {
 // Auto-refresh on 401
 let _refreshing: Promise<string> | null = null
 
+/** One refresh at a time, shared by the axios interceptor and fetch-based callers (the assistant stream). */
+export function refreshAccessToken(): Promise<string> {
+  if (!_refreshing) {
+    _refreshing = axios
+      .post(`${API_URL}/portal/auth/refresh`, {}, { withCredentials: true })
+      .then(r => {
+        const token = r.data.access_token as string
+        setAccessToken(token)
+        _refreshing = null
+        return token
+      })
+      .catch(e => {
+        _refreshing = null
+        setAccessToken(null)
+        throw e
+      })
+  }
+  return _refreshing
+}
+
 // On these a 401 is the answer (wrong password or code), not an expired
 // session: refreshing and reloading /login/ would wipe the form and hide the
 // message, and on change-password or close it would sign the person out.
@@ -34,22 +54,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !original._retry && !ANSWERS_401.test(original.url ?? '')) {
       original._retry = true
       try {
-        if (!_refreshing) {
-          _refreshing = axios
-            .post(`${API_URL}/portal/auth/refresh`, {}, { withCredentials: true })
-            .then(r => {
-              const token = r.data.access_token as string
-              setAccessToken(token)
-              _refreshing = null
-              return token
-            })
-            .catch(e => {
-              _refreshing = null
-              setAccessToken(null)
-              throw e
-            })
-        }
-        const newToken = await _refreshing
+        const newToken = await refreshAccessToken()
         original.headers['Authorization'] = `Bearer ${newToken}`
         return axios(original)
       } catch {

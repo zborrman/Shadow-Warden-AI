@@ -852,19 +852,71 @@ class ConsultIn(BaseModel):
     messages: list[ChatTurn] = Field(min_length=1, max_length=20)
 
 
-@router.post("/assistant/chat", response_model=dict)
-async def assistant_chat(body: ConsultIn, auth: AuthResult = OwnerDep):
-    """The seller consultant (R8.6b): one reply; the conversation stays in the browser."""
-    import asyncio
+_SSE_END = "\n\n"  # an SSE event ends with a blank line
 
+
+def _ui_stream(pieces: Iterator[str]) -> Iterator[str]:
+    """
+    The AI SDK UI message stream (v1): Server-Sent Events, one JSON part each.
+    The portal reads it with `useChat`; the model, the allowance and the content
+    screen stay here, so the browser holds no key and calls no model.
+    """
+    import json
+    import uuid
+
+    def part(obj: dict[str, Any]) -> str:
+        return "data: " + json.dumps(obj, separators=(",", ":")) + _SSE_END
+
+    text_id = uuid.uuid4().hex
+    yield part({"type": "start"})
+    yield part({"type": "text-start", "id": text_id})
     from warden.m2m_store import assist
     try:
+        for piece in pieces:
+            yield part({"type": "text-delta", "id": text_id, "delta": piece})
+    except assist.AssistUnavailableError as exc:
+        yield part({"type": "text-end", "id": text_id})
+        yield part({"type": "error", "errorText": str(exc)})
+        yield "data: [DONE]" + _SSE_END
+        return
+    yield part({"type": "text-end", "id": text_id})
+    yield part({"type": "finish"})
+    yield "data: [DONE]" + _SSE_END
+
+
+@router.post("/assistant/chat", response_model=dict)
+async def assistant_chat(body: ConsultIn, request: Request, auth: AuthResult = OwnerDep):
+    """
+    The seller consultant (R8.6b): one reply; the conversation stays in the browser.
+
+    With `Accept: text/event-stream` the reply arrives as it is written, in the AI
+    SDK UI message stream format. Every refusal (bad conversation, spent
+    allowance, no key) is decided before the first byte and is an HTTP status in
+    both forms.
+    """
+    import asyncio
+
+    from fastapi.responses import StreamingResponse
+
+    from warden.m2m_store import assist
+    turns = [t.model_dump() for t in body.messages]
+    streaming = "text/event-stream" in request.headers.get("accept", "")
+    try:
         with _store_errors():
-            reply = await asyncio.to_thread(assist.consult, auth.tenant_id, [t.model_dump() for t in body.messages])
+            if streaming:
+                pieces = await asyncio.to_thread(assist.consult_stream, auth.tenant_id, turns)
+            else:
+                reply = await asyncio.to_thread(assist.consult, auth.tenant_id, turns)
     except assist.AssistBudgetError as exc:
         raise HTTPException(status_code=403, detail={"error": "ai_budget", "budget_usd": exc.budget}) from exc
     except assist.AssistUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if streaming:
+        return StreamingResponse(_ui_stream(pieces), media_type="text/event-stream", headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "x-vercel-ai-ui-message-stream": "v1",
+        })
     return {"reply": reply}
 
 
