@@ -1,32 +1,32 @@
 ---
 const sources = [
-  { name: 'OSV.dev CVE Scanner',   icon: '🔍', color: '#e11d48', count: '200K+ vulns' },
+  { name: 'OSV.dev CVE Scanner',   icon: '🔍', color: '#be123c', count: '200K+ vulns' },
   { name: 'ArXiv LLM Papers',      icon: '📄', color: '#2563eb', count: 'Daily sync'  },
-  { name: 'MITRE CVE Feed',        icon: '🗂️', color: '#ea580c', count: 'NVD index'   },
+  { name: 'MITRE CVE Feed',        icon: '🗂️', color: '#c2410c', count: 'NVD index'   },
   { name: 'STIX 2.1 Threat Feeds', icon: '🌐', color: '#9333ea', count: 'OASIS format'},
-  { name: 'Internal BLOCK events', icon: '🛡️', color: '#16a34a', count: 'Real-time'   },
-  { name: 'Nemotron Synthesis',    icon: '🤖', color: '#0284c7', count: 'NVIDIA API'  },
+  { name: 'Internal BLOCK events', icon: '🛡️', color: '#15803d', count: 'Real-time'   },
+  { name: 'Nemotron Synthesis',    icon: '🤖', color: '#0369a1', count: 'NVIDIA API'  },
 ];
 
 const billingPlatforms = [
   { name: 'Stripe',        icon: '💳', color: '#6772E5', file: 'stripe_billing.py' },
-  { name: 'Lemon Squeezy', icon: '🍋', color: '#d97706', file: 'lemon_billing.py'  },
+  { name: 'Lemon Squeezy', icon: '🍋', color: '#b45309', file: 'lemon_billing.py'  },
   { name: 'Paddle',        icon: '🏓', color: '#2563eb', file: 'paddle_billing.py'  },
 ];
 
 const integrations = [
-  { name: 'Splunk HEC',      icon: '📡', color: '#ea580c', file: 'analytics/siem.py' },
+  { name: 'Splunk HEC',      icon: '📡', color: '#c2410c', file: 'analytics/siem.py' },
   { name: 'Elastic ECS',     icon: '🔵', color: '#2563eb', file: 'analytics/siem.py' },
-  { name: 'Prometheus',      icon: '🔥', color: '#e11d48', file: 'metrics.py'        },
-  { name: 'Grafana',         icon: '📊', color: '#ea580c', file: 'docker-compose'    },
+  { name: 'Prometheus',      icon: '🔥', color: '#be123c', file: 'metrics.py'        },
+  { name: 'Grafana',         icon: '📊', color: '#c2410c', file: 'docker-compose'    },
   { name: 'Slack Alerts',    icon: '💬', color: '#4A154B', file: 'alerting.py'       },
-  { name: 'PagerDuty',       icon: '🚨', color: '#16a34a', file: 'alerting.py'       },
+  { name: 'PagerDuty',       icon: '🚨', color: '#15803d', file: 'alerting.py'       },
   { name: 'Telegram',        icon: '✈️', color: '#2563eb', file: 'telegram_alert.py' },
-  { name: 'LangChain',       icon: '🦜', color: '#16a34a', file: 'integrations/langchain_callback.py' },
-  { name: 'OIDC/OAuth2',     icon: '🔐', color: '#ea580c', file: 'auth/oidc_guard.py'},
+  { name: 'LangChain',       icon: '🦜', color: '#15803d', file: 'integrations/langchain_callback.py' },
+  { name: 'OIDC/OAuth2',     icon: '🔐', color: '#c2410c', file: 'auth/oidc_guard.py'},
   { name: 'SAML 2.0',        icon: '🏛️', color: '#9333ea', file: 'auth/saml_provider.py'},
-  { name: 'MinIO / S3',      icon: '🗄️', color: '#e11d48', file: 'storage/s3.py'    },
-  { name: 'TimescaleDB',     icon: '⏱️', color: '#0284c7', file: 'workers/probe_worker.py'},
+  { name: 'MinIO / S3',      icon: '🗄️', color: '#be123c', file: 'storage/s3.py'    },
+  { name: 'TimescaleDB',     icon: '⏱️', color: '#0369a1', file: 'workers/probe_worker.py'},
 ];
 ---
 

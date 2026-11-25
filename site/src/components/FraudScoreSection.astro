@@ -1,26 +1,26 @@
 ---
 const scoreDimensions = [
-  { id: 'behavioral', label: 'Behavioral Anomaly', score: 0.87, color: '#e11d48',
+  { id: 'behavioral', label: 'Behavioral Anomaly', score: 0.87, color: '#be123c',
     desc: 'Session velocity, request pattern deviation, typing cadence analysis', sources: ['ERS sliding window', 'Session guard', 'Topology β₀'] },
-  { id: 'semantic',   label: 'Semantic Risk',      score: 0.72, color: '#ea580c',
+  { id: 'semantic',   label: 'Semantic Risk',      score: 0.72, color: '#c2410c',
     desc: 'MiniLM hyperbolic embedding distance from known-safe cluster centroids', sources: ['Hyperbolic Brain', 'Causal Arbiter', 'Semantic rules'] },
-  { id: 'identity',   label: 'Identity Spoofing',  score: 0.61, color: '#d97706',
+  { id: 'identity',   label: 'Identity Spoofing',  score: 0.61, color: '#b45309',
     desc: 'API key rotation patterns, tenant fingerprint drift, JWT claim anomalies', sources: ['Auth Guard', 'RBAC', 'HMAC verify'] },
   { id: 'exfiltration', label: 'Exfil Probability', score: 0.94, color: '#9333ea',
     desc: 'PII pattern density, Shannon entropy spikes, output volume anomaly', sources: ['PII Vault', 'Output Guard', 'Taint tracker'] },
   { id: 'injection',  label: 'Injection Depth',    score: 0.55, color: '#2563eb',
     desc: 'Multi-turn prompt injection chain score from AgentMonitor INJECTION_CHAIN', sources: ['Agent monitor', 'Worm guard', 'Tool guard'] },
-  { id: 'sovereign',  label: 'Sovereign Violation', score: 0.33, color: '#16a34a',
+  { id: 'sovereign',  label: 'Sovereign Violation', score: 0.33, color: '#15803d',
     desc: 'Cross-border data transfer compliance risk from Sovereign router', sources: ['Transfer guard', 'Jurisdiction matrix', 'STIX chain'] },
 ];
 
 const eliteFeatures = [
   {
-    icon: '🎯', color: '#e11d48', title: 'Real-Time Composite Score',
+    icon: '🎯', color: '#be123c', title: 'Real-Time Composite Score',
     desc: 'Weighted fusion of 6 risk dimensions. Bayesian network combines causal evidence into a single FraudScore (0.0–1.0) with confidence interval.',
   },
   {
-    icon: '🌐', color: '#16a34a', title: 'Sovereign Identity Graph',
+    icon: '🌐', color: '#15803d', title: 'Sovereign Identity Graph',
     desc: 'Maps entity relationships across SEP communities. Detects coordinated fraud rings using UECIID graph traversal and causal transfer proof chains.',
   },
   {
@@ -32,20 +32,20 @@ const eliteFeatures = [
     desc: 'FraudScore v4.0 uses the Causal Arbiter\'s do-calculus to compute counterfactual: P(fraud | intervene on session) before the attack completes.',
   },
   {
-    icon: '📋', color: '#d97706', title: 'Litigation-Ready Evidence',
+    icon: '📋', color: '#b45309', title: 'Litigation-Ready Evidence',
     desc: 'Every FraudScore decision generates a SHA-256 attested XAI report with causal chain, counterfactuals, and PDF export for legal/compliance use.',
   },
   {
-    icon: '🏛️', color: '#0284c7', title: 'Multi-Jurisdiction Awareness',
+    icon: '🏛️', color: '#0369a1', title: 'Multi-Jurisdiction Awareness',
     desc: 'Score adjusts thresholds per jurisdiction. PHI in EU triggers stricter GDPR-aligned fraud controls vs. GENERAL data in US jurisdiction.',
   },
 ];
 
 const tiers = [
-  { name: 'Standard', score: '< 0.40', action: 'ALLOW',       color: '#16a34a', strategy: 'Pass-through with logging' },
-  { name: 'Elevated', score: '0.40–0.65', action: 'MONITOR',    color: '#d97706', strategy: 'Enhanced telemetry + soft flag' },
-  { name: 'High',     score: '0.65–0.80', action: 'CHALLENGE',  color: '#ea580c', strategy: 'CAPTCHA / re-auth + rate limit' },
-  { name: 'Critical', score: '0.80–0.92', action: 'SHADOW BAN', color: '#e11d48', strategy: 'Gaslight / delay strategy active' },
+  { name: 'Standard', score: '< 0.40', action: 'ALLOW',       color: '#15803d', strategy: 'Pass-through with logging' },
+  { name: 'Elevated', score: '0.40–0.65', action: 'MONITOR',    color: '#b45309', strategy: 'Enhanced telemetry + soft flag' },
+  { name: 'High',     score: '0.65–0.80', action: 'CHALLENGE',  color: '#c2410c', strategy: 'CAPTCHA / re-auth + rate limit' },
+  { name: 'Critical', score: '0.80–0.92', action: 'SHADOW BAN', color: '#be123c', strategy: 'Gaslight / delay strategy active' },
   { name: 'Extreme',  score: '≥ 0.92',    action: 'BLOCK + ALERT', color: '#9333ea', strategy: 'Hard block + Slack/PagerDuty' },
 ];
 ---
@@ -104,14 +104,14 @@ const tiers = [
                   stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="35.8"/>
             <defs>
               <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#16a34a"/>
-                <stop offset="50%" stop-color="#d97706"/>
-                <stop offset="100%" stop-color="#e11d48"/>
+                <stop offset="0%" stop-color="#15803d"/>
+                <stop offset="50%" stop-color="#b45309"/>
+                <stop offset="100%" stop-color="#be123c"/>
               </linearGradient>
             </defs>
             <!-- Needle -->
-            <line x1="70" y1="75" x2="26" y2="28" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
-            <circle cx="70" cy="75" r="5" fill="#e11d48"/>
+            <line x1="70" y1="75" x2="26" y2="28" stroke="#be123c" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="70" cy="75" r="5" fill="#be123c"/>
           </svg>
         </div>
         <div class="text-[52px] font-black text-[color:var(--acc-red)] leading-none tracking-[-3px] mb-1">0.81</div>

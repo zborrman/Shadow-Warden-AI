@@ -7,14 +7,14 @@
 // to publish either. docs/capability-matrix.md holds the measurement; the
 // Grafana panel is the only quotable source.
 const stages = [
-  { id: '01', label: 'Topological\nGatekeeper',   color: '#e11d48' },
-  { id: '02', label: 'Obfuscation\nDecoder',       color: '#ea580c' },
-  { id: '03', label: 'PII & Secret\nVault',        color: '#d97706' },
-  { id: '04', label: 'Semantic\nRule Engine',      color: '#16a34a' },
+  { id: '01', label: 'Topological\nGatekeeper',   color: '#be123c' },
+  { id: '02', label: 'Obfuscation\nDecoder',       color: '#c2410c' },
+  { id: '03', label: 'PII & Secret\nVault',        color: '#b45309' },
+  { id: '04', label: 'Semantic\nRule Engine',      color: '#15803d' },
   { id: '05', label: 'Hyperbolic\nBrain',          color: '#2563eb' },
   { id: '06', label: 'Causal\nArbiter',            color: '#9333ea' },
-  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#e11d48' },
-  { id: '08', label: 'ERS Shadow\nBan',            color: '#ea580c' },
+  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#be123c' },
+  { id: '08', label: 'ERS Shadow\nBan',            color: '#c2410c' },
 ];
 
 const pillars = [
@@ -81,7 +81,7 @@ const pillars = [
             </div>
             {i < stages.length - 1 && (
               <svg width="16" height="10" viewBox="0 0 16 10" fill="none" class="flex-shrink-0 opacity-40">
-                <path d="M0 5h14M10 1l4 4-4 4" stroke="#8E8E9E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M0 5h14M10 1l4 4-4 4" stroke="#556072" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             )}
           </div>
@@ -89,7 +89,7 @@ const pillars = [
 
         <!-- Arrow to decision -->
         <svg width="16" height="10" viewBox="0 0 16 10" fill="none" class="flex-shrink-0 opacity-40">
-          <path d="M0 5h14M10 1l4 4-4 4" stroke="#8E8E9E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M0 5h14M10 1l4 4-4 4" stroke="#556072" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
 
         <!-- Decision block -->

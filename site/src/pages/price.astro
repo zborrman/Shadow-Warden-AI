@@ -12,7 +12,7 @@ const tiers = [
     name: 'Starter',
     price_monthly: 0,
     price_annual: 0,
-    color: '#64748b',
+    color: '#556072',
     tint: 'rgba(100,116,139,0.08)',
     tag: null,
     highlight: false,
@@ -25,7 +25,7 @@ const tiers = [
     name: 'Individual',
     price_monthly: 5,
     price_annual: 51,
-    color: '#059669',
+    color: '#047857',
     tint: 'rgba(16,185,129,0.08)',
     tag: null,
     highlight: false,
@@ -39,7 +39,7 @@ const tiers = [
     name: 'Community Business',
     price_monthly: 39.99,
     price_annual: 407.90,
-    color: '#0284c7',
+    color: '#0369a1',
     tint: 'rgba(128,180,253,0.08)',
     tag: 'Teams',
     highlight: false,
@@ -231,13 +231,13 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
         <div class="text-center mb-10">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-bold tracking-widest uppercase"
-               style="color:#059669;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+               style="color:#047857;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
             ◈ Marketplace ROI Estimator
           </div>
           <h2 class="text-[22px] font-black mb-2" style="color:var(--ink-1);letter-spacing:-0.02em">
             How much will you earn?
           </h2>
-          <p class="text-[13px] max-w-lg mx-auto" style="color:#6b7c96">
+          <p class="text-[13px] max-w-lg mx-auto" style="color:#556072">
             An illustrative model, not measured results — the marketplace is pre-launch.
             The default of 33 trades/community/month is an assumption; set your own forecast.
           </p>
@@ -248,7 +248,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
             <!-- LEFT: Inputs -->
             <div class="p-7" style="border-right:1px solid rgba(16,185,129,0.12)">
-              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#059669">Your numbers</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#047857">Your numbers</div>
 
               <!-- Period toggle -->
               <div class="mb-6">
@@ -257,7 +257,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                   <button id="roi-monthly" class="roi-period-btn active px-5 py-2 text-[12px] font-semibold transition-all" data-p="monthly">Monthly</button>
                   <button id="roi-annual"  class="roi-period-btn px-5 py-2 text-[12px] font-semibold transition-all" data-p="annual">
                     Annual
-                    <span class="ml-1 px-1.5 py-0.5 rounded text-[9px]" style="color:#059669;background:rgba(16,185,129,0.15)">−15%</span>
+                    <span class="ml-1 px-1.5 py-0.5 rounded text-[9px]" style="color:#047857;background:rgba(16,185,129,0.15)">−15%</span>
                   </button>
                 </div>
               </div>
@@ -277,7 +277,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
                   <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Trades per month</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-trades-val">33</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#047857" id="roi-trades-val">33</div>
                 </div>
                 <input id="roi-trades" type="range" min="0" max="10000" value="33" step="1" class="roi-slider w-full" />
                 <div class="flex justify-between mt-1">
@@ -290,10 +290,10 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
                   <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Avg. order value (USD)</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-aov-display">$500</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#047857" id="roi-aov-display">$500</div>
                 </div>
                 <div class="relative">
-                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:#64748b">$</span>
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:#556072">$</span>
                   <input id="roi-aov" type="number" min="0" max="1000000" value="500" step="1"
                          class="w-full pl-7 pr-3 py-2.5 rounded-lg text-[13px] font-medium outline-none"
                          style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.1);color:var(--ink-1)" />
@@ -304,7 +304,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
                   <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Monthly search API calls (x402)</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-api-val">10,000</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#047857" id="roi-api-val">10,000</div>
                 </div>
                 <input id="roi-api" type="range" min="0" max="1000000" value="10000" step="1000" class="roi-slider w-full" />
                 <div class="flex justify-between mt-1">
@@ -316,8 +316,8 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- Sponsored listing toggle -->
               <div class="flex items-center justify-between py-3 px-4 rounded-lg" style="background:rgba(251,191,36,0.04);border:1px solid rgba(251,191,36,0.12)">
                 <div>
-                  <div class="text-[12px] font-semibold" style="color:#d97706">Sponsored listing boost (+0.15 similarity)</div>
-                  <div class="text-[11px] mt-0.5" style="color:#64748b">pgvector priority placement — $29/mo add-on</div>
+                  <div class="text-[12px] font-semibold" style="color:var(--acc-amber)">Sponsored listing boost (+0.15 similarity)</div>
+                  <div class="text-[11px] mt-0.5" style="color:#556072">pgvector priority placement — $29/mo add-on</div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input id="roi-sponsored" type="checkbox" class="sr-only" />
@@ -330,24 +330,24 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
             <!-- RIGHT: Results -->
             <div class="p-7 flex flex-col">
-              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#059669">Your projection</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#047857">Your projection</div>
 
               <!-- Net profit counter -->
               <div class="text-center mb-8 py-6 rounded-xl" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15)">
-                <div class="text-[11px] uppercase tracking-widest mb-2" style="color:#6b7c96">Projected net profit</div>
-                <div id="roi-net" class="text-[48px] font-black leading-none tabular-nums" style="color:#059669;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">$0</div>
-                <div id="roi-period-label" class="text-[11px] mt-2" style="color:#6b7c96">per month</div>
-                <div id="roi-margin" class="text-[12px] font-semibold mt-1" style="color:#059669"></div>
+                <div class="text-[11px] uppercase tracking-widest mb-2" style="color:#556072">Projected net profit</div>
+                <div id="roi-net" class="text-[48px] font-black leading-none tabular-nums" style="color:#047857;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">$0</div>
+                <div id="roi-period-label" class="text-[11px] mt-2" style="color:#556072">per month</div>
+                <div id="roi-margin" class="text-[12px] font-semibold mt-1" style="color:#047857"></div>
               </div>
 
               <!-- Breakdown table -->
               <div class="space-y-2 mb-6 flex-1">
                 {[
-                  { id: 'roi-r-gmv',     label: 'Gross Revenue (GMV)',         icon: '+', color: '#3b82f6' },
-                  { id: 'roi-r-take',    label: 'Platform take rate',           icon: '−', color: '#ef4444' },
-                  { id: 'roi-r-sub',     label: 'SaaS subscription',            icon: '−', color: '#ef4444' },
-                  { id: 'roi-r-x402',    label: 'x402 compute costs',           icon: '−', color: '#ef4444' },
-                  { id: 'roi-r-sponsor', label: 'Sponsored listing boost',       icon: '−', color: '#d97706' },
+                  { id: 'roi-r-gmv',     label: 'Gross Revenue (GMV)',         icon: '+', color: '#1d4ed8' },
+                  { id: 'roi-r-take',    label: 'Platform take rate',           icon: '−', color: '#b91c1c' },
+                  { id: 'roi-r-sub',     label: 'SaaS subscription',            icon: '−', color: '#b91c1c' },
+                  { id: 'roi-r-x402',    label: 'x402 compute costs',           icon: '−', color: '#b91c1c' },
+                  { id: 'roi-r-sponsor', label: 'Sponsored listing boost',       icon: '−', color: '#b45309' },
                 ].map(r => (
                   <div class="flex items-center justify-between py-2 px-3 rounded-lg" style="background:rgba(255,255,255,0.02)">
                     <div class="flex items-center gap-2">
@@ -359,24 +359,24 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                 ))}
 
                 <div class="flex items-center justify-between py-2.5 px-3 rounded-lg mt-1" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
-                  <span class="text-[13px] font-bold" style="color:#059669">Net Profit</span>
-                  <span class="text-[16px] font-black tabular-nums" id="roi-r-net" style="color:#059669">$0.00</span>
+                  <span class="text-[13px] font-bold" style="color:#047857">Net Profit</span>
+                  <span class="text-[16px] font-black tabular-nums" id="roi-r-net" style="color:#047857">$0.00</span>
                 </div>
               </div>
 
               <!-- Upsell tip -->
               <div id="roi-upsell" class="hidden rounded-lg p-4" style="background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.22)">
                 <div class="flex items-start gap-3">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                   <div>
-                    <div class="text-[12px] font-semibold mb-1" style="color:#3b82f6">Smart upgrade suggestion</div>
+                    <div class="text-[12px] font-semibold mb-1" style="color:#1d4ed8">Smart upgrade suggestion</div>
                     <div class="text-[11px] leading-relaxed" id="roi-upsell-text" style="color:var(--ink-3)"></div>
                     <a href="#roi-estimator" onclick="document.getElementById('roi-tier').value=this.dataset.tier;window._roiCalc();return false;"
                        id="roi-upsell-cta" data-tier="community"
                        class="inline-block mt-2 text-[11px] font-semibold px-3 py-1 rounded"
-                       style="color:#3b82f6;background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">
+                       style="color:#1d4ed8;background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">
                        Apply upgrade →
                     </a>
                   </div>
@@ -386,7 +386,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- ROI vs breach cost -->
               <div id="roi-roi-box" class="mt-4 text-center py-3 rounded-lg" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06)">
                 <div class="text-[11px]" style="color:#475569">Annual ROI vs. $4.88M IBM breach cost</div>
-                <div id="roi-roi-val" class="text-[20px] font-black" style="color:#d97706">—</div>
+                <div id="roi-roi-val" class="text-[20px] font-black" style="color:var(--acc-amber)">—</div>
               </div>
             </div>
           </div>
@@ -414,7 +414,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                   <path d="M6 9l6 6 6-6"/>
                 </svg>
               </summary>
-              <p class="mt-3 text-[13px] leading-relaxed" style="color:#64748b">{item.a}</p>
+              <p class="mt-3 text-[13px] leading-relaxed" style="color:#556072">{item.a}</p>
             </details>
           ))}
         </div>
@@ -454,11 +454,11 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     border-bottom:2px solid var(--sw-border-strong); transform:rotate(-45deg) translate(1px,-1px); }
   .cfg-check:focus-visible { outline:2px solid #6366f1; outline-offset:2px; }
   .cfg-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:700;
-    color:#d97706; background:rgba(245,158,11,0.12); vertical-align:middle; }
-  .cfg-badge-save { color:#f472b6; background:rgba(244,114,182,0.12); }
+    color:var(--acc-amber); background:rgba(245,158,11,0.12); vertical-align:middle; }
+  .cfg-badge-save { color:#be185d; background:rgba(190,24,93,0.08); }
   .cfg-card { border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.03); }
   .billing-toggle {
-    color: #64748b;
+    color: #556072;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -477,12 +477,12 @@ const planUrls = Object.fromEntries(tiers.map(t => {
   .roi-period-btn {
     background: transparent;
     border: none;
-    color: #64748b;
+    color: #556072;
     cursor: pointer;
   }
   .roi-period-btn.active {
     background: rgba(16,185,129,0.15);
-    color: #059669;
+    color: #047857;
   }
   .roi-slider {
     -webkit-appearance: none;
@@ -498,7 +498,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     appearance: none;
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: #059669;
+    background: #047857;
     cursor: pointer;
     border: 2px solid var(--sw-border-strong);
     box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
@@ -510,7 +510,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
   .roi-slider::-moz-range-thumb {
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: #059669;
+    background: #047857;
     cursor: pointer;
     border: 2px solid var(--sw-border-strong);
   }
@@ -565,7 +565,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
       const netEl = el('roi-net');
       if (netEl) {
         netEl.textContent = fmtDollars(netCents);
-        netEl.style.color = netCents < 0 ? '#ef4444' : '#059669';
+        netEl.style.color = netCents < 0 ? '#b91c1c' : '#047857';
       }
 
       // Period label
@@ -576,7 +576,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
       const marginEl = el('roi-margin');
       if (marginEl) {
         marginEl.textContent = gmvCents > 0 ? `${marginPct}% margin` : '';
-        marginEl.style.color = marginPct >= 80 ? '#059669' : marginPct >= 50 ? '#d97706' : '#ef4444';
+        marginEl.style.color = marginPct >= 80 ? '#047857' : marginPct >= 50 ? '#b45309' : '#b91c1c';
       }
 
       // Breakdown
@@ -615,7 +615,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
         const s = el(sliderId) as HTMLInputElement | null;
         if (!s) return;
         const pct = (+s.value / max) * 100;
-        s.style.background = `linear-gradient(to right, #059669 ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
+        s.style.background = `linear-gradient(to right, #047857 ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
       };
       updateFill('roi-trades', 10000);
       updateFill('roi-api', 1000000);
@@ -667,7 +667,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     const thumb = el('roi-sponsored-thumb');
     sponsoredCb?.addEventListener('change', () => {
       const on = sponsoredCb.checked;
-      if (track) track.style.background = on ? '#059669' : 'rgba(255,255,255,0.1)';
+      if (track) track.style.background = on ? '#047857' : 'rgba(255,255,255,0.1)';
       if (thumb) thumb.style.transform = on ? 'translateX(16px)' : 'translateX(0)';
       calc();
     });

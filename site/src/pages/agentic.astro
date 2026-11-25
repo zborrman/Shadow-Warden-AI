@@ -561,8 +561,8 @@ const SEED_AUC     = JSON.parse(_sd ? _sd.dataset.auctions: '[]');
 const API_URL      = _sd ? _sd.dataset.api : '';
 
 const C = {
-  cyan:   '#0891b2', violet: '#3b82f6', green:  '#059669',
-  amber:  '#d97706', red:    '#EF4444', brand:  '#3b82f6',
+  cyan:   '#0e7490', violet: '#1d4ed8', green:  '#047857',
+  amber:  '#b45309', red:    '#b91c1c', brand:  '#1d4ed8',
   dim:    '#1F2937', lo:     '#475569',
 };
 
@@ -725,7 +725,7 @@ function buildCharts(data) {
       datasets: [{
         data: [payments.flex_credits ?? 0, payments.x402_usdc ?? 0, payments.l402_lightning ?? 0],
         backgroundColor: [C.cyan, C.violet, C.amber],
-        borderColor: '#0d1017',
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--sw-surf-1').trim() || '#fff',
         borderWidth: 3,
       }]
     },
@@ -858,8 +858,8 @@ async function refreshTrades() {
       <tr>
         <td style="color:var(--ink-1);font-weight:500">${esc(t.buyer_agent ?? 'Unknown Buyer')}</td>
         <td style="color:var(--ink-3)">${esc(t.seller_agent ?? 'Unknown Seller')}</td>
-        <td><span class="badge" style="background:rgba(128,180,253,.07);color:#3b82f6">${esc(t.asset_type ?? 'Signal Bundle')}</span></td>
-        <td class="mono" style="color:#059669;font-variant-numeric:tabular-nums">${t.price_usd != null ? '$' + Number(t.price_usd).toFixed(2) : '—'}</td>
+        <td><span class="badge" style="background:rgba(128,180,253,.07);color:#1d4ed8">${esc(t.asset_type ?? 'Signal Bundle')}</span></td>
+        <td class="mono" style="color:#047857;font-variant-numeric:tabular-nums">${t.price_usd != null ? '$' + Number(t.price_usd).toFixed(2) : '—'}</td>
         <td><span class="badge badge-${esc(t.payment_method ?? 'flex').toLowerCase()}">${esc(t.payment_method ?? 'Flex')}</span></td>
         <td class="mono" style="color:#475569">${age(t.created_at)}</td>
       </tr>`).join('');

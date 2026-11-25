@@ -2,19 +2,19 @@
 const jurisdictions = [
   { code: 'EU', flag: '🇪🇺', name: 'European Union', color: '#2563eb',
     frameworks: ['GDPR Art.35', 'EU AI Act', 'NIS2'], data: ['PII', 'PHI', 'FINANCIAL'] },
-  { code: 'US', flag: '🇺🇸', name: 'United States', color: '#e11d48',
+  { code: 'US', flag: '🇺🇸', name: 'United States', color: '#be123c',
     frameworks: ['CCPA', 'HIPAA', 'SOC 2'], data: ['PHI', 'FINANCIAL', 'GENERAL'] },
   { code: 'UK', flag: '🇬🇧', name: 'United Kingdom', color: '#9333ea',
     frameworks: ['UK GDPR', 'ICO', 'FCA'], data: ['PII', 'FINANCIAL'] },
-  { code: 'CA', flag: '🇨🇦', name: 'Canada', color: '#ea580c',
+  { code: 'CA', flag: '🇨🇦', name: 'Canada', color: '#c2410c',
     frameworks: ['PIPEDA', 'C-27', 'PHIPA'], data: ['PII', 'PHI'] },
-  { code: 'SG', flag: '🇸🇬', name: 'Singapore', color: '#16a34a',
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore', color: '#15803d',
     frameworks: ['PDPA', 'MAS TRM'], data: ['FINANCIAL', 'GENERAL'] },
-  { code: 'AU', flag: '🇦🇺', name: 'Australia', color: '#d97706',
+  { code: 'AU', flag: '🇦🇺', name: 'Australia', color: '#b45309',
     frameworks: ['Privacy Act', 'ASD ISM'], data: ['PII', 'GENERAL'] },
-  { code: 'JP', flag: '🇯🇵', name: 'Japan', color: '#0284c7',
+  { code: 'JP', flag: '🇯🇵', name: 'Japan', color: '#0369a1',
     frameworks: ['APPI', 'FISC'], data: ['PII', 'FINANCIAL'] },
-  { code: 'CH', flag: '🇨🇭', name: 'Switzerland', color: '#e11d48',
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland', color: '#be123c',
     frameworks: ['nFADP', 'FINMA'], data: ['PHI', 'FINANCIAL'] },
 ];
 
@@ -25,11 +25,11 @@ const tunnelProtocols = [
 ];
 
 const dataClasses = [
-  { cls: 'CLASSIFIED', color: '#e11d48', allowed: [] },
-  { cls: 'PHI',        color: '#ea580c', allowed: ['EU', 'US', 'UK', 'CA', 'CH'] },
-  { cls: 'PII',        color: '#d97706', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
+  { cls: 'CLASSIFIED', color: '#be123c', allowed: [] },
+  { cls: 'PHI',        color: '#c2410c', allowed: ['EU', 'US', 'UK', 'CA', 'CH'] },
+  { cls: 'PII',        color: '#b45309', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
   { cls: 'FINANCIAL',  color: '#2563eb', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
-  { cls: 'GENERAL',    color: '#16a34a', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
+  { cls: 'GENERAL',    color: '#15803d', allowed: ['EU', 'US', 'UK', 'CA', 'SG', 'AU', 'JP', 'CH'] },
 ];
 ---
 

@@ -383,8 +383,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   const TIER_KEY = 'sw_tier';
 
   const TIERS: Record<string,(typeof TIER_MAP)[keyof typeof TIER_MAP]> = {
-    starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
-    individual:        { name:'Individual',         color:'#0891b2', maxComm:1  },
+    starter:           { name:'Starter',           color:'#556072', maxComm:0  },
+    individual:        { name:'Individual',         color:'#0e7490', maxComm:1  },
     community_business:{ name:'Community Business', color:'#9333ea', maxComm:3  },
   } as const;
   const TIER_MAP = TIERS;
@@ -440,11 +440,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:${tc.color}18;border:1px solid ${tc.color}30;color:${tc.color}">${tc.name.toUpperCase()}</span>
           ${max===-1
-            ? `<span style="font-size:13px;color:#64748b">${used} communities (unlimited)</span>`
+            ? `<span style="font-size:13px;color:#556072">${used} communities (unlimited)</span>`
             : max===0
-              ? `<span style="font-size:13px;color:#ef4444">0 private communities on Starter — <a href="/price" style="color:#9333ea;text-decoration:none">upgrade</a></span>`
-              : `<span style="font-size:13px;color:#64748b">${used} / ${max} communities</span>`}
-          ${max>0?`<div style="flex:1;min-width:80px;max-width:140px;height:4px;border-radius:2px;background:var(--sw-surf-3);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=100?'#ef4444':tc.color};border-radius:2px"></div></div>`:''}
+              ? `<span style="font-size:13px;color:#b91c1c">0 private communities on Starter — <a href="/price" style="color:#9333ea;text-decoration:none">upgrade</a></span>`
+              : `<span style="font-size:13px;color:#556072">${used} / ${max} communities</span>`}
+          ${max>0?`<div style="flex:1;min-width:80px;max-width:140px;height:4px;border-radius:2px;background:var(--sw-surf-3);overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=100?'#b91c1c':tc.color};border-radius:2px"></div></div>`:''}
           <a href="/price" style="margin-left:auto;font-size:12px;color:#475569;text-decoration:none" onmouseover="this.style.color='#9333ea'" onmouseout="this.style.color='#475569'">Change plan →</a>
         </div>`;
     }
@@ -456,7 +456,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       newBtn.href = '/price';
       newBtn.textContent = tc.maxComm===0 ? 'Upgrade to create' : '↑ Upgrade for more';
       newBtn.style.background = 'rgba(255,255,255,0.06)';
-      newBtn.style.color = '#64748b';
+      newBtn.style.color = '#556072';
     }
 
     const search = ((document.getElementById('comm-search') as HTMLInputElement)?.value||'').toLowerCase();

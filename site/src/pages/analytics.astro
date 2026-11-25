@@ -15,16 +15,16 @@ const models = [
 ];
 
 const domainColor: Record<string, string> = {
-  Security: '#e11d48', Revenue: '#16a34a', Commerce: '#d97706',
-  Governance: '#2563eb', Compliance: '#9333ea', Sovereignty: '#ea580c',
+  Security: '#be123c', Revenue: '#15803d', Commerce: '#b45309',
+  Governance: '#2563eb', Compliance: '#9333ea', Sovereignty: '#c2410c',
 };
 
 const flow = [
-  { step: '1', label: 'Consumer', detail: 'SOC Dashboard · Streamlit · Portal · SOVA · External BI', color: '#8E8E9E' },
+  { step: '1', label: 'Consumer', detail: 'SOC Dashboard · Streamlit · Portal · SOVA · External BI', color: '#556072' },
   { step: '2', label: 'Query Intent', detail: 'Natural language or structured QueryObject', color: '#2563eb' },
   { step: '3', label: 'Semantic Layer API', detail: 'POST /semantic-layer/query · /query/intent · /models/catalog', color: '#9333ea' },
-  { step: '4', label: 'Engine + Cache', detail: 'Deterministic SQL · AccessRules · Redis 10 min TTL', color: '#e11d48' },
-  { step: '5', label: 'Data Source', detail: 'PostgreSQL + TimescaleDB · ai_spend · filter_log · …', color: '#16a34a' },
+  { step: '4', label: 'Engine + Cache', detail: 'Deterministic SQL · AccessRules · Redis 10 min TTL', color: '#be123c' },
+  { step: '5', label: 'Data Source', detail: 'PostgreSQL + TimescaleDB · ai_spend · filter_log · …', color: '#15803d' },
 ];
 ---
 
@@ -215,7 +215,7 @@ const flow = [
         </div>
         <div>
           <p class="text-[11px] font-semibold text-[color:var(--ink-4)] uppercase tracking-wider mb-2">Generated SQL (deterministic)</p>
-          <pre class="rounded-xl bg-[var(--sw-bg)] text-[#86efac] p-4 text-[11px] overflow-x-auto leading-relaxed border border-white/[0.05]">{`SELECT
+          <pre class="rounded-xl bg-[var(--sw-surf-1)] text-[color:var(--ink-2)] p-4 text-[11px] overflow-x-auto leading-relaxed border border-[color:var(--sw-border)]">{`SELECT
     department AS department,
     SUM(amount_usd) AS total_cost_usd
 FROM cost_allocation_entries

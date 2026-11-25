@@ -11,23 +11,23 @@ const moduleConfig = [
     ids: ['CM-01','CM-02','CM-03','CM-04','CM-05','CM-09'],
   },
   {
-    id: 'pqc', icon: '🛡', title: 'Post-Quantum Crypto', color: '#3b82f6', tint: 'rgba(128,180,253,0.1)',
+    id: 'pqc', icon: '🛡', title: 'Post-Quantum Crypto', color: '#1d4ed8', tint: 'rgba(128,180,253,0.1)',
     desc: 'HybridSigner Ed25519+ML-DSA-65 and HybridKEM X25519+ML-KEM-768. FIPS 204/203 algorithms.',
     ids: [],
     extra: 4,
   },
   {
-    id: 'governance', icon: '🏛', title: 'Governance & Intel', color: '#3b82f6', tint: 'rgba(128,180,253,0.1)',
+    id: 'governance', icon: '🏛', title: 'Governance & Intel', color: '#1d4ed8', tint: 'rgba(128,180,253,0.1)',
     desc: 'Versioned community charter, Z-score behavioral anomaly detection, intelligence reports, OAuth agent discovery.',
     ids: ['CM-05','CM-06','CM-07','CM-08'],
   },
   {
-    id: 'smb', icon: '🏢', title: 'SMB Governance Suite', color: '#059669', tint: 'rgba(16,185,129,0.1)',
+    id: 'smb', icon: '🏢', title: 'SMB Governance Suite', color: '#047857', tint: 'rgba(16,185,129,0.1)',
     desc: 'Eight-module governance toolkit: vendor DPA tracking, cost allocation, budget dashboard, incident register, supplier risk, prompt library, training records, suite wizard.',
     ids: ['CM-35','CM-36','CM-37','CM-38','IN-25'],
   },
   {
-    id: 'secrets', icon: '🔑', title: 'Secrets Governance', color: '#d97706', tint: 'rgba(245,158,11,0.1)',
+    id: 'secrets', icon: '🔑', title: 'Secrets Governance', color: '#b45309', tint: 'rgba(245,158,11,0.1)',
     desc: 'Multi-vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM), SQLite inventory, policy engine, lifecycle rotation alerts.',
     ids: [],
     extra: 4,
@@ -39,30 +39,30 @@ const moduleConfig = [
     extra: 10,
   },
   {
-    id: 'bi', icon: '📊', title: 'Business Intelligence', color: '#0891b2', tint: 'rgba(6,182,212,0.1)',
+    id: 'bi', icon: '📊', title: 'Business Intelligence', color: '#0e7490', tint: 'rgba(6,182,212,0.1)',
     desc: 'Eight analytics functions, OLS trend predictions, community benchmarking, 15-min SQLite cache, PDF report builder.',
     ids: ['CM-39'],
     extra: 7,
   },
   {
-    id: 'semantic', icon: '⬡', title: 'Semantic Layer', color: '#0891b2', tint: 'rgba(6,182,212,0.1)',
+    id: 'semantic', icon: '⬡', title: 'Semantic Layer', color: '#0e7490', tint: 'rgba(6,182,212,0.1)',
     desc: 'Nine built-in BI models, deterministic SQL generator, self-service tenant catalog, Redis query cache, AI query endpoint.',
     ids: [],
     extra: 5,
   },
   {
-    id: 'commerce', icon: '⚡', title: 'M2M Commerce Store', color: '#ea580c', tint: 'rgba(249,115,22,0.1)',
+    id: 'commerce', icon: '⚡', title: 'M2M Commerce Store', color: '#c2410c', tint: 'rgba(249,115,22,0.1)',
     desc: 'UCP/AP2/MCP procurement protocols, multi-agent auction, FIDO2 passkeys, Web3 mandate contract, Commerce Budget Guardian.',
     ids: ['CM-40','CM-41','CM-42','CM-43','CM-44'],
   },
   {
-    id: 'docintel', icon: '📄', title: 'Document Intelligence', color: '#ec4899', tint: 'rgba(236,72,153,0.1)',
+    id: 'docintel', icon: '📄', title: 'Document Intelligence', color: '#be185d', tint: 'rgba(236,72,153,0.1)',
     desc: 'MarkItDown converter with SHA-256 Redis cache, data class inference, 50 MB gate, community doc-converter endpoint.',
     ids: [],
     extra: 6,
   },
   {
-    id: 'compliance', icon: '✅', title: 'Compliance Dashboard', color: '#059669', tint: 'rgba(16,185,129,0.1)',
+    id: 'compliance', icon: '✅', title: 'Compliance Dashboard', color: '#047857', tint: 'rgba(16,185,129,0.1)',
     desc: '19 controls across GDPR/SOC2/ISO27001/HIPAA, real-time gap manager, WebSocket push, SOVA remediation tools.',
     ids: [],
     extra: 5,
@@ -80,15 +80,15 @@ const allBcJson = JSON.stringify(bcFeatures);
 // modules it feeds; the layout renders that as text, not as crossing lines, so
 // it stays readable at any width.
 const archGroups = [
-  { name: 'Core Protocols', color: '#3b82f6', modules: [
+  { name: 'Core Protocols', color: '#1d4ed8', modules: [
     { id: 'SEP', icon: '◈', label: 'SEP / UECIID', desc: 'Cryptographic entity IDs, peering, STIX 2.1 audit chain, sovereign pods.' },
     { id: 'PQC', icon: '🛡', label: 'Post-Quantum Crypto', desc: 'Ed25519+ML-DSA-65 HybridSigner, X25519+ML-KEM-768 HybridKEM.' },
   ]},
-  { name: 'Governance & Risk', color: '#a78bfa', modules: [
+  { name: 'Governance & Risk', color: '#7c3aed', modules: [
     { id: 'Charter', icon: '🏛', label: 'Charter & Intel', desc: 'Versioned charter lifecycle, OAuth agent discovery, community intelligence.' },
     { id: 'Behavioral', icon: '📡', label: 'Anomaly Detection', desc: 'Z-score anomaly detection, 30-day baseline, NORMAL/ELEVATED/CRITICAL.' },
   ]},
-  { name: 'SMB Suite', color: '#059669', modules: [
+  { name: 'SMB Suite', color: '#047857', modules: [
     { id: 'Vendor', icon: '🏢', label: 'Vendor Gov', desc: 'AI vendor DPA tracking, expiry alerts, risk tier classification.' },
     { id: 'Cost', icon: '💰', label: 'Cost Allocation', desc: 'Per-dept/vendor spend tracking, monthly summaries.' },
     { id: 'Budget', icon: '📈', label: 'Budget Dashboard', desc: 'Budget caps, threshold alerts, approval workflow.' },
@@ -97,11 +97,11 @@ const archGroups = [
     { id: 'Prompts', icon: '📚', label: 'Prompt Library', desc: 'UECIID provenance, injection screening before save, community sharing.' },
     { id: 'Training', icon: '🎓', label: 'Training Records', desc: 'HMAC-SHA256 attestation, behavioral hooks, compliance report.' },
   ]},
-  { name: 'Data & Secrets', color: '#d97706', modules: [
+  { name: 'Data & Secrets', color: '#b45309', modules: [
     { id: 'Secrets', icon: '🔑', label: 'Secrets Gov', desc: 'Multi-vault connectors, SQLite inventory, lifecycle rotation.' },
     { id: 'Obsidian', icon: '📔', label: 'Obsidian', desc: 'Auto-scan notes, data class inference, SEP share, XAI pipeline sidebar.' },
   ]},
-  { name: 'Analytics & Commerce', color: '#0284c7', modules: [
+  { name: 'Analytics & Commerce', color: '#0369a1', modules: [
     { id: 'BI', icon: '📊', label: 'Business Intel', desc: 'Eight analytics functions, OLS trend predictions, PDF report builder.' },
     { id: 'Semantic', icon: '⬡', label: 'Semantic Layer', desc: 'Nine BI models, deterministic SQL, self-service catalog, Redis cache.' },
     { id: 'Commerce', icon: '⚡', label: 'M2M Commerce Store', desc: 'UCP/AP2/MCP protocols, multi-agent auction, FIDO2, Web3 mandate.' },
@@ -432,10 +432,10 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
   const features  = window.__BC_FEATURES__ || [];
 
   const statusColors = {
-    shipped:     { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
-    in_progress: { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
-    planned:     { bg: 'rgba(128,180,253,0.1)',   text: '#3b82f6' },
-    cancelled:   { bg: 'rgba(100,116,139,0.1)', text: '#64748b' },
+    shipped:     { bg: 'rgba(16,185,129,0.1)',  text: '#047857' },
+    in_progress: { bg: 'rgba(245,158,11,0.1)',  text: '#b45309' },
+    planned:     { bg: 'rgba(128,180,253,0.1)',   text: '#1d4ed8' },
+    cancelled:   { bg: 'rgba(100,116,139,0.1)', text: '#556072' },
   };
 
   function renderResults(query) {
@@ -453,14 +453,14 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     results.innerHTML = matched.map(f => {
       const sc = statusColors[f.status] || statusColors.planned;
       return `<div class="flex items-start gap-4 rounded-xl px-5 py-4" style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.07)">
-        <span class="text-[11px] font-mono shrink-0 mt-0.5 px-2 py-1 rounded" style="color:#64748b;background:var(--sw-surf-1)">${f.id}</span>
+        <span class="text-[11px] font-mono shrink-0 mt-0.5 px-2 py-1 rounded" style="color:#556072;background:var(--sw-surf-1)">${f.id}</span>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap mb-1">
             <span class="text-[14px] font-semibold" style="color:var(--ink-1)">${f.feature}</span>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-md" style="color:${sc.text};background:${sc.bg}">${f.status}</span>
             <span class="text-[10px]" style="color:#475569">${f.tier}</span>
           </div>
-          <p class="text-[13px]" style="color:#64748b">${f.description}</p>
+          <p class="text-[13px]" style="color:#556072">${f.description}</p>
         </div>
         <span class="text-[11px] shrink-0" style="color:#334155">${f.version || ''}</span>
       </div>`;

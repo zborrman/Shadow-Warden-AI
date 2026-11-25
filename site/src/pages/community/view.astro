@@ -271,7 +271,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 </div><!-- /comm-portal -->
 </BaseLayout>
 
-<style>
+<style is:global>
 /* ── Reset / Portal shell ──────────────────────────────────── */
 .comm-portal {
   min-height: 100vh;
@@ -800,7 +800,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   function loadMsgs(id: string): any[]  { try { return JSON.parse(localStorage.getItem(tKey(id))||'[]'); } catch { return []; } }
   function saveMsgs(id: string, m: any[]){ localStorage.setItem(tKey(id), JSON.stringify(m)); }
 
-  const AV_COLORS = ['#0891b2','#7c3aed','#2563eb','#16a34a','#b45309','#be185d','#0d9488','#9333ea','#dc2626','#0369a1'];
+  const AV_COLORS = ['#0e7490','#7c3aed','#2563eb','#15803d','#b45309','#be185d','#0d9488','#9333ea','#dc2626','#0369a1'];
   function avColor(s: string) {
     const h = Array.from(s).reduce((a,c) => a + c.charCodeAt(0), 0);
     return AV_COLORS[h % AV_COLORS.length];
@@ -1203,7 +1203,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         // Inline code/highlight
         const proc=(txt:string)=>esc(txt)
           .replace(/`([^`]+)`/g,(_:string,g:string)=>`<span class="ci">${g}</span>`)
-          .replace(/&lt;([^&]+)&gt;/g,(_:string,g:string)=>`<span style="color:#ef4444">&lt;${g}&gt;</span>`);
+          .replace(/&lt;([^&]+)&gt;/g,(_:string,g:string)=>`<span style="color:#b91c1c">&lt;${g}&gt;</span>`);
 
         if (isMe) return `
           <div class="tmsg mine">

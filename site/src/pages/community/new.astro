@@ -141,7 +141,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     .btn-next:hover { opacity:.9; }
     .btn-next:disabled { opacity:.4; cursor:not-allowed; }
     .btn-create {
-      flex:2; padding:13px; background:linear-gradient(135deg,var(--acc-green),#059669);
+      flex:2; padding:13px; background:linear-gradient(135deg,var(--acc-green),#047857);
       border:none; border-radius:12px; color:white;
       font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:inherit;
     }
@@ -495,7 +495,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                 <svg viewBox="0 0 100 100" fill="none">
                   <circle cx="50" cy="50" r="40" stroke="rgba(var(--ink-rgb),0.07)" stroke-width="10"/>
                   <circle id="ars-arc" cx="50" cy="50" r="40"
-                    stroke="#059669" stroke-width="10" stroke-linecap="round"
+                    stroke="#047857" stroke-width="10" stroke-linecap="round"
                     stroke-dasharray="251.2" stroke-dashoffset="251.2"
                     transform="rotate(-90 50 50)"
                     style="transition:stroke-dashoffset .7s cubic-bezier(.23,1,.32,1),stroke .4s"/>
@@ -575,8 +575,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const USER_KEY = 'sw_user_id';
 
     const TIERS: Record<string, any> = {
-      starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
-      individual:        { name:'Individual',         color:'#0891b2', maxComm:1  },
+      starter:           { name:'Starter',           color:'#556072', maxComm:0  },
+      individual:        { name:'Individual',         color:'#0e7490', maxComm:1  },
       community_business:{ name:'Community Business', color:'#9333ea', maxComm:3  },
     };
 
@@ -625,7 +625,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const pqcBadge = document.getElementById('pqc-badge') as HTMLElement;
       if (pqcInput) pqcInput.removeAttribute('disabled');
       if (pqcRow)   pqcRow.classList.remove('pqc-locked');
-      if (pqcBadge) { pqcBadge.textContent = 'Active'; pqcBadge.style.background = 'rgba(16,185,129,.1)'; pqcBadge.style.color = '#059669'; pqcBadge.style.borderColor = 'rgba(16,185,129,.2)'; }
+      if (pqcBadge) { pqcBadge.textContent = 'Active'; pqcBadge.style.background = 'rgba(16,185,129,.1)'; pqcBadge.style.color = '#047857'; pqcBadge.style.borderColor = 'rgba(16,185,129,.2)'; }
     }
 
     // ── Step state ──────────────────────────────────────────
@@ -771,10 +771,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const { score, surface, blast, defense } = r;
 
       // Color palette
-      const color = score <= 20 ? '#059669'
-                  : score <= 50 ? '#d97706'
-                  : score <= 80 ? '#ea580c'
-                  :               '#ef4444';
+      const color = score <= 20 ? '#047857'
+                  : score <= 50 ? '#b45309'
+                  : score <= 80 ? '#c2410c'
+                  :               '#b91c1c';
 
       // Ring: circumference = 2π×40 ≈ 251.2
       const CIRC = 251.2;
@@ -867,19 +867,19 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       const vis = radio('visibility');
       (document.getElementById('rv-vis') as HTMLElement).innerHTML =
-        vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
-                         : '<span class="review-badge" style="background:rgba(128,180,253,0.1);color:#3b82f6;border:1px solid rgba(128,180,253,0.2)">🔒 Private</span>';
+        vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#047857;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
+                         : '<span class="review-badge" style="background:rgba(128,180,253,0.1);color:#1d4ed8;border:1px solid rgba(128,180,253,0.2)">🔒 Private</span>';
 
       const typeMap: Record<string,string> = { security:'🛡️ Security', research:'🔬 Research', enterprise:'🏢 Enterprise', marketplace:'🛒 Marketplace' };
       (document.getElementById('rv-type') as HTMLElement).textContent = typeMap[radio('comm-type')] || '—';
 
       (document.getElementById('rv-enc') as HTMLElement).innerHTML = chk('t-e2e')
-        ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
-        : '<span style="color:#64748b">Disabled</span>';
+        ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#047857;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
+        : '<span style="color:#556072">Disabled</span>';
 
       (document.getElementById('rv-pqc') as HTMLElement).innerHTML = chk('t-pqc')
-        ? '<span class="review-badge" style="background:rgba(251,191,36,0.1);color:#d97706;border:1px solid rgba(251,191,36,0.2)">✓ ML-DSA-65 Active</span>'
-        : '<span style="color:#64748b">Classical Ed25519</span>';
+        ? '<span class="review-badge" style="background:rgba(251,191,36,0.1);color:var(--acc-amber);border:1px solid rgba(251,191,36,0.2)">✓ ML-DSA-65 Active</span>'
+        : '<span style="color:#556072">Classical Ed25519</span>';
 
       (document.getElementById('rv-approval') as HTMLElement).textContent = chk('t-approval') ? 'Required' : 'Open join';
 
@@ -888,8 +888,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         maxEl.value === '0' ? 'Unlimited' : maxEl.value;
 
       (document.getElementById('rv-market') as HTMLElement).innerHTML = chk('t-market')
-        ? '<span class="review-badge" style="background:rgba(6,182,212,0.1);color:#0891b2;border:1px solid rgba(6,182,212,0.2)">Active node</span>'
-        : '<span style="color:#64748b">Not listed</span>';
+        ? '<span class="review-badge" style="background:rgba(6,182,212,0.1);color:#0e7490;border:1px solid rgba(6,182,212,0.2)">Active node</span>'
+        : '<span style="color:#556072">Not listed</span>';
 
       (document.getElementById('rv-tags') as HTMLElement).textContent = tags.length ? tags.join(', ') : 'None';
 
@@ -964,7 +964,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const _pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
     function _rsz() { _cv.width = _cv.offsetWidth || window.innerWidth; _cv.height = _cv.offsetHeight || window.innerHeight; }
     _rsz(); window.addEventListener('resize', _rsz);
-    const _COLS = ['#3b82f6','#d97706','#059669','#22d3ee','#c084fc'];
+    const _COLS = ['#1d4ed8','#b45309','#047857','#22d3ee','#c084fc'];
     const _pts = Array.from({length:45}, () => ({
       x: Math.random()*_cv.width, y: Math.random()*_cv.height,
       vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18,

@@ -84,8 +84,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     let myUserId = '';
 
     const TIERS: Record<string, any> = {
-      starter:           { name:'Starter',           color:'#64748b', maxMem:0  },
-      individual:        { name:'Individual',         color:'#0891b2', maxMem:5  },
+      starter:           { name:'Starter',           color:'#556072', maxMem:0  },
+      individual:        { name:'Individual',         color:'#0e7490', maxMem:5  },
       community_business:{ name:'Community Business', color:'#9333ea', maxMem:10 },
     };
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
@@ -127,9 +127,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     }
 
     const ROLE_STYLES: Record<string, string> = {
-      owner: 'background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.3);color:#d97706',
-      admin: 'background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#0891b2',
-      member: 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#64748b',
+      owner: 'background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.3);color:var(--acc-amber)',
+      admin: 'background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#0e7490',
+      member: 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#556072',
     };
 
     function renderTabs(id: string) {
@@ -146,10 +146,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       nav.innerHTML = tabs.map(t => `
         <a href="${t.href}"
            style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0891b2'
-                             : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0e7490'
+                             : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#556072'};
                   transition:all 0.15s"
-           ${!t.active ? `onmouseover="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+           ${!t.active ? `onmouseover="this.style.color='#556072';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#556072';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
           ${t.label}
         </a>
       `).join('');
@@ -177,11 +177,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             </div>
             <div style="display:flex;gap:8px">
               <button data-req-i="${i}" data-req-action="approve"
-                      style="padding:5px 12px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:6px;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer">
+                      style="padding:5px 12px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:6px;color:#15803d;font-size:11px;font-weight:700;cursor:pointer">
                 Approve
               </button>
               <button data-req-i="${i}" data-req-action="decline"
-                      style="padding:5px 12px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#e11d48;font-size:11px;font-weight:700;cursor:pointer">
+                      style="padding:5px 12px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#be123c;font-size:11px;font-weight:700;cursor:pointer">
                 Decline
               </button>
             </div>
@@ -233,7 +233,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       if (countEl) {
         const ratio = max === -1 ? `(${members.length})` : `(${members.length}/${max})`;
         countEl.textContent = ratio;
-        countEl.style.color = atLimit ? '#e11d48' : '#475569';
+        countEl.style.color = atLimit ? '#be123c' : '#475569';
       }
 
       const limitBar = document.getElementById('member-limit-bar');
@@ -242,9 +242,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         limitBar.innerHTML = `
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
             <div style="flex:1;height:4px;border-radius:2px;background:var(--sw-surf-3);overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#e11d48' : tc.color};border-radius:2px;transition:width 0.5s"></div>
+              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#be123c' : tc.color};border-radius:2px;transition:width 0.5s"></div>
             </div>
-            <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#e11d48' : '#475569'};white-space:nowrap">
+            <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#be123c' : '#475569'};white-space:nowrap">
               ${members.length}/${max} · <span style="color:${tc.color}">${tc.name}</span>
             </span>
           </div>
@@ -294,7 +294,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
                 ` : `<span style="padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;${roleStyle}">${m.role.toUpperCase()}</span>`}
                 ${canManage && !isOwner ? `
                   <button data-member="${esc(m.id)}" class="remove-btn"
-                          style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#e11d48;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                          style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#be123c;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
                           onmouseover="this.style.background='rgba(255,45,85,0.18)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
                     Remove
                   </button>
@@ -358,14 +358,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       myUserId = localStorage.getItem('sw_user_id') || 'USER-ANON';
 
       if (!communityId) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">No community ID. <a href="/community" style="color:#0891b2">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#be123c">No community ID. <a href="/community" style="color:#0e7490">Back</a></div>`;
         return;
       }
 
       const comms = loadCommunities();
       const c = comms.find((x: any) => x.id === communityId);
       if (!c) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">Community not found. <a href="/community" style="color:#0891b2">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#be123c">Community not found. <a href="/community" style="color:#0e7490">Back</a></div>`;
         return;
       }
 
@@ -411,18 +411,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const errEl = document.getElementById('merge-err');
         const mergeId = input.value.trim().toUpperCase();
         if (!mergeId.match(/^COMM-[0-9A-F]{4}$/)) {
-          if (errEl) { errEl.textContent = 'Format: COMM-XXXX'; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Format: COMM-XXXX'; errEl.style.color = '#be123c'; errEl.style.display = 'block'; }
           return;
         }
         if (mergeId === communityId) {
-          if (errEl) { errEl.textContent = 'Cannot merge with itself.'; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Cannot merge with itself.'; errEl.style.color = '#be123c'; errEl.style.display = 'block'; }
           return;
         }
         const cs = loadCommunities();
         const target = cs.find((x: any) => x.id === communityId);
         const source = cs.find((x: any) => x.id === mergeId);
         if (!source) {
-          if (errEl) { errEl.textContent = `${mergeId} not found in your communities.`; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = `${mergeId} not found in your communities.`; errEl.style.color = '#be123c'; errEl.style.display = 'block'; }
           return;
         }
         const targetMems = normalizeMembers(target.members);
@@ -439,7 +439,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         addLog(target, 'community_merged', myUserId, `Merged ${added} members from ${mergeId}`);
         saveCommunities(cs);
         input.value = '';
-        if (errEl) { errEl.textContent = `✓ Merged ${added} new members from ${mergeId}.`; errEl.style.color = '#16a34a'; errEl.style.display = 'block'; }
+        if (errEl) { errEl.textContent = `✓ Merged ${added} new members from ${mergeId}.`; errEl.style.color = '#15803d'; errEl.style.display = 'block'; }
         renderAll();
       });
     }

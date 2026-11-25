@@ -12,7 +12,7 @@ const schemes = [
   {
     name: 'X-API-Key',
     where: 'Every REST route',
-    color: '#16a34a',
+    color: '#15803d',
     desc: 'The default. One header, sent on every request. Keys are per tenant, and each carries its own request rate — so one customer cannot spend another\'s window.',
     example: 'X-API-Key: sk_live_…',
   },
@@ -26,7 +26,7 @@ const schemes = [
   {
     name: 'X-Admin-Key',
     where: 'Billing grant / revoke',
-    color: '#d97706',
+    color: '#b45309',
     desc: 'A separate secret for operator-only routes that change entitlements. Never issued to customers, and never accepted in place of an API key.',
     example: 'X-Admin-Key: …',
   },
@@ -40,13 +40,13 @@ const schemes = [
 ];
 
 const codes = [
-  { code: '200', meaning: 'Answered. A blocked verdict is still a 200 — read the body, not the status.', color: '#16a34a' },
-  { code: '401', meaning: 'No X-API-Key header, or the key is not recognised. The response carries WWW-Authenticate: ApiKey. Retrying without changing the key will not help.', color: '#ef4444' },
-  { code: '402', meaning: 'The plan is eligible but the add-on has not been purchased, or an x402/L402 call is unfunded. The body names what to buy.', color: '#d97706' },
-  { code: '403', meaning: 'Authenticated, but the plan tier is below the one this route requires, or the Origin is not allowed. Upgrading the plan is the fix; retrying is not.', color: '#d97706' },
-  { code: '406', meaning: 'Content negotiation failed — the client accepts neither HTML nor Markdown. Site pages only.', color: '#64748b' },
-  { code: '429', meaning: 'Rate limit or monthly quota. Read Retry-After and the RateLimit fields and back off — see the rate-limit page.', color: '#d97706' },
-  { code: '5xx', meaning: 'The gateway failed, not your request. Never read as a block verdict: retry with backoff.', color: '#ef4444' },
+  { code: '200', meaning: 'Answered. A blocked verdict is still a 200 — read the body, not the status.', color: '#15803d' },
+  { code: '401', meaning: 'No X-API-Key header, or the key is not recognised. The response carries WWW-Authenticate: ApiKey. Retrying without changing the key will not help.', color: '#b91c1c' },
+  { code: '402', meaning: 'The plan is eligible but the add-on has not been purchased, or an x402/L402 call is unfunded. The body names what to buy.', color: '#b45309' },
+  { code: '403', meaning: 'Authenticated, but the plan tier is below the one this route requires, or the Origin is not allowed. Upgrading the plan is the fix; retrying is not.', color: '#b45309' },
+  { code: '406', meaning: 'Content negotiation failed — the client accepts neither HTML nor Markdown. Site pages only.', color: '#556072' },
+  { code: '429', meaning: 'Rate limit or monthly quota. Read Retry-After and the RateLimit fields and back off — see the rate-limit page.', color: '#b45309' },
+  { code: '5xx', meaning: 'The gateway failed, not your request. Never read as a block verdict: retry with backoff.', color: '#b91c1c' },
 ];
 ---
 
