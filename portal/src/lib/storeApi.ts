@@ -230,8 +230,6 @@ export const storeApi = {
   translateDraft: (productId: string, locales: string[]) =>
     send<Record<string, { name: string; description: string }>>('post', `/products/${productId}/translate-draft`, { locales }),
   /** The seller consultant (R8.6b): one reply to the conversation so far. */
-  assistantChat: (messages: { role: 'user' | 'assistant'; content: string }[]) =>
-    send<{ reply: string }>('post', '/assistant/chat', { messages }),
   /** The text check for every row of a catalog export, in order (max 2000). */
   lintListings: (items: { name: string; description: string }[]) =>
     send<{ term: string; category: string; field: string; basis: string; suggestion: string }[][]>('post', '/listing-lint/batch', { items }),
