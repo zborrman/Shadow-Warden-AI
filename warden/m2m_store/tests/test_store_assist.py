@@ -143,7 +143,9 @@ class _FakeStream:
 
 class _FakeStreamingClient:
     def __init__(self, stream: _FakeStream):
-        self.stream_obj, self.calls, self.messages = stream, [], self
+        self.stream_obj = stream
+        self.calls: list[dict] = []
+        self.messages = self
 
     def stream(self, **kw):
         self.calls.append(kw)
