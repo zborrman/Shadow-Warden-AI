@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { QRCodeSVG } from 'qrcode.react'
+import { MIN_LENGTH, passwordRules } from '@/lib/password'
 import clsx from 'clsx'
 import { CreditCard, Download, ExternalLink, Key, Lock, ShieldCheck, Trash2, User, UserX } from 'lucide-react'
 import { CopyField, Panel, Row, Switch } from '@/components/ui/settings'
@@ -120,7 +121,9 @@ function PasswordPanel() {
   const [next, setNext] = useState('')
   const [again, setAgain] = useState('')
   const mismatch = again !== '' && next !== again
-  const valid = cur !== '' && next.length >= 8 && next === again
+  const rules = passwordRules(next)
+  const strong = rules.every(r => r.ok)
+  const valid = cur !== '' && strong && next === again
   const change = useMutation({
     mutationFn: () => api.post('/me/change-password', { current_password: cur, new_password: next }),
     onSuccess: () => { setCur(''); setNext(''); setAgain(''); toast.success('Password changed') },
@@ -133,7 +136,8 @@ function PasswordPanel() {
           <input id="pw-cur" type="password" autoComplete="current-password" className="input"
                  value={cur} onChange={e => setCur(e.target.value)} />
         </Row>
-        <Row label="New password" help="At least 8 characters." htmlFor="pw-new">
+        <Row label="New password" htmlFor="pw-new"
+             help={next ? `Still needed: ${rules.filter(r => !r.ok).map(r => r.label.toLowerCase()).join(', ') || 'nothing — strong'}` : `${MIN_LENGTH}+ characters with upper and lower case, a number and a symbol.`}>
           <input id="pw-new" type="password" autoComplete="new-password" className="input"
                  value={next} onChange={e => setNext(e.target.value)} />
         </Row>

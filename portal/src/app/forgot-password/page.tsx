@@ -1,68 +1,55 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { ShieldCheck, Mail, ArrowLeft } from 'lucide-react'
 import { forgotPassword } from '@/lib/auth'
+import { AuthShell, ErrorNote, Spinner, field, labelCls, primary, textLink } from '@/components/auth/AuthShell'
 
-const schema = z.object({ email: z.string().email('Invalid email') })
-type Form = z.infer<typeof schema>
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
-    resolver: zodResolver(schema),
-  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-  async function onSubmit(data: Form) {
-    await forgotPassword(data.email).catch(() => {})
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!EMAIL.test(email.trim())) return setError('Enter a valid work email.')
+    setBusy(true)
+    // The answer is the same whether or not the address has an account.
+    await forgotPassword(email.trim()).catch(() => {})
+    setBusy(false)
     setSent(true)
   }
 
-  return (
-    <div translate="no" className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-white">Reset password</h1>
-          <p className="text-slate-400 mt-1 text-sm">Enter your email and we'll send a reset link</p>
-        </div>
+  const back = <Link href="/login/" className={`${textLink} text-[14px]`}>← Back to sign in</Link>
 
-        <div className="card p-8">
-          {sent ? (
-            <div className="text-center space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-green-500/10 flex items-center justify-center">
-                <Mail className="w-7 h-7 text-green-400" />
-              </div>
-              <p className="text-white font-semibold">Check your email</p>
-              <p className="text-slate-400 text-sm">If that address is registered, you'll receive a reset link shortly.</p>
-              <Link href="/login/" className="btn-secondary inline-flex mt-2">
-                <ArrowLeft className="w-4 h-4" /> Back to sign in
-              </Link>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div>
-                <label className="label">Email</label>
-                <input {...register('email')} type="email" placeholder="you@company.com" className="input" />
-                {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
-              </div>
-              <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
-                {isSubmitting ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Send reset link'}
-              </button>
-              <Link href="/login/" className="btn-secondary w-full justify-center">
-                <ArrowLeft className="w-4 h-4" /> Back to sign in
-              </Link>
-            </form>
-          )}
+  if (sent) {
+    return (
+      <AuthShell step="Password reset" title="Check your email"
+                 lead="If that address has an account, a reset link is on its way. It works once and expires soon."
+                 footer={back}>
+        <div aria-hidden="true" className="w-14 h-14 rounded-full bg-[#0f2a1f] text-[#3ddc97] flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16v12H4zM4 7l8 6 8-6" /></svg>
         </div>
-      </div>
-    </div>
+        <p className="m-0 text-[14px] leading-5 text-[#8b98a8]">No email after a few minutes? Check spam, or <button type="button" onClick={() => setSent(false)} className={`${textLink} bg-transparent border-0 p-0 cursor-pointer text-[14px]`}>send it again</button>.</p>
+      </AuthShell>
+    )
+  }
+
+  return (
+    <AuthShell step="Password reset" title="Forgot your password?"
+               lead="Enter your work email and we send a link to choose a new one."
+               footer={back}>
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+        <label className={labelCls}>Work email
+          <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
+                 placeholder="you@company.com" autoFocus className={field} />
+        </label>
+        <button type="submit" disabled={busy} className={primary}>{busy ? <Spinner /> : 'Send reset link'}</button>
+      </form>
+    </AuthShell>
   )
 }
