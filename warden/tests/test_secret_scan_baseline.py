@@ -46,7 +46,10 @@ _CONFIG = _ROOT / ".gitleaks.toml"
 #: warden/tests/test_mcp_paid_tools_not_anonymous.py:28 - a made-up operator
 #: key monkeypatched into auth_guard for one test, valid on no deployment;
 #: built without a literal in fa301847.
-BASELINE_FINDINGS = 24
+#: 2026-11-25 (+1, #814): commit c63a3df2, site/src/layouts/BaseLayout.astro:566
+#: - `const KEY = 'sw_banner_v52_dismissed'`, a sessionStorage key name in the
+#: page's own script; no credential. Renamed to BANNER_STORE in 74d9e39d.
+BASELINE_FINDINGS = 25
 
 _FINGERPRINT = re.compile(r"^[0-9a-f]{40}:[^:\s]+:[a-z0-9.\-]+:\d+$")
 
