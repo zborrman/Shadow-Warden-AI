@@ -2,264 +2,98 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Eye, EyeOff, AlertCircle, ShieldCheck, Zap, Lock } from 'lucide-react'
 import { completeTotp, login } from '@/lib/auth'
+import { AuthShell, ErrorNote, Spinner, detailOf, field, labelCls, primary, secondary, textLink } from '@/components/auth/AuthShell'
+import { PasswordField } from '@/components/auth/PasswordField'
 
-const schema = z.object({
-  email:    z.string().email('Invalid email'),
-  password: z.string().min(1, 'Password required'),
-})
-type Form = z.infer<typeof schema>
-
-const STATS = [
-  { value: '9', label: 'Pipeline stages' },
-  { value: '15',     label: 'Defense layers' },
-  { value: '99.9%',  label: 'Uptime SLA' },
-]
-
-const FEATURES = [
-  { icon: ShieldCheck, text: '9-layer AI security pipeline' },
-  { icon: Zap,         text: 'Real-time jailbreak detection' },
-  { icon: Lock,        text: 'Post-Quantum Cryptography' },
-]
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export default function LoginPage() {
   const router = useRouter()
-  const [showPw, setShowPw] = useState(false)
-  const [error, setError]   = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [totpSession, setTotpSession] = useState('')
   const [code, setCode] = useState('')
-  const [verifying, setVerifying] = useState(false)
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({
-    resolver: zodResolver(schema),
-  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-  async function onSubmit(data: Form) {
+  async function onSignin(e: React.FormEvent) {
+    e.preventDefault()
     setError('')
+    if (!EMAIL.test(email.trim())) return setError('Enter a valid work email.')
+    if (!password) return setError('Enter your password.')
+    setBusy(true)
     try {
-      const r = await login(data.email, data.password)
-      if ('requires_totp' in r) { setTotpSession(r.totp_session); return }
+      const r = await login(email.trim(), password)
+      if ('requires_totp' in r) { setTotpSession(r.totp_session); setPassword(''); return }
       router.replace('/dashboard/')
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(msg || 'Login failed. Please try again.')
+    } catch (err) {
+      setError(detailOf(err, 'Sign-in failed. Please try again.'))
+    } finally {
+      setBusy(false)
     }
   }
 
-  async function onCode() {
+  async function onCode(e: React.FormEvent) {
+    e.preventDefault()
     setError('')
-    setVerifying(true)
+    if (code.length !== 6) return setError('Enter all 6 digits.')
+    setBusy(true)
     try {
       await completeTotp(totpSession, code)
       router.replace('/dashboard/')
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(msg || 'That code did not work. Try the current one.')
+    } catch (err) {
+      const msg = detailOf(err, 'That code did not work. Try the current one.')
+      setError(msg)
       // An expired step-one session cannot be retried with another code.
-      if (msg?.includes('expired')) { setTotpSession(''); setCode('') }
+      if (msg.includes('expired')) { setTotpSession(''); setCode('') }
     } finally {
-      setVerifying(false)
+      setBusy(false)
     }
   }
 
+  if (totpSession) {
+    return (
+      <AuthShell step="Step 2 of 2" title="Two-step verification"
+                 lead="Open your authenticator app and enter the current code for Shadow Warden.">
+        {error && <ErrorNote>{error}</ErrorNote>}
+        <form onSubmit={onCode} className="flex flex-col gap-4">
+          <label className={labelCls}>6-digit code from your authenticator app
+            <input value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                   inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000"
+                   className={`${field} min-h-[56px] font-mono text-[24px] tracking-[0.4em] text-center`} />
+          </label>
+          <button type="submit" disabled={busy || code.length !== 6} className={primary}>
+            {busy ? <Spinner /> : 'Verify and sign in'}
+          </button>
+          <button type="button" onClick={() => { setTotpSession(''); setCode(''); setError('') }} className={secondary}>
+            Use a different account
+          </button>
+        </form>
+      </AuthShell>
+    )
+  }
+
   return (
-    <div translate="no" className="min-h-screen flex">
-
-      {/* ── Left panel (hero) ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[46%] relative overflow-hidden px-12 py-12"
-           style={{
-             background: 'linear-gradient(160deg,#05091a 0%,#0b1228 55%,#0d1035 100%)',
-             borderRight: '1px solid rgba(255,255,255,0.06)',
-           }}>
-
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse 600px 500px at -10% 50%,rgba(56,189,248,0.09) 0%,transparent 70%)',
-        }} />
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse 400px 400px at 110% 80%,rgba(129,140,248,0.07) 0%,transparent 70%)',
-        }} />
-
-        {/* Brand */}
-        <div className="relative z-10 flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Shadow Warden AI" className="w-9 h-9 rounded-xl object-contain" />
-          <div>
-            <div className="text-[13px] font-bold tracking-tight text-white leading-none">Shadow Warden AI</div>
-            <div className="text-[10px] font-semibold tracking-widest mt-0.5"
-                 style={{ color: '#38bdf8' }}>ZERO-TRUST AI GATEWAY</div>
-          </div>
+    <AuthShell step="Step 1 of 2" title="Sign in"
+               lead="Use your work email. A code from your authenticator app comes next."
+               footer={<p className="m-0 text-[14px] text-[#8b98a8]">New here? <Link href="/register/" className={textLink}>Create an account</Link></p>}>
+      <nav aria-label="Account" className="grid grid-cols-2 gap-1 p-1 rounded-lg border border-[#232c38] bg-[#151b23]">
+        <span aria-current="page" className="min-h-[40px] rounded-md bg-[#0d1117] text-[14px] font-semibold flex items-center justify-center shadow-sm">Sign in</span>
+        <Link href="/register/" className="min-h-[40px] rounded-md text-[14px] font-semibold text-[#8b98a8] flex items-center justify-center no-underline hover:text-[#e6edf3]">Create account</Link>
+      </nav>
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <form onSubmit={onSignin} className="flex flex-col gap-4" noValidate>
+        <label className={labelCls}>Work email
+          <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
+                 placeholder="you@company.com" className={field} />
+        </label>
+        <div className="flex flex-col gap-1">
+          <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" id="pw-in" />
+          <Link href="/forgot-password/" className={`${textLink} text-[13px] self-end mt-1`}>Forgot password?</Link>
         </div>
-
-        {/* Center content */}
-        <div className="relative z-10 space-y-8">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest mb-4"
-                 style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)' }}>
-              ◇ VERSION 7.10 — LATEST
-            </div>
-            <h2 className="text-[28px] font-black leading-tight text-white mb-3">
-              Your AI<br />
-              <span style={{ background: 'linear-gradient(135deg,#38bdf8,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                stays safe.
-              </span>
-            </h2>
-            <p className="text-[13px] leading-relaxed" style={{ color: '#64748b' }}>
-              15-layer real-time security gateway. Blocks jailbreaks, strips PII,<br />
-              enforces compliance — all inline.
-            </p>
-          </div>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map(s => (
-              <div key={s.label} className="rounded-xl px-3 py-3 text-center"
-                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div className="text-[18px] font-black text-white leading-none mb-1">{s.value}</div>
-                <div className="text-[10px] font-medium" style={{ color: '#475569' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Feature bullets */}
-          <div className="space-y-2.5">
-            {FEATURES.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                     style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.15)' }}>
-                  <Icon size={13} style={{ color: '#38bdf8' }} />
-                </div>
-                <span className="text-[12px] font-medium" style={{ color: '#94a3b8' }}>{text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer note */}
-        <div className="relative z-10 text-[11px]" style={{ color: '#334155' }}>
-          SOC 2 · GDPR · OWASP LLM Top 10
-        </div>
-      </div>
-
-      {/* ── Right panel (form) ── */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12"
-           style={{ background: '#050a13' }}>
-        <div className="w-full max-w-sm">
-
-          {/* Logo — mobile only */}
-          <div className="flex lg:hidden items-center gap-2.5 mb-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Shadow Warden AI" className="w-8 h-8 rounded-lg object-contain" />
-            <span className="text-[13px] font-bold text-white">Shadow Warden AI</span>
-          </div>
-
-          {/* Heading */}
-          <div className="mb-8">
-            <h1 className="text-[24px] font-black text-white mb-1">Welcome back</h1>
-            <p className="text-[13px]" style={{ color: '#64748b' }}>Sign in to your portal</p>
-          </div>
-
-          {/* Form card */}
-          <div className="rounded-2xl p-6 space-y-4"
-               style={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.07)' }}>
-
-            {error && (
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12px]"
-                   style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-                <AlertCircle size={13} className="shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {totpSession ? (
-              <form onSubmit={e => { e.preventDefault(); if (code.length === 6) onCode() }} className="space-y-4">
-                <div>
-                  <label htmlFor="totp-code" className="label">Authentication code</label>
-                  <input id="totp-code" value={code}
-                         onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                         inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="123456"
-                         className="input font-mono tracking-[0.3em]" />
-                  <p className="text-[11px] mt-1.5" style={{ color: '#64748b' }}>
-                    Open your authenticator app and enter the 6-digit code for Shadow Warden AI.
-                  </p>
-                </div>
-                <button type="submit" disabled={verifying || code.length !== 6} className="btn-primary w-full">
-                  {verifying
-                    ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : 'Verify →'}
-                </button>
-                <button type="button" onClick={() => { setTotpSession(''); setCode(''); setError('') }}
-                        className="w-full text-[12px]" style={{ color: '#64748b' }}>
-                  Use a different account
-                </button>
-              </form>
-            ) : (<>
-            <div>
-              <label className="label">Email</label>
-              <input
-                {...register('email')}
-                type="email"
-                autoComplete="email"
-                placeholder="you@company.com"
-                className="input"
-              />
-              {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="label mb-0">Password</label>
-                <Link href="/forgot-password/"
-                      className="text-[11px] font-medium hover:opacity-80 transition-opacity"
-                      style={{ color: '#38bdf8' }}>
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <input
-                  {...register('password')}
-                  type={showPw ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="input pr-11"
-                />
-                <button type="button" onClick={() => setShowPw(!showPw)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                        style={{ color: '#475569' }}
-                        onMouseOver={e => (e.currentTarget.style.color = '#94a3b8')}
-                        onMouseOut={e  => (e.currentTarget.style.color = '#475569')}>
-                  {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
-            </div>
-
-            <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting}
-                    className="btn-primary w-full mt-1">
-              {isSubmitting
-                ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : 'Sign In →'}
-            </button>
-            </>)}
-          </div>
-
-          <p className="text-center text-[12px] mt-5" style={{ color: '#475569' }}>
-            Don&apos;t have an account?{' '}
-            <Link href="/register/"
-                  className="font-semibold hover:opacity-80 transition-opacity"
-                  style={{ color: '#38bdf8' }}>
-              Create account free
-            </Link>
-          </p>
-
-          <p className="text-center text-[10px] mt-8" style={{ color: '#1e293b' }}>
-            Shadow Warden AI v7.10 · GDPR compliant · All systems operational
-          </p>
-        </div>
-      </div>
-    </div>
+        <button type="submit" disabled={busy} className={primary}>{busy ? <Spinner /> : 'Continue'}</button>
+      </form>
+    </AuthShell>
   )
 }

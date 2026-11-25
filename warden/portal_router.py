@@ -45,6 +45,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from warden.auth.password_policy import require_strong
 from warden.config import settings
 from warden.db.connection import get_db
 from warden.db.sql_safety import safe_set_clause
@@ -385,6 +386,7 @@ def _reset_token_hash(token: str) -> str:
 async def register(request: Request, body: _RegisterIn, db: AsyncSession = Depends(get_db)):
     """Create a new customer account + tenant."""
     email = body.email.lower()
+    require_strong(body.password, email)
     existing = await _get_user_by_email(db, email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered.")
@@ -648,6 +650,7 @@ async def reset_password(
     expires = user["reset_expires"]
     if expires and expires < datetime.now(UTC):
         raise HTTPException(status_code=400, detail="Reset token expired.")
+    require_strong(body.new_password, str(user.get("email") or ""))
     pw_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     await db.execute(
         text("""
@@ -719,6 +722,7 @@ async def change_password(
     user = await _get_user_by_id(db, me.user_id)
     if not user or not bcrypt.checkpw(body.current_password.encode(), user["password_hash"].encode()):
         raise HTTPException(status_code=401, detail="Current password incorrect.")
+    require_strong(body.new_password, str(user.get("email") or ""))
     pw_hash = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
     await db.execute(
         text("UPDATE warden_core.portal_users SET password_hash=:pw WHERE id=:id"),

@@ -157,7 +157,7 @@ def test_register_and_recovery_are_limited_per_address(client):
     c, _ = client
     hdr = {"X-Forwarded-For": "10.9.0.1"}
     reg = [c.post("/portal/auth/register",
-                  json={"email": f"n{i}@example.com", "password": "longenough"},
+                  json={"email": f"n{i}@example.com", "password": "Long-enough-2026"},
                   headers=hdr).status_code for i in range(6)]
     assert reg[:5] == [201] * 5 and reg[5] == 429
     fp = [c.post("/portal/auth/forgot-password", json={"email": "a@example.com"},
@@ -180,7 +180,7 @@ def test_reset_tokens_are_stored_hashed(client, db, monkeypatch):
     assert stored[0] != sent[0]
     assert stored[0] == hashlib.sha256(sent[0].encode()).hexdigest()
 
-    c.post("/portal/auth/reset-password", json={"token": sent[0], "new_password": "newpassword1"},
+    c.post("/portal/auth/reset-password", json={"token": sent[0], "new_password": "Fresh-Phrase-2026"},
            headers={"X-Forwarded-For": "10.10.0.2"})
     looked_up = [p["t"] for sql, p in db.calls if "WHERE reset_token = :t" in sql]
     assert looked_up == [stored[0]]
