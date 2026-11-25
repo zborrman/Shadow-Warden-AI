@@ -6,7 +6,7 @@ const LEVEL = ['—', 'Weak', 'Fair', 'Good', 'Strong'] as const
 const LEVEL_COLOR = ['#5c6b7e', '#ff8a8a', '#ffb020', '#e3c454', '#3ddc97']
 
 /** Password input with show/hide. With `rules`, it also draws the strength meter and checklist. */
-export function PasswordField({ label, value, onChange, autoComplete, email = '', rules = false, id }: {
+export function PasswordField({ label, value, onChange, autoComplete, email = '', rules = false, id, name }: {
   label: string
   value: string
   onChange: (v: string) => void
@@ -14,6 +14,7 @@ export function PasswordField({ label, value, onChange, autoComplete, email = ''
   email?: string
   rules?: boolean
   id?: string
+  name?: string
 }) {
   const [show, setShow] = useState(false)
   const auto = useId()
@@ -24,7 +25,7 @@ export function PasswordField({ label, value, onChange, autoComplete, email = ''
     <div className="flex flex-col gap-1.5">
       <label htmlFor={inputId} className="text-[14px] font-medium">{label}</label>
       <div className="flex rounded-lg border border-[#5c6b7e] bg-[#07090c] overflow-hidden focus-within:border-[#00c2ff] focus-within:ring-2 focus-within:ring-[#00c2ff]/30">
-        <input id={inputId} type={show ? 'text' : 'password'} autoComplete={autoComplete} value={value}
+        <input id={inputId} name={name} type={show ? 'text' : 'password'} autoComplete={autoComplete} value={value}
                onChange={e => onChange(e.target.value)}
                aria-describedby={rules ? `${inputId}-rules` : undefined}
                className="flex-1 min-w-0 min-h-[44px] px-3.5 border-0 bg-transparent text-[15px] text-[#e6edf3] focus:outline-none" />

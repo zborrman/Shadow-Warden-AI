@@ -85,11 +85,11 @@ export default function LoginPage() {
       {error && <ErrorNote>{error}</ErrorNote>}
       <form onSubmit={onSignin} className="flex flex-col gap-4" noValidate>
         <label className={labelCls}>Work email
-          <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
+          <input type="email" name="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
                  placeholder="you@company.com" className={field} />
         </label>
         <div className="flex flex-col gap-1">
-          <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" id="pw-in" />
+          <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" id="pw-in" name="password" />
           <Link href="/forgot-password/" className={`${textLink} text-[13px] self-end mt-1`}>Forgot password?</Link>
         </div>
         <button type="submit" disabled={busy} className={primary}>{busy ? <Spinner /> : 'Continue'}</button>

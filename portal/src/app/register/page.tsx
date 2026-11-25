@@ -110,12 +110,12 @@ export default function RegisterPage() {
           <input autoComplete="name" value={name} onChange={e => setName(e.target.value)} maxLength={80} className={field} />
         </label>
         <label className={labelCls}>Work email
-          <input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
+          <input type="email" name="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
                  placeholder="you@company.com" className={field} />
         </label>
-        <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" email={email} rules id="pw-new" />
+        <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" email={email} rules id="pw-new" name="password" />
         <div className="flex flex-col gap-1.5">
-          <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" id="pw-confirm" />
+          <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" id="pw-confirm" name="confirm" />
           {confirm.length > 0 && !match && <span className="text-[13px] text-[#ff8a8a]">The two passwords differ.</span>}
         </div>
         <label className="flex items-start gap-2.5 text-[14px] leading-5 text-[#8b98a8]">

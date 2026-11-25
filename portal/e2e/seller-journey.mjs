@@ -2,6 +2,7 @@
 // register -> sign in -> create a store -> category -> shipping zone -> product
 // -> the buyer orders on the storefront -> the seller accepts the order, sees the
 // customer and writes in the journal -> settings (preferences + 2FA screen)
+// (sign-up includes turning on two-step verification; sign-in asks for the code)
 // -> export the data -> close the account, which then cannot sign in.
 //
 // Every step goes through the UI a person uses, so a button that does nothing,
@@ -9,6 +10,7 @@
 // of in front of a seller. Exit code 1 on the first failure, with a screenshot.
 //
 //   PORTAL_URL=http://localhost:3001 node e2e/seller-journey.mjs
+import { createHmac } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -16,11 +18,29 @@ const BASE = (process.env.PORTAL_URL || 'http://localhost:3001').replace(/\/$/, 
 const API = (process.env.API_URL || 'http://localhost:8001').replace(/\/$/, '')
 const run = Date.now().toString(36)
 const EMAIL = `seller-${run}@example.org`
-const PASSWORD = `E2e-${run}-Passw0rd!`
+// Strong by the portal's rules (warden/auth/password_policy.py): no common word.
+const PASSWORD = `E2e-${run}-Sh0p-Key!`
 const SLUG = `e2e-${run}`
 const OUT = 'e2e-results'
 
 let page
+let totpSecret = ''
+
+// RFC 6238, the code an authenticator app would show for the secret the page gave us.
+function totp(secret) {
+  const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  let bits = 0, v = 0
+  const out = []
+  for (const c of secret.replace(/[^A-Z2-7]/gi, '').toUpperCase()) {
+    v = (v << 5) | a.indexOf(c); bits += 5
+    if (bits >= 8) { bits -= 8; out.push((v >> bits) & 0xff) }
+  }
+  const buf = Buffer.alloc(8)
+  buf.writeUInt32BE(Math.floor(Date.now() / 30000), 4)
+  const mac = createHmac('sha1', Buffer.from(out)).update(buf).digest()
+  const o = mac[19] & 0xf
+  return ((((mac[o] & 0x7f) << 24) | (mac[o + 1] << 16) | (mac[o + 2] << 8) | mac[o + 3]) % 1e6).toString().padStart(6, '0')
+}
 let step = ''
 const errors = []
 
@@ -44,7 +64,13 @@ async function main() {
     await page.locator('input[name="email"]').fill(EMAIL)
     await page.locator('input[name="password"]').fill(PASSWORD)
     await page.locator('input[name="confirm"]').fill(PASSWORD)
+    await page.getByRole('checkbox').check()
     await page.getByRole('button', { name: /create account/i }).click()
+    // Two-step verification is part of sign-up: the account opens only after it.
+    await page.getByLabel(/qr code/i).waitFor()
+    totpSecret = (await page.locator('code').innerText()).replace(/\s+/g, '')
+    await page.getByLabel(/6-digit code/i).fill(totp(totpSecret))
+    await page.getByRole('button', { name: /turn on two-step/i }).click()
     await page.waitForURL(/\/dashboard\/?$/)
   })
 
@@ -53,7 +79,9 @@ async function main() {
     await page.waitForURL(/\/login\/?/)
     await page.locator('input[name="email"]').fill(EMAIL)
     await page.locator('input[name="password"]').fill(PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await page.getByRole('button', { name: /^continue$/i }).click()
+    await page.getByLabel(/6-digit code/i).fill(totp(totpSecret))
+    await page.getByRole('button', { name: /verify and sign in/i }).click()
     await page.waitForURL(/\/dashboard\/?$/)
   })
 
@@ -152,8 +180,8 @@ async function main() {
     await page.getByLabel('Timezone').selectOption('Europe/Berlin')
     await page.getByRole('switch', { name: /24-hour/i }).waitFor()
     await page.getByRole('link', { name: /security/i }).click()
-    await page.getByRole('button', { name: /set up/i }).click()
-    await page.getByLabel(/qr code/i).waitFor()
+    // Turned on at sign-up, so the screen offers to turn it off, not to set it up.
+    await page.getByRole('button', { name: /^turn off$/i }).click()
     await page.getByRole('button', { name: /^cancel$/i }).click()
   })
 
@@ -166,6 +194,7 @@ async function main() {
     if (!download.suggestedFilename().endsWith('.json')) throw new Error('export is not a JSON file')
     await page.getByLabel('Password').fill(PASSWORD)
     await page.getByLabel(/type delete/i).fill('DELETE')
+    await page.getByLabel(/authentication code/i).fill(totp(totpSecret))
     await page.getByRole('button', { name: /close my account/i }).click()
     await page.waitForURL(/\/login\/?/)
   })
@@ -173,7 +202,7 @@ async function main() {
   await at('a closed account cannot sign in, and its storefront is gone', async () => {
     await page.locator('input[name="email"]').fill(EMAIL)
     await page.locator('input[name="password"]').fill(PASSWORD)
-    await page.getByRole('button', { name: /sign in/i }).click()
+    await page.getByRole('button', { name: /^continue$/i }).click()
     await page.getByText(/invalid email or password/i).waitFor()
     // The gateway is asked, not the page: storefront pages are cached for 60 s
     // (ISR), so the rendered page outlives the store by up to that long.
