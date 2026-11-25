@@ -199,7 +199,7 @@ import '../styles/global.css';
 
         /* Sidebar stat */
         .stat-box {
-            background: var(--surface);
+            background: var(--sw-surf-1);
             border: 1px solid var(--border2);
             border-radius: 14px; padding: 16px 20px;
         }
@@ -507,7 +507,7 @@ import '../styles/global.css';
                     borderColor: 'rgba(255,45,85,0.6)',
                     borderWidth: 1.5,
                     pointRadius: 3,
-                    pointBackgroundColor: '#e11d48',
+                    pointBackgroundColor: '#be123c',
                     pointBorderColor: '#03050F',
                     pointBorderWidth: 1.5,
                 }]
@@ -648,18 +648,18 @@ import '../styles/global.css';
 
         if (state.fatal) {
             tier = "Regulatory Barrier Encountered"; badge = "HARD STOP";
-            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#e11d48';
-            scoreColor = '#e11d48'; mInt.innerText = "COMPROMISED";
+            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#be123c';
+            scoreColor = '#be123c'; mInt.innerText = "COMPROMISED";
             vBar.style.borderTopColor = 'rgba(255,45,85,0.3)';
         } else if (s > 75) {
             tier = "Extreme Structural Exposure"; badge = "DECLINE";
-            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#e11d48';
-            scoreColor = '#e11d48'; mInt.innerText = "HIGH RISK";
+            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#be123c';
+            scoreColor = '#be123c'; mInt.innerText = "HIGH RISK";
             vBar.style.borderTopColor = 'rgba(255,45,85,0.2)';
         } else if (s > 55) {
             tier = "Escalate to Board / Underwriting"; badge = "ESCALATE";
-            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#ea580c';
-            scoreColor = '#ea580c'; mInt.innerText = "QUESTIONABLE";
+            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#c2410c';
+            scoreColor = '#c2410c'; mInt.innerText = "QUESTIONABLE";
             vBar.style.borderTopColor = 'rgba(255,159,10,0.2)';
         } else if (s > 35) {
             tier = "Negotiation & Covenant Hold"; badge = "NEGOTIATE";
@@ -668,8 +668,8 @@ import '../styles/global.css';
             vBar.style.borderTopColor = 'rgba(99,111,255,0.2)';
         } else if (s > 15) {
             tier = "Standard Asset Classification"; badge = "APPROVE ✓";
-            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#16a34a';
-            scoreColor = '#16a34a'; mInt.innerText = "VALIDATED";
+            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#15803d';
+            scoreColor = '#15803d'; mInt.innerText = "VALIDATED";
             vBar.style.borderTopColor = 'rgba(48,209,88,0.15)';
         } else {
             tier = "Prime Sovereign Classification"; badge = "APPROVE ★";
@@ -688,7 +688,7 @@ import '../styles/global.css';
 
         logEl.innerHTML = audit.length
             ? audit.map(a => `
-                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#e11d48' : a.mit ? '#16a34a' : '#6E6E80'}">
+                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#be123c' : a.mit ? '#15803d' : '#6E6E80'}">
                     <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px">${a.l}</span>
                     <span class="mono" style="flex-shrink:0;font-weight:700">${a.p}</span>
                 </div>`).join('')

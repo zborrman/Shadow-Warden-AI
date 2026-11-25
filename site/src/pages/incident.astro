@@ -90,15 +90,15 @@ import Footer from '../components/Footer.astro';
   const API = "https://api.shadow-warden-ai.com";
 
   const VERDICT_STYLE: Record<string, string> = {
-    BLOCK: "color:#e11d48;background:rgba(255,45,85,0.1);border-color:rgba(255,45,85,0.3)",
-    FLAG:  "color:#d97706;background:rgba(255,214,10,0.1);border-color:rgba(255,214,10,0.3)",
-    ALLOW: "color:#16a34a;background:rgba(48,209,88,0.1);border-color:rgba(48,209,88,0.3)",
+    BLOCK: "color:#be123c;background:rgba(255,45,85,0.1);border-color:rgba(255,45,85,0.3)",
+    FLAG:  "color:var(--acc-amber);background:rgba(255,214,10,0.1);border-color:rgba(255,214,10,0.3)",
+    ALLOW: "color:#15803d;background:rgba(48,209,88,0.1);border-color:rgba(48,209,88,0.3)",
   };
 
   const STAGE_VERDICT_COLOR: Record<string, string> = {
-    PASS:  "#16a34a",
-    FLAG:  "#d97706",
-    BLOCK: "#e11d48",
+    PASS:  "#15803d",
+    FLAG:  "#b45309",
+    BLOCK: "#be123c",
     SKIP:  "#555",
   };
 

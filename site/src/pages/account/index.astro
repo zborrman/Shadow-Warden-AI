@@ -24,12 +24,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </a>
         <a href="/account/privacy"
            style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-4);transition:all 0.15s"
-           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(var(--ink-rgb),0.03)'">
+           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#556072';this.style.background='rgba(var(--ink-rgb),0.03)'">
           Privacy
         </a>
         <a href="/account/storage"
            style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-4);transition:all 0.15s"
-           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(var(--ink-rgb),0.03)'">
+           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#556072';this.style.background='rgba(var(--ink-rgb),0.03)'">
           Storage
         </a>
       </div>
@@ -47,7 +47,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         </div>
         <button id="regen-id-btn"
                 style="margin-left:auto;padding:7px 14px;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:8px;color:var(--ink-4);font-size:12px;cursor:pointer;transition:all 0.15s"
-                onmouseover="this.style.color='var(--acc-red)';this.style.borderColor='rgba(255,45,85,0.3)'" onmouseout="this.style.color='#64748b';this.style.borderColor='rgba(var(--ink-rgb),0.08)'">
+                onmouseover="this.style.color='var(--acc-red)';this.style.borderColor='rgba(255,45,85,0.3)'" onmouseout="this.style.color='#556072';this.style.borderColor='rgba(var(--ink-rgb),0.08)'">
           Regenerate
         </button>
       </div>
@@ -133,9 +133,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const TIER_KEY = 'sw_tier';
 
     const TIERS: Record<string, any> = {
-      starter:           { name: 'Starter',           color: '#64748b', price: 'Free',    maxComm: 0,  maxMem: 0,  obs: false, slack: false, pqc: false,
+      starter:           { name: 'Starter',           color: '#556072', price: 'Free',    maxComm: 0,  maxMem: 0,  obs: false, slack: false, pqc: false,
                            features: ['Community threat feed (read-only)', 'Public API access'] },
-      individual:        { name: 'Individual',         color: '#0891b2', price: '$5/mo',   maxComm: 1,  maxMem: 5,  obs: false, slack: false, pqc: false,
+      individual:        { name: 'Individual',         color: '#0e7490', price: '$5/mo',   maxComm: 1,  maxMem: 5,  obs: false, slack: false, pqc: false,
                            features: ['1 private community', '5 members', 'Demo tunnel (unencrypted)', 'Basic reporting'] },
       community_business:{ name: 'Community Business', color: '#9333ea', price: '$39.99/mo',  maxComm: 3,  maxMem: 10, obs: true,  slack: false, pqc: false,
                            features: ['3 communities × 10 members', 'Obsidian vault scanner', 'Shadow AI Monitor', '180-day log retention'] },
@@ -163,7 +163,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const track = document.getElementById('toggle-track');
       const thumb = document.getElementById('toggle-thumb');
       if (track) track.style.background = checked ? 'rgba(6,182,212,0.4)' : '#1e293b';
-      if (thumb) { thumb.style.background = checked ? '#0891b2' : '#475569'; thumb.style.left = checked ? '24px' : '3px'; }
+      if (thumb) { thumb.style.background = checked ? '#0e7490' : '#475569'; thumb.style.left = checked ? '24px' : '3px'; }
     }
 
     function renderTierGrid(selected: string) {
@@ -176,7 +176,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <button data-tier="${key}"
                   style="padding:12px 8px;border-radius:12px;text-align:center;cursor:pointer;transition:all 0.15s;
                          ${active ? `background:${t.color}18;border:1.5px solid ${t.color}60;` : 'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);'}">
-            <p style="font-size:12px;font-weight:700;color:${active ? t.color : '#64748b'};margin:0 0 3px">${t.name}</p>
+            <p style="font-size:12px;font-weight:700;color:${active ? t.color : '#556072'};margin:0 0 3px">${t.name}</p>
             <p style="font-size:11px;font-family:monospace;color:${active ? t.color : '#475569'};margin:0;opacity:${active ? 1 : 0.7}">${t.price}</p>
             ${active ? `<span style="display:block;margin-top:5px;font-size:9px;font-weight:700;color:${t.color};text-transform:uppercase;letter-spacing:0.08em">Active</span>` : ''}
           </button>`;
@@ -201,10 +201,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const memLimit  = t.maxMem  === -1 ? 'Unlimited' : t.maxMem  === 0 ? 'None' : `Up to ${t.maxMem}`;
 
       const badge = (on: boolean, label: string) =>
-        `<span style="padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;${on ? `background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2);color:#16a34a` : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);color:#334155;text-decoration:line-through'}">${label}</span>`;
+        `<span style="padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;${on ? `background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2);color:#15803d` : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);color:#334155;text-decoration:line-through'}">${label}</span>`;
 
       el.innerHTML = `
-        <p style="font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 12px">
+        <p style="font-size:12px;font-weight:600;color:#556072;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 12px">
           <span style="color:${t.color}">${t.name}</span> plan — what's included
         </p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
@@ -220,7 +220,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <span style="font-size:14px">${r.icon}</span>
               <div>
                 <p style="font-size:11px;color:#475569;margin:0">${r.label}</p>
-                <p style="font-size:12px;font-weight:600;color:${r.val.includes('Not') ? '#334155' : '#e2e8f0'};margin:0">${r.val}</p>
+                <p style="font-size:12px;font-weight:600;color:${r.val.includes('Not') ? 'var(--ink-4)' : 'var(--ink-1)'};margin:0">${r.val}</p>
               </div>
             </div>
           `).join('')}

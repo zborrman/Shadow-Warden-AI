@@ -198,7 +198,7 @@ accounting, not a payment.`}</pre>
               {g.rows.map(([method, path, desc], i) => (
                 <div class={`flex flex-wrap items-start gap-x-4 gap-y-1 px-5 py-3 text-[12px] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''} ${i < g.rows.length - 1 ? 'border-b border-white/[0.05]' : ''}`}>
                   <span class={`font-black w-12 flex-shrink-0 text-[10px] ${method === 'GET' ? 'text-[color:var(--acc-green)]' : 'text-[color:var(--acc-amber)]'}`}>{method}</span>
-                  <code class="text-[#d4a5f9] break-all sm:w-80 sm:flex-shrink-0">{path}</code>
+                  <code class="text-[color:var(--acc-violet)] break-all sm:w-80 sm:flex-shrink-0">{path}</code>
                   <span class="min-w-0 flex-1" style="color:var(--ink-2)">{desc}</span>
                 </div>
               ))}

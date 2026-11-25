@@ -124,8 +124,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     let communityId = '';
 
     const TIERS: Record<string, any> = {
-      starter:           { name:'Starter',           color:'#64748b', obs:false, slack:false, pqc:false, price:'Free'    },
-      individual:        { name:'Individual',         color:'#0891b2', obs:false, slack:false, pqc:false, price:'$5/mo'   },
+      starter:           { name:'Starter',           color:'#556072', obs:false, slack:false, pqc:false, price:'Free'    },
+      individual:        { name:'Individual',         color:'#0e7490', obs:false, slack:false, pqc:false, price:'$5/mo'   },
       community_business:{ name:'Community Business', color:'#9333ea', obs:true,  slack:false, pqc:false, price:'$39.99/mo'  },
     };
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
@@ -139,7 +139,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div style="text-align:center;padding:32px 20px">
           <p style="font-size:36px;margin-bottom:12px">🔒</p>
           <p style="font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px">Not part of any plan</p>
-          <p style="font-size:13px;color:#64748b">This integration is built, and no plan includes it today.</p>
+          <p style="font-size:13px;color:#556072">This integration is built, and no plan includes it today.</p>
         </div>`;
         return;
       }
@@ -147,13 +147,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div style="text-align:center;padding:32px 20px">
           <p style="font-size:36px;margin-bottom:12px">🔒</p>
           <p style="font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px">${rt.name} plan required</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px">Upgrade to unlock this integration</p>
+          <p style="font-size:13px;color:#556072;margin-bottom:20px">Upgrade to unlock this integration</p>
           <a href="/price"
              style="display:inline-block;padding:11px 28px;background:${rt.color};border-radius:10px;color:#fff;text-decoration:none;font-size:13px;font-weight:700">
             Upgrade to ${rt.name} — ${rt.price} →
           </a>
           <p style="font-size:11px;color:#334155;margin-top:12px">
-            Change your simulated plan in <a href="/account" style="color:#0891b2">Account settings</a>
+            Change your simulated plan in <a href="/account" style="color:#0e7490">Account settings</a>
           </p>
         </div>`;
     }
@@ -191,10 +191,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         nav.innerHTML = tabs.map(t => `
           <a href="${t.href}"
              style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0891b2'
-                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0e7490'
+                               : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#556072'};
                     transition:all 0.15s"
-             ${!t.active ? `onmouseover="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+             ${!t.active ? `onmouseover="this.style.color='#556072';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#556072';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
             ${t.label}
           </a>`).join('');
       }
@@ -211,15 +211,15 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     ];
 
     const VERDICT_STYLE: Record<string, string> = {
-      SAFE:    'background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a',
-      WARNING: 'background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25);color:#d97706',
-      BLOCKED: 'background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.25);color:#e11d48',
+      SAFE:    'background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#15803d',
+      WARNING: 'background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25);color:var(--acc-amber)',
+      BLOCKED: 'background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.25);color:#be123c',
     };
 
     const CLASS_STYLE: Record<string, string> = {
       GENERAL: 'color:var(--ink-3)',
-      PII:     'color:#d97706',
-      SECRET:  'color:#e11d48',
+      PII:     'color:var(--acc-amber)',
+      SECRET:  'color:#be123c',
     };
 
     function updateObsidianUI(cfg: any) {
@@ -227,7 +227,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const badge = document.getElementById('obs-status-badge')!;
       badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
       badge.style.cssText = connected
-        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a'
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#15803d'
         : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
 
       const scanBtn = document.getElementById('obs-scan-btn') as HTMLButtonElement;
@@ -262,10 +262,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <span style="padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace;flex-shrink:0;${VERDICT_STYLE[n.verdict]}">${n.verdict}</span>
           ${n.verdict !== 'BLOCKED' ? `
           <button data-note="${esc(n.name)}" class="share-note-btn"
-                  style="padding:4px 10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:6px;color:#0891b2;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s"
+                  style="padding:4px 10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:6px;color:#0e7490;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s"
                   onmouseover="this.style.background='rgba(6,182,212,0.18)'" onmouseout="this.style.background='rgba(6,182,212,0.08)'">
             Share
-          </button>` : `<span style="font-size:11px;color:#e11d48;flex-shrink:0">🚫 Blocked</span>`}
+          </button>` : `<span style="font-size:11px;color:#be123c;flex-shrink:0">🚫 Blocked</span>`}
         </div>
       `).join('');
 
@@ -296,10 +296,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       document.getElementById('obs-scan-btn')!.addEventListener('click', () => {
         const msg = document.getElementById('obs-scan-msg')!;
-        msg.style.color = '#0891b2';
+        msg.style.color = '#0e7490';
         msg.textContent = 'Scanning vault…';
         setTimeout(() => {
-          msg.style.color = '#16a34a';
+          msg.style.color = '#15803d';
           msg.textContent = `✓ Scanned ${MOCK_NOTES.length} notes — ${MOCK_NOTES.filter(n => n.verdict !== 'SAFE').length} issue(s) found`;
           cfg.obs_results = MOCK_NOTES;
           saveIntegrations(communityId, cfg);
@@ -321,7 +321,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const badge = document.getElementById('slack-status-badge')!;
       badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
       badge.style.cssText = connected
-        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a'
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#15803d'
         : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
 
       const urlInput = document.getElementById('slack-url') as HTMLInputElement;

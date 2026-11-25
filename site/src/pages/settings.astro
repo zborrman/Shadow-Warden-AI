@@ -1248,7 +1248,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
   .badge-green  { color: var(--acc-green); background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
   .badge-amber  { color: var(--acc-amber); background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); }
   .badge-blue   { color: var(--acc-cyan); background: rgba(56,189,248,0.10); border: 1px solid rgba(56,189,248,0.2); }
-  .badge-purple { color: #c084fc; background: rgba(192,132,252,0.10); border: 1px solid rgba(192,132,252,0.2); }
+  .badge-purple { color: var(--acc-violet); background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.2); }
 
   /* Info box */
   .info-box {
@@ -1262,7 +1262,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
   }
   .info-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
   .info-title { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--acc-amber); margin-bottom: 3px; }
-  .info-body  { font-size: 11px; color: #78716c; line-height: 1.5; }
+  .info-body  { font-size: 11px; color: #57534e; line-height: 1.5; }
   .info-mono  { font-family: monospace; font-size: 10px; color: var(--ink-3); }
 
   /* Mono hint */
@@ -1609,7 +1609,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           <code class="key-preview">••••••••••••••••</code>
         </div>
         <div class="key-actions">
-          <button class="btn-secondary-sm" style="color:#ef4444;border-color:rgba(239,68,68,0.3)" onclick="deleteSecret('${s.id}')">Delete</button>
+          <button class="btn-secondary-sm" style="color:#b91c1c;border-color:rgba(239,68,68,0.3)" onclick="deleteSecret('${s.id}')">Delete</button>
         </div>
       </div>`).join('');
   }
@@ -1648,8 +1648,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
       const statusEl = document.getElementById('plan-status')!;
       statusEl.textContent = data.status ?? '—';
       statusEl.style.cssText = data.status === 'active'
-        ? 'color:#059669;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)'
-        : 'color:#d97706;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)';
+        ? 'color:#047857;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)'
+        : 'color:var(--acc-amber);background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)';
 
       const renewsEl = document.getElementById('plan-renews')!;
       if (data.renewsAt)
@@ -1716,7 +1716,7 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
           : 'Classical only (Ed25519 + X25519) — liboqs not detected';
       }
       if (statusDot) {
-        statusDot.style.background = pqcAvail ? '#059669' : '#d97706';
+        statusDot.style.background = pqcAvail ? '#047857' : '#b45309';
       }
       // Enable toggles if tier is enterprise
       const tier = (localStorage.getItem('sw-billing-tier') ?? '').toLowerCase();

@@ -11,7 +11,7 @@ interface Props {
   features: Feature[];
   accent?: string;
 }
-const { features, accent = '#3b82f6' } = Astro.props;
+const { features, accent = '#1d4ed8' } = Astro.props;
 
 const statusLabel: Record<string, string> = {
   shipped:     '✅ Shipped',
@@ -29,13 +29,13 @@ const tierColor: Record<string, string> = {
   'Individual':         'rgba(16,185,129,.12)',
 };
 const tierText: Record<string, string> = {
-  'All':                '#94a3b8',
-  'Individual+':        '#059669',
-  'Community Business+':'#0284c7',
-  'Community Business': '#0284c7',
-  'Not on a plan':         '#0891b2',
-  'Starter':            '#94a3b8',
-  'Individual':         '#059669',
+  'All':                '#556072',
+  'Individual+':        '#047857',
+  'Community Business+':'#0369a1',
+  'Community Business': '#0369a1',
+  'Not on a plan':         '#0e7490',
+  'Starter':            '#556072',
+  'Individual':         '#047857',
 };
 ---
 

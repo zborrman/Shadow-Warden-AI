@@ -452,7 +452,7 @@ const settingsTabs = [
             <div class="grid grid-cols-2 gap-2 text-[10px]">
               {[['33 Landing HTML pages','<script defer>'],['Astro site','AccessibilityWidget.astro'],['Next.js portal','"use client" component'],['Streamlit dashboards','inject_accessibility_widget()'],['Browser extension','popup.html relative path'],['Alt+A keyboard shortcut','global toggle']].map(([surface, impl]) => (
                 <div class="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                  <span class="text-[#16a34a] mt-0.5 flex-shrink-0">✓</span>
+                  <span class="text-[#15803d] mt-0.5 flex-shrink-0">✓</span>
                   <div><div class="text-[color:var(--ink-1)] font-medium">{surface}</div><div class="text-[#48485A] font-mono">{impl}</div></div>
                 </div>
               ))}
@@ -462,8 +462,8 @@ const settingsTabs = [
 
         <!-- INSTALL / UNINSTALL -->
         <div id="spanel-install" class="settings-panel hidden">
-          <div class="p-4 rounded-xl border border-[#16a34a]/20 bg-[#16a34a]/[0.04] mb-5">
-            <div class="text-[13px] font-bold text-[#16a34a] mb-1">Install &amp; Uninstall — Shadow Warden AI v4.11</div>
+          <div class="p-4 rounded-xl border border-[#15803d]/20 bg-[#15803d]/[0.04] mb-5">
+            <div class="text-[13px] font-bold text-[#15803d] mb-1">Install &amp; Uninstall — Shadow Warden AI v4.11</div>
             <div class="text-[10px] text-[color:var(--ink-3)]">Self-contained Docker stack. All 11 services start with a single command. No external dependencies.</div>
           </div>
 
@@ -472,21 +472,21 @@ const settingsTabs = [
             <div class="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-3)] mb-3">Quick Install (Community Business Edition)</div>
             <div class="space-y-2 text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4">
               <div><span class="text-[color:var(--ink-3)]"># 1. Clone</span></div>
-              <div class="text-[#059669]">git clone https://github.com/zborrman/Shadow-Warden-AI.git</div>
-              <div class="text-[#059669]">cd Shadow-Warden-AI</div>
+              <div class="text-[#047857]">git clone https://github.com/zborrman/Shadow-Warden-AI.git</div>
+              <div class="text-[#047857]">cd Shadow-Warden-AI</div>
               <div class="mt-2"><span class="text-[color:var(--ink-3)]"># 2. Configure</span></div>
-              <div class="text-[#059669]">cp .env.example .env  <span class="text-[#48485A]"># edit SECRET_KEY, WARDEN_API_KEY, POSTGRES_PASS</span></div>
+              <div class="text-[#047857]">cp .env.example .env  <span class="text-[#48485A]"># edit SECRET_KEY, WARDEN_API_KEY, POSTGRES_PASS</span></div>
               <div class="mt-2"><span class="text-[color:var(--ink-3)]"># 3. Start all 11 services</span></div>
-              <div class="text-[#059669]">docker compose up --build -d</div>
+              <div class="text-[#047857]">docker compose up --build -d</div>
               <div class="mt-2"><span class="text-[color:var(--ink-3)]"># 4. Verify</span></div>
-              <div class="text-[#059669]">python scripts/warden_doctor.py --url http://localhost --key $WARDEN_API_KEY</div>
+              <div class="text-[#047857]">python scripts/warden_doctor.py --url http://localhost --key $WARDEN_API_KEY</div>
             </div>
           </div>
 
           <!-- SMB one-click -->
           <div class="mb-5">
             <div class="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-3)] mb-3">One-Click SMB Installer</div>
-            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 text-[#059669]">
+            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 text-[#047857]">
               curl -fsSL https://raw.githubusercontent.com/zborrman/Shadow-Warden-AI/main/scripts/install.sh | sudo bash
             </div>
             <div class="text-[10px] text-[#48485A] mt-2">Handles Docker install, .env generation, secrets, MinIO bucket init, health checks, and first-request smoke test.</div>
@@ -521,7 +521,7 @@ const settingsTabs = [
           <!-- Update -->
           <div class="mb-5">
             <div class="text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink-3)] mb-3">Update to Latest</div>
-            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 space-y-1 text-[#059669]">
+            <div class="text-[11px] font-mono bg-[#03050F] border border-white/[0.06] rounded-xl p-4 space-y-1 text-[#047857]">
               <div>git pull origin main</div>
               <div>docker compose pull</div>
               <div>docker compose up --build -d</div>
@@ -531,7 +531,7 @@ const settingsTabs = [
           <!-- Uninstall -->
           <div class="p-4 rounded-xl border border-[#FF3B30]/20 bg-[#FF3B30]/[0.04]">
             <div class="text-[12px] font-bold text-[#FF3B30] mb-3">Uninstall</div>
-            <div class="space-y-2 text-[11px] font-mono bg-[#03050F] rounded-lg p-4 text-[#ef4444]">
+            <div class="space-y-2 text-[11px] font-mono bg-[#03050F] rounded-lg p-4 text-[#b91c1c]">
               <div><span class="text-[color:var(--ink-3)]"># Stop + remove containers (keep volumes)</span></div>
               <div>docker compose down</div>
               <div class="mt-2"><span class="text-[color:var(--ink-3)]"># Full wipe — removes all data volumes</span></div>
@@ -545,7 +545,7 @@ const settingsTabs = [
 
         <!-- Integration Guide panel -->
         <div id="spanel-guide" class="settings-panel hidden">
-          <div class="text-[13px] font-bold text-[#3b82f6] mb-3">Integration Guide v4.11</div>
+          <div class="text-[13px] font-bold text-[#1d4ed8] mb-3">Integration Guide v4.11</div>
           <p class="text-[12px] text-[color:var(--ink-3)] mb-4">Full deployment playbook — segment strategies, hybrid architecture, ROI models, v4.x platform pillars, and Obsidian community integration.</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
             {[
@@ -563,7 +563,7 @@ const settingsTabs = [
             ))}
           </div>
           <a href="/integration-guide" target="_blank"
-             class="inline-flex items-center gap-2 bg-[#3b82f6] text-[#0D0D1A] text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#3b82f6] transition-colors">
+             class="inline-flex items-center gap-2 bg-[#1d4ed8] text-[#0D0D1A] text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#1d4ed8] transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             Open Integration Guide v4.11
           </a>

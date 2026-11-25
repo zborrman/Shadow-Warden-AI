@@ -87,7 +87,7 @@
             { label: 'Total requests',    value: '28,492', sub: '+12.4% vs yesterday', accent: 'var(--acc-blue)', vc: null },
             { label: 'Blocked',           value: '1,384',  sub: '4.86% block rate',    accent: 'var(--acc-red)', vc: 'var(--acc-red)' },
             { label: 'Avg latency',       value: '14ms',   sub: 'p99 31ms',             accent: 'var(--acc-green)', vc: null },
-            { label: 'Secrets stripped',  value: '312',    sub: 'API keys · PII · IBANs', accent: '#22d3ee', vc: '#22d3ee' },
+            { label: 'Secrets stripped',  value: '312',    sub: 'API keys · PII · IBANs', accent: '#0e7490', vc: '#0e7490' },
           ].map(k => (
             <div class="rounded-xl p-4 relative overflow-hidden cursor-pointer"
                  style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
@@ -128,7 +128,7 @@
                 </div>
                 {i < 4 && (
                   <div class="absolute flex items-center justify-center" style="right:-9px;top:40px;z-index:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </div>
@@ -140,7 +140,7 @@
           <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(4,1fr)">
             {[
               { num: '06', label: 'Phish',    sub: 'URL + social engineering',  color: 'var(--acc-cyan)' },
-              { num: '07', label: 'ERS',      sub: 'Redis sliding window ban',  color: '#ec4899' },
+              { num: '07', label: 'ERS',      sub: 'Redis sliding window ban',  color: '#be185d' },
               { num: '08', label: 'XAI',      sub: '9-stage causal chain',      color: 'var(--acc-cyan)' },
               { num: '09', label: 'Decision', sub: 'ALLOW / HIGH / BLOCK',      color: 'var(--acc-green)' },
             ].map((s, i) => (
@@ -157,7 +157,7 @@
                 </div>
                 {i < 3 && (
                   <div class="absolute flex items-center justify-center" style="right:-9px;top:36px;z-index:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </div>
@@ -306,8 +306,8 @@ function initTimeline() {
   const ch = new window.Chart(el, {
     type: 'line',
     data: { labels, datasets: [
-      { data, borderColor: '#3b82f6', backgroundColor: 'rgba(128,180,253,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-      { data: blocked, borderColor: '#ef4444', backgroundColor: 'rgba(248,113,113,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 },
+      { data, borderColor: '#1d4ed8', backgroundColor: 'rgba(128,180,253,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+      { data: blocked, borderColor: '#b91c1c', backgroundColor: 'rgba(248,113,113,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 },
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                scales: { x: { display: false }, y: { display: false } } }
@@ -336,7 +336,7 @@ function initDonut() {
     },
     options: { responsive: true, maintainAspectRatio: false, cutout: '68%',
                plugins: { legend: { display: true, position: 'right',
-                 labels: { color: '#64748b', font: { size: 10 }, boxWidth: 10 } } } }
+                 labels: { color: '#556072', font: { size: 10 }, boxWidth: 10 } } } }
   });
 }
 
@@ -366,10 +366,10 @@ const EVENTS = [
   { d: 'ALLOWED', r: 'LOW',   f: '—',                           lat: 7  },
 ];
 const RISK_COLORS = {
-  LOW:   { bg: 'rgba(52,211,153,0.12)',  fg: '#059669' },
-  MEDIUM:{ bg: 'rgba(251,191,36,0.12)', fg: '#d97706' },
-  HIGH:  { bg: 'rgba(248,113,113,0.15)',fg: '#ef4444' },
-  BLOCK: { bg: 'rgba(239,68,68,0.20)',  fg: '#ef4444' },
+  LOW:   { bg: 'rgba(52,211,153,0.12)',  fg: '#047857' },
+  MEDIUM:{ bg: 'rgba(251,191,36,0.12)', fg: '#b45309' },
+  HIGH:  { bg: 'rgba(248,113,113,0.15)',fg: '#b91c1c' },
+  BLOCK: { bg: 'rgba(239,68,68,0.20)',  fg: '#b91c1c' },
 };
 
 let feedPaused = false;
@@ -386,10 +386,10 @@ function makeRow(ev) {
   row.style.cssText = 'grid-template-columns:60px 80px 70px 1fr 60px;align-items:center;font-size:11px';
   row.innerHTML = `
     <span style="font-family:monospace;color:#475569">${ev.t || timeStr()}</span>
-    <span style="font-weight:600;color:${ev.d === 'BLOCKED' ? '#ef4444' : '#059669'}">${ev.d}</span>
+    <span style="font-weight:600;color:${ev.d === 'BLOCKED' ? '#b91c1c' : '#047857'}">${ev.d}</span>
     <span style="padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;background:${c.bg};color:${c.fg};display:inline-block">${ev.r}</span>
     <span style="color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.f}</span>
-    <span style="font-family:monospace;color:#64748b;text-align:right">${ev.lat}ms</span>
+    <span style="font-family:monospace;color:#556072;text-align:right">${ev.lat}ms</span>
   `;
   return row;
 }

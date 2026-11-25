@@ -11,34 +11,34 @@ const modules = [
     points: ['Möbius addition in hyperbolic space', 'Vectorized distance: d(x,y) = 2·arctanh(‖-x⊕y‖)', 'Hierarchical attack pattern detection', 'Pure NumPy — no GPU required'],
   },
   {
-    icon: '🤖', color: '#16a34a', title: 'Evolution Engine',
+    icon: '🤖', color: '#15803d', title: 'Evolution Engine',
     file: 'brain/evolve.py + intel_bridge.py',
     points: ['Claude Opus 4.6 auto-generates attack examples', 'Triggers on every BLOCK/HIGH event', 'Hot-reloads corpus without service restart', 'ArXiv → synthesize_from_intel() pipeline'],
   },
   {
-    icon: '🧬', color: '#ea580c', title: 'Data Poisoning Guard',
+    icon: '🧬', color: '#c2410c', title: 'Data Poisoning Guard',
     file: 'brain/poison.py',
     points: ['Training data poisoning detection (LLM03)', 'Uses _load_model() lru_cache singleton', 'Integrates into filter pipeline stage 3b', 'Mapped to OWASP LLM03 (training-data poisoning)'],
   },
   {
-    icon: '⚡', color: '#0284c7', title: 'ONNX Runtime',
+    icon: '⚡', color: '#0369a1', title: 'ONNX Runtime',
     file: 'brain/onnx_runner.py',
     points: ['CPU-only torch — no CUDA required', 'Pre-warmed in FastAPI lifespan()', '@lru_cache maxsize=1 singleton', 'asyncio.get_running_loop() — non-deprecated'],
   },
   {
-    icon: '🔍', color: '#e11d48', title: 'FAISS + RAG Evolver',
+    icon: '🔍', color: '#be123c', title: 'FAISS + RAG Evolver',
     file: 'brain/faiss_index.py + rag_evolver.py',
     points: ['FAISS vector index for fast similarity search', 'RAG-based corpus evolution pipeline', 'Nemotron alternative evolver (NVIDIA API)', 'Corpus snapshot atomicity via mkstemp()'],
   },
 ];
 
 const evolutionSteps = [
-  { label: 'BLOCK event', color: '#e11d48' },
+  { label: 'BLOCK event', color: '#be123c' },
   { label: 'Claude Opus processes', color: '#9333ea' },
-  { label: 'Generates examples', color: '#d97706' },
+  { label: 'Generates examples', color: '#b45309' },
   { label: 'add_examples()', color: '#2563eb' },
-  { label: 'Hot-reload corpus', color: '#16a34a' },
-  { label: 'Model smarter', color: '#16a34a' },
+  { label: 'Hot-reload corpus', color: '#15803d' },
+  { label: 'Model smarter', color: '#15803d' },
 ];
 ---
 
@@ -111,21 +111,21 @@ const evolutionSteps = [
               <!-- Outer circle -->
               <circle cx="0" cy="0" r="1" fill="none" stroke="#2563eb" stroke-width="0.02" opacity="0.3"/>
               <!-- Geodesic arcs representing threat clusters -->
-              <path d="M -0.7,-0.4 Q 0.2,0.8 0.7,-0.2" fill="none" stroke="#e11d48" stroke-width="0.025" opacity="0.5"/>
+              <path d="M -0.7,-0.4 Q 0.2,0.8 0.7,-0.2" fill="none" stroke="#be123c" stroke-width="0.025" opacity="0.5"/>
               <path d="M -0.5,0.6 Q 0.1,-0.3 0.8,0.3" fill="none" stroke="#9333ea" stroke-width="0.025" opacity="0.5"/>
-              <path d="M 0.2,-0.8 Q -0.4,0.1 -0.6,0.5" fill="none" stroke="#d97706" stroke-width="0.025" opacity="0.4"/>
+              <path d="M 0.2,-0.8 Q -0.4,0.1 -0.6,0.5" fill="none" stroke="#b45309" stroke-width="0.025" opacity="0.4"/>
               <!-- Threat cluster dots (dangerous zone near boundary) -->
-              <circle cx="-0.72" cy="-0.42" r="0.05" fill="#e11d48" opacity="0.9"/>
-              <circle cx="-0.68" cy="-0.51" r="0.04" fill="#e11d48" opacity="0.7"/>
-              <circle cx="-0.78" cy="-0.35" r="0.04" fill="#e11d48" opacity="0.7"/>
-              <circle cx="0.71" cy="-0.22" r="0.05" fill="#ea580c" opacity="0.9"/>
-              <circle cx="0.65" cy="-0.32" r="0.04" fill="#ea580c" opacity="0.7"/>
+              <circle cx="-0.72" cy="-0.42" r="0.05" fill="#be123c" opacity="0.9"/>
+              <circle cx="-0.68" cy="-0.51" r="0.04" fill="#be123c" opacity="0.7"/>
+              <circle cx="-0.78" cy="-0.35" r="0.04" fill="#be123c" opacity="0.7"/>
+              <circle cx="0.71" cy="-0.22" r="0.05" fill="#c2410c" opacity="0.9"/>
+              <circle cx="0.65" cy="-0.32" r="0.04" fill="#c2410c" opacity="0.7"/>
               <!-- Safe zone (center) -->
-              <circle cx="0.05" cy="0.08" r="0.07" fill="#16a34a" opacity="0.8"/>
-              <circle cx="0.12" cy="-0.05" r="0.05" fill="#16a34a" opacity="0.6"/>
-              <circle cx="-0.06" cy="0.12" r="0.05" fill="#16a34a" opacity="0.6"/>
+              <circle cx="0.05" cy="0.08" r="0.07" fill="#15803d" opacity="0.8"/>
+              <circle cx="0.12" cy="-0.05" r="0.05" fill="#15803d" opacity="0.6"/>
+              <circle cx="-0.06" cy="0.12" r="0.05" fill="#15803d" opacity="0.6"/>
               <!-- Gray zone -->
-              <circle cx="0.38" cy="0.42" r="0.05" fill="#d97706" opacity="0.8"/>
+              <circle cx="0.38" cy="0.42" r="0.05" fill="#b45309" opacity="0.8"/>
               <circle cx="-0.3" cy="0.48" r="0.05" fill="#9333ea" opacity="0.7"/>
               <!-- Center reference -->
               <circle cx="0" cy="0" r="0.02" fill="#2563eb" opacity="0.5"/>

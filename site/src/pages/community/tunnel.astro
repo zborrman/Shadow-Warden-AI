@@ -121,10 +121,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       nav.innerHTML = tabs.map(t => `
         <a href="${t.href}"
            style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0891b2'
-                             : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
+                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0e7490'
+                             : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#556072'};
                   transition:all 0.15s"
-           ${!t.active ? `onmouseover="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+           ${!t.active ? `onmouseover="this.style.color='#556072';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#556072';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
           ${t.label}
         </a>
       `).join('');
@@ -163,7 +163,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               </p>
               <div style="padding:10px 14px;border-radius:${isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};
                           ${isMe ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.25)' : 'background:var(--sw-surf-1);border:1px solid rgba(255,255,255,0.08)'}">
-                <p style="font-size:10px;color:#16a34a;font-family:monospace;margin:0 0 4px;font-weight:600">Demo · unencrypted</p>
+                <p style="font-size:10px;color:#15803d;font-family:monospace;margin:0 0 4px;font-weight:600">Demo · unencrypted</p>
                 <p style="font-size:14px;color:var(--ink-1);margin:0;line-height:1.5;word-break:break-word">${esc(m.text)}</p>
               </div>
             </div>
@@ -185,7 +185,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const track = document.getElementById('disappearing-track');
       const thumb = document.getElementById('disappearing-thumb');
       if (track) track.style.background = enabled ? 'rgba(6,182,212,0.4)' : '#1e293b';
-      if (thumb) { thumb.style.background = enabled ? '#0891b2' : '#475569'; thumb.style.left = enabled ? '20px' : '2px'; }
+      if (thumb) { thumb.style.background = enabled ? '#0e7490' : '#475569'; thumb.style.left = enabled ? '20px' : '2px'; }
     }
 
     function init() {
@@ -193,14 +193,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       myUserId = localStorage.getItem('sw_user_id') || 'USER-ANON';
 
       if (!communityId) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">No community ID. <a href="/community" style="color:#0891b2">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#be123c">No community ID. <a href="/community" style="color:#0e7490">Back</a></div>`;
         return;
       }
 
       const comms = loadCommunities();
       const c = comms.find((x: any) => x.id === communityId);
       if (!c) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">Community not found. <a href="/community" style="color:#0891b2">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#be123c">Community not found. <a href="/community" style="color:#0e7490">Back</a></div>`;
         return;
       }
 
