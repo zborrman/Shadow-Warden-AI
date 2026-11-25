@@ -179,6 +179,10 @@ system), `ui-ux-pro-max` (vendored design-intelligence database — styles,
 palettes, font pairings, per-stack rules; queried via `scripts/search.py`,
 offline), and thirteen web UI and motion skills vendored from `emilkowalski/skills`
 (`review-animations`, `break-ui`, `emil-design-eng` and others; listed in the README).
+Three project agents live in `.claude/agents/` (2026-11-25): `seller-claims-reviewer`
+(read-only review of seller copy against SP-06/SP-07/the Claims Rule),
+`amazon-policy-researcher` (one sourced, dated draft rule for S2, human-approved)
+and `seller-reply-drafter` (buyer/case/appeal drafts, always `PENDING_REVIEW`).
 Everything else is machine-scoped — plugins and built-ins that must be
 installed per machine.
 

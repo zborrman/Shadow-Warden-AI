@@ -51,6 +51,24 @@ because this repo has no mobile or Apple app.
 | `pick-ui-library` | Choosing a frontend library. A new dependency still needs the usual review. |
 | `ask-sonner` | Working with the Sonner toast library. The portal uses `react-hot-toast` today, so this has no anchor until that changes. |
 
+## Project agents (`.claude/agents/`)
+
+Subagents, tracked in git and written for this product's rules (SP-01…SP-07,
+the Claims Rule). Each one reads `CLAUDE.md` and its sources at run time instead
+of carrying a copy of the rules, so a rule change needs no edit here. None of
+them writes files.
+
+| Agent | Use when |
+|-------|----------|
+| `seller-claims-reviewer` | Before merging a change to seller-facing copy or `seller_kb.md`: banned phrases (including paraphrases the exact-match test misses), verdicts instead of risk, undated thresholds, claims above their matrix row. |
+| `amazon-policy-researcher` | A rule, threshold or deadline needs a source: returns one draft registry record (source URL, exact quote, dates, `verified_at`, `state: draft`) for a person to approve (SP-05). |
+| `seller-reply-drafter` | A buyer message, case reply or Plan of Action draft, always `PENDING_REVIEW`; the seller sends it (SP-03). |
+
+Considered and not adopted (2026-11-25): `msitarzewski/agency-agents` — ~330
+generic persona prompts with invented "memories" and experience, overlapping the
+council, backend-design and design plugins already installed; its one Amazon
+agent is unsourced marketing advice that would break SP-05/SP-06.
+
 ## Core toolkit
 
 | Skill | Anchor | Use when |
