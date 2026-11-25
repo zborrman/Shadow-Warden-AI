@@ -47,9 +47,11 @@ _CONFIG = _ROOT / ".gitleaks.toml"
 #: key monkeypatched into auth_guard for one test, valid on no deployment;
 #: built without a literal in fa301847.
 #: 2026-11-25 (+1, #814): commit c63a3df2, site/src/layouts/BaseLayout.astro:566
-#: - `const KEY = 'sw_banner_v52_dismissed'`, a sessionStorage key name in the
-#: page's own script; no credential. Renamed to BANNER_STORE in 74d9e39d.
-BASELINE_FINDINGS = 25
+#: - a constant named KEY holding the announcement strip's sessionStorage key
+#: name in the page's own script; no credential. Renamed in 74d9e39d.
+#: 2026-11-25 (+1, #814): commit 33e73ada, this file, line 50 - the comment
+#: above quoted that same line verbatim; reworded in the next commit.
+BASELINE_FINDINGS = 26
 
 _FINGERPRINT = re.compile(r"^[0-9a-f]{40}:[^:\s]+:[a-z0-9.\-]+:\d+$")
 
