@@ -127,6 +127,25 @@ components:
 
 # Design System: Shadow Warden AI
 
+## Site shell and theme (2026-11-25)
+
+The marketing site (`site/`) is **light by default** with a real light palette;
+dark is opt-in (`html.dark`, stored under `sw-theme-v2` only when the visitor
+chooses it). The old light theme was a CSS `invert()` over the page and is gone.
+Every colour resolves through `site/src/styles/global.css`: `--ink-1..5`
+(foreground, strongest to quietest), `--on-acc` (text on a filled accent),
+`--ink-rgb` / `--acc-blue-rgb` (rgb triples for hairlines and overlays),
+`--acc-*` (signal hues; the light values are the dark hues darkened to pass
+4.5:1 on white), `--sw-bg/surf-*/side/border/line`. Never type a colour into a
+page: a literal is correct in one theme only. Values that feed a canvas or a
+`${hex}NN` alpha concatenation stay hex and use a mid-tone that reads on both.
+
+Navigation is a **left sidebar** (`site/src/styles/shell.css`), modelled on the
+SOC dashboard: quick links (sellers, Docs, Pricing), then the five hubs as
+collapsible sections — 8 px hub-colour square, mono uppercase label, chevron —
+with an icon per item. The hub holding the current page is open; the rest keep
+the visitor's choice. Below 1024 px it becomes a top bar and a drawer.
+
 ## Overview
 
 **Creative North Star: "The Night Watch Console"**

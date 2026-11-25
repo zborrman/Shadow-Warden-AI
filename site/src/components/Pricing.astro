@@ -26,7 +26,7 @@ const tiers = [
   },
   {
     name: 'Community Business', price: 39.99,
-    accent: 'var(--sw-green)', accentHex: '#34d399',
+    accent: 'var(--sw-green)', accentHex: '#059669',
     cta: 'Start Free Trial',
     features: [
       { text: '15 000 req/month',              ok: true },
@@ -120,7 +120,7 @@ const addons = [
             {t.features.map(f => (
               <li class={`flex items-start gap-2 text-[11px] ${f.ok === false ? 'opacity-30' : ''}`}>
                 <span class="mt-0.5 text-[10px] font-bold flex-shrink-0"
-                      style={`color:${f.ok ? t.accentHex : f.ok === null ? '#64748b' : '#334155'}`}>
+                      style={`color:${f.ok ? t.accentHex : f.ok === null ? 'var(--ink-4)' : 'var(--ink-5)'}`}>
                   {f.ok ? '✓' : f.ok === null ? '◦' : '✗'}
                 </span>
                 <span style={`color:${f.ok === false ? 'var(--sw-fg-4)' : f.ok === null ? 'var(--sw-fg-3)' : 'var(--sw-fg-2)'}`}>

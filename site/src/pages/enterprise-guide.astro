@@ -7,7 +7,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   title={`Integration & Deployment Guide ${PRODUCT.display} — Shadow Warden AI`}
   description="Complete enterprise deployment guide for Shadow Warden AI. Architecture, configuration, Agentic SOC, Post-Quantum Crypto, Shadow AI Governance, XAI 2.0, AI Analytics Hub, Application Factory, Unit Economics, Agent-to-Agent Protocol, compliance."
 >
-<div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
+<div class="bg-[var(--sw-bg)] text-[color:var(--ink-1)] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
   <!-- Top bar -->
   <div class="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
@@ -17,19 +17,19 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <div class="flex items-center gap-3 mb-6">
         <img src="/logo.png" alt="Shadow Warden AI" style="width:48px;height:48px;border-radius:12px;display:block;object-fit:cover" />
         <div>
-          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FF2D55]">Shadow Warden AI</div>
-          <div class="text-[12px] text-[#64748b]">Deployment Documentation</div>
+          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[color:var(--acc-red)]">Shadow Warden AI</div>
+          <div class="text-[12px] text-[color:var(--ink-4)]">Deployment Documentation</div>
         </div>
       </div>
       <h1 class="text-[36px] font-bold leading-tight mb-3" style="letter-spacing:-0.5px">
         Integration &amp;<br/>Deployment Guide
       </h1>
       <div class="flex items-center gap-4 mb-6">
-        <span class="text-[13px] font-semibold text-[#FF2D55]">Version 7.10</span>
-        <span class="text-[#48485A]">·</span>
-        <span class="text-[13px] text-[#64748b]">Proprietary &amp; Confidential</span>
+        <span class="text-[13px] font-semibold text-[color:var(--acc-red)]">Version 7.10</span>
+        <span class="text-[color:var(--ink-5)]">·</span>
+        <span class="text-[13px] text-[color:var(--ink-4)]">Proprietary &amp; Confidential</span>
       </div>
-      <p class="text-[15px] leading-relaxed max-w-[680px]" style="color:#94a3b8">
+      <p class="text-[15px] leading-relaxed max-w-[680px]" style="color:var(--ink-3)">
         Complete deployment playbook covering the nine-stage filter pipeline, Agentic SOC (SOVA + MasterAgent),
         Post-Quantum Cryptography, Shadow AI Governance, Explainable AI 2.0, Sovereign Cloud routing,
         SEP Communities, Semantic Layer (Headless BI), Settings Hub, API integration, compliance, and high-availability configuration.
@@ -43,17 +43,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           ['9 stages', 'Filter pipeline'],
           ['GDPR', 'Content never logged'],
         ].map(([val, label]) => (
-          <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+          <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="text-[22px] font-bold text-white mb-1">{val}</div>
-            <div class="text-[11px] text-[#64748b]">{label}</div>
+            <div class="text-[11px] text-[color:var(--ink-4)]">{label}</div>
           </div>
         ))}
       </div>
 
       <!-- TOC -->
-      <div class="mt-10 rounded-2xl border border-white/[0.07] overflow-hidden" style="background:rgba(255,255,255,0.02)">
+      <div class="mt-10 rounded-2xl border border-white/[0.07] overflow-hidden" style="background:rgba(var(--ink-rgb),0.02)">
         <div class="px-6 py-4 border-b border-white/[0.06]">
-          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#64748b]">Table of Contents</div>
+          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[color:var(--ink-4)]">Table of Contents</div>
         </div>
         <div class="grid sm:grid-cols-2 p-6 gap-x-12 gap-y-2">
           {[
@@ -69,8 +69,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             ['10', 'Configuration Reference'],
           ].map(([n, title]) => (
             <a href={`#s${n}`} class="flex items-baseline gap-3 py-1.5 group">
-              <span class="text-[11px] font-mono text-[#FF2D55] w-5 flex-shrink-0">{n}</span>
-              <span class="text-[13px] text-[#94a3b8] group-hover:text-white transition-colors">{title}</span>
+              <span class="text-[11px] font-mono text-[color:var(--acc-red)] w-5 flex-shrink-0">{n}</span>
+              <span class="text-[13px] text-[color:var(--ink-3)] group-hover:text-white transition-colors">{title}</span>
             </a>
           ))}
         </div>
@@ -80,10 +80,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <!-- SECTION 1 -->
     <section id="s1" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">01</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">01</span>
         <h2 class="text-[24px] font-bold">Executive Summary &amp; Business Case</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
         Shadow Warden AI is a zero-trust AI security gateway deployed inline between your application and every LLM call.
         It filters requests through a nine-stage pipeline, catches 36.2% of prompts in our own published adversarial
         corpus at HIGH or BLOCK with zero false positives on 35 benign prompts, strips secrets and PII before they
@@ -92,16 +92,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </p>
       <div class="grid sm:grid-cols-3 gap-4 mb-8">
         {[
-          ['$2.3M', 'Average annual breach cost avoided (IBM 2024)', '#FF2D55'],
-          ['340%', '3-year ROI for mid-market deployments', '#80b4fd'],
+          ['$2.3M', 'Average annual breach cost avoided (IBM 2024)', 'var(--acc-red)'],
+          ['340%', '3-year ROI for mid-market deployments', 'var(--acc-blue)'],
         ].map(([val, desc, color]) => (
-          <div class="rounded-xl p-5 border border-white/[0.07]" style={`background:rgba(255,255,255,0.02);border-top:2px solid ${color}`}>
+          <div class="rounded-xl p-5 border border-white/[0.07]" style={`background:rgba(var(--ink-rgb),0.02);border-top:2px solid ${color}`}>
             <div class="text-[26px] font-bold mb-2" style={`color:${color}`}>{val}</div>
-            <div class="text-[12px]" style="color:#94a3b8">{desc}</div>
+            <div class="text-[12px]" style="color:var(--ink-3)">{desc}</div>
           </div>
         ))}
       </div>
-      <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+      <div class="rounded-xl p-6 border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
         <div class="text-[13px] font-semibold mb-4 text-white">Recent Additions</div>
         <div class="grid sm:grid-cols-2 gap-3">
           {[
@@ -110,11 +110,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             ['🤝', 'Agent-to-Agent Protocol', 'HMAC-SHA256 signed cross-functional routing with ALLOWED_ROUTES whitelist; SupportAgent consults ComplianceAgent before high-risk-country refunds; full SQLite audit trail'],
             ['📋', 'Structured JSON Logging', 'AgentSpan emits fixed-schema JSON lines (agent_id, tool_name, cost_usd, latency_ms, status) for every staff agent lifecycle event — Grafana/Loki ready, no regex'],
           ].map(([icon, title, desc]) => (
-            <div class="flex gap-3 p-3 rounded-lg" style="background:rgba(255,255,255,0.03)">
+            <div class="flex gap-3 p-3 rounded-lg" style="background:rgba(var(--ink-rgb),0.03)">
               <span class="text-[20px] flex-shrink-0">{icon}</span>
               <div>
                 <div class="text-[12px] font-semibold text-white mb-0.5">{title}</div>
-                <div class="text-[11px]" style="color:#64748b">{desc}</div>
+                <div class="text-[11px]" style="color:var(--ink-4)">{desc}</div>
               </div>
             </div>
           ))}
@@ -125,33 +125,33 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <!-- SECTION 2 -->
     <section id="s2" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">02</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">02</span>
         <h2 class="text-[24px] font-bold">Filter Pipeline Architecture</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
         Every request passes through a deterministic, ordered pipeline. Each layer fails open on non-fatal errors
         except the auth guard (fail-closed). Latency per layer is tracked via OpenTelemetry spans.
       </p>
       <div class="space-y-3">
         {[
-          ['L1', 'Auth Guard', 'Per-tenant API keys (SHA-256 hash, constant-time compare). Fail-closed — missing key = 401.', '#FF2D55'],
-          ['L2', 'Topological Gatekeeper', 'n-gram point cloud → β₀/β₁ Betti numbers via TDA. Rejects structurally anomalous prompts.', '#f59e0b'],
-          ['L3', 'Obfuscation Decoder', 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, unicode homoglyphs.', '#10b981'],
-          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', '#80b4fd'],
-          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', '#38bdf8'],
-          ['L6', 'ML Brain (MiniLM)', 'all-MiniLM-L6-v2 cosine similarity + Poincaré ball hyperbolic distance blend (70/30). Adversarial suffix stripping.', '#06b6d4'],
-          ['L7', 'Causal Arbiter', 'Bayesian DAG — 5 nodes, Pearl do-calculus, backdoor correction. P(HIGH_RISK|evidence).', '#f59e0b'],
-          ['L8', 'Phishing & SE Guard', 'URL phishing detection + social engineering classification (PhishGuard + SE-Arbiter).', '#10b981'],
-          ['L9', 'ERS & Shadow Ban', 'Redis sliding-window rate limiter. Shadow-ban at score ≥ 0.75 — gaslight / delay / standard modes.', '#FF2D55'],
+          ['L1', 'Auth Guard', 'Per-tenant API keys (SHA-256 hash, constant-time compare). Fail-closed — missing key = 401.', 'var(--acc-red)'],
+          ['L2', 'Topological Gatekeeper', 'n-gram point cloud → β₀/β₁ Betti numbers via TDA. Rejects structurally anomalous prompts.', 'var(--acc-amber)'],
+          ['L3', 'Obfuscation Decoder', 'Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, unicode homoglyphs.', 'var(--acc-green)'],
+          ['L4', 'Secret Redactor', '15 regex patterns (API keys, JWTs, SSH, credit cards, SSN) + Shannon entropy scan for unknown secrets.', 'var(--acc-blue)'],
+          ['L5', 'Semantic Rule Engine', 'Regex ruleset + compound risk escalation (3+ MEDIUM → HIGH). Hot-reload via dynamic_rules.json.', 'var(--acc-cyan)'],
+          ['L6', 'ML Brain (MiniLM)', 'all-MiniLM-L6-v2 cosine similarity + Poincaré ball hyperbolic distance blend (70/30). Adversarial suffix stripping.', 'var(--acc-cyan)'],
+          ['L7', 'Causal Arbiter', 'Bayesian DAG — 5 nodes, Pearl do-calculus, backdoor correction. P(HIGH_RISK|evidence).', 'var(--acc-amber)'],
+          ['L8', 'Phishing & SE Guard', 'URL phishing detection + social engineering classification (PhishGuard + SE-Arbiter).', 'var(--acc-green)'],
+          ['L9', 'ERS & Shadow Ban', 'Redis sliding-window rate limiter. Shadow-ban at score ≥ 0.75 — gaslight / delay / standard modes.', 'var(--acc-red)'],
         ].map(([layer, name, desc, color]) => (
-          <div class="flex gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+          <div class="flex gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0"
                  style={`background:${color}20;color:${color};border:1px solid ${color}30`}>{layer}</div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-[13px] font-semibold text-white">{name}</span>
               </div>
-              <div class="text-[12px]" style="color:#64748b">{desc}</div>
+              <div class="text-[12px]" style="color:var(--ink-4)">{desc}</div>
             </div>
           </div>
         ))}
@@ -161,28 +161,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <!-- SECTION 3 -->
     <section id="s3" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">03</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">03</span>
         <h2 class="text-[24px] font-bold">Client Segment Playbooks</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
         Six deployment profiles map organization type to recommended tier, configuration preset, and compliance posture.
       </p>
       <div class="grid sm:grid-cols-2 gap-4">
         {[
-          { seg: 'A', title: 'FinTech / Banking', tier: 'Not on a plan', color: '#f59e0b',
+          { seg: 'A', title: 'FinTech / Banking', tier: 'Not on a plan', color: 'var(--acc-amber)',
             highlights: ['PQC signing on all AI transactions', 'Sovereign routing — PHI stays US/EU only', 'SOC 2 Type II evidence vault', 'GDPR Art. 35 DPIA pre-filled'] },
-          { seg: 'B', title: 'Healthcare / Life Sciences', tier: 'Not on a plan', color: '#10b981',
+          { seg: 'B', title: 'Healthcare / Life Sciences', tier: 'Not on a plan', color: 'var(--acc-green)',
             highlights: ['PHI data pod jurisdiction lock', 'HIPAA audit chain (STIX 2.1)', 'Secret redactor covers HL7/FHIR tokens', 'Causal Transfer Guard blocks exfiltration'] },
-          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Not on a plan', color: '#80b4fd',
+          { seg: 'C', title: 'SaaS / Multi-Tenant', tier: 'Not on a plan', color: 'var(--acc-blue)',
             highlights: ['Per-tenant API keys + rate limits', 'MasterAgent SOC coordinator', 'Shadow AI Discovery for rogue models', 'XAI audit reports per request'] },
-          { seg: 'D', title: 'Government / Public Sector', tier: 'Not on a plan', color: '#FF2D55',
+          { seg: 'D', title: 'Government / Public Sector', tier: 'Not on a plan', color: 'var(--acc-red)',
             highlights: ['MASQUE H3 sovereign tunnels', '8-jurisdiction transfer matrix', 'Post-quantum key encapsulation (ML-KEM-768)', 'Air-gapped Evolution Engine mode'] },
-          { seg: 'E', title: 'SMB / Startup', tier: 'Community Business', color: '#38bdf8',
+          { seg: 'E', title: 'SMB / Startup', tier: 'Community Business', color: 'var(--acc-cyan)',
             highlights: ['Single Docker Compose deploy', 'SMB Governance Suite add-on', 'AI Budget Dashboard + Vendor Registry', 'Obsidian Plugin for note security'] },
-          { seg: 'F', title: 'AI-Native / LLM Platform', tier: 'Not on a plan', color: '#06b6d4',
+          { seg: 'F', title: 'AI-Native / LLM Platform', tier: 'Not on a plan', color: 'var(--acc-cyan)',
             highlights: ['OpenAI-compatible proxy endpoint', 'LangChain WardenCallback', 'SOVA scheduled threat sync (every 6h)', 'Evolution Engine with ArXiv auto-synthesis'] },
         ].map(({ seg, title, tier, highlights, color }) => (
-          <div class="rounded-xl p-5 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+          <div class="rounded-xl p-5 border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="flex items-center gap-3 mb-4">
               <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold flex-shrink-0"
                    style={`background:${color}20;color:${color};border:1px solid ${color}30`}>{seg}</div>
@@ -193,7 +193,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             </div>
             <ul class="space-y-1.5">
               {highlights.map(h => (
-                <li class="flex items-start gap-2 text-[12px]" style="color:#94a3b8">
+                <li class="flex items-start gap-2 text-[12px]" style="color:var(--ink-3)">
                   <span style={`color:${color}`} class="flex-shrink-0 mt-0.5">›</span>
                   {h}
                 </li>
@@ -207,7 +207,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <!-- SECTION 4 -->
     <section id="s4" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">04</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">04</span>
         <h2 class="text-[24px] font-bold">Integration Patterns</h2>
       </div>
       <div class="space-y-5">
@@ -253,12 +253,12 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
           },
         ].map(({ label, desc, code }) => (
           <div class="rounded-xl border border-white/[0.07] overflow-hidden">
-            <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
+            <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(var(--ink-rgb),0.03)">
               <span class="text-[12px] font-semibold text-white">{label}</span>
             </div>
             <div class="p-5">
-              <p class="text-[12px] mb-4" style="color:#94a3b8">{desc}</p>
-              <pre class="text-[11px] p-4 rounded-lg overflow-x-auto" style="background:#070913;color:#94a3b8;border:1px solid rgba(255,255,255,0.06)"><code>{code}</code></pre>
+              <p class="text-[12px] mb-4" style="color:var(--ink-3)">{desc}</p>
+              <pre class="text-[11px] p-4 rounded-lg overflow-x-auto" style="background:var(--sw-bg);color:var(--ink-3);border:1px solid rgba(var(--ink-rgb),0.06)"><code>{code}</code></pre>
             </div>
           </div>
         ))}
@@ -268,10 +268,10 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
     <!-- SECTION 5 -->
     <section id="s5" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">05</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">05</span>
         <h2 class="text-[24px] font-bold">Deployment Architecture</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-6" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-6" style="color:var(--ink-3)">
         Shadow Warden runs as {PRODUCT.services} Docker services behind a Caddy v2 reverse proxy with QUIC/HTTP3 support.
         All services are stateless except Redis and PostgreSQL.
       </p>
@@ -279,10 +279,10 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
         <div class="overflow-x-auto">
           <table class="w-full text-[12px]">
             <thead>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03)">
-                <th class="px-5 py-3 text-left font-semibold" style="color:#64748b">Service</th>
-                <th class="px-5 py-3 text-left font-semibold" style="color:#64748b">Port</th>
-                <th class="px-5 py-3 text-left font-semibold" style="color:#64748b">Role</th>
+              <tr style="border-bottom:1px solid rgba(var(--ink-rgb),0.07);background:rgba(var(--ink-rgb),0.03)">
+                <th class="px-5 py-3 text-left font-semibold" style="color:var(--ink-4)">Service</th>
+                <th class="px-5 py-3 text-left font-semibold" style="color:var(--ink-4)">Port</th>
+                <th class="px-5 py-3 text-left font-semibold" style="color:var(--ink-4)">Role</th>
               </tr>
             </thead>
             <tbody>
@@ -299,19 +299,19 @@ curl -X POST https://api.shadow-warden-ai.com/agent/approve/{token}?action=appro
                 ['minio', '9000 / 9001', 'S3-compatible object store — evidence vault, patrol video'],
                 ['minio-init', '—', 'One-shot bucket provisioning init container'],
               ].map(([svc, port, role], i) => (
-                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
-                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{svc}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#94a3b8]">{port}</td>
-                  <td class="px-5 py-2.5 text-[#94a3b8]">{role}</td>
+                <tr style={`border-bottom:1px solid rgba(var(--ink-rgb),0.04);background:${i%2===0?'rgba(var(--ink-rgb),0.01)':'transparent'}`}>
+                  <td class="px-5 py-2.5 font-mono text-[color:var(--acc-blue)]">{svc}</td>
+                  <td class="px-5 py-2.5 font-mono text-[color:var(--ink-3)]">{port}</td>
+                  <td class="px-5 py-2.5 text-[color:var(--ink-3)]">{role}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-      <div class="rounded-xl p-5 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+      <div class="rounded-xl p-5 border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
         <div class="text-[12px] font-semibold text-white mb-3">Quick Start</div>
-        <pre class="text-[11px] overflow-x-auto" style="color:#94a3b8"><code>{`git clone https://github.com/shadow-warden-ai/shadow-warden.git
+        <pre class="text-[11px] overflow-x-auto" style="color:var(--ink-3)"><code>{`git clone https://github.com/shadow-warden-ai/shadow-warden.git
 cp .env.example .env && nano .env
 docker compose up --build -d
 curl http://localhost:8001/health
@@ -322,25 +322,25 @@ curl http://localhost:8001/health
     <!-- SECTION 6 -->
     <section id="s6" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">06</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">06</span>
         <h2 class="text-[24px] font-bold">Dollar Impact Calculator</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
         Financial impact is calculated across five independent cost models using IBM 2024 benchmarks.
-        Run <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">python scripts/impact_analysis.py --live --industry fintech</code> for real-time figures.
+        Run <code class="text-[color:var(--acc-blue)] bg-[var(--acc-blue)]/10 px-1 rounded">python scripts/impact_analysis.py --live --industry fintech</code> for real-time figures.
       </p>
       <div class="space-y-3 mb-8">
         {[
-          ['Breach Prevention', 'Blocks average AI-enabled breach ($2.3M IBM median). Multiplier 1.6× for regulated industries.', '$2.3M – $3.7M', '#FF2D55'],
-          ['Secret Leak Prevention', '15-pattern + entropy scan catches API keys, JWTs, PII before reaching third-party LLMs.', '$180K – $450K', '#f59e0b'],
-          ['Compliance Penalty Avoidance', 'GDPR Art. 83 max €20M or 4% revenue. SOC 2 enables $500K–$2M contract eligibility.', '$20K – $2M', '#10b981'],
-          ['Productivity Recovery', 'Eliminates manual prompt review. ~$1,200/employee/year at 1 FTE per 500 users.', '$120K – $600K', '#80b4fd'],
-          ['Shadow AI Cost Control', 'Detects unauthorized AI spend. Median $47K/yr untracked LLM costs per 200-person org.', '$47K – $190K', '#38bdf8'],
+          ['Breach Prevention', 'Blocks average AI-enabled breach ($2.3M IBM median). Multiplier 1.6× for regulated industries.', '$2.3M – $3.7M', 'var(--acc-red)'],
+          ['Secret Leak Prevention', '15-pattern + entropy scan catches API keys, JWTs, PII before reaching third-party LLMs.', '$180K – $450K', 'var(--acc-amber)'],
+          ['Compliance Penalty Avoidance', 'GDPR Art. 83 max €20M or 4% revenue. SOC 2 enables $500K–$2M contract eligibility.', '$20K – $2M', 'var(--acc-green)'],
+          ['Productivity Recovery', 'Eliminates manual prompt review. ~$1,200/employee/year at 1 FTE per 500 users.', '$120K – $600K', 'var(--acc-blue)'],
+          ['Shadow AI Cost Control', 'Detects unauthorized AI spend. Median $47K/yr untracked LLM costs per 200-person org.', '$47K – $190K', 'var(--acc-cyan)'],
         ].map(([model, desc, impact, color]) => (
-          <div class="flex items-start gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+          <div class="flex items-start gap-4 p-4 rounded-xl border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="flex-1">
               <div class="text-[13px] font-semibold text-white mb-1">{model}</div>
-              <div class="text-[12px]" style="color:#64748b">{desc}</div>
+              <div class="text-[12px]" style="color:var(--ink-4)">{desc}</div>
             </div>
             <div class="text-[13px] font-semibold flex-shrink-0" style={`color:${color}`}>{impact}</div>
           </div>
@@ -350,10 +350,10 @@ curl http://localhost:8001/health
         {[
           ['Starter / SMB', '5-year NPV $380K', 'Shadow AI + breach prevention'],
         ].map(([tier, roi, note]) => (
-          <div class="rounded-xl p-4 border border-white/[0.07] text-center" style="background:rgba(255,255,255,0.02)">
-            <div class="text-[11px] text-[#64748b] mb-1">{tier}</div>
+          <div class="rounded-xl p-4 border border-white/[0.07] text-center" style="background:rgba(var(--ink-rgb),0.02)">
+            <div class="text-[11px] text-[color:var(--ink-4)] mb-1">{tier}</div>
             <div class="text-[18px] font-bold text-white mb-1">{roi}</div>
-            <div class="text-[11px] text-[#64748b]">{note}</div>
+            <div class="text-[11px] text-[color:var(--ink-4)]">{note}</div>
           </div>
         ))}
       </div>
@@ -362,19 +362,19 @@ curl http://localhost:8001/health
     <!-- SECTION 7 -->
     <section id="s7" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">07</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">07</span>
         <h2 class="text-[24px] font-bold">Agentic SOC — SOVA &amp; MasterAgent</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
         Shadow Warden AI ships two autonomous AI operators: SOVA on {PRODUCT.sovaModel} with {PRODUCT.sovaTools} tools, and the MasterAgent coordinator. SOVA handles
         scheduled threat intelligence, health monitoring, and visual patrol. MasterAgent decomposes complex SOC
         investigations into parallel sub-agent workstreams with HMAC task tokens and human approval gates.
       </p>
       <div class="grid sm:grid-cols-2 gap-6 mb-6">
         <div class="rounded-xl border border-white/[0.07] overflow-hidden">
-          <div class="px-5 py-4 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
+          <div class="px-5 py-4 border-b border-white/[0.06]" style="background:rgba(var(--ink-rgb),0.03)">
             <div class="text-[13px] font-bold text-white">SOVA Agent</div>
-            <div class="text-[11px] text-[#64748b] mt-0.5">{PRODUCT.sovaModel} · {PRODUCT.sovaTools} tools · ARQ cron scheduler</div>
+            <div class="text-[11px] text-[color:var(--ink-4)] mt-0.5">{PRODUCT.sovaModel} · {PRODUCT.sovaTools} tools · ARQ cron scheduler</div>
           </div>
           <div class="p-5 space-y-2">
             {[
@@ -386,16 +386,16 @@ curl http://localhost:8001/health
               ['Key Rotation', '02:00 UTC daily — credential lifecycle check'],
             ].map(([task, desc]) => (
               <div class="flex items-start gap-2 text-[12px]">
-                <span class="text-[#10b981] flex-shrink-0 mt-0.5">✓</span>
-                <span><span class="font-semibold text-white">{task}</span><span style="color:#64748b"> — {desc}</span></span>
+                <span class="text-[color:var(--acc-green)] flex-shrink-0 mt-0.5">✓</span>
+                <span><span class="font-semibold text-white">{task}</span><span style="color:var(--ink-4)"> — {desc}</span></span>
               </div>
             ))}
           </div>
         </div>
         <div class="rounded-xl border border-white/[0.07] overflow-hidden">
-          <div class="px-5 py-4 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
+          <div class="px-5 py-4 border-b border-white/[0.06]" style="background:rgba(var(--ink-rgb),0.03)">
             <div class="text-[13px] font-bold text-white">MasterAgent SOC Coordinator</div>
-            <div class="text-[11px] text-[#64748b] mt-0.5">v4.0 · 4 sub-agents · Human-in-the-loop approval</div>
+            <div class="text-[11px] text-[color:var(--ink-4)] mt-0.5">v4.0 · 4 sub-agents · Human-in-the-loop approval</div>
           </div>
           <div class="p-5 space-y-2.5">
             {[
@@ -404,29 +404,29 @@ curl http://localhost:8001/health
               ['ForensicsAgent', 'Activity logs, GDPR Art.30, Evidence Vault'],
               ['ComplianceAgent', 'SLA monitors, SOC 2 controls, ROI proposals'],
             ].map(([agent, role]) => (
-              <div class="flex gap-3 p-2.5 rounded-lg" style="background:rgba(255,255,255,0.03)">
-                <span class="text-[11px] font-mono text-[#80b4fd] flex-shrink-0 w-28">{agent}</span>
-                <span class="text-[11px]" style="color:#64748b">{role}</span>
+              <div class="flex gap-3 p-2.5 rounded-lg" style="background:rgba(var(--ink-rgb),0.03)">
+                <span class="text-[11px] font-mono text-[color:var(--acc-blue)] flex-shrink-0 w-28">{agent}</span>
+                <span class="text-[11px]" style="color:var(--ink-4)">{role}</span>
               </div>
             ))}
-            <p class="text-[11px] pt-1" style="color:#64748b">
+            <p class="text-[11px] pt-1" style="color:var(--ink-4)">
               HMAC-SHA256 task tokens prevent cross-agent injection. High-impact actions post to Slack and wait for approval before execution.
             </p>
           </div>
         </div>
       </div>
       <div class="rounded-xl border border-white/[0.07] overflow-hidden">
-        <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
+        <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(var(--ink-rgb),0.03)">
           <span class="text-[12px] font-semibold text-white">Explainable AI 2.0 — Causal Chain Reports</span>
         </div>
         <div class="p-5">
-          <p class="text-[12px] mb-4" style="color:#94a3b8">
+          <p class="text-[12px] mb-4" style="color:var(--ink-3)">
             Every blocked or flagged request generates a 9-stage causal chain: which layer fired, the primary cause,
-            and counterfactual remediations. Available as HTML or PDF via <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">GET /xai/report/{'{id}'}/pdf</code>.
+            and counterfactual remediations. Available as HTML or PDF via <code class="text-[color:var(--acc-blue)] bg-[var(--acc-blue)]/10 px-1 rounded">GET /xai/report/{'{id}'}/pdf</code>.
           </p>
           <div class="flex flex-wrap gap-2">
             {['topology','obfuscation','secrets','semantic_rules','brain','causal','phish','ers','decision'].map(s => (
-              <span class="text-[10px] font-mono px-2 py-1 rounded" style="background:rgba(128,180,253,0.1);color:#80b4fd;border:1px solid rgba(128,180,253,0.2)">{s}</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded" style="background:rgba(var(--acc-blue-rgb),0.1);color:var(--acc-blue);border:1px solid rgba(var(--acc-blue-rgb),0.2)">{s}</span>
             ))}
           </div>
         </div>
@@ -436,16 +436,16 @@ curl http://localhost:8001/health
     <!-- SECTION 8 -->
     <section id="s8" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">08</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">08</span>
         <h2 class="text-[24px] font-bold">Deployment Sizing Guide</h2>
       </div>
       <div class="rounded-xl border border-white/[0.07] overflow-hidden mb-6">
         <div class="overflow-x-auto">
           <table class="w-full text-[12px]">
             <thead>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03)">
+              <tr style="border-bottom:1px solid rgba(var(--ink-rgb),0.07);background:rgba(var(--ink-rgb),0.03)">
                 {['Tier','Requests/day','CPU','RAM','Disk','Notes'].map(h => (
-                  <th class="px-5 py-3 text-left font-semibold" style="color:#64748b">{h}</th>
+                  <th class="px-5 py-3 text-left font-semibold" style="color:var(--ink-4)">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -456,13 +456,13 @@ curl http://localhost:8001/health
                 ['Mid-Market','50K – 500K','8 vCPU','16 GB','200 GB','One host: scale up, not out'],
                 ['Large','500K+','16+ vCPU','32 GB','500 GB+','Multi-node is not supported yet'],
               ].map(([tier, rqd, cpu, ram, disk, notes], i) => (
-                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
+                <tr style={`border-bottom:1px solid rgba(var(--ink-rgb),0.04);background:${i%2===0?'rgba(var(--ink-rgb),0.01)':'transparent'}`}>
                   <td class="px-5 py-2.5 font-semibold text-white">{tier}</td>
-                  <td class="px-5 py-2.5 text-[#94a3b8]">{rqd}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{cpu}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{ram}</td>
-                  <td class="px-5 py-2.5 font-mono text-[#80b4fd]">{disk}</td>
-                  <td class="px-5 py-2.5 text-[#64748b]">{notes}</td>
+                  <td class="px-5 py-2.5 text-[color:var(--ink-3)]">{rqd}</td>
+                  <td class="px-5 py-2.5 font-mono text-[color:var(--acc-blue)]">{cpu}</td>
+                  <td class="px-5 py-2.5 font-mono text-[color:var(--acc-blue)]">{ram}</td>
+                  <td class="px-5 py-2.5 font-mono text-[color:var(--acc-blue)]">{disk}</td>
+                  <td class="px-5 py-2.5 text-[color:var(--ink-4)]">{notes}</td>
                 </tr>
               ))}
             </tbody>
@@ -475,9 +475,9 @@ curl http://localhost:8001/health
           ['Redis', 'Required for ERS, shadow-ban, and SOVA memory. Use memory:// for tests. Redis Sentinel recommended for HA production.'],
           ['Evolution Engine', 'Optional. Requires ANTHROPIC_API_KEY. Air-gap mode: all detection works, Evolution disabled. Set ANTHROPIC_API_KEY="" to disable.'],
         ].map(([title, desc]) => (
-          <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(255,255,255,0.02)">
+          <div class="rounded-xl p-4 border border-white/[0.07]" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="text-[12px] font-semibold text-white mb-2">{title}</div>
-            <div class="text-[11px]" style="color:#64748b">{desc}</div>
+            <div class="text-[11px]" style="color:var(--ink-4)">{desc}</div>
           </div>
         ))}
       </div>
@@ -486,33 +486,33 @@ curl http://localhost:8001/health
     <!-- SECTION 9 -->
     <section id="s9" class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">09</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">09</span>
         <h2 class="text-[24px] font-bold">GDPR &amp; Compliance Checklist</h2>
       </div>
       <div class="grid sm:grid-cols-2 gap-4">
         {[
-          { framework: 'GDPR', color: '#10b981', items: [
+          { framework: 'GDPR', color: 'var(--acc-green)', items: [
             'Art. 5(1)(c) — data minimisation: metadata only, never content',
             'Art. 17 — right to erasure: DELETE /gdpr/purge/{request_id}',
             'Art. 35 — DPIA pre-filled template in docs/dpia.md',
             'Art. 30 — ForensicsAgent generates processing record automatically',
             'Art. 83 — audit chain timestamps defensible in proceedings',
           ]},
-          { framework: 'SOC 2 Type II', color: '#80b4fd', items: [
+          { framework: 'SOC 2 Type II', color: 'var(--acc-blue)', items: [
             'CC6.1 — per-tenant API key isolation, constant-time compare',
             'CC6.7 — all traffic TLS 1.3+, Caddy HSTS, optional PQC layer',
             'CC7.2 — SOVA scheduled health monitoring, Grafana SLO alerts',
             'CC9.2 — Evidence Vault: MinIO WORM-compatible storage',
             'A1.2 — ScreencastRecorder video evidence → MinIO SOC 2 trail',
           ]},
-          { framework: 'Post-Quantum (v4.1+)', color: '#f59e0b', items: [
+          { framework: 'Post-Quantum (v4.1+)', color: 'var(--acc-amber)', items: [
             'ML-DSA-65 (FIPS 204) hybrid signatures on AI transactions',
             'ML-KEM-768 (FIPS 203) key encapsulation for sovereign tunnels',
             'liboqs fail-open — classical Ed25519 fallback if library missing',
             'Not part of any plan (PQC gate in TIER_LIMITS)',
             'Hybrid key ID convention: v1-hybrid suffix on PQC keypairs',
           ]},
-          { framework: 'Analytics & Commerce (v7.1)', color: '#38bdf8', items: [
+          { framework: 'Analytics & Commerce (v7.1)', color: 'var(--acc-cyan)', items: [
             'AI Analytics Hub: 9 built-in Semantic Layer models, Redis query cache',
             'Self-Service Catalog: tenant model registry, SQLite persistence, hot-reload',
             'Commerce Budget Guardian: real MTD spend from ai_spend model, Slack alerts',
@@ -528,7 +528,7 @@ curl http://localhost:8001/health
               {items.map(item => (
                 <div class="flex items-start gap-2 text-[11px]">
                   <span style={`color:${color}`} class="flex-shrink-0 mt-0.5">✓</span>
-                  <span style="color:#94a3b8">{item}</span>
+                  <span style="color:var(--ink-3)">{item}</span>
                 </div>
               ))}
             </div>
@@ -540,11 +540,11 @@ curl http://localhost:8001/health
     <!-- SECTION 10 -->
     <section id="s10" class="mb-16">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[11px] font-mono text-[#FF2D55]">10</span>
+        <span class="text-[11px] font-mono text-[color:var(--acc-red)]">10</span>
         <h2 class="text-[24px] font-bold">Configuration Reference</h2>
       </div>
-      <p class="text-[14px] leading-relaxed mb-8" style="color:#94a3b8">
-        All configuration is via environment variables. Copy <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">.env.example</code> to <code class="text-[#80b4fd] bg-[#80b4fd]/10 px-1 rounded">.env</code> and override as needed.
+      <p class="text-[14px] leading-relaxed mb-8" style="color:var(--ink-3)">
+        All configuration is via environment variables. Copy <code class="text-[color:var(--acc-blue)] bg-[var(--acc-blue)]/10 px-1 rounded">.env.example</code> to <code class="text-[color:var(--acc-blue)] bg-[var(--acc-blue)]/10 px-1 rounded">.env</code> and override as needed.
       </p>
       <div class="space-y-5">
         {[
@@ -588,17 +588,17 @@ curl http://localhost:8001/health
           ]},
         ].map(({ group, vars }) => (
           <div class="rounded-xl border border-white/[0.07] overflow-hidden">
-            <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(255,255,255,0.03)">
+            <div class="px-5 py-3 border-b border-white/[0.06]" style="background:rgba(var(--ink-rgb),0.03)">
               <span class="text-[12px] font-semibold text-white">{group}</span>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-[11px]">
                 <tbody>
                   {vars.map(([key, def, desc], i) => (
-                    <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'rgba(255,255,255,0.01)':'transparent'}`}>
-                      <td class="px-5 py-2.5 font-mono text-[#80b4fd] w-56 align-top">{key}</td>
-                      <td class="px-5 py-2.5 font-mono text-[#f59e0b] w-32 align-top">{def}</td>
-                      <td class="px-5 py-2.5 align-top" style="color:#94a3b8">{desc}</td>
+                    <tr style={`border-bottom:1px solid rgba(var(--ink-rgb),0.04);background:${i%2===0?'rgba(var(--ink-rgb),0.01)':'transparent'}`}>
+                      <td class="px-5 py-2.5 font-mono text-[color:var(--acc-blue)] w-56 align-top">{key}</td>
+                      <td class="px-5 py-2.5 font-mono text-[color:var(--acc-amber)] w-32 align-top">{def}</td>
+                      <td class="px-5 py-2.5 align-top" style="color:var(--ink-3)">{desc}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -612,11 +612,11 @@ curl http://localhost:8001/health
       <div class="mt-16 pt-8 border-t border-white/[0.07] flex items-center justify-between flex-wrap gap-4">
         <div>
           <div class="text-[13px] font-bold text-white mb-1">Shadow Warden AI — Integration &amp; Deployment Guide</div>
-          <div class="text-[11px] text-[#64748b]">Version 7.10 · Proprietary &amp; Confidential</div>
+          <div class="text-[11px] text-[color:var(--ink-4)]">Version 7.10 · Proprietary &amp; Confidential</div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[#FF2D55]/15 text-[#FF2D55] border border-[#FF2D55]/30 uppercase tracking-[1.5px]">{PRODUCT.display}</span>
-          <a href="/" class="text-[12px] text-[#64748b] hover:text-white transition-colors">shadow-warden-ai.com</a>
+          <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--acc-red)]/15 text-[color:var(--acc-red)] border border-[var(--acc-red)]/30 uppercase tracking-[1.5px]">{PRODUCT.display}</span>
+          <a href="/" class="text-[12px] text-[color:var(--ink-4)] hover:text-white transition-colors">shadow-warden-ai.com</a>
         </div>
       </div>
     </section>

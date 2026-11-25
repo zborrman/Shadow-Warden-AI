@@ -16,23 +16,23 @@ const recovery = [
 <BaseLayout title="404 — Shadow Warden AI" markdown="/404.md">
   <div class="pt-14 min-h-screen flex items-center justify-center">
     <div class="text-center px-4" style="max-width:640px">
-      <div class="text-[80px] font-black leading-none mb-4" style="color:#1e1e2a">404</div>
-      <h1 class="text-[24px] font-bold mb-3" style="color:#f1f5f9">Page not found</h1>
-      <p class="text-[15px] mb-8" style="color:#64748b">Nothing was blocked — there is simply no document at this path.</p>
+      <div class="text-[80px] font-black leading-none mb-4" style="color:var(--sw-line)">404</div>
+      <h1 class="text-[24px] font-bold mb-3" style="color:var(--ink-1)">Page not found</h1>
+      <p class="text-[15px] mb-8" style="color:var(--ink-4)">Nothing was blocked — there is simply no document at this path.</p>
 
       <div class="text-left mb-8 mx-auto" style="max-width:520px">
-        <p class="text-[13px] font-semibold mb-3" style="color:#94a3b8">Where to look next</p>
+        <p class="text-[13px] font-semibold mb-3" style="color:var(--ink-3)">Where to look next</p>
         <ul class="space-y-2" style="list-style:none;padding:0;margin:0">
           {recovery.map(item => (
-            <li class="text-[14px]" style="color:#64748b">
-              <a href={item.href} style="color:#4d9cfc">{item.label}</a>
+            <li class="text-[14px]" style="color:var(--ink-4)">
+              <a href={item.href} style="color:var(--acc-blue-2)">{item.label}</a>
               <span> — {item.note}</span>
             </li>
           ))}
         </ul>
-        <p class="text-[13px] mt-4" style="color:#64748b">
+        <p class="text-[13px] mt-4" style="color:var(--ink-4)">
           Calling the API? Those routes live on
-          <code style="color:#94a3b8">https://api.shadow-warden-ai.com</code>, not on this host.
+          <code style="color:var(--ink-3)">https://api.shadow-warden-ai.com</code>, not on this host.
         </p>
       </div>
 

@@ -1,8 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 
-const ALL_COLOR  = '#30D158';
-const PRO_COLOR  = '#BF5AF2';
+const ALL_COLOR  = '#16a34a';
+const PRO_COLOR  = '#9333ea';
 
 const methods = [
   {
@@ -61,58 +61,58 @@ const methods = [
   description="Official Python and TypeScript SDKs for the Shadow Warden AI security gateway. Filter LLM traffic, run autonomous agents, and manage the M2M marketplace from your code."
   markdown="/sdk.md"
 >
-<div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
+<div class="bg-[var(--sw-bg)] text-[color:var(--ink-1)] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
 
   <div class="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
 
     <!-- Hero -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
       <div class="flex items-center gap-3 mb-6">
-        <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[#30D158]/10 text-[#30D158] border border-[#30D158]/20 uppercase tracking-[1.5px]">Public SDK</span>
-        <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[#30D158]/15 text-[#30D158] border border-[#30D158]/30 uppercase tracking-[1.5px]">v1.1.0</span>
+        <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[var(--acc-green)]/10 text-[color:var(--acc-green)] border border-[var(--acc-green)]/20 uppercase tracking-[1.5px]">Public SDK</span>
+        <span class="text-[10px] font-bold px-3 py-1 rounded-full bg-[var(--acc-green)]/15 text-[color:var(--acc-green)] border border-[var(--acc-green)]/30 uppercase tracking-[1.5px]">v1.1.0</span>
       </div>
       <h1 class="text-[42px] font-bold tracking-tight mb-4 leading-[1.1]">Build secure AI,<br/>from your first line of code.</h1>
-      <p class="text-[#8E8E9E] text-[17px] max-w-[580px] leading-relaxed">
+      <p class="text-[color:var(--ink-3)] text-[17px] max-w-[580px] leading-relaxed">
         The Shadow Warden SDK wraps every gateway feature — filtering, agentic intelligence, marketplace, and OpenAI-compatible chat — in a clean Python and TypeScript interface.
       </p>
 
       <!-- Install tabs -->
       <div class="mt-10 space-y-3">
-        <p class="text-[11px] text-[#8E8E9E] uppercase tracking-[1px] font-semibold">Install</p>
+        <p class="text-[11px] text-[color:var(--ink-3)] uppercase tracking-[1px] font-semibold">Install</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="rounded-xl border border-white/[0.08] overflow-hidden">
             <div class="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
-              <span class="text-[11px] font-bold text-[#FFD60A]">Python</span>
-              <span class="text-[10px] text-[#8E8E9E]">pip</span>
+              <span class="text-[11px] font-bold text-[color:var(--acc-amber)]">Python</span>
+              <span class="text-[10px] text-[color:var(--ink-3)]">pip</span>
             </div>
-            <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">pip install shadow-warden-sdk</pre>
+            <pre class="px-4 py-3 text-[13px] text-[color:var(--acc-green)] font-mono overflow-x-auto">pip install shadow-warden-sdk</pre>
           </div>
           <div class="rounded-xl border border-white/[0.08] overflow-hidden">
             <div class="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
-              <span class="text-[11px] font-bold text-[#0A84FF]">TypeScript / Node</span>
-              <span class="text-[10px] text-[#8E8E9E]">npm</span>
+              <span class="text-[11px] font-bold text-[color:var(--acc-blue-2)]">TypeScript / Node</span>
+              <span class="text-[10px] text-[color:var(--ink-3)]">npm</span>
             </div>
-            <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">npm install @shadow-warden/sdk</pre>
+            <pre class="px-4 py-3 text-[13px] text-[color:var(--acc-green)] font-mono overflow-x-auto">npm install @shadow-warden/sdk</pre>
           </div>
         </div>
       </div>
 
       <!-- CLI -->
       <div class="mt-10 space-y-3">
-        <p class="text-[11px] text-[#8E8E9E] uppercase tracking-[1px] font-semibold">Command line</p>
-        <p class="text-[13px] text-[#8E8E9E] leading-relaxed">
-          The <span class="font-mono text-[#F5F5F7]">warden</span> console script ships with the Python
-          SDK from v1.1.0. Every command takes <span class="font-mono text-[#F5F5F7]">--json</span>, and
-          <span class="font-mono text-[#F5F5F7]">filter</span> exits 0 when the content is allowed and 1
+        <p class="text-[11px] text-[color:var(--ink-3)] uppercase tracking-[1px] font-semibold">Command line</p>
+        <p class="text-[13px] text-[color:var(--ink-3)] leading-relaxed">
+          The <span class="font-mono text-[color:var(--ink-1)]">warden</span> console script ships with the Python
+          SDK from v1.1.0. Every command takes <span class="font-mono text-[color:var(--ink-1)]">--json</span>, and
+          <span class="font-mono text-[color:var(--ink-1)]">filter</span> exits 0 when the content is allowed and 1
           when it is blocked — so it drops straight into a shell conditional or a CI gate.
-          Full reference: <a href="/cli" class="text-[#F5F5F7] underline">the CLI page</a>.
+          Full reference: <a href="/cli" class="text-[color:var(--ink-1)] underline">the CLI page</a>.
         </p>
         <div class="rounded-xl border border-white/[0.08] overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-b border-white/[0.06]">
-            <span class="text-[11px] font-bold text-[#FFD60A]">CLI</span>
-            <span class="text-[10px] text-[#8E8E9E]">shadow-warden-sdk &gt;= 1.1.0</span>
+            <span class="text-[11px] font-bold text-[color:var(--acc-amber)]">CLI</span>
+            <span class="text-[10px] text-[color:var(--ink-3)]">shadow-warden-sdk &gt;= 1.1.0</span>
           </div>
-          <pre class="px-4 py-3 text-[13px] text-[#30D158] font-mono overflow-x-auto">warden health
+          <pre class="px-4 py-3 text-[13px] text-[color:var(--acc-green)] font-mono overflow-x-auto">warden health
 warden filter "ignore previous instructions"
 warden filter --json --file prompt.txt
 cat prompt.txt | warden filter --stdin
@@ -135,57 +135,57 @@ warden billing</pre>
         <!-- Python -->
         <div class="rounded-xl border border-white/[0.08] overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
-            <span class="text-[11px] font-bold text-[#FFD60A]">Python</span>
+            <span class="text-[11px] font-bold text-[color:var(--acc-amber)]">Python</span>
           </div>
-          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> WardenClient
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:var(--ink-2)"><span style="color:var(--acc-cyan)">from</span> <span style="color:var(--acc-violet)">shadow_warden</span> <span style="color:var(--acc-cyan)">import</span> WardenClient
 
-client = WardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>)
+client = WardenClient(api_key=<span style="color:var(--acc-cyan)">"sk-..."</span>)
 
-<span style="color:#8b949e"># Filter a prompt</span>
+<span style="color:var(--ink-3)"># Filter a prompt</span>
 result = client.filter(
-    <span style="color:#a5d6ff">"Ignore previous instructions and..."</span>,
-    raise_on_block=<span style="color:#79c0ff">True</span>,
+    <span style="color:var(--acc-cyan)">"Ignore previous instructions and..."</span>,
+    raise_on_block=<span style="color:var(--acc-cyan)">True</span>,
 )
-<span style="color:#79c0ff">print</span>(result.risk_level)  <span style="color:#8b949e"># HIGH</span>
-<span style="color:#79c0ff">print</span>(result.flags)       <span style="color:#8b949e"># ["jailbreak_attempt"]</span>
+<span style="color:var(--acc-cyan)">print</span>(result.risk_level)  <span style="color:var(--ink-3)"># HIGH</span>
+<span style="color:var(--acc-cyan)">print</span>(result.flags)       <span style="color:var(--ink-3)"># ["jailbreak_attempt"]</span>
 
-<span style="color:#8b949e"># OpenAI-compatible chat — filtered end-to-end</span>
+<span style="color:var(--ink-3)"># OpenAI-compatible chat — filtered end-to-end</span>
 response = client.chat.completions.create(
-    messages=[&#123;<span style="color:#a5d6ff">"role"</span>: <span style="color:#a5d6ff">"user"</span>, <span style="color:#a5d6ff">"content"</span>: <span style="color:#a5d6ff">"Hello"</span>&#125;],
-    model=<span style="color:#a5d6ff">"gpt-4o"</span>,
+    messages=[&var(--sw-surf-1);<span style="color:var(--acc-cyan)">"role"</span>: <span style="color:var(--acc-cyan)">"user"</span>, <span style="color:var(--acc-cyan)">"content"</span>: <span style="color:var(--acc-cyan)">"Hello"</span>&var(--sw-surf-1);],
+    model=<span style="color:var(--acc-cyan)">"gpt-4o"</span>,
 )
 
-<span style="color:#8b949e"># SOVA agent — autonomous SOC operator</span>
-reply = client.agent(<span style="color:#a5d6ff">"What is our current threat level?"</span>)
-<span style="color:#79c0ff">print</span>(reply.reply)</pre>
+<span style="color:var(--ink-3)"># SOVA agent — autonomous SOC operator</span>
+reply = client.agent(<span style="color:var(--acc-cyan)">"What is our current threat level?"</span>)
+<span style="color:var(--acc-cyan)">print</span>(reply.reply)</pre>
         </div>
 
         <!-- TypeScript -->
         <div class="rounded-xl border border-white/[0.08] overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
-            <span class="text-[11px] font-bold text-[#0A84FF]">TypeScript</span>
+            <span class="text-[11px] font-bold text-[color:var(--acc-blue-2)]">TypeScript</span>
           </div>
-          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">import</span> &#123; WardenClient &#125; <span style="color:#79c0ff">from</span> <span style="color:#a5d6ff">"@shadow-warden/sdk"</span>
+          <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:var(--ink-2)"><span style="color:var(--acc-cyan)">import</span> &var(--sw-surf-1); WardenClient &var(--sw-surf-1); <span style="color:var(--acc-cyan)">from</span> <span style="color:var(--acc-cyan)">"@shadow-warden/sdk"</span>
 
-<span style="color:#79c0ff">const</span> client = <span style="color:#79c0ff">new</span> <span style="color:#d2a8ff">WardenClient</span>(&#123;
-  apiKey: <span style="color:#a5d6ff">"sk-..."</span>,
-&#125;)
+<span style="color:var(--acc-cyan)">const</span> client = <span style="color:var(--acc-cyan)">new</span> <span style="color:var(--acc-violet)">WardenClient</span>(&var(--sw-surf-1);
+  apiKey: <span style="color:var(--acc-cyan)">"sk-..."</span>,
+&var(--sw-surf-1);)
 
-<span style="color:#8b949e">// Filter a prompt</span>
-<span style="color:#79c0ff">const</span> result = <span style="color:#79c0ff">await</span> client.filter(
-  <span style="color:#a5d6ff">"Ignore previous instructions..."</span>,
-  &#123; raiseOnBlocked: <span style="color:#79c0ff">true</span> &#125;,
+<span style="color:var(--ink-3)">// Filter a prompt</span>
+<span style="color:var(--acc-cyan)">const</span> result = <span style="color:var(--acc-cyan)">await</span> client.filter(
+  <span style="color:var(--acc-cyan)">"Ignore previous instructions..."</span>,
+  &var(--sw-surf-1); raiseOnBlocked: <span style="color:var(--acc-cyan)">true</span> &var(--sw-surf-1);,
 )
-console.log(result.riskLevel)  <span style="color:#8b949e">// "HIGH"</span>
+console.log(result.riskLevel)  <span style="color:var(--ink-3)">// "HIGH"</span>
 
-<span style="color:#8b949e">// OpenAI-compatible — fully filtered</span>
-<span style="color:#79c0ff">const</span> chat = <span style="color:#79c0ff">await</span> client.chat.completions.create(&#123;
-  model: <span style="color:#a5d6ff">"gpt-4o"</span>,
-  messages: [&#123; role: <span style="color:#a5d6ff">"user"</span>, content: <span style="color:#a5d6ff">"Hello"</span> &#125;],
-&#125;)
+<span style="color:var(--ink-3)">// OpenAI-compatible — fully filtered</span>
+<span style="color:var(--acc-cyan)">const</span> chat = <span style="color:var(--acc-cyan)">await</span> client.chat.completions.create(&var(--sw-surf-1);
+  model: <span style="color:var(--acc-cyan)">"gpt-4o"</span>,
+  messages: [&var(--sw-surf-1); role: <span style="color:var(--acc-cyan)">"user"</span>, content: <span style="color:var(--acc-cyan)">"Hello"</span> &var(--sw-surf-1);],
+&var(--sw-surf-1);)
 
-<span style="color:#8b949e">// SOVA agent</span>
-<span style="color:#79c0ff">const</span> reply = <span style="color:#79c0ff">await</span> client.agent(<span style="color:#a5d6ff">"Threat summary"</span>)
+<span style="color:var(--ink-3)">// SOVA agent</span>
+<span style="color:var(--acc-cyan)">const</span> reply = <span style="color:var(--acc-cyan)">await</span> client.agent(<span style="color:var(--acc-cyan)">"Threat summary"</span>)
 console.log(reply.reply)</pre>
         </div>
       </div>
@@ -194,24 +194,24 @@ console.log(reply.reply)</pre>
     <!-- Async example -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
       <h2 class="text-[22px] font-bold mb-2">Async Python</h2>
-      <p class="text-[#8E8E9E] text-[14px] mb-6">Use AsyncWardenClient for asyncio applications — same interface, non-blocking I/O.</p>
+      <p class="text-[color:var(--ink-3)] text-[14px] mb-6">Use AsyncWardenClient for asyncio applications — same interface, non-blocking I/O.</p>
       <div class="rounded-xl border border-white/[0.08] overflow-hidden">
         <div class="flex items-center px-4 py-2.5 bg-white/[0.03] border-b border-white/[0.06]">
-          <span class="text-[11px] font-bold text-[#FFD60A]">Python — async</span>
+          <span class="text-[11px] font-bold text-[color:var(--acc-amber)]">Python — async</span>
         </div>
-        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">import</span> asyncio
-<span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> AsyncWardenClient, WardenBlockedError
+        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:var(--ink-2)"><span style="color:var(--acc-cyan)">import</span> asyncio
+<span style="color:var(--acc-cyan)">from</span> <span style="color:var(--acc-violet)">shadow_warden</span> <span style="color:var(--acc-cyan)">import</span> AsyncWardenClient, WardenBlockedError
 
-<span style="color:#79c0ff">async def</span> <span style="color:#d2a8ff">main</span>():
-    <span style="color:#79c0ff">async with</span> AsyncWardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>) <span style="color:#79c0ff">as</span> client:
-        <span style="color:#8b949e"># Parallel filter calls</span>
-        results = <span style="color:#79c0ff">await</span> asyncio.gather(
-            client.filter(<span style="color:#a5d6ff">"prompt one"</span>),
-            client.filter(<span style="color:#a5d6ff">"prompt two"</span>),
-            client.filter(<span style="color:#a5d6ff">"prompt three"</span>),
+<span style="color:var(--acc-cyan)">async def</span> <span style="color:var(--acc-violet)">main</span>():
+    <span style="color:var(--acc-cyan)">async with</span> AsyncWardenClient(api_key=<span style="color:var(--acc-cyan)">"sk-..."</span>) <span style="color:var(--acc-cyan)">as</span> client:
+        <span style="color:var(--ink-3)"># Parallel filter calls</span>
+        results = <span style="color:var(--acc-cyan)">await</span> asyncio.gather(
+            client.filter(<span style="color:var(--acc-cyan)">"prompt one"</span>),
+            client.filter(<span style="color:var(--acc-cyan)">"prompt two"</span>),
+            client.filter(<span style="color:var(--acc-cyan)">"prompt three"</span>),
         )
-        <span style="color:#79c0ff">for</span> r <span style="color:#79c0ff">in</span> results:
-            <span style="color:#79c0ff">print</span>(r.risk_level, r.flags)
+        <span style="color:var(--acc-cyan)">for</span> r <span style="color:var(--acc-cyan)">in</span> results:
+            <span style="color:var(--acc-cyan)">print</span>(r.risk_level, r.flags)
 
 asyncio.run(main())</pre>
       </div>
@@ -220,24 +220,24 @@ asyncio.run(main())</pre>
     <!-- Method reference -->
     <div class="mb-16">
       <h2 class="text-[22px] font-bold mb-2">Method reference</h2>
-      <p class="text-[#8E8E9E] text-[14px] mb-8">All methods available on <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-[#30D158]">WardenClient</code> and <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-[#30D158]">AsyncWardenClient</code>.</p>
+      <p class="text-[color:var(--ink-3)] text-[14px] mb-8">All methods available on <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-[color:var(--acc-green)]">WardenClient</code> and <code class="bg-white/[0.06] px-1.5 py-0.5 rounded text-[color:var(--acc-green)]">AsyncWardenClient</code>.</p>
 
       <div class="rounded-xl border border-white/[0.08] overflow-hidden">
         <table class="w-full text-[13px]">
           <thead>
             <tr class="border-b border-white/[0.08] bg-white/[0.03]">
-              <th class="text-left px-5 py-3 text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wider">Method</th>
-              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wider">Returns</th>
-              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wider hidden md:table-cell">Description</th>
-              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wider">Tier</th>
+              <th class="text-left px-5 py-3 text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wider">Method</th>
+              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wider">Returns</th>
+              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wider hidden md:table-cell">Description</th>
+              <th class="text-left px-4 py-3 text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wider">Tier</th>
             </tr>
           </thead>
           <tbody>
             {methods.map((m, i) => (
               <tr class={`border-b border-white/[0.05] ${i % 2 === 0 ? '' : 'bg-white/[0.015]'}`}>
-                <td class="px-5 py-3.5 font-mono text-[12px] text-[#7dd3fc]">{m.name}</td>
-                <td class="px-4 py-3.5 font-mono text-[11px] text-[#a5d6ff]">{m.returns}</td>
-                <td class="px-4 py-3.5 text-[#8E8E9E] leading-snug hidden md:table-cell">{m.desc}</td>
+                <td class="px-5 py-3.5 font-mono text-[12px] text-[color:var(--acc-cyan)]">{m.name}</td>
+                <td class="px-4 py-3.5 font-mono text-[11px] text-[color:var(--acc-cyan)]">{m.returns}</td>
+                <td class="px-4 py-3.5 text-[color:var(--ink-3)] leading-snug hidden md:table-cell">{m.desc}</td>
                 <td class="px-4 py-3.5">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border"
                     style={m.tierStyle}>
@@ -254,36 +254,36 @@ asyncio.run(main())</pre>
     <!-- Error handling -->
     <div class="mb-16 pb-12 border-b border-white/[0.07]">
       <h2 class="text-[22px] font-bold mb-2">Error handling</h2>
-      <p class="text-[#8E8E9E] text-[14px] mb-6">The SDK raises typed exceptions so you can handle auth, rate-limiting, and blocked content separately.</p>
+      <p class="text-[color:var(--ink-3)] text-[14px] mb-6">The SDK raises typed exceptions so you can handle auth, rate-limiting, and blocked content separately.</p>
       <div class="rounded-xl border border-white/[0.08] overflow-hidden">
-        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:#cdd9e5"><span style="color:#79c0ff">from</span> <span style="color:#d2a8ff">shadow_warden</span> <span style="color:#79c0ff">import</span> (
+        <pre class="px-5 py-4 text-[12.5px] font-mono leading-relaxed overflow-x-auto" style="color:var(--ink-2)"><span style="color:var(--acc-cyan)">from</span> <span style="color:var(--acc-violet)">shadow_warden</span> <span style="color:var(--acc-cyan)">import</span> (
     WardenClient, WardenBlockedError,
     WardenGatewayError, WardenTimeoutError, WardenError,
 )
 
-<span style="color:#79c0ff">with</span> WardenClient(api_key=<span style="color:#a5d6ff">"sk-..."</span>) <span style="color:#79c0ff">as</span> client:
-    <span style="color:#79c0ff">try</span>:
-        result = client.filter(user_input, raise_on_block=<span style="color:#79c0ff">True</span>)
-    <span style="color:#79c0ff">except</span> WardenBlockedError <span style="color:#79c0ff">as</span> e:
-        <span style="color:#8b949e"># e.response has full FilterResponse</span>
-        log.warning(<span style="color:#a5d6ff">"Blocked: %s"</span>, e.response.flags)
-        <span style="color:#79c0ff">return</span> <span style="color:#a5d6ff">"Request blocked for safety reasons."</span>
-    <span style="color:#79c0ff">except</span> WardenGatewayError:
-        <span style="color:#79c0ff">raise</span> RuntimeError(<span style="color:#a5d6ff">"Invalid API key"</span>)
-    <span style="color:#79c0ff">except</span> WardenTimeoutError:
-        time.sleep(<span style="color:#79c0ff">1</span>)
-        <span style="color:#8b949e"># retry...</span>
-    <span style="color:#79c0ff">except</span> WardenError <span style="color:#79c0ff">as</span> e:
-        log.error(<span style="color:#a5d6ff">"Warden error %s: %s"</span>, e.status_code, e)</pre>
+<span style="color:var(--acc-cyan)">with</span> WardenClient(api_key=<span style="color:var(--acc-cyan)">"sk-..."</span>) <span style="color:var(--acc-cyan)">as</span> client:
+    <span style="color:var(--acc-cyan)">try</span>:
+        result = client.filter(user_input, raise_on_block=<span style="color:var(--acc-cyan)">True</span>)
+    <span style="color:var(--acc-cyan)">except</span> WardenBlockedError <span style="color:var(--acc-cyan)">as</span> e:
+        <span style="color:var(--ink-3)"># e.response has full FilterResponse</span>
+        log.warning(<span style="color:var(--acc-cyan)">"Blocked: %s"</span>, e.response.flags)
+        <span style="color:var(--acc-cyan)">return</span> <span style="color:var(--acc-cyan)">"Request blocked for safety reasons."</span>
+    <span style="color:var(--acc-cyan)">except</span> WardenGatewayError:
+        <span style="color:var(--acc-cyan)">raise</span> RuntimeError(<span style="color:var(--acc-cyan)">"Invalid API key"</span>)
+    <span style="color:var(--acc-cyan)">except</span> WardenTimeoutError:
+        time.sleep(<span style="color:var(--acc-cyan)">1</span>)
+        <span style="color:var(--ink-3)"># retry...</span>
+    <span style="color:var(--acc-cyan)">except</span> WardenError <span style="color:var(--acc-cyan)">as</span> e:
+        log.error(<span style="color:var(--acc-cyan)">"Warden error %s: %s"</span>, e.status_code, e)</pre>
       </div>
     </div>
 
     <!-- CTA -->
-    <div class="rounded-2xl border border-[#30D158]/20 bg-[#30D158]/[0.04] p-10 text-center">
+    <div class="rounded-2xl border border-[var(--acc-green)]/20 bg-[var(--acc-green)]/[0.04] p-10 text-center">
       <h2 class="text-[26px] font-bold mb-3">Ready to integrate?</h2>
-      <p class="text-[#8E8E9E] mb-8 max-w-[480px] mx-auto">Get your API key from the portal, install the SDK, and make your first filtered request in under 5 minutes.</p>
+      <p class="text-[color:var(--ink-3)] mb-8 max-w-[480px] mx-auto">Get your API key from the portal, install the SDK, and make your first filtered request in under 5 minutes.</p>
       <div class="flex items-center justify-center gap-4 flex-wrap">
-        <a href="/price" class="px-6 py-2.5 rounded-xl bg-[#30D158] text-black font-bold text-[14px] hover:-translate-y-0.5 transition-all">Get API Key</a>
+        <a href="/price" class="px-6 py-2.5 rounded-xl bg-[var(--acc-green)] text-black font-bold text-[14px] hover:-translate-y-0.5 transition-all">Get API Key</a>
         <a href="https://docs.shadow-warden-ai.com" class="px-6 py-2.5 rounded-xl border border-white/[0.12] text-white font-semibold text-[14px] hover:bg-white/[0.06] transition-all">Full Docs →</a>
       </div>
     </div>

@@ -7,33 +7,33 @@ const effectiveDate = 'June 2, 2026';
   title="Refund Policy — Shadow Warden AI"
   description="Refund and cancellation policy for Shadow Warden AI subscriptions."
 >
-  <div class="pt-14" style="background:#03050f">
+  <div class="pt-14" style="background:var(--sw-bg)">
     <div class="mx-auto max-w-3xl px-4 lg:px-8 py-20">
 
       <div class="mb-10">
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+             style="color:var(--acc-green);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
           Legal
         </div>
-        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-2" style="color:#f1f5f9">
+        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-2" style="color:var(--ink-1)">
           Refund Policy
         </h1>
-        <p class="text-[13px]" style="color:#64748b">Effective date: {effectiveDate}</p>
+        <p class="text-[13px]" style="color:var(--ink-4)">Effective date: {effectiveDate}</p>
       </div>
 
-      <div class="prose-section space-y-8 text-[14px] leading-relaxed" style="color:#94a3b8">
+      <div class="prose-section space-y-8 text-[14px] leading-relaxed" style="color:var(--ink-3)">
 
         <section>
           <h2>Overview</h2>
-          <p>Shadow Warden AI offers subscription plans for a digital SaaS service. All payments are processed by <strong style="color:#f1f5f9">Lemon Squeezy</strong>, our merchant of record. This policy outlines the conditions under which refunds are granted.</p>
+          <p>Shadow Warden AI offers subscription plans for a digital SaaS service. All payments are processed by <strong style="color:var(--ink-1)">Lemon Squeezy</strong>, our merchant of record. This policy outlines the conditions under which refunds are granted.</p>
         </section>
 
         <section>
           <h2>14-Day Money-Back Guarantee</h2>
-          <p>If you are not satisfied with your paid subscription, you may request a full refund within <strong style="color:#f1f5f9">14 days</strong> of the initial purchase date, provided:</p>
+          <p>If you are not satisfied with your paid subscription, you may request a full refund within <strong style="color:var(--ink-1)">14 days</strong> of the initial purchase date, provided:</p>
           <ul>
             <li>The request is made within 14 calendar days of the charge date.</li>
-            <li>Your account has not exceeded <strong style="color:#f1f5f9">500 filtered requests</strong> during the trial period.</li>
+            <li>Your account has not exceeded <strong style="color:var(--ink-1)">500 filtered requests</strong> during the trial period.</li>
             <li>The refund request is your first for this subscription.</li>
           </ul>
           <p>Once the usage threshold is exceeded, the refund guarantee no longer applies, as the Service has been meaningfully consumed.</p>
@@ -41,7 +41,7 @@ const effectiveDate = 'June 2, 2026';
 
         <section>
           <h2>Renewals</h2>
-          <p>Monthly and annual subscription renewals are <strong style="color:#f1f5f9">non-refundable</strong> once processed, except where required by applicable consumer protection law. You may cancel at any time before the next renewal date to avoid future charges.</p>
+          <p>Monthly and annual subscription renewals are <strong style="color:var(--ink-1)">non-refundable</strong> once processed, except where required by applicable consumer protection law. You may cancel at any time before the next renewal date to avoid future charges.</p>
         </section>
 
         <section>
@@ -56,13 +56,13 @@ const effectiveDate = 'June 2, 2026';
 
         <section>
           <h2>How to Request a Refund</h2>
-          <p>Email <a href="mailto:support@shadow-warden-ai.com" style="color:#10b981">support@shadow-warden-ai.com</a> with:</p>
+          <p>Email <a href="mailto:support@shadow-warden-ai.com" style="color:var(--acc-green)">support@shadow-warden-ai.com</a> with:</p>
           <ul>
             <li>Your registered email address.</li>
             <li>Your Lemon Squeezy order number (found in your purchase receipt).</li>
             <li>A brief reason for the refund request.</li>
           </ul>
-          <p>We aim to process all requests within <strong style="color:#f1f5f9">3 business days</strong>. Approved refunds are issued to the original payment method via Lemon Squeezy.</p>
+          <p>We aim to process all requests within <strong style="color:var(--ink-1)">3 business days</strong>. Approved refunds are issued to the original payment method via Lemon Squeezy.</p>
         </section>
 
         <section>
@@ -77,7 +77,7 @@ const effectiveDate = 'June 2, 2026';
 
         <section>
           <h2>Contact</h2>
-          <p>Questions about this policy? Reach us at <a href="mailto:support@shadow-warden-ai.com" style="color:#10b981">support@shadow-warden-ai.com</a>.</p>
+          <p>Questions about this policy? Reach us at <a href="mailto:support@shadow-warden-ai.com" style="color:var(--acc-green)">support@shadow-warden-ai.com</a>.</p>
         </section>
 
       </div>
@@ -89,10 +89,10 @@ const effectiveDate = 'June 2, 2026';
   .prose-section h2 {
     font-size: 15px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: var(--ink-1);
     margin-bottom: 8px;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(var(--ink-rgb),0.06);
   }
   .prose-section p { margin-bottom: 10px; }
   .prose-section ul {

@@ -17,7 +17,7 @@ const API = '/api';
 
     body {
       min-height: 100vh;
-      background: #0a0a0f;
+      background: var(--sw-bg);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -32,7 +32,7 @@ const API = '/api';
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background:
-        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(128,180,253,.12) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(var(--acc-blue-rgb),.12) 0%, transparent 70%),
         radial-gradient(ellipse 40% 30% at 80% 80%, rgba(6,182,212,.06) 0%, transparent 60%);
       pointer-events: none;
     }
@@ -41,8 +41,8 @@ const API = '/api';
       position: relative;
       width: 100%;
       max-width: 400px;
-      background: #111118;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--sw-surf-1);
+      border: 1px solid rgba(var(--ink-rgb),0.08);
       border-radius: 16px;
       padding: 2.5rem 2rem;
     }
@@ -59,21 +59,21 @@ const API = '/api';
       font-size: 14px;
       font-weight: 800;
       letter-spacing: -0.3px;
-      color: #f1f5f9;
+      color: var(--ink-1);
     }
-    .logo-text span { color: #80b4fd; }
+    .logo-text span { color: var(--acc-blue); }
 
     h1 {
       font-size: 20px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--ink-1);
       text-align: center;
       margin-bottom: 0.35rem;
       letter-spacing: -0.3px;
     }
     .subtitle {
       font-size: 13px;
-      color: #64748b;
+      color: var(--ink-4);
       text-align: center;
       margin-bottom: 1.75rem;
     }
@@ -82,7 +82,7 @@ const API = '/api';
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #94a3b8;
+      color: var(--ink-3);
       margin-bottom: 6px;
     }
     input[type="email"],
@@ -90,10 +90,10 @@ const API = '/api';
       width: 100%;
       height: 40px;
       padding: 0 12px;
-      background: #0d0e15;
-      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--sw-bg);
+      border: 1px solid rgba(var(--ink-rgb),0.1);
       border-radius: 8px;
-      color: #f1f5f9;
+      color: var(--ink-1);
       font-size: 14px;
       outline: none;
       transition: border-color 0.15s;
@@ -101,16 +101,16 @@ const API = '/api';
     }
     input[type="email"]:focus,
     input[type="password"]:focus {
-      border-color: rgba(128,180,253,0.5);
-      box-shadow: 0 0 0 3px rgba(128,180,253,.1);
+      border-color: rgba(var(--acc-blue-rgb),0.5);
+      box-shadow: 0 0 0 3px rgba(var(--acc-blue-rgb),.1);
     }
-    input::placeholder { color: #475569; }
+    input::placeholder { color: var(--ink-5); }
 
     .btn-primary {
       width: 100%;
       height: 40px;
-      background: #80b4fd;
-      color: #070910;
+      background: var(--acc-blue);
+      color: var(--on-acc);
       border: none;
       border-radius: 8px;
       font-size: 14px;
@@ -119,7 +119,7 @@ const API = '/api';
       transition: background 0.15s, opacity 0.15s;
       margin-top: 0.25rem;
     }
-    .btn-primary:hover { background: #9dc5fe; }
+    .btn-primary:hover { background: var(--acc-blue); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .divider {
@@ -127,23 +127,23 @@ const API = '/api';
       align-items: center;
       gap: 12px;
       margin: 1.25rem 0;
-      color: #334155;
+      color: var(--ink-5);
       font-size: 12px;
     }
     .divider::before, .divider::after {
       content: '';
       flex: 1;
       height: 1px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(var(--ink-rgb),0.06);
     }
 
     .btn-sso {
       width: 100%;
       height: 40px;
       background: transparent;
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(var(--ink-rgb),0.1);
       border-radius: 8px;
-      color: #94a3b8;
+      color: var(--ink-3);
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
@@ -155,8 +155,8 @@ const API = '/api';
       text-decoration: none;
     }
     .btn-sso:hover {
-      border-color: rgba(255,255,255,0.2);
-      color: #f1f5f9;
+      border-color: rgba(var(--ink-rgb),0.2);
+      color: var(--ink-1);
     }
 
     #error-msg {
@@ -166,7 +166,7 @@ const API = '/api';
       background: rgba(239,68,68,0.08);
       border: 1px solid rgba(239,68,68,0.2);
       border-radius: 8px;
-      color: #fca5a5;
+      color: var(--acc-red);
       font-size: 13px;
       text-align: center;
     }
@@ -176,18 +176,18 @@ const API = '/api';
       text-align: center;
       margin-top: 1.5rem;
       font-size: 12px;
-      color: #475569;
+      color: var(--ink-5);
       text-decoration: none;
       transition: color 0.15s;
     }
-    .back-link:hover { color: #94a3b8; }
+    .back-link:hover { color: var(--ink-3); }
 
     /* Loading spinner inside button */
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.3);
+      border: 2px solid rgba(var(--ink-rgb),0.3);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
@@ -225,8 +225,8 @@ const API = '/api';
       Continue with SSO / SAML
     </a>
 
-    <p style="text-align:center;margin-top:1.5rem;font-size:13px;color:#475569">
-      Don't have an account? <a href="/signup" style="color:#06b6d4;text-decoration:none;font-weight:500">Create one now</a>
+    <p style="text-align:center;margin-top:1.5rem;font-size:13px;color:var(--ink-5)">
+      Don't have an account? <a href="/signup" style="color:var(--acc-cyan);text-decoration:none;font-weight:500">Create one now</a>
     </p>
     <a href="/" class="back-link">← Back to Shadow Warden AI</a>
   </div>

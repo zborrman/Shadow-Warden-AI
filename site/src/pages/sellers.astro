@@ -88,7 +88,7 @@ const faq = [
   title="For online sellers — labels, your own shop and customers | Shadow Warden AI"
   description="Print FNSKU and barcode labels for Amazon FBA, run a storefront in five languages, and keep a customer list that is yours. Data in the EU."
 >
-  <div class="pt-14" style="background:#03050f">
+  <div class="pt-14" style="background:var(--sw-bg)">
 
     <!-- Hero -->
     <section class="sl-hero">
@@ -104,7 +104,7 @@ const faq = [
             <a href={`${PORTAL}/register/`} class="sl-btn-p">Start free</a>
             <a href="#catalog-check" class="sl-btn-g">Check your catalog free →</a>
           </div>
-          <p class="mt-4 text-[12px]" style="color:#64748b">No card. Data stored in Germany (EU).</p>
+          <p class="mt-4 text-[12px]" style="color:var(--ink-4)">No card. Data stored in Germany (EU).</p>
         </div>
 
         <!-- Label preview -->
@@ -126,15 +126,15 @@ const faq = [
     </section>
 
     <!-- Why now -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8 py-16">
         <h2 class="sl-h2">What changed for sellers</h2>
         <div class="grid gap-4 md:grid-cols-3 mt-8">
           {facts.map(f => (
             <div class="sl-card">
               <div class="sl-fact-k">{f.k}</div>
-              <h3 class="text-[16px] font-bold mb-2" style="color:#f1f5f9">{f.title}</h3>
-              <p class="text-[13px] leading-relaxed" style="color:#94a3b8">{f.body}</p>
+              <h3 class="text-[16px] font-bold mb-2" style="color:var(--ink-1)">{f.title}</h3>
+              <p class="text-[13px] leading-relaxed" style="color:var(--ink-3)">{f.body}</p>
             </div>
           ))}
         </div>
@@ -142,18 +142,18 @@ const faq = [
     </section>
 
     <!-- Features -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8 py-16">
         <h2 class="sl-h2">Everything in one seller workspace</h2>
         <div class="grid gap-4 md:grid-cols-2 mt-8">
           {features.map(f => (
             <div class="sl-card">
               <span class="sl-tag">{f.tag}</span>
-              <h3 class="text-[18px] font-bold mt-3 mb-3" style="color:#f1f5f9">{f.title}</h3>
+              <h3 class="text-[18px] font-bold mt-3 mb-3" style="color:var(--ink-1)">{f.title}</h3>
               <ul class="space-y-2">
                 {f.points.map(p => (
-                  <li class="flex gap-2 text-[13px]" style="color:#cbd5e1">
-                    <span style="color:#818cf8">✓</span><span>{p}</span>
+                  <li class="flex gap-2 text-[13px]" style="color:var(--ink-2)">
+                    <span style="color:var(--acc-violet)">✓</span><span>{p}</span>
                   </li>
                 ))}
               </ul>
@@ -164,23 +164,23 @@ const faq = [
     </section>
 
     <!-- Two contours -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8 py-16">
         <h2 class="sl-h2">Two channels, kept apart on purpose</h2>
-        <p class="text-[14px] mt-2 max-w-2xl" style="color:#94a3b8">
+        <p class="text-[14px] mt-2 max-w-2xl" style="color:var(--ink-3)">
           Using a marketplace buyer’s details for your own marketing can cost you the account. So the two never meet.
         </p>
         <div class="grid gap-4 md:grid-cols-2 mt-8">
           <div class="sl-card" style="border-color:rgba(16,185,129,0.35)">
-            <h3 class="text-[16px] font-bold mb-3" style="color:#34d399">Your shop</h3>
-            <p class="text-[13px] leading-relaxed" style="color:#cbd5e1">
+            <h3 class="text-[16px] font-bold mb-3" style="color:var(--acc-green)">Your shop</h3>
+            <p class="text-[13px] leading-relaxed" style="color:var(--ink-2)">
               Your buyers, your relationship: customer cards, notes, a journal and message drafts. You hold the data and
               can export or erase it for any customer who asks.
             </p>
           </div>
           <div class="sl-card" style="border-color:rgba(251,146,60,0.35)">
-            <h3 class="text-[16px] font-bold mb-3" style="color:#fb923c">Amazon</h3>
-            <p class="text-[13px] leading-relaxed" style="color:#cbd5e1">
+            <h3 class="text-[16px] font-bold mb-3" style="color:var(--acc-orange)">Amazon</h3>
+            <p class="text-[13px] leading-relaxed" style="color:var(--ink-2)">
               Products and labels only. No Amazon buyer is imported or stored, and we never log in to Seller Central.
             </p>
           </div>
@@ -189,15 +189,15 @@ const faq = [
     </section>
 
     <!-- Steps -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8 py-16">
         <h2 class="sl-h2">Up and running in an afternoon</h2>
         <ol class="grid gap-4 md:grid-cols-3 mt-8">
           {steps.map(([t, b], i) => (
             <li class="sl-card">
               <div class="sl-step">{i + 1}</div>
-              <h3 class="text-[16px] font-bold mb-1" style="color:#f1f5f9">{t}</h3>
-              <p class="text-[13px]" style="color:#94a3b8">{b}</p>
+              <h3 class="text-[16px] font-bold mb-1" style="color:var(--ink-1)">{t}</h3>
+              <p class="text-[13px]" style="color:var(--ink-3)">{b}</p>
             </li>
           ))}
         </ol>
@@ -205,16 +205,16 @@ const faq = [
     </section>
 
     <!-- Catalog check offer -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div id="catalog-check" class="mx-auto max-w-4xl px-4 lg:px-8 py-16">
         <div class="sl-offer">
-          <h2 class="text-[24px] font-black mb-3" style="color:#f1f5f9">Free catalog check</h2>
-          <p class="text-[14px] leading-relaxed mb-3" style="color:#cbd5e1">
+          <h2 class="text-[24px] font-black mb-3" style="color:var(--ink-1)">Free catalog check</h2>
+          <p class="text-[14px] leading-relaxed mb-3" style="color:var(--ink-2)">
             <b>Check it yourself in a minute.</b> Upload your Amazon Active Listings Report or a Shopify product CSV: every
             barcode gets its check digit verified, and titles and descriptions are scanned for claims that need proof or a
             registration. The file is read in your browser.
           </p>
-          <p class="text-[13px] leading-relaxed mb-6" style="color:#94a3b8">
+          <p class="text-[13px] leading-relaxed mb-6" style="color:var(--ink-3)">
             Prefer a person? Send us the export and we review it by hand, including FNSKU labels and EU product-safety details.
           </p>
           <div class="flex flex-wrap justify-center gap-3">
@@ -226,10 +226,10 @@ const faq = [
     </section>
 
     <!-- FAQ -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-3xl px-4 lg:px-8 py-16">
         <h2 class="sl-h2">Questions</h2>
-        <div class="mt-6 divide-y" style="border-color:rgba(255,255,255,0.08)">
+        <div class="mt-6 divide-y" style="border-color:rgba(var(--ink-rgb),0.08)">
           {faq.map(([q, a]) => (
             <details class="sl-faq">
               <summary>{q}</summary>
@@ -241,11 +241,11 @@ const faq = [
     </section>
 
     <!-- Final CTA -->
-    <section class="border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8 py-20 text-center">
-        <h2 class="text-[clamp(24px,3.5vw,36px)] font-black mb-4" style="color:#f1f5f9">Your next shipment, labelled right</h2>
+        <h2 class="text-[clamp(24px,3.5vw,36px)] font-black mb-4" style="color:var(--ink-1)">Your next shipment, labelled right</h2>
         <a href={`${PORTAL}/register/`} class="sl-btn-p">Start free</a>
-        <p class="mt-6 text-[11px]" style="color:#475569">
+        <p class="mt-6 text-[11px]" style="color:var(--ink-5)">
           Amazon, FBA and Seller Central are trademarks of Amazon.com, Inc. or its affiliates. Shadow Warden AI is not
           affiliated with or endorsed by Amazon.
         </p>
@@ -256,35 +256,35 @@ const faq = [
 
 <style>
   .sl-hero { background: radial-gradient(ellipse 900px 500px at 20% 0%, rgba(129,140,248,0.10), transparent 70%); }
-  .sl-eyebrow { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#818cf8; margin-bottom:16px; }
-  .sl-h1 { font-size:clamp(36px,5.5vw,64px); line-height:1.05; font-weight:900; letter-spacing:-.02em; color:#f8fafc; margin-bottom:20px; }
-  .sl-sub { font-size:17px; line-height:1.6; color:#94a3b8; max-width:560px; margin-bottom:28px; }
-  .sl-h2 { font-size:clamp(22px,3vw,30px); font-weight:800; color:#f1f5f9; letter-spacing:-.01em; }
+  .sl-eyebrow { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--acc-violet); margin-bottom:16px; }
+  .sl-h1 { font-size:clamp(36px,5.5vw,64px); line-height:1.05; font-weight:900; letter-spacing:-.02em; color:var(--ink-1); margin-bottom:20px; }
+  .sl-sub { font-size:17px; line-height:1.6; color:var(--ink-3); max-width:560px; margin-bottom:28px; }
+  .sl-h2 { font-size:clamp(22px,3vw,30px); font-weight:800; color:var(--ink-1); letter-spacing:-.01em; }
   .sl-btn-p { display:inline-flex; align-items:center; padding:12px 26px; border-radius:10px; font-size:14px; font-weight:700;
     color:#fff; background:linear-gradient(135deg,#6366f1,#8b5cf6); text-decoration:none; }
   .sl-btn-p:hover { filter:brightness(1.1); }
   .sl-btn-g { display:inline-flex; align-items:center; padding:12px 22px; border-radius:10px; font-size:14px; font-weight:600;
-    color:#c7d2fe; border:1px solid rgba(129,140,248,0.35); text-decoration:none; }
+    color:var(--acc-violet); border:1px solid rgba(129,140,248,0.35); text-decoration:none; }
   .sl-btn-g:hover { border-color:rgba(129,140,248,0.7); }
-  .sl-card { border:1px solid rgba(255,255,255,0.08); border-radius:14px; background:rgba(255,255,255,0.025); padding:22px; }
-  .sl-fact-k { font-size:13px; font-weight:800; color:#fb923c; margin-bottom:8px; }
+  .sl-card { border:1px solid rgba(var(--ink-rgb),0.08); border-radius:14px; background:rgba(var(--ink-rgb),0.025); padding:22px; }
+  .sl-fact-k { font-size:13px; font-weight:800; color:var(--acc-orange); margin-bottom:8px; }
   .sl-tag { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-    color:#a5b4fc; background:rgba(129,140,248,0.12); padding:3px 9px; border-radius:6px; }
+    color:var(--acc-violet); background:rgba(129,140,248,0.12); padding:3px 9px; border-radius:6px; }
   .sl-step { width:28px; height:28px; border-radius:999px; display:grid; place-content:center; font-weight:800; font-size:13px;
-    color:#03050f; background:#a5b4fc; margin-bottom:12px; }
+    color:var(--on-acc); background:var(--acc-violet); margin-bottom:12px; }
   .sl-offer { border:1px solid rgba(129,140,248,0.35); border-radius:18px; padding:36px;
     background:linear-gradient(160deg, rgba(99,102,241,0.12), rgba(139,92,246,0.05)); text-align:center; }
-  .sl-faq { padding:16px 0; border-top:1px solid rgba(255,255,255,0.08); }
-  .sl-faq summary { cursor:pointer; font-size:15px; font-weight:600; color:#f1f5f9; }
-  .sl-faq p { margin-top:10px; font-size:14px; line-height:1.6; color:#94a3b8; }
+  .sl-faq { padding:16px 0; border-top:1px solid rgba(var(--ink-rgb),0.08); }
+  .sl-faq summary { cursor:pointer; font-size:15px; font-weight:600; color:var(--ink-1); }
+  .sl-faq p { margin-top:10px; font-size:14px; line-height:1.6; color:var(--ink-3); }
   /* Label preview: white stickers, as printed (counter-inverted in the light theme by the media rule). */
   .sl-preview { position:relative; display:grid; gap:18px; justify-items:center; }
-  .sl-label { width:300px; background:#fff; border-radius:6px; padding:12px 14px 10px; box-shadow:0 20px 50px rgba(0,0,0,0.45); transform:rotate(-2deg); }
+  .sl-label { width:300px; background:#fff; border-radius:6px; padding:12px 14px 10px; box-shadow:0 1px 2px rgba(15,23,42,.08),0 18px 40px -12px rgba(15,23,42,.28); transform:rotate(-2deg); }
   .sl-label-2 { transform:rotate(1.5deg); }
   .sl-label-title { display:flex; justify-content:space-between; font:700 13px/1.2 Arial, sans-serif; color:#111; margin-bottom:8px; }
   .sl-bars { height:54px; background:repeating-linear-gradient(90deg,#111 0 2px,#fff 2px 4px,#111 4px 5px,#fff 5px 8px,#111 8px 11px,#fff 11px 12px,#111 12px 13px,#fff 13px 16px); }
   .sl-bars-2 { background:repeating-linear-gradient(90deg,#111 0 1px,#fff 1px 3px,#111 3px 6px,#fff 6px 7px,#111 7px 8px,#fff 8px 11px,#111 11px 13px,#fff 13px 14px); }
   .sl-label-code { font:12px/1.2 'Courier New', monospace; color:#111; text-align:center; margin-top:4px; letter-spacing:.08em; }
   .sl-label-cond { font:11px Arial, sans-serif; color:#111; margin-top:2px; }
-  .sl-preview-cap { font-size:11px; color:#64748b; }
+  .sl-preview-cap { font-size:11px; color:var(--ink-4); }
 </style>

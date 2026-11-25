@@ -25,10 +25,10 @@ const limits = [
   markdown="/about.md"
 >
   <div class="pt-14">
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+    <div class="border-b" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-surf-1)">
       <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
-        <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold mb-3" style="color:#f1f5f9">About Shadow Warden AI</h1>
-        <p class="text-[15px] max-w-2xl" style="color:#94a3b8">
+        <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold mb-3" style="color:var(--ink-1)">About Shadow Warden AI</h1>
+        <p class="text-[15px] max-w-2xl" style="color:var(--ink-3)">
           Shadow Warden AI is a zero-trust AI security gateway. It sits between your application and every
           model it calls, screens each prompt before tokens are spent, strips secrets and personal data,
           and records only metadata — request content is never logged.
@@ -38,46 +38,46 @@ const limits = [
 
     <div class="mx-auto max-w-4xl px-4 lg:px-8 py-12 space-y-14">
       <section>
-        <h2 class="text-[18px] font-bold mb-4" style="color:#f1f5f9">What it does</h2>
+        <h2 class="text-[18px] font-bold mb-4" style="color:var(--ink-1)">What it does</h2>
         <div class="grid sm:grid-cols-2 gap-4">
           {does.map(x => (
-            <div class="rounded-xl p-5" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-              <h3 class="text-[14px] font-semibold mb-2" style="color:#f1f5f9">{x.t}</h3>
-              <p class="text-[13px] leading-relaxed" style="color:#94a3b8">{x.d}</p>
+            <div class="rounded-xl p-5" style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
+              <h3 class="text-[14px] font-semibold mb-2" style="color:var(--ink-1)">{x.t}</h3>
+              <p class="text-[13px] leading-relaxed" style="color:var(--ink-3)">{x.d}</p>
             </div>
           ))}
         </div>
-        <p class="text-[13px] leading-relaxed mt-4" style="color:#64748b">
+        <p class="text-[13px] leading-relaxed mt-4" style="color:var(--ink-4)">
           It also hosts an experimental machine-to-machine marketplace for detection intelligence. That part
           runs on a test network; no real funds move.
         </p>
       </section>
 
       <section>
-        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Who runs it</h2>
-        <p class="text-[13px] leading-relaxed" style="color:#94a3b8">
+        <h2 class="text-[18px] font-bold mb-3" style="color:var(--ink-1)">Who runs it</h2>
+        <p class="text-[13px] leading-relaxed" style="color:var(--ink-3)">
           Shadow Warden AI is independently built and maintained, with a public contact address and a
           published security-disclosure channel. The publisher's registered-entity details will be added
-          here and to the <a href="/privacy" style="color:#80b4fd">privacy notice</a> when incorporation
+          here and to the <a href="/privacy" style="color:var(--acc-blue)">privacy notice</a> when incorporation
           completes; until then nothing on this site names a legal entity that does not yet exist.
         </p>
       </section>
 
       <section>
-        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">What we do not claim</h2>
-        <ul class="space-y-2 text-[13px] leading-relaxed list-disc pl-5" style="color:#94a3b8">
+        <h2 class="text-[18px] font-bold mb-3" style="color:var(--ink-1)">What we do not claim</h2>
+        <ul class="space-y-2 text-[13px] leading-relaxed list-disc pl-5" style="color:var(--ink-3)">
           {limits.map(l => <li>{l}</li>)}
         </ul>
-        <p class="text-[13px] mt-3" style="color:#64748b">The full list lives in the <a href="/trust" style="color:#80b4fd">trust centre</a>.</p>
+        <p class="text-[13px] mt-3" style="color:var(--ink-4)">The full list lives in the <a href="/trust" style="color:var(--acc-blue)">trust centre</a>.</p>
       </section>
 
       <section>
-        <h2 class="text-[18px] font-bold mb-3" style="color:#f1f5f9">Get in touch</h2>
-        <ul class="space-y-2 text-[13px]" style="color:#94a3b8">
-          <li>General, sales and support: <a href="mailto:vz@shadow-warden-ai.com" style="color:#80b4fd">vz@shadow-warden-ai.com</a> — <a href="/contact" style="color:#80b4fd">contact page</a></li>
-          <li>Security disclosure: <a href="/.well-known/security.txt" style="color:#80b4fd">security.txt</a></li>
-          <li>Privacy: <a href="/privacy" style="color:#80b4fd">privacy notice</a></li>
-          <li>Developers: <a href="/developers" style="color:#80b4fd">developer portal</a></li>
+        <h2 class="text-[18px] font-bold mb-3" style="color:var(--ink-1)">Get in touch</h2>
+        <ul class="space-y-2 text-[13px]" style="color:var(--ink-3)">
+          <li>General, sales and support: <a href="mailto:vz@shadow-warden-ai.com" style="color:var(--acc-blue)">vz@shadow-warden-ai.com</a> — <a href="/contact" style="color:var(--acc-blue)">contact page</a></li>
+          <li>Security disclosure: <a href="/.well-known/security.txt" style="color:var(--acc-blue)">security.txt</a></li>
+          <li>Privacy: <a href="/privacy" style="color:var(--acc-blue)">privacy notice</a></li>
+          <li>Developers: <a href="/developers" style="color:var(--acc-blue)">developer portal</a></li>
         </ul>
       </section>
     </div>

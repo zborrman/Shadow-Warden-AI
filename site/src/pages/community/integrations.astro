@@ -6,30 +6,30 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   title="Integrations — Shadow Warden AI"
   description="Connect Obsidian and Slack to your community."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+  <section class="pt-28 pb-24 min-h-screen" style="background:var(--sw-bg)">
     <div class="mx-auto max-w-3xl px-4 lg:px-8">
 
       <!-- Breadcrumb -->
-      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
-        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:var(--ink-5)">
+        <a href="/community" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Communities</a>
         <span>›</span>
-        <a href="#" id="bc-comm" style="color:#64748b;text-decoration:none">—</a>
+        <a href="#" id="bc-comm" style="color:var(--ink-4);text-decoration:none">—</a>
         <span>›</span>
-        <span style="color:#94a3b8">Integrations</span>
+        <span style="color:var(--ink-3)">Integrations</span>
       </div>
 
       <!-- Tab nav -->
       <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
 
       <!-- Obsidian panel -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
-        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px">
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(var(--ink-rgb),0.06);display:flex;align-items:center;gap:12px">
           <div style="width:38px;height:38px;border-radius:10px;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🔮</div>
           <div>
-            <p class="text-[15px] font-semibold" style="color:#f1f5f9">Obsidian Vault</p>
-            <p class="text-[12px]" style="color:#475569">Scan notes for secrets and PII using SecretRedactor</p>
+            <p class="text-[15px] font-semibold" style="color:var(--ink-1)">Obsidian Vault</p>
+            <p class="text-[12px]" style="color:var(--ink-5)">Scan notes for secrets and PII using SecretRedactor</p>
           </div>
-          <span id="obs-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569">
+          <span id="obs-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(var(--ink-rgb),0.04);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-5)">
             DISCONNECTED
           </span>
         </div>
@@ -37,11 +37,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div id="obs-panel-body" style="padding:20px 24px">
           <!-- Vault path -->
           <div class="mb-4">
-            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Vault Path</label>
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:var(--ink-4)">Vault Path</label>
             <div style="display:flex;gap:10px">
               <input id="obs-path" type="text" placeholder="/Users/you/vault  or  C:\Users\you\vault"
-                     style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
-                     onfocus="this.style.borderColor='rgba(124,77,255,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+                     style="flex:1;background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.1);border-radius:10px;padding:10px 14px;color:var(--ink-1);font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                     onfocus="this.style.borderColor='rgba(124,77,255,0.5)'" onblur="this.style.borderColor='rgba(var(--ink-rgb),0.1)'" />
               <button id="obs-connect-btn"
                       style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;background:rgba(124,77,255,0.12);border:1px solid rgba(124,77,255,0.3);color:#7c4dff"
                       onmouseover="this.style.background='rgba(124,77,255,0.22)'" onmouseout="this.style.background='rgba(124,77,255,0.12)'">
@@ -53,29 +53,29 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <!-- Scan controls -->
           <div class="flex items-center gap-3 mb-5">
             <button id="obs-scan-btn" disabled
-                    style="padding:9px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#475569;font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
+                    style="padding:9px 18px;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:10px;color:var(--ink-5);font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
               🔍 Scan Now
             </button>
-            <p id="obs-scan-msg" style="font-size:12px;color:#475569"></p>
+            <p id="obs-scan-msg" style="font-size:12px;color:var(--ink-5)"></p>
           </div>
 
           <!-- Results table -->
           <div id="obs-results" style="display:none">
-            <p class="text-[13px] font-semibold mb-3" style="color:#f1f5f9">Scan Results</p>
-            <div id="obs-results-table" style="border:1px solid rgba(255,255,255,0.06);border-radius:12px;overflow:hidden"></div>
+            <p class="text-[13px] font-semibold mb-3" style="color:var(--ink-1)">Scan Results</p>
+            <div id="obs-results-table" style="border:1px solid rgba(var(--ink-rgb),0.06);border-radius:12px;overflow:hidden"></div>
           </div>
         </div>
       </div>
 
       <!-- Slack panel -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
-        <div style="padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px">
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;overflow:hidden">
+        <div style="padding:20px 24px;border-bottom:1px solid rgba(var(--ink-rgb),0.06);display:flex;align-items:center;gap:12px">
           <div style="width:38px;height:38px;border-radius:10px;background:rgba(74,21,75,0.3);border:1px solid rgba(229,0,120,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">💬</div>
           <div>
-            <p class="text-[15px] font-semibold" style="color:#f1f5f9">Slack Workspace</p>
-            <p class="text-[12px]" style="color:#475569">Alert your team on HIGH/BLOCK verdicts via incoming webhook</p>
+            <p class="text-[15px] font-semibold" style="color:var(--ink-1)">Slack Workspace</p>
+            <p class="text-[12px]" style="color:var(--ink-5)">Alert your team on HIGH/BLOCK verdicts via incoming webhook</p>
           </div>
-          <span id="slack-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569">
+          <span id="slack-status-badge" style="margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(var(--ink-rgb),0.04);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-5)">
             DISCONNECTED
           </span>
         </div>
@@ -83,11 +83,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div id="slack-panel-body" style="padding:20px 24px">
           <!-- Webhook URL -->
           <div class="mb-5">
-            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:#64748b">Incoming Webhook URL</label>
+            <label class="block text-[12px] font-semibold uppercase tracking-wider mb-2" style="color:var(--ink-4)">Incoming Webhook URL</label>
             <div style="display:flex;gap:10px">
               <input id="slack-url" type="url" placeholder="https://hooks.slack.com/services/T…/B…/…"
-                     style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
-                     onfocus="this.style.borderColor='rgba(229,0,120,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+                     style="flex:1;background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.1);border-radius:10px;padding:10px 14px;color:var(--ink-1);font-size:13px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                     onfocus="this.style.borderColor='rgba(229,0,120,0.5)'" onblur="this.style.borderColor='rgba(var(--ink-rgb),0.1)'" />
               <button id="slack-connect-btn"
                       style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;background:rgba(229,0,120,0.08);border:1px solid rgba(229,0,120,0.25);color:#e5007a"
                       onmouseover="this.style.background='rgba(229,0,120,0.16)'" onmouseout="this.style.background='rgba(229,0,120,0.08)'">
@@ -98,7 +98,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
           <!-- Notification toggles -->
           <div class="mb-5">
-            <p class="text-[12px] font-semibold uppercase tracking-wider mb-3" style="color:#64748b">Notification Triggers</p>
+            <p class="text-[12px] font-semibold uppercase tracking-wider mb-3" style="color:var(--ink-4)">Notification Triggers</p>
             <div id="slack-toggles" style="display:flex;flex-direction:column;gap:10px">
               <!-- rendered by JS -->
             </div>
@@ -107,10 +107,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           <!-- Test alert -->
           <div style="display:flex;align-items:center;gap-12px;gap:12px">
             <button id="slack-test-btn" disabled
-                    style="padding:9px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#475569;font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
+                    style="padding:9px 18px;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:10px;color:var(--ink-5);font-size:13px;font-weight:700;cursor:not-allowed;transition:all 0.15s">
               📨 Send Test Alert
             </button>
-            <p id="slack-test-msg" style="font-size:12px;color:#30D158;display:none">✓ Test alert sent to Slack (simulation)</p>
+            <p id="slack-test-msg" style="font-size:12px;color:var(--acc-green);display:none">✓ Test alert sent to Slack (simulation)</p>
           </div>
         </div>
       </div>
@@ -125,8 +125,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     const TIERS: Record<string, any> = {
       starter:           { name:'Starter',           color:'#64748b', obs:false, slack:false, pqc:false, price:'Free'    },
-      individual:        { name:'Individual',         color:'#06b6d4', obs:false, slack:false, pqc:false, price:'$5/mo'   },
-      community_business:{ name:'Community Business', color:'#BF5AF2', obs:true,  slack:false, pqc:false, price:'$39.99/mo'  },
+      individual:        { name:'Individual',         color:'#0891b2', obs:false, slack:false, pqc:false, price:'$5/mo'   },
+      community_business:{ name:'Community Business', color:'#9333ea', obs:true,  slack:false, pqc:false, price:'$39.99/mo'  },
     };
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
     function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
@@ -138,7 +138,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         bodyEl.innerHTML = `
         <div style="text-align:center;padding:32px 20px">
           <p style="font-size:36px;margin-bottom:12px">🔒</p>
-          <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">Not part of any plan</p>
+          <p style="font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px">Not part of any plan</p>
           <p style="font-size:13px;color:#64748b">This integration is built, and no plan includes it today.</p>
         </div>`;
         return;
@@ -146,14 +146,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       bodyEl.innerHTML = `
         <div style="text-align:center;padding:32px 20px">
           <p style="font-size:36px;margin-bottom:12px">🔒</p>
-          <p style="font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:6px">${rt.name} plan required</p>
+          <p style="font-size:15px;font-weight:700;color:var(--ink-1);margin-bottom:6px">${rt.name} plan required</p>
           <p style="font-size:13px;color:#64748b;margin-bottom:20px">Upgrade to unlock this integration</p>
           <a href="/price"
              style="display:inline-block;padding:11px 28px;background:${rt.color};border-radius:10px;color:#fff;text-decoration:none;font-size:13px;font-weight:700">
             Upgrade to ${rt.name} — ${rt.price} →
           </a>
           <p style="font-size:11px;color:#334155;margin-top:12px">
-            Change your simulated plan in <a href="/account" style="color:#06b6d4">Account settings</a>
+            Change your simulated plan in <a href="/account" style="color:#0891b2">Account settings</a>
           </p>
         </div>`;
     }
@@ -191,10 +191,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         nav.innerHTML = tabs.map(t => `
           <a href="${t.href}"
              style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                    ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0891b2'
                                : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
                     transition:all 0.15s"
-             ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+             ${!t.active ? `onmouseover="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
             ${t.label}
           </a>`).join('');
       }
@@ -211,15 +211,15 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     ];
 
     const VERDICT_STYLE: Record<string, string> = {
-      SAFE:    'background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158',
-      WARNING: 'background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25);color:#FFD60A',
-      BLOCKED: 'background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.25);color:#FF2D55',
+      SAFE:    'background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a',
+      WARNING: 'background:rgba(255,214,10,0.1);border:1px solid rgba(255,214,10,0.25);color:#d97706',
+      BLOCKED: 'background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.25);color:#e11d48',
     };
 
     const CLASS_STYLE: Record<string, string> = {
-      GENERAL: 'color:#94a3b8',
-      PII:     'color:#FFD60A',
-      SECRET:  'color:#FF2D55',
+      GENERAL: 'color:var(--ink-3)',
+      PII:     'color:#d97706',
+      SECRET:  'color:#e11d48',
     };
 
     function updateObsidianUI(cfg: any) {
@@ -227,13 +227,13 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const badge = document.getElementById('obs-status-badge')!;
       badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
       badge.style.cssText = connected
-        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158'
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a'
         : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
 
       const scanBtn = document.getElementById('obs-scan-btn') as HTMLButtonElement;
       scanBtn.disabled = !connected;
       scanBtn.style.cursor = connected ? 'pointer' : 'not-allowed';
-      scanBtn.style.color = connected ? '#BF5AF2' : '#475569';
+      scanBtn.style.color = connected ? '#9333ea' : '#475569';
       scanBtn.style.background = connected ? 'rgba(191,90,242,0.1)' : 'rgba(255,255,255,0.03)';
       scanBtn.style.border = connected ? '1px solid rgba(191,90,242,0.25)' : '1px solid rgba(255,255,255,0.08)';
 
@@ -256,16 +256,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;${i < notes.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.05)' : ''};background:${i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent'}">
           <span style="font-size:14px">📄</span>
           <div style="flex:1;min-width:0">
-            <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</p>
-            <p style="font-size:11px;margin:2px 0 0;${CLASS_STYLE[n.dataClass] || 'color:#94a3b8'}">${n.dataClass}${n.flags.length ? ' · ' + n.flags.join(', ').replace(/_/g, ' ') : ''}</p>
+            <p style="font-size:13px;font-weight:600;color:var(--ink-1);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</p>
+            <p style="font-size:11px;margin:2px 0 0;${CLASS_STYLE[n.dataClass] || 'color:var(--ink-3)'}">${n.dataClass}${n.flags.length ? ' · ' + n.flags.join(', ').replace(/_/g, ' ') : ''}</p>
           </div>
           <span style="padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace;flex-shrink:0;${VERDICT_STYLE[n.verdict]}">${n.verdict}</span>
           ${n.verdict !== 'BLOCKED' ? `
           <button data-note="${esc(n.name)}" class="share-note-btn"
-                  style="padding:4px 10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:6px;color:#06b6d4;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s"
+                  style="padding:4px 10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:6px;color:#0891b2;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;transition:all 0.15s"
                   onmouseover="this.style.background='rgba(6,182,212,0.18)'" onmouseout="this.style.background='rgba(6,182,212,0.08)'">
             Share
-          </button>` : `<span style="font-size:11px;color:#FF2D55;flex-shrink:0">🚫 Blocked</span>`}
+          </button>` : `<span style="font-size:11px;color:#e11d48;flex-shrink:0">🚫 Blocked</span>`}
         </div>
       `).join('');
 
@@ -296,10 +296,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       document.getElementById('obs-scan-btn')!.addEventListener('click', () => {
         const msg = document.getElementById('obs-scan-msg')!;
-        msg.style.color = '#06b6d4';
+        msg.style.color = '#0891b2';
         msg.textContent = 'Scanning vault…';
         setTimeout(() => {
-          msg.style.color = '#30D158';
+          msg.style.color = '#16a34a';
           msg.textContent = `✓ Scanned ${MOCK_NOTES.length} notes — ${MOCK_NOTES.filter(n => n.verdict !== 'SAFE').length} issue(s) found`;
           cfg.obs_results = MOCK_NOTES;
           saveIntegrations(communityId, cfg);
@@ -321,7 +321,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const badge = document.getElementById('slack-status-badge')!;
       badge.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
       badge.style.cssText = connected
-        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#30D158'
+        ? 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:#16a34a'
         : 'margin-left:auto;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#475569';
 
       const urlInput = document.getElementById('slack-url') as HTMLInputElement;
@@ -344,7 +344,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         return `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:10px;gap:12px">
             <div>
-              <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0 0 2px">${t.label}</p>
+              <p style="font-size:13px;font-weight:600;color:var(--ink-1);margin:0 0 2px">${t.label}</p>
               <p style="font-size:11px;color:#475569;margin:0">${t.desc}</p>
             </div>
             <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0">

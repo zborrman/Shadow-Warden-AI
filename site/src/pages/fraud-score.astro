@@ -16,20 +16,20 @@ import '../styles/global.css';
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg:       #03050F;
-            --surface:  #080C18;
-            --card:     #0D1220;
-            --border:   rgba(255,255,255,0.07);
-            --border2:  rgba(255,255,255,0.04);
-            --text:     #F5F5F7;
-            --muted:    #6E6E80;
-            --dim:      #3A3A4C;
-            --red:      #FF2D55;
-            --amber:    #FF9F0A;
-            --green:    #30D158;
-            --blue:     #5AC8FA;
-            --purple:   #BF5AF2;
-            --indigo:   #636FFF;
+            --bg:       var(--sw-bg);
+            --surface:  var(--sw-surf-3);
+            --card:     var(--sw-surf-1);
+            --border:   rgba(var(--ink-rgb),0.07);
+            --border2:  rgba(var(--ink-rgb),0.04);
+            --text:     var(--ink-1);
+            --muted:    var(--ink-4);
+            --dim:      var(--ink-5);
+            --red:      var(--acc-red);
+            --amber:    var(--acc-amber);
+            --green:    var(--acc-green);
+            --blue:     var(--acc-cyan);
+            --purple:   var(--acc-violet);
+            --indigo:   var(--acc-blue-2);
         }
         * { box-sizing: border-box; }
         body {
@@ -44,7 +44,7 @@ import '../styles/global.css';
         /* Scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb),0.1); border-radius: 10px; }
 
         /* Checkbox */
         .risk-check {
@@ -68,7 +68,7 @@ import '../styles/global.css';
             border: none; background: transparent;
         }
         .market-btn.active {
-            background: rgba(255,255,255,0.08);
+            background: rgba(var(--ink-rgb),0.08);
             color: var(--text);
             box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         }
@@ -107,7 +107,7 @@ import '../styles/global.css';
 
         /* Verdict bar */
         .verdict-bar {
-            background: rgba(8,12,24,0.96);
+            background: color-mix(in oklab, var(--sw-bg) 96%, transparent);
             backdrop-filter: blur(24px);
             border-top: 1px solid var(--border);
         }
@@ -131,7 +131,7 @@ import '../styles/global.css';
         /* Top nav */
         #sw-nav {
             height: 44px;
-            background: rgba(3,5,15,0.97);
+            background: color-mix(in oklab, var(--sw-bg) 97%, transparent);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border);
             display: flex; align-items: center; padding: 0 20px; gap: 12px;
@@ -140,7 +140,7 @@ import '../styles/global.css';
         #sw-nav a.logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
         .logo-icon {
             width: 24px; height: 24px; border-radius: 7px;
-            background: linear-gradient(135deg,#FF2D55,#FF6B35);
+            background: linear-gradient(135deg,var(--acc-red),#FF6B35);
             display: flex; align-items: center; justify-content: center;
             font-size: 12px; box-shadow: 0 0 14px rgba(255,45,85,0.4);
             position: relative; flex-shrink: 0;
@@ -160,10 +160,10 @@ import '../styles/global.css';
         #sw-nav .spacer { flex: 1; }
         #sw-nav a.back {
             padding: 4px 12px; border-radius: 7px; font-size: 10px; font-weight: 700;
-            color: var(--muted); background: rgba(255,255,255,0.04);
+            color: var(--muted); background: rgba(var(--ink-rgb),0.04);
             border: 1px solid var(--border); text-decoration: none; transition: all 0.15s;
         }
-        #sw-nav a.back:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+        #sw-nav a.back:hover { color: var(--text); background: rgba(var(--ink-rgb),0.08); }
 
         /* Elite badge */
         .elite-badge {
@@ -234,7 +234,7 @@ import '../styles/global.css';
 <header style="background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:20px 40px;display:flex;align-items:center;gap:32px;position:relative;overflow:hidden">
     <div class="scan-line"></div>
     <div style="flex:1">
-        <nav aria-label="Breadcrumb" style="font-size:12px;color:#94a3b8;margin-bottom:6px">
+        <nav aria-label="Breadcrumb" style="font-size:12px;color:var(--ink-3);margin-bottom:6px">
             <a href="/" style="color:inherit;text-decoration:none">Home</a>
             <span aria-hidden="true"> › </span>
             <a href="/cyber-security" style="color:inherit;text-decoration:none">Protect</a>
@@ -249,7 +249,7 @@ import '../styles/global.css';
             Multidimensional fraud audit · 44 discrete risk factors · US/EU institutional calibration
         </p>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:4px">
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(var(--ink-rgb),0.04);border:1px solid var(--border);border-radius:12px;padding:4px">
         <button id="btn-us" class="market-btn active" onclick="switchMarket('US')">🇺🇸 US Market</button>
         <button id="btn-eu" class="market-btn" onclick="switchMarket('EU')">🇪🇺 EU Market</button>
     </div>
@@ -380,7 +380,7 @@ import '../styles/global.css';
         </div>
     </div>
     <div style="display:flex;align-items:center;gap:16px">
-        <div id="verdict-badge" style="padding:10px 28px;border-radius:100px;font-size:10px;font-weight:800;letter-spacing:0.3em;text-transform:uppercase;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border);transition:all 0.4s">
+        <div id="verdict-badge" style="padding:10px 28px;border-radius:100px;font-size:10px;font-weight:800;letter-spacing:0.3em;text-transform:uppercase;background:rgba(var(--ink-rgb),0.06);color:var(--muted);border:1px solid var(--border);transition:all 0.4s">
             INITIALIZING
         </div>
         <button onclick="window.print()" style="background:var(--red);color:white;padding:10px 24px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(255,45,85,0.35);transition:all 0.2s"
@@ -507,7 +507,7 @@ import '../styles/global.css';
                     borderColor: 'rgba(255,45,85,0.6)',
                     borderWidth: 1.5,
                     pointRadius: 3,
-                    pointBackgroundColor: '#FF2D55',
+                    pointBackgroundColor: '#e11d48',
                     pointBorderColor: '#03050F',
                     pointBorderWidth: 1.5,
                 }]
@@ -648,18 +648,18 @@ import '../styles/global.css';
 
         if (state.fatal) {
             tier = "Regulatory Barrier Encountered"; badge = "HARD STOP";
-            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#FF2D55';
-            scoreColor = '#FF2D55'; mInt.innerText = "COMPROMISED";
+            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#e11d48';
+            scoreColor = '#e11d48'; mInt.innerText = "COMPROMISED";
             vBar.style.borderTopColor = 'rgba(255,45,85,0.3)';
         } else if (s > 75) {
             tier = "Extreme Structural Exposure"; badge = "DECLINE";
-            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#FF2D55';
-            scoreColor = '#FF2D55'; mInt.innerText = "HIGH RISK";
+            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#e11d48';
+            scoreColor = '#e11d48'; mInt.innerText = "HIGH RISK";
             vBar.style.borderTopColor = 'rgba(255,45,85,0.2)';
         } else if (s > 55) {
             tier = "Escalate to Board / Underwriting"; badge = "ESCALATE";
-            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#FF9F0A';
-            scoreColor = '#FF9F0A'; mInt.innerText = "QUESTIONABLE";
+            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#ea580c';
+            scoreColor = '#ea580c'; mInt.innerText = "QUESTIONABLE";
             vBar.style.borderTopColor = 'rgba(255,159,10,0.2)';
         } else if (s > 35) {
             tier = "Negotiation & Covenant Hold"; badge = "NEGOTIATE";
@@ -668,13 +668,13 @@ import '../styles/global.css';
             vBar.style.borderTopColor = 'rgba(99,111,255,0.2)';
         } else if (s > 15) {
             tier = "Standard Asset Classification"; badge = "APPROVE ✓";
-            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#30D158';
-            scoreColor = '#30D158'; mInt.innerText = "VALIDATED";
+            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#16a34a';
+            scoreColor = '#16a34a'; mInt.innerText = "VALIDATED";
             vBar.style.borderTopColor = 'rgba(48,209,88,0.15)';
         } else {
             tier = "Prime Sovereign Classification"; badge = "APPROVE ★";
-            badgeBg = 'rgba(191,90,242,0.1)'; badgeColor = '#BF5AF2';
-            scoreColor = '#BF5AF2'; mInt.innerText = "EXEMPLARY";
+            badgeBg = 'rgba(191,90,242,0.1)'; badgeColor = '#9333ea';
+            scoreColor = '#9333ea'; mInt.innerText = "EXEMPLARY";
             vBar.style.borderTopColor = 'rgba(191,90,242,0.15)';
         }
 
@@ -688,7 +688,7 @@ import '../styles/global.css';
 
         logEl.innerHTML = audit.length
             ? audit.map(a => `
-                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#FF2D55' : a.mit ? '#30D158' : '#6E6E80'}">
+                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#e11d48' : a.mit ? '#16a34a' : '#6E6E80'}">
                     <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px">${a.l}</span>
                     <span class="mono" style="flex-shrink:0;font-weight:700">${a.p}</span>
                 </div>`).join('')

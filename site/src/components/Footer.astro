@@ -26,7 +26,7 @@ const cols = [
 const badges = ['SOC 2 mapped (self-attested)', 'GDPR Native', 'FIPS 203/204', 'EU AI Act Ready', 'HIPAA Controls', 'ISO 27001 mapped (self-attested)'];
 ---
 
-<footer class="relative border-t border-white/[0.06] bg-[#03050F] pt-16 pb-10">
+<footer class="relative border-t border-white/[0.06] bg-[var(--sw-bg)] pt-16 pb-10">
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
 
     <div class="grid lg:grid-cols-[1.5fr_repeat(4,1fr)] gap-10 mb-14">
@@ -34,15 +34,15 @@ const badges = ['SOC 2 mapped (self-attested)', 'GDPR Native', 'FIPS 203/204', '
       <div>
         <a href="/" class="flex items-center gap-2.5 mb-5 w-fit">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg
-                      bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]"
+                      bg-gradient-to-br from-[var(--acc-red)] to-[#FF6B35]"
                style="box-shadow:0 0 24px rgba(255,45,85,0.4)">🛡️</div>
           <div>
             <div class="text-[15px] font-black tracking-tight">Shadow Warden AI</div>
-            <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">{PRODUCT.display} · {PRODUCT.services} services</div>
+            <div class="text-[9px] text-[color:var(--acc-red)] font-bold tracking-[1.5px] uppercase">{PRODUCT.display} · {PRODUCT.services} services</div>
           </div>
         </a>
 
-        <p class="text-[12px] text-[#8E8E9E] leading-[1.7] max-w-[240px] mb-5">
+        <p class="text-[12px] text-[color:var(--ink-3)] leading-[1.7] max-w-[240px] mb-5">
           The zero-trust AI security gateway with 9-layer real-time defense, self-improving ML,
           agentic SOC, post-quantum crypto, and sovereign cloud across 8 jurisdictions.
         </p>
@@ -51,13 +51,13 @@ const badges = ['SOC 2 mapped (self-attested)', 'GDPR Native', 'FIPS 203/204', '
         <div class="flex flex-wrap gap-1.5">
           {badges.map(b => (
             <span class="text-[8px] font-bold uppercase tracking-wider
-                        px-2 py-1 rounded border border-white/[0.08] text-[#48485A]">{b}</span>
+                        px-2 py-1 rounded border border-white/[0.08] text-[color:var(--ink-5)]">{b}</span>
           ))}
         </div>
 
         <!-- Status -->
-        <div class="mt-5 flex items-center gap-2 text-[11px] text-[#30D158]">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+        <div class="mt-5 flex items-center gap-2 text-[11px] text-[color:var(--acc-green)]">
+          <span class="w-1.5 h-1.5 rounded-full bg-[var(--acc-green)] animate-pulse"></span>
           All 15 Layers Operational
         </div>
       </div>
@@ -65,12 +65,12 @@ const badges = ['SOC 2 mapped (self-attested)', 'GDPR Native', 'FIPS 203/204', '
       <!-- Link columns -->
       {cols.map(col => (
         <div>
-          <h4 class="text-[10px] font-bold tracking-[2px] uppercase text-[#48485A] mb-4">{col.title}</h4>
+          <h4 class="text-[10px] font-bold tracking-[2px] uppercase text-[color:var(--ink-5)] mb-4">{col.title}</h4>
           <ul class="flex flex-col gap-2">
             {col.links.map((l, i) => (
               <li>
                 <a href={col.hrefs[i]}
-                   class="text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors duration-150">
+                   class="text-[12px] text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)] transition-colors duration-150">
                   {l}
                 </a>
               </li>
@@ -81,23 +81,23 @@ const badges = ['SOC 2 mapped (self-attested)', 'GDPR Native', 'FIPS 203/204', '
     </div>
 
     <!-- Docker command -->
-    <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] px-5 py-4 mb-8 font-mono text-[11px]">
-      <span class="text-[#30D158]">$</span>
-      <span class="text-[#F5F5F7] ml-2">docker-compose up --build</span>
-      <span class="text-[#48485A] ml-4"># {PRODUCT.services} services · {PRODUCT.version}</span>
+    <div class="rounded-xl border border-white/[0.06] bg-[var(--sw-bg)] px-5 py-4 mb-8 font-mono text-[11px]">
+      <span class="text-[color:var(--acc-green)]">$</span>
+      <span class="text-[color:var(--ink-1)] ml-2">docker-compose up --build</span>
+      <span class="text-[color:var(--ink-5)] ml-4"># {PRODUCT.services} services · {PRODUCT.version}</span>
     </div>
 
     <!-- Bottom bar -->
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4
                 pt-8 border-t border-white/[0.05]">
-      <p class="text-[11px] text-[#48485A]">
+      <p class="text-[11px] text-[color:var(--ink-5)]">
         © 2026 Shadow Warden AI. Proprietary license. All rights reserved.
       </p>
-      <div class="flex items-center gap-6 text-[11px] text-[#48485A]">
-        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Privacy</a>
-        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Terms</a>
-        <a href="#" class="hover:text-[#8E8E9E] transition-colors">Security</a>
-        <span class="text-[#30D158] font-bold">{PRODUCT.version}</span>
+      <div class="flex items-center gap-6 text-[11px] text-[color:var(--ink-5)]">
+        <a href="#" class="hover:text-[color:var(--ink-3)] transition-colors">Privacy</a>
+        <a href="#" class="hover:text-[color:var(--ink-3)] transition-colors">Terms</a>
+        <a href="#" class="hover:text-[color:var(--ink-3)] transition-colors">Security</a>
+        <span class="text-[color:var(--acc-green)] font-bold">{PRODUCT.version}</span>
       </div>
     </div>
   </div>

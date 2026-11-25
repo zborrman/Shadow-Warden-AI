@@ -4,31 +4,31 @@ import { PRODUCT } from '../data/product';
 
 <!-- Auth Modal -->
 <div id="auth-modal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4"
-     style="background:rgba(3,5,15,0.92);backdrop-filter:blur(24px)">
-  <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#080D1E] overflow-hidden
+     style="background:color-mix(in oklab, var(--sw-bg) 92%, transparent);backdrop-filter:blur(24px)">
+  <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[var(--sw-bg)] overflow-hidden
               shadow-[0_40px_120px_rgba(0,0,0,0.8)]">
 
     <!-- Logo -->
     <div class="text-center pt-8 pb-6 px-8 border-b border-white/[0.06]">
       <div class="inline-flex items-center gap-2.5 mb-4">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF2D55] to-[#FF6B35]
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--acc-red)] to-[#FF6B35]
                     flex items-center justify-center text-xl"
              style="box-shadow:0 0 24px rgba(255,45,85,0.45)">🛡️</div>
         <div class="text-left">
           <div class="text-[15px] font-black">Shadow Warden AI</div>
-          <div class="text-[9px] text-[#FF2D55] font-bold tracking-[1.5px] uppercase">{PRODUCT.display} · Zero-Trust Gateway</div>
+          <div class="text-[9px] text-[color:var(--acc-red)] font-bold tracking-[1.5px] uppercase">{PRODUCT.display} · Zero-Trust Gateway</div>
         </div>
       </div>
       <!-- Tabs -->
       <div class="flex rounded-xl bg-white/[0.04] border border-white/[0.06] p-1">
         <button id="tab-signin" onclick="setAuthTab('signin')"
                 class="flex-1 py-2 rounded-lg text-[13px] font-bold transition-all duration-200
-                       bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]">
+                       bg-[var(--acc-red)] text-[#fff] shadow-[0_4px_12px_rgba(255,45,85,0.35)]">
           Sign In
         </button>
         <button id="tab-signup" onclick="setAuthTab('signup')"
                 class="flex-1 py-2 rounded-lg text-[13px] font-medium transition-all duration-200
-                       text-[#8E8E9E] hover:text-[#F5F5F7]">
+                       text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)]">
           Sign Up
         </button>
       </div>
@@ -56,37 +56,37 @@ import { PRODUCT } from '../data/product';
 
         <div class="flex items-center gap-3 mb-6">
           <div class="flex-1 h-px bg-white/[0.07]"></div>
-          <span class="text-[10px] text-[#48485A] font-semibold uppercase tracking-wider">or email</span>
+          <span class="text-[10px] text-[color:var(--ink-5)] font-semibold uppercase tracking-wider">or email</span>
           <div class="flex-1 h-px bg-white/[0.07]"></div>
         </div>
 
         <div class="space-y-4">
           <div>
-            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Email</label>
+            <label class="block text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide mb-2">Email</label>
             <input id="si-email" type="email" placeholder="you@company.com"
-                   class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                          text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none
+                   class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                          text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none
                           transition-colors" />
-            <div id="si-email-err" class="text-[10px] text-[#FF2D55] mt-1 hidden">Enter a valid email</div>
+            <div id="si-email-err" class="text-[10px] text-[color:var(--acc-red)] mt-1 hidden">Enter a valid email</div>
           </div>
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide">Password</label>
-              <button onclick="showForgot()" class="text-[11px] text-[#FF2D55] hover:underline">Forgot?</button>
+              <label class="text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">Password</label>
+              <button onclick="showForgot()" class="text-[11px] text-[color:var(--acc-red)] hover:underline">Forgot?</button>
             </div>
             <div class="relative">
               <input id="si-pass" type="password" placeholder="••••••••••••"
-                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
-                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none
+                     class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
+                            text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none
                             transition-colors" />
               <button onclick="togglePw('si-pass')"
-                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[#48485A] hover:text-[#8E8E9E] text-[14px]">
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-5)] hover:text-[color:var(--ink-3)] text-[14px]">
                 👁
               </button>
             </div>
           </div>
           <button onclick="submitAuth('signin')"
-                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55]
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-[#fff] bg-[var(--acc-red)]
                          hover:bg-[#E8213A] transition-colors"
                   style="box-shadow:0 8px 24px rgba(255,45,85,0.35)">
             Sign In to Shadow Warden
@@ -99,28 +99,28 @@ import { PRODUCT } from '../data/product';
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">First Name</label>
+              <label class="block text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide mb-2">First Name</label>
               <input type="text" placeholder="Alex"
-                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+                     class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                            text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors" />
             </div>
             <div>
-              <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Last Name</label>
+              <label class="block text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide mb-2">Last Name</label>
               <input type="text" placeholder="Smith"
-                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+                     class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                            text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors" />
             </div>
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Work Email</label>
+            <label class="block text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide mb-2">Work Email</label>
             <input id="su-email" type="email" placeholder="alex@company.com"
-                   class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                          text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+                   class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                          text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors" />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide mb-2">Plan</label>
-            <select class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                           text-[#F5F5F7] focus:border-[#FF2D55]/50 focus:outline-none transition-colors">
+            <label class="block text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide mb-2">Plan</label>
+            <select class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                           text-[color:var(--ink-1)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors">
               <option>Starter — Free</option>
               <option>Individual — $5/mo</option>
               <option selected>Community Business — $39.99/mo</option>
@@ -128,16 +128,16 @@ import { PRODUCT } from '../data/product';
           </div>
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[11px] font-semibold text-[#8E8E9E] uppercase tracking-wide">Password</label>
-              <div id="pw-strength-label" class="text-[10px] text-[#48485A]"></div>
+              <label class="text-[11px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">Password</label>
+              <div id="pw-strength-label" class="text-[10px] text-[color:var(--ink-5)]"></div>
             </div>
             <div class="relative">
               <input id="su-pass" type="password" placeholder="Min 12 chars · mixed case · numbers"
                      oninput="updatePwStrength(this.value)"
-                     class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
-                            text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+                     class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 pr-11 text-[13px]
+                            text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors" />
               <button onclick="togglePw('su-pass')"
-                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[#48485A] hover:text-[#8E8E9E] text-[14px]">👁</button>
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--ink-5)] hover:text-[color:var(--ink-3)] text-[14px]">👁</button>
             </div>
             <!-- Strength bars -->
             <div class="flex gap-1 mt-2">
@@ -147,12 +147,12 @@ import { PRODUCT } from '../data/product';
             </div>
           </div>
           <button onclick="submitAuth('signup')"
-                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55]
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-[#fff] bg-[var(--acc-red)]
                          hover:bg-[#E8213A] transition-colors"
                   style="box-shadow:0 8px 24px rgba(255,45,85,0.35)">
             Create Account — Free 14-Day Trial
           </button>
-          <p class="text-center text-[10px] text-[#48485A]">
+          <p class="text-center text-[10px] text-[color:var(--ink-5)]">
             No credit card required · Cancel anytime · GDPR: your content is never logged
           </p>
         </div>
@@ -163,17 +163,17 @@ import { PRODUCT } from '../data/product';
         <div class="text-center mb-5">
           <div class="text-[28px] mb-2">🔑</div>
           <div class="text-[15px] font-bold mb-1">Reset your password</div>
-          <div class="text-[12px] text-[#8E8E9E]">Enter your email and we'll send a reset link</div>
+          <div class="text-[12px] text-[color:var(--ink-3)]">Enter your email and we'll send a reset link</div>
         </div>
         <div class="space-y-4">
           <input type="email" placeholder="your@email.com"
-                 class="w-full bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
-                        text-[#F5F5F7] placeholder-[#48485A] focus:border-[#FF2D55]/50 focus:outline-none transition-colors" />
+                 class="w-full bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-3 text-[13px]
+                        text-[color:var(--ink-1)] placeholder-[var(--ink-5)] focus:border-[var(--acc-red)]/50 focus:outline-none transition-colors" />
           <button onclick="submitForgot()"
-                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-white bg-[#FF2D55] hover:bg-[#E8213A] transition-colors">
+                  class="w-full py-3.5 rounded-xl text-[14px] font-bold text-[#fff] bg-[var(--acc-red)] hover:bg-[#E8213A] transition-colors">
             Send Reset Link
           </button>
-          <button onclick="setAuthTab('signin')" class="w-full py-2.5 text-[12px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+          <button onclick="setAuthTab('signin')" class="w-full py-2.5 text-[12px] text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)] transition-colors">
             ← Back to Sign In
           </button>
         </div>
@@ -183,12 +183,12 @@ import { PRODUCT } from '../data/product';
 
     <!-- Close -->
     <button onclick="closeAuth()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/[0.05]
-                                          hover:bg-white/[0.1] flex items-center justify-center text-[#8E8E9E] text-sm transition-colors">✕</button>
+                                          hover:bg-white/[0.1] flex items-center justify-center text-[color:var(--ink-3)] text-sm transition-colors">✕</button>
   </div>
 </div>
 
 <script>
-  const STRENGTH_COLORS = ['#FF2D55', '#FF9F0A', '#FFD60A', '#30D158'];
+  const STRENGTH_COLORS = ['#e11d48', '#ea580c', '#d97706', '#16a34a'];
   const STRENGTH_LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
 
   function openAuth(tab = 'signin') { setAuthTab(tab); const el = document.getElementById('auth-modal'); el?.classList.remove('hidden'); el?.classList.add('flex'); }
@@ -202,11 +202,11 @@ import { PRODUCT } from '../data/product';
     const signInBtn = document.getElementById('tab-signin')!;
     const signUpBtn = document.getElementById('tab-signup')!;
     if (tab === 'signin') {
-      signInBtn.className = signInBtn.className.replace('text-[#8E8E9E]','text-white').replace('hover:text-[#F5F5F7]','') + ' bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
-      signUpBtn.className = signUpBtn.className.replace('bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[#8E8E9E] hover:text-[#F5F5F7]';
+      signInBtn.className = signInBtn.className.replace('text-[color:var(--ink-3)]','text-white').replace('hover:text-[color:var(--ink-1)]','') + ' bg-[var(--acc-red)] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
+      signUpBtn.className = signUpBtn.className.replace('bg-[var(--acc-red)] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)]';
     } else if (tab === 'signup') {
-      signUpBtn.className = signUpBtn.className.replace('text-[#8E8E9E]','text-white').replace('hover:text-[#F5F5F7]','') + ' bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
-      signInBtn.className = signInBtn.className.replace('bg-[#FF2D55] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[#8E8E9E] hover:text-[#F5F5F7]';
+      signUpBtn.className = signUpBtn.className.replace('text-[color:var(--ink-3)]','text-white').replace('hover:text-[color:var(--ink-1)]','') + ' bg-[var(--acc-red)] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]';
+      signInBtn.className = signInBtn.className.replace('bg-[var(--acc-red)] text-white shadow-[0_4px_12px_rgba(255,45,85,0.35)]','') + ' text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)]';
     }
   }
 

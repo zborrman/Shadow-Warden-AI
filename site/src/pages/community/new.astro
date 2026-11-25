@@ -8,14 +8,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   description="Create a new secure collaboration community."
 >
   <style>
-    .wizard-wrap { background:#070910; min-height:100vh; padding:112px 0 80px; position:relative; overflow:hidden; }
+    .wizard-wrap { background:var(--sw-bg); min-height:100vh; padding:112px 0 80px; position:relative; overflow:hidden; }
     #nw-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
     .wizard-inner { max-width:640px; margin:0 auto; padding:0 20px; position:relative; z-index:1; }
 
     /* breadcrumb */
-    .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; margin-bottom:32px; }
-    .breadcrumb a { color:#64748b; text-decoration:none; transition:color .15s; }
-    .breadcrumb a:hover { color:#06b6d4; }
+    .breadcrumb { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-5); margin-bottom:32px; }
+    .breadcrumb a { color:var(--ink-4); text-decoration:none; transition:color .15s; }
+    .breadcrumb a:hover { color:var(--acc-cyan); }
 
     /* stepper */
     .stepper { display:flex; align-items:center; gap:0; margin-bottom:40px; }
@@ -24,18 +24,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       width:34px; height:34px; border-radius:50%;
       display:flex; align-items:center; justify-content:center;
       font-size:13px; font-weight:700; flex-shrink:0;
-      border:2px solid rgba(255,255,255,0.1);
-      color:#475569; background:#0d1220; transition:all .3s;
+      border:2px solid rgba(var(--ink-rgb),0.1);
+      color:var(--ink-5); background:var(--sw-surf-1); transition:all .3s;
     }
-    .step-circle.active { border-color:#06b6d4; color:#06b6d4; background:rgba(6,182,212,0.1); }
-    .step-circle.done { border-color:#10b981; color:white; background:#10b981; }
-    .step-line { flex:1; height:2px; background:rgba(255,255,255,0.07); transition:background .3s; margin:0 4px; }
-    .step-line.done { background:#10b981; }
+    .step-circle.active { border-color:var(--acc-cyan); color:var(--acc-cyan); background:rgba(6,182,212,0.1); }
+    .step-circle.done { border-color:var(--acc-green); color:white; background:var(--acc-green); }
+    .step-line { flex:1; height:2px; background:rgba(var(--ink-rgb),0.07); transition:background .3s; margin:0 4px; }
+    .step-line.done { background:var(--acc-green); }
 
     /* card */
     .wizard-card {
-      background:#0d1220;
-      border:1px solid rgba(255,255,255,0.08);
+      background:var(--sw-surf-1);
+      border:1px solid rgba(var(--ink-rgb),0.08);
       border-radius:20px;
       padding:36px;
     }
@@ -43,57 +43,57 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     .step-panel.active { display:block; }
 
     .step-head { margin-bottom:28px; }
-    .step-pre { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#06b6d4; margin-bottom:6px; }
-    .step-title { font-size:22px; font-weight:900; color:#f1f5f9; margin:0 0 6px; }
-    .step-sub { font-size:13px; color:#475569; margin:0; }
+    .step-pre { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--acc-cyan); margin-bottom:6px; }
+    .step-title { font-size:22px; font-weight:900; color:var(--ink-1); margin:0 0 6px; }
+    .step-sub { font-size:13px; color:var(--ink-5); margin:0; }
 
     /* form fields */
     .field { margin-bottom:20px; }
-    .field label { display:block; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#64748b; margin-bottom:8px; }
+    .field label { display:block; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-4); margin-bottom:8px; }
     .field-req { color:#f43f5e; }
     .field input, .field textarea, .field select {
       width:100%; box-sizing:border-box;
-      background:#0a0a12; border:1px solid rgba(255,255,255,0.1);
+      background:var(--sw-bg); border:1px solid rgba(var(--ink-rgb),0.1);
       border-radius:10px; padding:12px 14px;
-      color:#f1f5f9; font-size:14px; outline:none;
+      color:var(--ink-1); font-size:14px; outline:none;
       transition:border-color .2s; font-family:inherit;
     }
     .field input:focus, .field textarea:focus, .field select:focus { border-color:rgba(6,182,212,0.5); }
-    .field select option { background:#0d1220; }
+    .field select option { background:var(--sw-surf-1); }
     .field textarea { resize:vertical; }
-    .field-hint { font-size:12px; color:#334155; margin-top:6px; }
+    .field-hint { font-size:12px; color:var(--ink-5); margin-top:6px; }
 
     /* radio cards */
     .radio-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
     .radio-card {
-      padding:18px 16px; border:2px solid rgba(255,255,255,0.07);
+      padding:18px 16px; border:2px solid rgba(var(--ink-rgb),0.07);
       border-radius:12px; cursor:pointer; transition:all .2s;
-      background:rgba(255,255,255,0.02);
+      background:rgba(var(--ink-rgb),0.02);
     }
     .radio-card:hover { border-color:rgba(6,182,212,0.3); background:rgba(6,182,212,0.04); }
-    .radio-card.selected { border-color:#06b6d4; background:rgba(6,182,212,0.08); }
+    .radio-card.selected { border-color:var(--acc-cyan); background:rgba(6,182,212,0.08); }
     .radio-card input { display:none; }
     .rc-icon { font-size:30px; margin-bottom:8px; line-height:1; }
-    .rc-label { font-size:14px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
-    .rc-sub { font-size:12px; color:#64748b; line-height:1.4; }
+    .rc-label { font-size:14px; font-weight:700; color:var(--ink-1); margin-bottom:4px; }
+    .rc-sub { font-size:12px; color:var(--ink-4); line-height:1.4; }
 
     /* toggle row */
     .toggle-row {
       display:flex; align-items:center; justify-content:space-between;
-      padding:14px 16px; border:1px solid rgba(255,255,255,0.07);
+      padding:14px 16px; border:1px solid rgba(var(--ink-rgb),0.07);
       border-radius:12px; margin-bottom:10px;
-      background:rgba(255,255,255,0.02);
+      background:rgba(var(--ink-rgb),0.02);
     }
     .toggle-info { }
-    .toggle-label { font-size:13px; font-weight:600; color:#f1f5f9; }
-    .toggle-desc { font-size:11px; color:#475569; margin-top:2px; }
+    .toggle-label { font-size:13px; font-weight:600; color:var(--ink-1); }
+    .toggle-desc { font-size:11px; color:var(--ink-5); margin-top:2px; }
     .toggle-sw { position:relative; width:44px; height:24px; flex-shrink:0; }
     .toggle-sw input { opacity:0; width:0; height:0; }
     .toggle-sw .slider {
       position:absolute; inset:0; border-radius:24px;
-      background:rgba(255,255,255,0.1); transition:.25s; cursor:pointer;
+      background:rgba(var(--ink-rgb),0.1); transition:.25s; cursor:pointer;
     }
-    .toggle-sw input:checked + .slider { background:#06b6d4; }
+    .toggle-sw input:checked + .slider { background:var(--acc-cyan); }
     .toggle-sw input:disabled + .slider { opacity:.35; cursor:not-allowed; }
     .toggle-row.pqc-locked { opacity:.6; }
     .toggle-sw .slider:before {
@@ -105,43 +105,43 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     /* tag chips */
     .tag-input-wrap { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px;
-      background:#0a0a12; border:1px solid rgba(255,255,255,0.1);
+      background:var(--sw-bg); border:1px solid rgba(var(--ink-rgb),0.1);
       border-radius:10px; min-height:46px; cursor:text; }
     .tag-chip { background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.3);
-      border-radius:6px; padding:3px 10px; font-size:12px; color:#06b6d4;
+      border-radius:6px; padding:3px 10px; font-size:12px; color:var(--acc-cyan);
       display:flex; align-items:center; gap:4px; }
-    .tag-chip button { background:none; border:none; color:#06b6d4; cursor:pointer; font-size:14px; line-height:1; padding:0; }
-    .tag-input-wrap input { background:none; border:none; outline:none; color:#f1f5f9; font-size:13px; min-width:120px; flex:1; padding:2px 4px; }
+    .tag-chip button { background:none; border:none; color:var(--acc-cyan); cursor:pointer; font-size:14px; line-height:1; padding:0; }
+    .tag-input-wrap input { background:none; border:none; outline:none; color:var(--ink-1); font-size:13px; min-width:120px; flex:1; padding:2px 4px; }
 
     /* review table */
     .review-table { width:100%; border-collapse:collapse; }
-    .review-table tr td { padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:13px; }
+    .review-table tr td { padding:10px 0; border-bottom:1px solid rgba(var(--ink-rgb),0.05); font-size:13px; }
     .review-table tr:last-child td { border-bottom:none; }
-    .review-table td:first-child { color:#64748b; width:40%; }
-    .review-table td:last-child { color:#f1f5f9; font-weight:600; }
+    .review-table td:first-child { color:var(--ink-4); width:40%; }
+    .review-table td:last-child { color:var(--ink-1); font-weight:600; }
     .review-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; }
 
     /* info note */
-    .info-note { padding:12px 14px; border-radius:12px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); font-size:12px; color:#475569; line-height:1.6; margin-bottom:24px; }
+    .info-note { padding:12px 14px; border-radius:12px; background:rgba(var(--ink-rgb),0.02); border:1px solid rgba(var(--ink-rgb),0.05); font-size:12px; color:var(--ink-5); line-height:1.6; margin-bottom:24px; }
 
     /* nav buttons */
     .nav-row { display:flex; gap:10px; margin-top:28px; }
     .btn-back {
-      flex:1; padding:13px; background:rgba(255,255,255,0.03);
-      border:1px solid rgba(255,255,255,0.08); border-radius:12px;
-      color:#94a3b8; font-size:14px; font-weight:600; cursor:pointer;
+      flex:1; padding:13px; background:rgba(var(--ink-rgb),0.03);
+      border:1px solid rgba(var(--ink-rgb),0.08); border-radius:12px;
+      color:var(--ink-3); font-size:14px; font-weight:600; cursor:pointer;
       transition:background .15s; font-family:inherit;
     }
-    .btn-back:hover { background:rgba(255,255,255,0.07); }
+    .btn-back:hover { background:rgba(var(--ink-rgb),0.07); }
     .btn-next {
-      flex:2; padding:13px; background:linear-gradient(135deg,#06b6d4,#0e7490);
+      flex:2; padding:13px; background:linear-gradient(135deg,var(--acc-cyan),#0e7490);
       border:none; border-radius:12px; color:white;
       font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:inherit;
     }
     .btn-next:hover { opacity:.9; }
     .btn-next:disabled { opacity:.4; cursor:not-allowed; }
     .btn-create {
-      flex:2; padding:13px; background:linear-gradient(135deg,#10b981,#059669);
+      flex:2; padding:13px; background:linear-gradient(135deg,var(--acc-green),#059669);
       border:none; border-radius:12px; color:white;
       font-size:14px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:inherit;
     }
@@ -156,7 +156,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       margin: 24px 0;
       padding: 24px;
       border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(var(--ink-rgb),0.08);
       background: rgba(0,0,0,0.25);
     }
     .ars-top { display:flex; align-items:center; gap:24px; margin-bottom:20px; }
@@ -167,21 +167,21 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       align-items:center; justify-content:center; pointer-events:none;
     }
     .ars-score { font-size:26px; font-weight:900; line-height:1; }
-    .ars-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#475569; margin-top:2px; }
+    .ars-label { font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-5); margin-top:2px; }
     .ars-meta { flex:1; }
     .ars-tier-badge {
       display:inline-flex; align-items:center; gap:6px;
       padding:5px 12px; border-radius:8px; font-size:12px; font-weight:700;
       margin-bottom:8px; letter-spacing:.02em;
     }
-    .ars-title { font-size:15px; font-weight:800; color:#f1f5f9; margin-bottom:4px; }
-    .ars-desc { font-size:12px; color:#475569; line-height:1.5; }
+    .ars-title { font-size:15px; font-weight:800; color:var(--ink-1); margin-bottom:4px; }
+    .ars-desc { font-size:12px; color:var(--ink-5); line-height:1.5; }
 
     /* axis bars */
     .ars-axes { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
     .axis-row { display:flex; align-items:center; gap:10px; }
-    .axis-name { font-size:11px; color:#64748b; width:120px; flex-shrink:0; }
-    .axis-track { flex:1; height:6px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+    .axis-name { font-size:11px; color:var(--ink-4); width:120px; flex-shrink:0; }
+    .axis-track { flex:1; height:6px; background:rgba(var(--ink-rgb),0.07); border-radius:3px; overflow:hidden; }
     .axis-fill { height:100%; width:100%; border-radius:3px; transform-origin:left center; transition:transform .6s cubic-bezier(.23,1,.32,1); }
     @media (prefers-reduced-motion: reduce) { .axis-fill { transition:none; } }
     .axis-val { font-size:11px; font-weight:700; width:32px; text-align:right; flex-shrink:0; }
@@ -189,15 +189,15 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     /* policy enforcement table */
     .ars-policy {
       padding:12px 14px; border-radius:10px;
-      background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06);
-      font-size:12px; color:#64748b; line-height:1.5;
+      background:rgba(var(--ink-rgb),0.02); border:1px solid rgba(var(--ink-rgb),0.06);
+      font-size:12px; color:var(--ink-4); line-height:1.5;
     }
-    .ars-policy strong { color:#94a3b8; }
+    .ars-policy strong { color:var(--ink-3); }
 
     /* persuasion tip */
     .ars-tip {
       margin-top:12px; padding:10px 14px; border-radius:10px; font-size:11px; line-height:1.6;
-      background:rgba(6,182,212,0.05); border:1px solid rgba(6,182,212,0.15); color:#06b6d4;
+      background:rgba(6,182,212,0.05); border:1px solid rgba(6,182,212,0.15); color:var(--acc-cyan);
       display:none;
     }
     .ars-tip.visible { display:block; }
@@ -210,7 +210,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <div class="breadcrumb">
         <a href="/community">Communities</a>
         <span>›</span>
-        <span style="color:#94a3b8">New Community</span>
+        <span style="color:var(--ink-3)">New Community</span>
       </div>
 
       <!-- Stepper -->
@@ -260,12 +260,12 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             toolparamdescription="Required. The community display name (max 60 chars). Must be unique within the marketplace." />
           </div>
           <div class="field">
-            <label>Description <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
+            <label>Description <span style="color:var(--ink-5);text-transform:none;font-weight:400">(optional)</span></label>
             <textarea id="f-desc" rows="3" maxlength="200" placeholder="What is this community for?"
               toolparamdescription="Optional. A short description of the community purpose (max 200 chars)."></textarea>
           </div>
           <div class="field">
-            <label>Website / Docs URL <span style="color:#334155;text-transform:none;font-weight:400">(optional)</span></label>
+            <label>Website / Docs URL <span style="color:var(--ink-5);text-transform:none;font-weight:400">(optional)</span></label>
             <input id="f-url" type="url" placeholder="https://docs.example.com" />
           </div>
           <div class="nav-row">
@@ -366,7 +366,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <div class="toggle-row pqc-locked" id="pqc-row">
             <div class="toggle-info">
-              <div class="toggle-label">Post-Quantum Cryptography <span id="pqc-badge" style="font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.2);vertical-align:middle;margin-left:6px">Enterprise</span></div>
+              <div class="toggle-label">Post-Quantum Cryptography <span id="pqc-badge" style="font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:4px;background:rgba(251,191,36,.1);color:var(--acc-amber);border:1px solid rgba(251,191,36,.2);vertical-align:middle;margin-left:6px">Enterprise</span></div>
               <div class="toggle-desc">ML-DSA-65 hybrid signing (Ed25519 + ML-KEM-768)</div>
             </div>
             <label class="toggle-sw"><input type="checkbox" id="t-pqc" disabled
@@ -456,7 +456,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <label class="toggle-sw"><input type="checkbox" id="t-slack" /><span class="slider"></span></label>
           </div>
           <div class="field" style="margin-top:16px">
-            <label>Tags <span style="color:#334155;text-transform:none;font-weight:400">(optional — press Enter)</span></label>
+            <label>Tags <span style="color:var(--ink-5);text-transform:none;font-weight:400">(optional — press Enter)</span></label>
             <div class="tag-input-wrap" id="tags-wrap">
               <input id="tag-input" type="text" placeholder="e.g. threat-intel, jailbreak..." maxlength="24" />
             </div>
@@ -477,7 +477,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           </div>
           <table class="review-table" id="review-table">
             <tr><td>Name</td><td id="rv-name">—</td></tr>
-            <tr><td>Description</td><td id="rv-desc" style="color:#64748b;font-weight:400">—</td></tr>
+            <tr><td>Description</td><td id="rv-desc" style="color:var(--ink-4);font-weight:400">—</td></tr>
             <tr><td>Visibility</td><td id="rv-vis">—</td></tr>
             <tr><td>Type</td><td id="rv-type">—</td></tr>
             <tr><td>Encryption</td><td id="rv-enc">—</td></tr>
@@ -485,7 +485,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <tr><td>Join Approval</td><td id="rv-approval">—</td></tr>
             <tr><td>Max Members</td><td id="rv-members">—</td></tr>
             <tr><td>Marketplace</td><td id="rv-market">—</td></tr>
-            <tr><td>Tags</td><td id="rv-tags" style="color:#64748b;font-weight:400">—</td></tr>
+            <tr><td>Tags</td><td id="rv-tags" style="color:var(--ink-4);font-weight:400">—</td></tr>
           </table>
           <!-- ARS Risk Score widget -->
           <div class="ars-widget" id="ars-widget">
@@ -493,20 +493,20 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
               <!-- SVG ring gauge -->
               <div class="ars-gauge-wrap">
                 <svg viewBox="0 0 100 100" fill="none">
-                  <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
+                  <circle cx="50" cy="50" r="40" stroke="rgba(var(--ink-rgb),0.07)" stroke-width="10"/>
                   <circle id="ars-arc" cx="50" cy="50" r="40"
-                    stroke="#10b981" stroke-width="10" stroke-linecap="round"
+                    stroke="#059669" stroke-width="10" stroke-linecap="round"
                     stroke-dasharray="251.2" stroke-dashoffset="251.2"
                     transform="rotate(-90 50 50)"
                     style="transition:stroke-dashoffset .7s cubic-bezier(.23,1,.32,1),stroke .4s"/>
                 </svg>
                 <div class="ars-num">
-                  <span class="ars-score" id="ars-score-num" style="color:#10b981">1</span>
+                  <span class="ars-score" id="ars-score-num" style="color:var(--acc-green)">1</span>
                   <span class="ars-label">/ 100</span>
                 </div>
               </div>
               <div class="ars-meta">
-                <div class="ars-tier-badge" id="ars-tier-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">
+                <div class="ars-tier-badge" id="ars-tier-badge" style="background:rgba(16,185,129,0.1);color:var(--acc-green);border:1px solid rgba(16,185,129,0.2)">
                   <span id="ars-tier-dot" style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>
                   <span id="ars-tier-label">Trusted</span>
                 </div>
@@ -519,18 +519,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             <div class="ars-axes">
               <div class="axis-row">
                 <span class="axis-name">Attack Surface</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-surface" style="background:#ef4444;transform:scaleX(0)"></div></div>
-                <span class="axis-val" id="ax-surface-v" style="color:#ef4444">0</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-surface" style="background:var(--acc-red);transform:scaleX(0)"></div></div>
+                <span class="axis-val" id="ax-surface-v" style="color:var(--acc-red)">0</span>
               </div>
               <div class="axis-row">
                 <span class="axis-name">Blast Radius</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-blast" style="background:#f97316;transform:scaleX(0)"></div></div>
-                <span class="axis-val" id="ax-blast-v" style="color:#f97316">0</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-blast" style="background:var(--acc-orange);transform:scaleX(0)"></div></div>
+                <span class="axis-val" id="ax-blast-v" style="color:var(--acc-orange)">0</span>
               </div>
               <div class="axis-row">
                 <span class="axis-name">Defensive Controls</span>
-                <div class="axis-track"><div class="axis-fill" id="ax-defense" style="background:#10b981;transform:scaleX(0)"></div></div>
-                <span class="axis-val" id="ax-defense-v" style="color:#10b981">−0</span>
+                <div class="axis-track"><div class="axis-fill" id="ax-defense" style="background:var(--acc-green);transform:scaleX(0)"></div></div>
+                <span class="axis-val" id="ax-defense-v" style="color:var(--acc-green)">−0</span>
               </div>
             </div>
 
@@ -556,11 +556,11 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         <div class="step-panel" id="panel-gate">
           <div class="tier-gate">
             <div class="tier-gate-icon">🔒</div>
-            <p style="font-size:16px;font-weight:700;color:#f1f5f9;margin:0 0 8px">Community limit reached</p>
-            <p style="font-size:13px;color:#64748b;margin:0 0 24px" id="gate-msg"></p>
+            <p style="font-size:16px;font-weight:700;color:var(--ink-1);margin:0 0 8px">Community limit reached</p>
+            <p style="font-size:13px;color:var(--ink-4);margin:0 0 24px" id="gate-msg"></p>
             <div style="display:flex;gap:10px;justify-content:center">
-              <a href="/community" style="padding:11px 20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#94a3b8;text-decoration:none;font-size:13px;font-weight:600">← Back</a>
-              <a href="/price" style="padding:11px 24px;background:linear-gradient(135deg,#06b6d4,#0e7490);color:white;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">View Plans →</a>
+              <a href="/community" style="padding:11px 20px;background:rgba(var(--ink-rgb),0.04);border:1px solid rgba(var(--ink-rgb),0.1);border-radius:10px;color:var(--ink-3);text-decoration:none;font-size:13px;font-weight:600">← Back</a>
+              <a href="/price" style="padding:11px 24px;background:linear-gradient(135deg,var(--acc-cyan),#0e7490);color:white;border-radius:10px;text-decoration:none;font-size:13px;font-weight:700">View Plans →</a>
             </div>
           </div>
         </div>
@@ -576,8 +576,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     const TIERS: Record<string, any> = {
       starter:           { name:'Starter',           color:'#64748b', maxComm:0  },
-      individual:        { name:'Individual',         color:'#06b6d4', maxComm:1  },
-      community_business:{ name:'Community Business', color:'#BF5AF2', maxComm:3  },
+      individual:        { name:'Individual',         color:'#0891b2', maxComm:1  },
+      community_business:{ name:'Community Business', color:'#9333ea', maxComm:3  },
     };
 
     // A visitor who has not picked a plan on /account gets the top sold plan
@@ -625,7 +625,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const pqcBadge = document.getElementById('pqc-badge') as HTMLElement;
       if (pqcInput) pqcInput.removeAttribute('disabled');
       if (pqcRow)   pqcRow.classList.remove('pqc-locked');
-      if (pqcBadge) { pqcBadge.textContent = 'Active'; pqcBadge.style.background = 'rgba(16,185,129,.1)'; pqcBadge.style.color = '#10b981'; pqcBadge.style.borderColor = 'rgba(16,185,129,.2)'; }
+      if (pqcBadge) { pqcBadge.textContent = 'Active'; pqcBadge.style.background = 'rgba(16,185,129,.1)'; pqcBadge.style.color = '#059669'; pqcBadge.style.borderColor = 'rgba(16,185,129,.2)'; }
     }
 
     // ── Step state ──────────────────────────────────────────
@@ -771,9 +771,9 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const { score, surface, blast, defense } = r;
 
       // Color palette
-      const color = score <= 20 ? '#10b981'
-                  : score <= 50 ? '#fbbf24'
-                  : score <= 80 ? '#f97316'
+      const color = score <= 20 ? '#059669'
+                  : score <= 50 ? '#d97706'
+                  : score <= 80 ? '#ea580c'
                   :               '#ef4444';
 
       // Ring: circumference = 2π×40 ≈ 251.2
@@ -867,18 +867,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       const vis = radio('visibility');
       (document.getElementById('rv-vis') as HTMLElement).innerHTML =
-        vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
-                         : '<span class="review-badge" style="background:rgba(128,180,253,0.1);color:#80b4fd;border:1px solid rgba(128,180,253,0.2)">🔒 Private</span>';
+        vis === 'public' ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.2)">🌐 Public</span>'
+                         : '<span class="review-badge" style="background:rgba(128,180,253,0.1);color:#3b82f6;border:1px solid rgba(128,180,253,0.2)">🔒 Private</span>';
 
       const typeMap: Record<string,string> = { security:'🛡️ Security', research:'🔬 Research', enterprise:'🏢 Enterprise', marketplace:'🛒 Marketplace' };
       (document.getElementById('rv-type') as HTMLElement).textContent = typeMap[radio('comm-type')] || '—';
 
       (document.getElementById('rv-enc') as HTMLElement).innerHTML = chk('t-e2e')
-        ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
+        ? '<span class="review-badge" style="background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.2)">✓ E2E Enabled</span>'
         : '<span style="color:#64748b">Disabled</span>';
 
       (document.getElementById('rv-pqc') as HTMLElement).innerHTML = chk('t-pqc')
-        ? '<span class="review-badge" style="background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)">✓ ML-DSA-65 Active</span>'
+        ? '<span class="review-badge" style="background:rgba(251,191,36,0.1);color:#d97706;border:1px solid rgba(251,191,36,0.2)">✓ ML-DSA-65 Active</span>'
         : '<span style="color:#64748b">Classical Ed25519</span>';
 
       (document.getElementById('rv-approval') as HTMLElement).textContent = chk('t-approval') ? 'Required' : 'Open join';
@@ -888,7 +888,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         maxEl.value === '0' ? 'Unlimited' : maxEl.value;
 
       (document.getElementById('rv-market') as HTMLElement).innerHTML = chk('t-market')
-        ? '<span class="review-badge" style="background:rgba(6,182,212,0.1);color:#06b6d4;border:1px solid rgba(6,182,212,0.2)">Active node</span>'
+        ? '<span class="review-badge" style="background:rgba(6,182,212,0.1);color:#0891b2;border:1px solid rgba(6,182,212,0.2)">Active node</span>'
         : '<span style="color:#64748b">Not listed</span>';
 
       (document.getElementById('rv-tags') as HTMLElement).textContent = tags.length ? tags.join(', ') : 'None';
@@ -964,7 +964,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     const _pRM = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
     function _rsz() { _cv.width = _cv.offsetWidth || window.innerWidth; _cv.height = _cv.offsetHeight || window.innerHeight; }
     _rsz(); window.addEventListener('resize', _rsz);
-    const _COLS = ['#80b4fd','#fbbf24','#34d399','#22d3ee','#c084fc'];
+    const _COLS = ['#3b82f6','#d97706','#059669','#22d3ee','#c084fc'];
     const _pts = Array.from({length:45}, () => ({
       x: Math.random()*_cv.width, y: Math.random()*_cv.height,
       vx: (Math.random()-.5)*.18, vy: (Math.random()-.5)*.18,

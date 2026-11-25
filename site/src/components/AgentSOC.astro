@@ -1,22 +1,22 @@
 ---
 const subAgents = [
   {
-    name: 'SOVAOperator',    icon: '⚙️', color: '#0A84FF',
+    name: 'SOVAOperator',    icon: '⚙️', color: '#2563eb',
     role: 'Health · Stats · Billing · Config · Key Rotation',
     tools: ['get_health', 'get_stats', 'rotate_keys', 'get_billing', 'update_config'],
   },
   {
-    name: 'ThreatHunter',   icon: '🎯', color: '#FF2D55',
+    name: 'ThreatHunter',   icon: '🎯', color: '#e11d48',
     role: 'CVE Triage · ArXiv Intel · Adversarial Analysis',
     tools: ['scan_cve', 'fetch_arxiv', 'analyze_attack', 'threat_report'],
   },
   {
-    name: 'ForensicsAgent', icon: '🔬', color: '#FFD60A',
+    name: 'ForensicsAgent', icon: '🔬', color: '#d97706',
     role: 'Agent Activity · GDPR Art.30 · Evidence Vault · Visual Patrol',
     tools: ['get_agent_log', 'gdpr_export', 'vault_query', 'visual_patrol'],
   },
   {
-    name: 'ComplianceAgent', icon: '📋', color: '#30D158',
+    name: 'ComplianceAgent', icon: '📋', color: '#16a34a',
     role: 'SLA Monitors · SOC 2 Controls · ROI Proposals',
     tools: ['check_sla', 'soc2_controls', 'roi_calc', 'compliance_report'],
   },
@@ -45,43 +45,43 @@ const cronJobs = [
 
     <!-- Header -->
     <div class="mb-16">
-      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#BF5AF2] mb-3">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[color:var(--acc-violet)] mb-3">
         Agentic SOC · MasterAgent v4.0
       </p>
       <h2 class="text-[42px] lg:text-[56px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
         Your AI security team.<br />
-        <span style="background:linear-gradient(135deg,#BF5AF2,#0A84FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+        <span style="background:linear-gradient(135deg,var(--acc-violet),var(--acc-blue-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
           Running 24/7.
         </span>
       </h2>
-      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+      <p class="text-[16px] text-[color:var(--ink-3)] max-w-xl leading-relaxed">
         MasterAgent decomposes complex SOC tasks into 4 specialized sub-agents
         running in parallel with HMAC task tokens and human-in-the-loop approval.
       </p>
     </div>
 
     <!-- Architecture diagram -->
-    <div class="mb-10 rounded-2xl border border-[#BF5AF2]/20 bg-[#080D1E] p-8 overflow-x-auto">
+    <div class="mb-10 rounded-2xl border border-[var(--acc-violet)]/20 bg-[var(--sw-bg)] p-8 overflow-x-auto">
 
       <!-- SOVA core -->
       <div class="flex flex-col items-center mb-8">
-        <div class="text-[10px] font-mono text-[#48485A] mb-2">POST /agent/sova · POST /agent/master</div>
-        <div class="rounded-2xl border border-[#BF5AF2]/40 bg-[#BF5AF2]/[0.07] px-8 py-4 text-center"
+        <div class="text-[10px] font-mono text-[color:var(--ink-5)] mb-2">POST /agent/sova · POST /agent/master</div>
+        <div class="rounded-2xl border border-[var(--acc-violet)]/40 bg-[var(--acc-violet)]/[0.07] px-8 py-4 text-center"
              style="box-shadow:0 0 40px rgba(191,90,242,0.15)">
           <div class="text-2xl mb-1">🧬</div>
-          <div class="text-[16px] font-bold text-[#BF5AF2]">MasterAgent</div>
-          <div class="text-[11px] text-[#8E8E9E] mt-1">Claude Opus 4.6 · ≤10 iterations · 92 tools</div>
+          <div class="text-[16px] font-bold text-[color:var(--acc-violet)]">MasterAgent</div>
+          <div class="text-[11px] text-[color:var(--ink-3)] mt-1">Claude Opus 4.6 · ≤10 iterations · 92 tools</div>
           <div class="flex gap-2 justify-center mt-2 flex-wrap">
             {['HMAC task tokens', 'Human-in-the-Loop', 'Batch API (50% discount)', 'asyncio.gather()'].map(t => (
               <span class="text-[8px] font-bold uppercase tracking-wide px-2 py-0.5 rounded
-                           bg-[#BF5AF2]/15 text-[#BF5AF2]">{t}</span>
+                           bg-[var(--acc-violet)]/15 text-[color:var(--acc-violet)]">{t}</span>
             ))}
           </div>
         </div>
         <!-- Vertical line -->
-        <div class="w-px h-8 bg-[#BF5AF2]/30"></div>
-        <div class="text-[9px] text-[#48485A] font-mono">decompose → parallel asyncio.gather()</div>
-        <div class="w-px h-4 bg-[#BF5AF2]/30"></div>
+        <div class="w-px h-8 bg-[var(--acc-violet)]/30"></div>
+        <div class="text-[9px] text-[color:var(--ink-5)] font-mono">decompose → parallel asyncio.gather()</div>
+        <div class="w-px h-4 bg-[var(--acc-violet)]/30"></div>
       </div>
 
       <!-- Sub-agents grid -->
@@ -91,7 +91,7 @@ const cronJobs = [
                style={`border-color:${a.color}30;background:${a.color}08`}>
             <div class="text-2xl mb-2">{a.icon}</div>
             <div class="text-[13px] font-bold mb-1" style={`color:${a.color}`}>{a.name}</div>
-            <div class="text-[10px] text-[#8E8E9E] leading-[1.5] mb-3">{a.role}</div>
+            <div class="text-[10px] text-[color:var(--ink-3)] leading-[1.5] mb-3">{a.role}</div>
             <div class="flex flex-wrap gap-1">
               {a.tools.map(t => (
                 <span class="text-[8px] font-mono px-1.5 py-0.5 rounded"
@@ -103,9 +103,9 @@ const cronJobs = [
       </div>
 
       <!-- HMAC token flow -->
-      <div class="mt-6 flex items-center gap-3 justify-center flex-wrap text-[11px] text-[#8E8E9E]">
+      <div class="mt-6 flex items-center gap-3 justify-center flex-wrap text-[11px] text-[color:var(--ink-3)]">
         <span>Each task carries</span>
-        <code class="bg-[#BF5AF2]/10 text-[#BF5AF2] px-2 py-0.5 rounded font-mono text-[10px]">
+        <code class="bg-[var(--acc-violet)]/10 text-[color:var(--acc-violet)] px-2 py-0.5 rounded font-mono text-[10px]">
           HMAC-SHA256(sub_agent:task_hash:ts:sig)
         </code>
         <span>· prevents cross-agent injection</span>
@@ -115,28 +115,28 @@ const cronJobs = [
     <div class="grid lg:grid-cols-[1fr_340px] gap-6">
 
       <!-- 92 tools preview -->
-      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
-        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+      <div class="rounded-2xl border border-white/[0.06] bg-[var(--sw-bg)] p-6">
+        <div class="text-[12px] font-bold text-[color:var(--ink-5)] uppercase tracking-wider mb-4">
           30 SOVA Tool Handlers
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
-            ['get_health', '#30D158'], ['get_stats', '#30D158'], ['block_session', '#FF2D55'],
-            ['scan_cve', '#FF9F0A'], ['rotate_keys', '#FFD60A'], ['get_logs', '#0A84FF'],
-            ['run_filter', '#FF2D55'], ['get_billing', '#30D158'], ['gdpr_export', '#0A84FF'],
-            ['fetch_arxiv', '#BF5AF2'], ['visual_assert_page', '#FF9F0A'], ['scan_shadow_ai', '#FF2D55'],
-            ['explain_decision', '#0A84FF'], ['list_sessions', '#8E8E9E'], ['get_sla', '#30D158'],
-            ['rotate_tenant', '#FFD60A'], ['vault_query', '#BF5AF2'], ['list_rules', '#FF9F0A'],
-            ['add_rule', '#FF2D55'], ['delete_rule', '#FF2D55'], ['get_agent_log', '#0A84FF'],
-            ['check_corpus', '#30D158'], ['roi_calc', '#FFD60A'], ['soc2_controls', '#0A84FF'],
-            ['threat_report', '#FF2D55'], ['analyze_attack', '#FF9F0A'], ['update_config', '#8E8E9E'],
-            ['get_tunnels', '#5AC8FA'], ['set_policy', '#BF5AF2'], ['probe_pod', '#30D158'],
+            ['get_health', 'var(--acc-green)'], ['get_stats', 'var(--acc-green)'], ['block_session', 'var(--acc-red)'],
+            ['scan_cve', 'var(--acc-amber)'], ['rotate_keys', 'var(--acc-amber)'], ['get_logs', 'var(--acc-blue-2)'],
+            ['run_filter', 'var(--acc-red)'], ['get_billing', 'var(--acc-green)'], ['gdpr_export', 'var(--acc-blue-2)'],
+            ['fetch_arxiv', 'var(--acc-violet)'], ['visual_assert_page', 'var(--acc-amber)'], ['scan_shadow_ai', 'var(--acc-red)'],
+            ['explain_decision', 'var(--acc-blue-2)'], ['list_sessions', 'var(--ink-3)'], ['get_sla', 'var(--acc-green)'],
+            ['rotate_tenant', 'var(--acc-amber)'], ['vault_query', 'var(--acc-violet)'], ['list_rules', 'var(--acc-amber)'],
+            ['add_rule', 'var(--acc-red)'], ['delete_rule', 'var(--acc-red)'], ['get_agent_log', 'var(--acc-blue-2)'],
+            ['check_corpus', 'var(--acc-green)'], ['roi_calc', 'var(--acc-amber)'], ['soc2_controls', 'var(--acc-blue-2)'],
+            ['threat_report', 'var(--acc-red)'], ['analyze_attack', 'var(--acc-amber)'], ['update_config', 'var(--ink-3)'],
+            ['get_tunnels', 'var(--acc-cyan)'], ['set_policy', 'var(--acc-violet)'], ['probe_pod', 'var(--acc-green)'],
           ].map(([t, c]) => (
             <div class="text-[9px] font-mono px-2 py-1 rounded"
                  style={`color:${c};background:${c}10;border:1px solid ${c}20`}>{t}</div>
           ))}
         </div>
-        <div class="mt-3 text-[10px] text-[#48485A]">
+        <div class="mt-3 text-[10px] text-[color:var(--ink-5)]">
           Tool #28: visual_assert_page — in-process BrowserSandbox + Claude Vision ·
           Tool #29: scan_shadow_ai — real ShadowAIDetector ·
           Tool #30: explain_decision — XAI causal chain
@@ -144,8 +144,8 @@ const cronJobs = [
       </div>
 
       <!-- Cron scheduler -->
-      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
-        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-4">
+      <div class="rounded-2xl border border-white/[0.06] bg-[var(--sw-bg)] p-6">
+        <div class="text-[12px] font-bold text-[color:var(--ink-5)] uppercase tracking-wider mb-4">
           7 ARQ Scheduled Jobs
         </div>
         <div class="flex flex-col gap-2">
@@ -153,15 +153,15 @@ const cronJobs = [
             <div class="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
               <span class="text-lg flex-shrink-0">{j.icon}</span>
               <div class="flex-1 min-w-0">
-                <div class="text-[11px] font-mono font-bold text-[#F5F5F7] truncate">{j.name}</div>
-                <div class="text-[9px] text-[#48485A]">{j.schedule}</div>
+                <div class="text-[11px] font-mono font-bold text-[color:var(--ink-1)] truncate">{j.name}</div>
+                <div class="text-[9px] text-[color:var(--ink-5)]">{j.schedule}</div>
               </div>
             </div>
           ))}
         </div>
         <div class="mt-4 pt-4 border-t border-white/[0.05]">
-          <div class="text-[10px] text-[#8E8E9E]">
-            <span class="text-[#30D158] font-bold">WardenHealer</span>: LLM-free watchdog —
+          <div class="text-[10px] text-[color:var(--ink-3)]">
+            <span class="text-[color:var(--acc-green)] font-bold">WardenHealer</span>: LLM-free watchdog —
             circuit breaker, bypass spike, corpus check, canary probe
           </div>
         </div>

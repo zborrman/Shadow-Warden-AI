@@ -161,67 +161,67 @@ const STEPS = [
   </div>
 
   <style>
-    .mkt { max-width: 1060px; margin: 0 auto; padding: 88px 20px 96px; color: #F5F5F7; }
-    .hero { padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .mkt { max-width: 1060px; margin: 0 auto; padding: 88px 20px 96px; color: var(--ink-1); }
+    .hero { padding-bottom: 40px; border-bottom: 1px solid rgba(var(--ink-rgb),.08); }
     .eyebrow { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .18em;
-               text-transform: uppercase; color: #FFD60A; margin-bottom: 18px; }
+               text-transform: uppercase; color: var(--acc-amber); margin-bottom: 18px; }
     h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -.02em;
          font-weight: 800; margin: 0 0 18px; text-wrap: balance; }
-    .lede { font-size: 16.5px; line-height: 1.65; color: #9AA3B2; max-width: 64ch; margin: 0 0 24px; }
+    .lede { font-size: 16.5px; line-height: 1.65; color: var(--ink-3); max-width: 64ch; margin: 0 0 24px; }
     .pills { display: flex; flex-wrap: wrap; gap: 8px; }
     .pill { font-family: ui-monospace, monospace; font-size: 11.5px; padding: 5px 10px;
-            border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: #9AA3B2; }
-    .pill[data-state="ok"] { color: #30D158; border-color: rgba(48,209,88,.35); background: rgba(48,209,88,.08); }
-    .pill[data-state="warn"] { color: #FFD60A; border-color: rgba(255,214,10,.35); background: rgba(255,214,10,.08); }
+            border-radius: 999px; border: 1px solid rgba(var(--ink-rgb),.14); color: var(--ink-3); }
+    .pill[data-state="ok"] { color: var(--acc-green); border-color: rgba(48,209,88,.35); background: rgba(48,209,88,.08); }
+    .pill[data-state="warn"] { color: var(--acc-amber); border-color: rgba(255,214,10,.35); background: rgba(255,214,10,.08); }
     .pill[data-state="down"] { color: #FF6B6B; border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.08); }
 
     section { padding-top: 48px; }
     .sec-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;
                 justify-content: space-between; margin-bottom: 18px; }
     h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
-    .src { font-family: ui-monospace, monospace; font-size: 11px; color: #64748b; }
-    .src a { color: #FFD60A; text-decoration: none; }
+    .src { font-family: ui-monospace, monospace; font-size: 11px; color: var(--ink-4); }
+    .src a { color: var(--acc-amber); text-decoration: none; }
 
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px;
-             background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+             background: rgba(var(--ink-rgb),.08); border: 1px solid rgba(var(--ink-rgb),.08); border-radius: 10px;
              overflow: hidden; }
-    .stat { background: #080B16; padding: 18px 20px; }
+    .stat { background: var(--sw-bg); padding: 18px 20px; }
     .stat .k { display: block; font-family: ui-monospace, monospace; font-size: 10.5px;
-               letter-spacing: .1em; text-transform: uppercase; color: #64748b; margin-bottom: 8px; }
+               letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; }
     .stat .v { font-size: 30px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-    .note { font-size: 13px; color: #64748b; margin: 12px 0 0; max-width: 70ch; line-height: 1.6; }
+    .note { font-size: 13px; color: var(--ink-4); margin: 12px 0 0; max-width: 70ch; line-height: 1.6; }
 
-    .tw { overflow-x: auto; border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #080B16; }
+    .tw { overflow-x: auto; border: 1px solid rgba(var(--ink-rgb),.08); border-radius: 10px; background: var(--sw-bg); }
     table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 13.5px; }
     th { text-align: left; font-family: ui-monospace, monospace; font-size: 10.5px; letter-spacing: .1em;
-         text-transform: uppercase; color: #64748b; font-weight: 500; padding: 12px 16px;
-         border-bottom: 1px solid rgba(255,255,255,.08); }
-    td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.05); color: #C7CEDB; }
+         text-transform: uppercase; color: var(--ink-4); font-weight: 500; padding: 12px 16px;
+         border-bottom: 1px solid rgba(var(--ink-rgb),.08); }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(var(--ink-rgb),.05); color: var(--ink-2); }
     tbody tr:last-child td { border-bottom: none; }
     .num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .empty { color: #64748b; text-align: center; padding: 28px 16px; }
+    .empty { color: var(--ink-4); text-align: center; padding: 28px 16px; }
     .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 
     .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-    .steps li { display: flex; gap: 16px; background: #080B16; border: 1px solid rgba(255,255,255,.08);
+    .steps li { display: flex; gap: 16px; background: var(--sw-bg); border: 1px solid rgba(var(--ink-rgb),.08);
                 border-radius: 10px; padding: 18px 20px; }
-    .steps .n { font-family: ui-monospace, monospace; font-size: 12px; color: #FFD60A; padding-top: 3px; }
+    .steps .n { font-family: ui-monospace, monospace; font-size: 12px; color: var(--acc-amber); padding-top: 3px; }
     .steps h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
-    .steps p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; color: #9AA3B2; max-width: 68ch; }
-    .steps code { font-family: ui-monospace, monospace; font-size: 11.5px; color: #8E97A8;
-                  background: rgba(255,255,255,.04); padding: 3px 7px; border-radius: 5px; }
+    .steps p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; color: var(--ink-3); max-width: 68ch; }
+    .steps code { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--ink-3);
+                  background: rgba(var(--ink-rgb),.04); padding: 3px 7px; border-radius: 5px; }
 
-    .proto { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; background: #080B16; }
+    .proto { border: 1px solid rgba(var(--ink-rgb),.08); border-radius: 10px; background: var(--sw-bg); }
     .proto-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;
-                 padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.05); }
+                 padding: 12px 18px; border-bottom: 1px solid rgba(var(--ink-rgb),.05); }
     .proto-row:last-child { border-bottom: none; }
-    .proto-row .k { font-size: 13px; color: #9AA3B2; }
-    .proto-row .v { font-family: ui-monospace, monospace; font-size: 12.5px; color: #F5F5F7; text-align: right; }
+    .proto-row .k { font-size: 13px; color: var(--ink-3); }
+    .proto-row .v { font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--ink-1); text-align: right; }
 
     .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
     .btn { font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 8px;
-           background: #FFD60A; color: #03050F; text-decoration: none; }
-    .btn.ghost { background: transparent; color: #F5F5F7; border: 1px solid rgba(255,255,255,.16); }
+           background: var(--acc-amber); color: var(--on-acc); text-decoration: none; }
+    .btn.ghost { background: transparent; color: var(--ink-1); border: 1px solid rgba(var(--ink-rgb),.16); }
   </style>
 
   <script define:vars={{ API_URL }}>

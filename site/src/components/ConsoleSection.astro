@@ -1,134 +1,134 @@
 <!-- AI Cyber Security Console — implements UI Kit exactly -->
-<section id="console" class="py-20 relative overflow-hidden" style="background:#080810">
+<section id="console" class="py-20 relative overflow-hidden" style="background:var(--sw-bg)">
   <!-- bg grid -->
-  <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(128,180,253,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(128,180,253,0.025) 1px,transparent 1px);background-size:48px 48px"></div>
+  <div class="absolute inset-0 pointer-events-none" style="background-image:linear-gradient(rgba(var(--acc-blue-rgb),0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--acc-blue-rgb),0.025) 1px,transparent 1px);background-size:48px 48px"></div>
   <!-- radial glow -->
-  <div class="absolute pointer-events-none" style="top:0;left:50%;transform:translateX(-50%);width:1200px;height:500px;background:radial-gradient(ellipse,rgba(128,180,253,0.07) 0%,transparent 65%)"></div>
+  <div class="absolute pointer-events-none" style="top:0;left:50%;transform:translateX(-50%);width:1200px;height:500px;background:radial-gradient(ellipse,rgba(var(--acc-blue-rgb),0.07) 0%,transparent 65%)"></div>
 
   <div class="relative mx-auto max-w-7xl px-4 lg:px-8">
 
     <!-- Section header -->
     <div class="text-center mb-10">
       <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 text-[11px] font-semibold"
-           style="color:#34d399;background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.25)">
-        <span id="live-dot" class="w-2 h-2 rounded-full animate-pulse" style="background:#34d399"></span>
+           style="color:var(--acc-green);background:rgba(52,211,153,0.10);border:1px solid rgba(52,211,153,0.25)">
+        <span id="live-dot" class="w-2 h-2 rounded-full animate-pulse" style="background:var(--acc-green)"></span>
         LIVE DEMO — Real data simulation
       </div>
-      <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">
+      <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:var(--ink-1)">
         AI Cyber Security Console
       </h2>
-      <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+      <p class="text-[15px] max-w-xl mx-auto" style="color:var(--ink-3)">
         Full-stack SOC operations view — KPIs, threat pipeline, live event feed, charts. No content logged (GDPR strict mode on).
       </p>
     </div>
 
     <!-- Browser chrome frame -->
-    <div class="rounded-2xl overflow-hidden shadow-2xl" style="border:1px solid rgba(128,180,253,0.20);box-shadow:0 0 80px rgba(128,180,253,0.08),0 32px 64px rgba(0,0,0,0.6)">
+    <div class="rounded-2xl overflow-hidden shadow-2xl" style="border:1px solid rgba(var(--acc-blue-rgb),0.20);box-shadow:0 0 80px rgba(var(--acc-blue-rgb),0.08),0 32px 64px rgba(0,0,0,0.6)">
 
       <!-- Chrome bar -->
-      <div class="flex items-center gap-2 px-4 py-3" style="background:#0a0f1e;border-bottom:1px solid rgba(128,180,253,0.14)">
-        <span class="w-3 h-3 rounded-full" style="background:#ef4444"></span>
-        <span class="w-3 h-3 rounded-full" style="background:#f59e0b"></span>
-        <span class="w-3 h-3 rounded-full" style="background:#10b981"></span>
+      <div class="flex items-center gap-2 px-4 py-3" style="background:var(--sw-bg);border-bottom:1px solid rgba(var(--acc-blue-rgb),0.14)">
+        <span class="w-3 h-3 rounded-full" style="background:var(--acc-red)"></span>
+        <span class="w-3 h-3 rounded-full" style="background:var(--acc-amber)"></span>
+        <span class="w-3 h-3 rounded-full" style="background:var(--acc-green)"></span>
         <div class="flex-1 mx-4 h-6 rounded-md flex items-center px-3 text-[11px]"
-             style="background:#111827;border:1px solid rgba(255,255,255,0.08);color:#64748b">
+             style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-4)">
           🔒 &nbsp;dash.shadow-warden-ai.com/overview
         </div>
-        <div class="flex items-center gap-5 px-3" style="color:#64748b;font-size:11px">
+        <div class="flex items-center gap-5 px-3" style="color:var(--ink-4);font-size:11px">
           <span>Export</span>
-          <span style="color:#34d399;display:flex;align-items:center;gap:4px">
-            <span style="width:6px;height:6px;border-radius:50%;background:#34d399;animation:swPulse 2s infinite;display:inline-block"></span>
+          <span style="color:var(--acc-green);display:flex;align-items:center;gap:4px">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--acc-green);animation:swPulse 2s infinite;display:inline-block"></span>
             LIVE
           </span>
         </div>
       </div>
 
       <!-- Console nav -->
-      <div class="flex items-center gap-2 px-6 h-12" style="background:#0a0f1e;border-bottom:1px solid rgba(128,180,253,0.10)">
+      <div class="flex items-center gap-2 px-6 h-12" style="background:var(--sw-bg);border-bottom:1px solid rgba(var(--acc-blue-rgb),0.10)">
         <div class="flex gap-1 flex-1">
           {['Dashboard','Threats','Rules','Settings','Logs'].map((tab, i) => (
-            <div class={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer ${i === 0 ? 'text-[#f1f5f9]' : 'text-[#64748b]'}`}
-                 style={i === 0 ? 'background:rgba(128,180,253,0.12)' : ''}>{tab}</div>
+            <div class={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer ${i === 0 ? 'text-[color:var(--ink-1)]' : 'text-[color:var(--ink-4)]'}`}
+                 style={i === 0 ? 'background:rgba(var(--acc-blue-rgb),0.12)' : ''}>{tab}</div>
           ))}
         </div>
         <div class="flex items-center gap-2">
-          <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:#111827;border:1px solid rgba(128,180,253,0.12)">
+          <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:var(--sw-surf-1);border:1px solid rgba(var(--acc-blue-rgb),0.12)">
             {['1h','24h','7d','30d'].map((r, i) => (
-              <div class={`px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer ${i === 1 ? 'text-[#f1f5f9]' : 'text-[#64748b]'}`}
-                   style={i === 1 ? 'background:#1e293b' : ''}>{r}</div>
+              <div class={`px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer ${i === 1 ? 'text-[color:var(--ink-1)]' : 'text-[color:var(--ink-4)]'}`}
+                   style={i === 1 ? 'background:var(--sw-surf-3)' : ''}>{r}</div>
             ))}
           </div>
-          <span class="text-[11px]" style="color:#64748b;font-family:monospace">ops@example.com</span>
+          <span class="text-[11px]" style="color:var(--ink-4);font-family:monospace">ops@example.com</span>
         </div>
       </div>
 
       <!-- Console body -->
-      <div class="p-5 flex flex-col gap-4" style="background:#030712">
+      <div class="p-5 flex flex-col gap-4" style="background:var(--sw-bg)">
 
         <!-- Page header -->
         <div class="flex items-baseline justify-between">
           <div>
-            <div class="text-[18px] font-bold" style="color:#f1f5f9;letter-spacing:-0.02em">Operations Console</div>
-            <div class="text-[12px] mt-1" style="color:#94a3b8">
-              Last <strong style="color:#cbd5e1">24h</strong> · Region <strong style="color:#cbd5e1">EU-WEST · US-EAST</strong> · 9 services healthy
+            <div class="text-[18px] font-bold" style="color:var(--ink-1);letter-spacing:-0.02em">Operations Console</div>
+            <div class="text-[12px] mt-1" style="color:var(--ink-3)">
+              Last <strong style="color:var(--ink-2)">24h</strong> · Region <strong style="color:var(--ink-2)">EU-WEST · US-EAST</strong> · 9 services healthy
             </div>
           </div>
           <div class="flex gap-2">
             <button class="px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer"
-                    style="background:transparent;border:1px solid rgba(128,180,253,0.20);color:#94a3b8">Export CSV</button>
+                    style="background:transparent;border:1px solid rgba(var(--acc-blue-rgb),0.20);color:var(--ink-3)">Export CSV</button>
             <button class="px-3 py-1.5 rounded-lg text-[12px] font-semibold cursor-pointer"
-                    style="background:#80b4fd;border:none;color:#070910">Run incident drill</button>
+                    style="background:var(--acc-blue);border:none;color:var(--on-acc)">Run incident drill</button>
           </div>
         </div>
 
         <!-- KPI row -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { label: 'Total requests',    value: '28,492', sub: '+12.4% vs yesterday', accent: '#80b4fd', vc: null },
-            { label: 'Blocked',           value: '1,384',  sub: '4.86% block rate',    accent: '#f87171', vc: '#f87171' },
-            { label: 'Avg latency',       value: '14ms',   sub: 'p99 31ms',             accent: '#34d399', vc: null },
+            { label: 'Total requests',    value: '28,492', sub: '+12.4% vs yesterday', accent: 'var(--acc-blue)', vc: null },
+            { label: 'Blocked',           value: '1,384',  sub: '4.86% block rate',    accent: 'var(--acc-red)', vc: 'var(--acc-red)' },
+            { label: 'Avg latency',       value: '14ms',   sub: 'p99 31ms',             accent: 'var(--acc-green)', vc: null },
             { label: 'Secrets stripped',  value: '312',    sub: 'API keys · PII · IBANs', accent: '#22d3ee', vc: '#22d3ee' },
           ].map(k => (
             <div class="rounded-xl p-4 relative overflow-hidden cursor-pointer"
-                 style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+                 style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
               <div class="absolute top-0 left-0 right-0 h-0.5" style={`background:${k.accent};opacity:0.7`}></div>
-              <div class="text-[11px] font-medium uppercase tracking-wider mb-2" style="color:#64748b">{k.label}</div>
-              <div class="text-[1.75rem] font-bold leading-none mb-1.5" style={`color:${k.vc ?? '#f1f5f9'};letter-spacing:-0.03em`}>{k.value}</div>
-              <div class="text-[11px]" style="color:#64748b">{k.sub}</div>
+              <div class="text-[11px] font-medium uppercase tracking-wider mb-2" style="color:var(--ink-4)">{k.label}</div>
+              <div class="text-[1.75rem] font-bold leading-none mb-1.5" style={`color:${k.vc ?? 'var(--ink-1)'};letter-spacing:-0.03em`}>{k.value}</div>
+              <div class="text-[11px]" style="color:var(--ink-4)">{k.sub}</div>
             </div>
           ))}
         </div>
 
         <!-- Threat Pipeline -->
-        <div class="rounded-xl p-5" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+        <div class="rounded-xl p-5" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
           <div class="mb-4">
-            <div class="text-[13px] font-semibold" style="color:#f1f5f9">Filter Pipeline</div>
-            <div class="text-[11px] mt-1" style="color:#64748b">
-              POST <span style="color:#80b4fd;font-family:monospace">/filter</span> → 9 stages → ALLOW / HIGH / BLOCK · avg <strong style="color:#34d399">14ms</strong>
+            <div class="text-[13px] font-semibold" style="color:var(--ink-1)">Filter Pipeline</div>
+            <div class="text-[11px] mt-1" style="color:var(--ink-4)">
+              POST <span style="color:var(--acc-blue);font-family:monospace">/filter</span> → 9 stages → ALLOW / HIGH / BLOCK · avg <strong style="color:var(--acc-green)">14ms</strong>
             </div>
           </div>
           <div class="grid gap-2" style="grid-template-columns:repeat(5,1fr)">
             {[
-              { num: '01', label: 'Topology',   sub: 'β₀/β₁ Betti · n-gram',     color: '#ef4444' },
-              { num: '02', label: 'Obfuscation',sub: 'base64·hex·ROT13·unicode',  color: '#f97316' },
-              { num: '03', label: 'Secrets',    sub: '15 PII patterns + entropy', color: '#f59e0b' },
-              { num: '04', label: 'Rules + ML', sub: 'SemanticGuard · MiniLM',    color: '#80b4fd' },
-              { num: '05', label: 'Causal',     sub: 'Bayesian DAG · do-calculus', color: '#34d399' },
+              { num: '01', label: 'Topology',   sub: 'β₀/β₁ Betti · n-gram',     color: 'var(--acc-red)' },
+              { num: '02', label: 'Obfuscation',sub: 'base64·hex·ROT13·unicode',  color: 'var(--acc-orange)' },
+              { num: '03', label: 'Secrets',    sub: '15 PII patterns + entropy', color: 'var(--acc-amber)' },
+              { num: '04', label: 'Rules + ML', sub: 'SemanticGuard · MiniLM',    color: 'var(--acc-blue)' },
+              { num: '05', label: 'Causal',     sub: 'Bayesian DAG · do-calculus', color: 'var(--acc-green)' },
             ].map((s, i) => (
               <div class="relative">
                 <div class="rounded-xl p-3 flex flex-col items-center gap-1.5 text-center"
-                     style="background:#111827;border:1px solid rgba(255,255,255,0.06);min-height:96px">
+                     style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.06);min-height:96px">
                   <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[14px]"
                        style={`background:${s.color}1f;border:1px solid ${s.color}40`}>
                     {i === 0 ? '📐' : i === 1 ? '🔄' : i === 2 ? '🔑' : i === 3 ? '🧠' : '🎯'}
                   </div>
                   <div class="text-[9px] font-bold" style={`color:${s.color};font-family:monospace`}>STAGE {s.num}</div>
-                  <div class="text-[11px] font-semibold" style="color:#f1f5f9">{s.label}</div>
-                  <div class="text-[10px] leading-tight" style="color:#64748b">{s.sub}</div>
+                  <div class="text-[11px] font-semibold" style="color:var(--ink-1)">{s.label}</div>
+                  <div class="text-[10px] leading-tight" style="color:var(--ink-4)">{s.sub}</div>
                 </div>
                 {i < 4 && (
                   <div class="absolute flex items-center justify-center" style="right:-9px;top:40px;z-index:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </div>
@@ -139,25 +139,25 @@
           <!-- stages 6-9 -->
           <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(4,1fr)">
             {[
-              { num: '06', label: 'Phish',    sub: 'URL + social engineering',  color: '#38bdf8' },
+              { num: '06', label: 'Phish',    sub: 'URL + social engineering',  color: 'var(--acc-cyan)' },
               { num: '07', label: 'ERS',      sub: 'Redis sliding window ban',  color: '#ec4899' },
-              { num: '08', label: 'XAI',      sub: '9-stage causal chain',      color: '#06b6d4' },
-              { num: '09', label: 'Decision', sub: 'ALLOW / HIGH / BLOCK',      color: '#10b981' },
+              { num: '08', label: 'XAI',      sub: '9-stage causal chain',      color: 'var(--acc-cyan)' },
+              { num: '09', label: 'Decision', sub: 'ALLOW / HIGH / BLOCK',      color: 'var(--acc-green)' },
             ].map((s, i) => (
               <div class="relative">
                 <div class="rounded-xl p-3 flex flex-col items-center gap-1.5 text-center"
-                     style="background:#111827;border:1px solid rgba(255,255,255,0.06)">
+                     style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.06)">
                   <div class="w-7 h-7 rounded-lg flex items-center justify-center text-[12px]"
                        style={`background:${s.color}1f;border:1px solid ${s.color}40`}>
                     {i === 0 ? '🎣' : i === 1 ? '🚫' : i === 2 ? '🔍' : '✅'}
                   </div>
                   <div class="text-[9px] font-bold" style={`color:${s.color};font-family:monospace`}>STAGE {s.num}</div>
-                  <div class="text-[11px] font-semibold" style="color:#f1f5f9">{s.label}</div>
-                  <div class="text-[10px]" style="color:#64748b">{s.sub}</div>
+                  <div class="text-[11px] font-semibold" style="color:var(--ink-1)">{s.label}</div>
+                  <div class="text-[10px]" style="color:var(--ink-4)">{s.sub}</div>
                 </div>
                 {i < 3 && (
                   <div class="absolute flex items-center justify-center" style="right:-9px;top:36px;z-index:1">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </div>
@@ -170,15 +170,15 @@
         <!-- Charts row -->
         <div class="grid lg:grid-cols-3 gap-3">
           <!-- Timeline chart -->
-          <div class="lg:col-span-2 rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+          <div class="lg:col-span-2 rounded-xl p-4" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <div class="text-[13px] font-semibold" style="color:#f1f5f9">Requests / minute</div>
-                <div class="text-[11px] mt-0.5" style="color:#64748b">Indigo: total · Red: blocked</div>
+                <div class="text-[13px] font-semibold" style="color:var(--ink-1)">Requests / minute</div>
+                <div class="text-[11px] mt-0.5" style="color:var(--ink-4)">Indigo: total · Red: blocked</div>
               </div>
-              <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:#111827;border:1px solid rgba(128,180,253,0.12)">
-                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="background:#1e293b;color:#f1f5f9">Live</div>
-                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="color:#64748b">Compare</div>
+              <div class="flex gap-0.5 p-0.5 rounded-lg" style="background:var(--sw-surf-1);border:1px solid rgba(var(--acc-blue-rgb),0.12)">
+                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="background:var(--sw-surf-3);color:var(--ink-1)">Live</div>
+                <div class="px-2.5 py-1 rounded-md text-[10px] font-medium cursor-pointer" style="color:var(--ink-4)">Compare</div>
               </div>
             </div>
             <div style="height:160px;position:relative">
@@ -187,10 +187,10 @@
           </div>
 
           <!-- Risk donut -->
-          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+          <div class="rounded-xl p-4" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
             <div class="mb-4">
-              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Risk distribution</div>
-              <div class="text-[11px] mt-0.5" style="color:#64748b">Last 24h decisions</div>
+              <div class="text-[13px] font-semibold" style="color:var(--ink-1)">Risk distribution</div>
+              <div class="text-[11px] mt-0.5" style="color:var(--ink-4)">Last 24h decisions</div>
             </div>
             <div style="height:160px;position:relative">
               <canvas id="sw-donut-chart"></canvas>
@@ -200,19 +200,19 @@
 
         <!-- Charts row 2 -->
         <div class="grid lg:grid-cols-2 gap-3">
-          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+          <div class="rounded-xl p-4" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
             <div class="mb-3">
-              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Top threat flags</div>
-              <div class="text-[11px] mt-0.5" style="color:#64748b">Triggers by detection rule</div>
+              <div class="text-[13px] font-semibold" style="color:var(--ink-1)">Top threat flags</div>
+              <div class="text-[11px] mt-0.5" style="color:var(--ink-4)">Triggers by detection rule</div>
             </div>
             <div style="height:180px;position:relative">
               <canvas id="sw-flags-chart"></canvas>
             </div>
           </div>
-          <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+          <div class="rounded-xl p-4" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
             <div class="mb-3">
-              <div class="text-[13px] font-semibold" style="color:#f1f5f9">Secrets stripped</div>
-              <div class="text-[11px] mt-0.5" style="color:#64748b">By pattern category</div>
+              <div class="text-[13px] font-semibold" style="color:var(--ink-1)">Secrets stripped</div>
+              <div class="text-[11px] mt-0.5" style="color:var(--ink-4)">By pattern category</div>
             </div>
             <div style="height:180px;position:relative">
               <canvas id="sw-secrets-chart"></canvas>
@@ -221,36 +221,36 @@
         </div>
 
         <!-- Live event feed -->
-        <div class="rounded-xl p-4" style="background:#0a0f1e;border:1px solid rgba(128,180,253,0.14)">
+        <div class="rounded-xl p-4" style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),0.14)">
           <div class="flex items-center justify-between mb-3">
             <div>
-              <div class="flex items-center gap-2 text-[13px] font-semibold" style="color:#f1f5f9">
+              <div class="flex items-center gap-2 text-[13px] font-semibold" style="color:var(--ink-1)">
                 Live Event Feed
-                <span id="feed-dot" class="w-2 h-2 rounded-full" style="background:#34d399;animation:swPulse 2s infinite"></span>
-                <span class="text-[11px] font-normal" style="color:#34d399">connected</span>
+                <span id="feed-dot" class="w-2 h-2 rounded-full" style="background:var(--acc-green);animation:swPulse 2s infinite"></span>
+                <span class="text-[11px] font-normal" style="color:var(--acc-green)">connected</span>
               </div>
-              <div class="text-[11px] mt-0.5" style="color:#64748b">Real-time · no content logged (GDPR)</div>
+              <div class="text-[11px] mt-0.5" style="color:var(--ink-4)">Real-time · no content logged (GDPR)</div>
             </div>
             <div class="flex items-center gap-2">
               <button id="feed-pause" class="px-3 py-1 rounded-lg text-[11px] font-medium cursor-pointer"
-                      style="background:transparent;border:1px solid rgba(128,180,253,0.20);color:#94a3b8">⏸ Pause</button>
+                      style="background:transparent;border:1px solid rgba(var(--acc-blue-rgb),0.20);color:var(--ink-3)">⏸ Pause</button>
               <button id="feed-clear" class="px-3 py-1 rounded-lg text-[11px] font-medium cursor-pointer"
-                      style="background:transparent;border:1px solid rgba(128,180,253,0.20);color:#94a3b8">Clear</button>
-              <span id="feed-count" class="text-[11px]" style="color:#64748b">0 events</span>
+                      style="background:transparent;border:1px solid rgba(var(--acc-blue-rgb),0.20);color:var(--ink-3)">Clear</button>
+              <span id="feed-count" class="text-[11px]" style="color:var(--ink-4)">0 events</span>
             </div>
           </div>
 
           <!-- Stats bar -->
-          <div id="feed-stats" class="flex gap-4 py-2 mb-1" style="border-top:1px solid rgba(128,180,253,0.10);font-size:11px;color:#64748b">
-            <span>Total: <strong id="stat-total" style="color:#f1f5f9">0</strong></span>
-            <span>Blocked: <strong id="stat-blocked" style="color:#f87171">0</strong></span>
-            <span>HIGH/BLOCK: <strong id="stat-high" style="color:#fb923c">0</strong></span>
-            <span>Avg latency: <strong id="stat-lat" style="color:#f1f5f9">—</strong></span>
+          <div id="feed-stats" class="flex gap-4 py-2 mb-1" style="border-top:1px solid rgba(var(--acc-blue-rgb),0.10);font-size:11px;color:var(--ink-4)">
+            <span>Total: <strong id="stat-total" style="color:var(--ink-1)">0</strong></span>
+            <span>Blocked: <strong id="stat-blocked" style="color:var(--acc-red)">0</strong></span>
+            <span>HIGH/BLOCK: <strong id="stat-high" style="color:var(--acc-orange)">0</strong></span>
+            <span>Avg latency: <strong id="stat-lat" style="color:var(--ink-1)">—</strong></span>
           </div>
 
           <!-- Column headers -->
           <div class="grid gap-2 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider mb-1"
-               style="grid-template-columns:60px 80px 70px 1fr 60px;color:#475569;border-bottom:1px solid rgba(128,180,253,0.10)">
+               style="grid-template-columns:60px 80px 70px 1fr 60px;color:var(--ink-5);border-bottom:1px solid rgba(var(--acc-blue-rgb),0.10)">
             <span>Time</span><span>Decision</span><span>Risk</span><span>Flags / Secrets</span><span style="text-align:right">Latency</span>
           </div>
 
@@ -267,7 +267,7 @@
          class="btn-primary inline-block px-8 py-3.5 text-[14px] no-underline">
         Open Live Console — Free
       </a>
-      <p class="text-[12px] mt-3" style="color:#475569">No credit card · 14-day trial · Deployed in 60 seconds</p>
+      <p class="text-[12px] mt-3" style="color:var(--ink-5)">No credit card · 14-day trial · Deployed in 60 seconds</p>
     </div>
 
   </div>
@@ -306,8 +306,8 @@ function initTimeline() {
   const ch = new window.Chart(el, {
     type: 'line',
     data: { labels, datasets: [
-      { data, borderColor: '#80b4fd', backgroundColor: 'rgba(128,180,253,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
-      { data: blocked, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 },
+      { data, borderColor: '#3b82f6', backgroundColor: 'rgba(128,180,253,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 },
+      { data: blocked, borderColor: '#ef4444', backgroundColor: 'rgba(248,113,113,0.06)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5 },
     ]},
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                scales: { x: { display: false }, y: { display: false } } }
@@ -366,9 +366,9 @@ const EVENTS = [
   { d: 'ALLOWED', r: 'LOW',   f: '—',                           lat: 7  },
 ];
 const RISK_COLORS = {
-  LOW:   { bg: 'rgba(52,211,153,0.12)',  fg: '#34d399' },
-  MEDIUM:{ bg: 'rgba(251,191,36,0.12)', fg: '#fbbf24' },
-  HIGH:  { bg: 'rgba(248,113,113,0.15)',fg: '#f87171' },
+  LOW:   { bg: 'rgba(52,211,153,0.12)',  fg: '#059669' },
+  MEDIUM:{ bg: 'rgba(251,191,36,0.12)', fg: '#d97706' },
+  HIGH:  { bg: 'rgba(248,113,113,0.15)',fg: '#ef4444' },
   BLOCK: { bg: 'rgba(239,68,68,0.20)',  fg: '#ef4444' },
 };
 
@@ -386,9 +386,9 @@ function makeRow(ev) {
   row.style.cssText = 'grid-template-columns:60px 80px 70px 1fr 60px;align-items:center;font-size:11px';
   row.innerHTML = `
     <span style="font-family:monospace;color:#475569">${ev.t || timeStr()}</span>
-    <span style="font-weight:600;color:${ev.d === 'BLOCKED' ? '#f87171' : '#34d399'}">${ev.d}</span>
+    <span style="font-weight:600;color:${ev.d === 'BLOCKED' ? '#ef4444' : '#059669'}">${ev.d}</span>
     <span style="padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;background:${c.bg};color:${c.fg};display:inline-block">${ev.r}</span>
-    <span style="color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.f}</span>
+    <span style="color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.f}</span>
     <span style="font-family:monospace;color:#64748b;text-align:right">${ev.lat}ms</span>
   `;
   return row;

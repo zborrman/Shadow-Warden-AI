@@ -1,34 +1,16 @@
 /* Shadow Warden AI — Design Tokens v5.6 — Cloudflare Edition */
 :root {
   /* ── Surfaces — deep navy-black ──────────────────── */
-  --sw-bg:      #070910;
-  --sw-surf-1:  #0c1020;
-  --sw-surf-2:  #111827;
-  --sw-surf-3:  #1a2236;
 
   /* ── Borders — Cloudflare blue-tinted ────────────── */
-  --sw-border:        rgba(128,180,253,0.09);
-  --sw-border-strong: rgba(128,180,253,0.20);
-  --sw-border-hover:  rgba(128,180,253,0.32);
 
   /* ── Brand — Cloudflare blue palette ─────────────── */
-  --sw-blue:    #80b4fd;   /* Cloudflare light blue — primary on dark */
-  --sw-blue-2:  #4d9cfc;   /* mid blue — secondary accent */
   --sw-blue-dk: #0051c3;   /* deep blue */
-  --sw-cyan:    #38bdf8;   /* status / pipeline color */
 
   /* ── Semantic state ──────────────────────────────── */
-  --sw-green:    #34d399;
-  --sw-amber:    #fbbf24;
-  --sw-orange:   #fb923c;
-  --sw-red:      #f87171;
   --sw-red-deep: #ef4444;
 
   /* ── Text scale ──────────────────────────────────── */
-  --sw-fg-1: #f0f4fc;
-  --sw-fg-2: #a8b8d0;
-  --sw-fg-3: #6b7c96;
-  --sw-fg-4: #404e66;
 
   /* ── Legacy aliases ──────────────────────────────── */
   --sw-indigo: var(--sw-blue);
@@ -41,7 +23,6 @@
   --sw-gradient-hero:    radial-gradient(ellipse 60% 40% at 50% 0%,rgba(128,180,253,0.07) 0%,transparent 70%);
 
   /* ── Tinted fills ────────────────────────────────── */
-  --sw-tint-blue:   rgba(128,180,253,0.09);
   --sw-tint-blue-2: rgba(77,156,252,0.09);
   --sw-tint-cyan:   rgba(56,189,248,0.09);
   --sw-tint-green:  rgba(52,211,153,0.09);
@@ -59,9 +40,6 @@
   --sw-r-pill: 100px;
 
   /* ── Shadows — flat, minimal ─────────────────────── */
-  --sw-shadow-sm:   0 1px 2px rgba(0,0,0,.35);
-  --sw-shadow-md:   0 2px 8px rgba(0,0,0,.40);
-  --sw-shadow-lg:   0 4px 20px rgba(0,0,0,.50);
   --sw-shadow-glow: 0 0 0 2px rgba(128,180,253,.10);
   --sw-shadow-cta:
     color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,
@@ -122,13 +100,7 @@ body {
   color: var(--sw-fg-1);
   -webkit-font-smoothing: antialiased;
 }
-::selection { background: rgba(128,180,253,.18); }
 
-/* ── Scrollbar ───────────────────────────────────────── */
-::-webkit-scrollbar { width:5px; height:5px; }
-::-webkit-scrollbar-track { background: var(--sw-surf-1); }
-::-webkit-scrollbar-thumb { background: var(--sw-surf-3); border-radius:3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--sw-border-strong); }
 
 /* ── Gradient text — kept for backward compat, use sparingly ── */
 .sw-gradient-text {
@@ -152,23 +124,7 @@ body {
   --radius:           0.75rem;
 }
 
-/* ── Light mode (activated by .light class on <html>) ──── */
-html.light {
-  --sw-bg:      #f0f4f8;
-  --sw-surf-1:  #e8edf4;
-  --sw-surf-2:  #ffffff;
-  --sw-surf-3:  #f1f5f9;
-  --sw-border:        rgba(0,0,0,0.08);
-  --sw-border-strong: rgba(0,0,0,0.16);
-  --sw-border-hover:  rgba(37,99,235,0.32);
-  --sw-blue:    #2563eb;
-  --sw-blue-2:  #1d4ed8;
-  --sw-fg-1: #0f172a;
-  --sw-fg-2: #374151;
-  --sw-fg-3: #6b7280;
-  --sw-fg-4: #9ca3af;
-  --sw-tint-blue: rgba(37,99,235,0.08);
-}
+/* Colours, surfaces and shadows live in global.css (light default, html.dark). */
 
 /* ── Code inline ─────────────────────────────────────── */
 code {

@@ -95,33 +95,33 @@ const security = [
   title="M2M Commerce Store — Shadow Warden AI"
   description="A multilingual, multi-currency shop builder that people and AI agents can buy from. Order requests today; no payments are taken on the platform."
 >
-<div class="bg-[#03050F] text-[#F5F5F7] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
+<div class="bg-[var(--sw-bg)] text-[color:var(--ink-1)] min-h-screen" style="font-family:'Inter',system-ui,sans-serif">
   <div class="max-w-[1100px] mx-auto px-6 pt-8 pb-20">
 
     <!-- Hero -->
     <div class="mb-14 pb-12 border-b border-white/[0.07]">
-      <nav aria-label="Breadcrumb" class="flex items-center gap-2 mb-6 text-[12px] text-[#94a3b8]">
+      <nav aria-label="Breadcrumb" class="flex items-center gap-2 mb-6 text-[12px] text-[color:var(--ink-3)]">
         <a href="/" class="hover:text-white transition-colors">Home</a>
         <span aria-hidden="true">/</span>
         <a href="/business-community" class="hover:text-white transition-colors">Business Community</a>
         <span aria-hidden="true">/</span>
-        <span class="text-[#FFD60A]" aria-current="page">M2M Store</span>
+        <span class="text-[color:var(--acc-amber)]" aria-current="page">M2M Store</span>
       </nav>
       <div class="flex items-center gap-3 mb-6">
         <span class="text-5xl" aria-hidden="true">🏪</span>
         <div>
-          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[#FFD60A]">Shadow Warden AI · {PRODUCT.display}</div>
-          <div class="text-[12px] text-[#94a3b8]">Machine-to-Machine Commerce</div>
+          <div class="text-[11px] font-semibold tracking-[2px] uppercase text-[color:var(--acc-amber)]">Shadow Warden AI · {PRODUCT.display}</div>
+          <div class="text-[12px] text-[color:var(--ink-3)]">Machine-to-Machine Commerce</div>
         </div>
       </div>
       <h1 class="text-[36px] lg:text-[48px] font-black tracking-[-2px] mb-4">M2M Commerce Store</h1>
-      <p class="text-[16px] leading-relaxed max-w-[680px] mb-6" style="color:#b6c2d4">
+      <p class="text-[16px] leading-relaxed max-w-[680px] mb-6" style="color:var(--ink-2)">
         A shop builder for one storefront that both people and AI agents can buy from. Prices in each
         currency you choose, five languages, and shipping by country. People send order requests; agents
         order under a spending mandate and the buyer’s passkey.
       </p>
       <p class="inline-block rounded-lg border px-3 py-2 text-[13px]"
-         style="color:#fde68a;border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.06)">
+         style="color:var(--acc-amber);border-color:rgba(251,191,36,0.3);background:rgba(251,191,36,0.06)">
         No payments are taken on the platform: buyers pay you directly, through your own payment link.
       </p>
     </div>
@@ -134,7 +134,7 @@ const security = [
           <div class="rounded-xl p-5 border" style="background:rgba(255,215,10,0.04);border-color:rgba(255,215,10,0.15)">
             <div class="text-2xl mb-2" aria-hidden="true">{a.icon}</div>
             <h3 class="text-[15px] font-bold mb-3">{a.title}</h3>
-            <ul class="space-y-2 text-[13px] leading-relaxed" style="color:#b6c2d4">
+            <ul class="space-y-2 text-[13px] leading-relaxed" style="color:var(--ink-2)">
               {a.points.map(p => <li class="pl-3 border-l border-white/10">{p}</li>)}
             </ul>
           </div>
@@ -147,9 +147,9 @@ const security = [
       <h2 id="limits" class="text-[22px] font-bold mb-6">What it does not do yet</h2>
       <dl class="grid sm:grid-cols-2 gap-4">
         {limits.map(([t, d]) => (
-          <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(255,255,255,0.02)">
+          <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(var(--ink-rgb),0.02)">
             <dt class="text-[14px] font-bold mb-1">{t}</dt>
-            <dd class="text-[13px] leading-relaxed" style="color:#b6c2d4">{d}</dd>
+            <dd class="text-[13px] leading-relaxed" style="color:var(--ink-2)">{d}</dd>
           </div>
         ))}
       </dl>
@@ -159,9 +159,9 @@ const security = [
     <section aria-labelledby="flows" class="mb-16">
       <h2 id="flows" class="text-[22px] font-bold mb-6">How an order moves</h2>
       <div class="grid lg:grid-cols-2 gap-4">
-        <figure class="rounded-2xl border border-white/[0.07] p-6" style="background:rgba(255,255,255,0.02)">
+        <figure class="rounded-2xl border border-white/[0.07] p-6" style="background:rgba(var(--ink-rgb),0.02)">
           <figcaption class="text-[13px] font-bold mb-3">A person</figcaption>
-          <pre class="text-[12px] leading-relaxed overflow-x-auto" style="color:#b6c2d4;font-family:'JetBrains Mono',monospace">{`Cart → shipping quote for the country
+          <pre class="text-[12px] leading-relaxed overflow-x-auto" style="color:var(--ink-2);font-family:'JetBrains Mono',monospace">{`Cart → shipping quote for the country
      → order request (contact details sealed)
      → PENDING_MERCHANT
           ├─ seller declines  → REJECTED
@@ -171,9 +171,9 @@ const security = [
 Payment: the buyer pays the seller directly, through the seller's
 own link. The seller marks the order paid.`}</pre>
         </figure>
-        <figure class="rounded-2xl border border-white/[0.07] p-6" style="background:rgba(255,255,255,0.02)">
+        <figure class="rounded-2xl border border-white/[0.07] p-6" style="background:rgba(var(--ink-rgb),0.02)">
           <figcaption class="text-[13px] font-bold mb-3">An agent</figcaption>
-          <pre class="text-[12px] leading-relaxed overflow-x-auto" style="color:#b6c2d4;font-family:'JetBrains Mono',monospace">{`UCP feed → offer (stock reserved 45 s)
+          <pre class="text-[12px] leading-relaxed overflow-x-auto" style="color:var(--ink-2);font-family:'JetBrains Mono',monospace">{`UCP feed → offer (stock reserved 45 s)
   → passkey challenge for that offer
   → order: assertion verified, challenge consumed
   → spend authorization + mandate balance
@@ -187,8 +187,8 @@ accounting, not a payment.`}</pre>
     <!-- API -->
     <section aria-labelledby="api" class="mb-16">
       <h2 id="api" class="text-[22px] font-bold mb-4">API reference</h2>
-      <p class="text-[13px] mb-5" style="color:#b6c2d4">
-        A selection. The full list is in the <a href="/openapi.json" class="text-[#FFD60A] hover:underline">OpenAPI document</a>.
+      <p class="text-[13px] mb-5" style="color:var(--ink-2)">
+        A selection. The full list is in the <a href="/openapi.json" class="text-[color:var(--acc-amber)] hover:underline">OpenAPI document</a>.
       </p>
       <div class="space-y-6">
         {groups.map(g => (
@@ -197,9 +197,9 @@ accounting, not a payment.`}</pre>
             <div class="rounded-xl border border-white/[0.07] overflow-hidden">
               {g.rows.map(([method, path, desc], i) => (
                 <div class={`flex flex-wrap items-start gap-x-4 gap-y-1 px-5 py-3 text-[12px] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''} ${i < g.rows.length - 1 ? 'border-b border-white/[0.05]' : ''}`}>
-                  <span class={`font-black w-12 flex-shrink-0 text-[10px] ${method === 'GET' ? 'text-[#30D158]' : 'text-[#FFD60A]'}`}>{method}</span>
+                  <span class={`font-black w-12 flex-shrink-0 text-[10px] ${method === 'GET' ? 'text-[color:var(--acc-green)]' : 'text-[color:var(--acc-amber)]'}`}>{method}</span>
                   <code class="text-[#d4a5f9] break-all sm:w-80 sm:flex-shrink-0">{path}</code>
-                  <span class="min-w-0 flex-1" style="color:#b6c2d4">{desc}</span>
+                  <span class="min-w-0 flex-1" style="color:var(--ink-2)">{desc}</span>
                 </div>
               ))}
             </div>
@@ -213,25 +213,25 @@ accounting, not a payment.`}</pre>
       <h2 id="security" class="text-[22px] font-bold mb-4">Security</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {security.map(([icon, title, desc]) => (
-          <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(255,255,255,0.02)">
+          <div class="rounded-xl border border-white/[0.07] p-5" style="background:rgba(var(--ink-rgb),0.02)">
             <div class="text-2xl mb-3" aria-hidden="true">{icon}</div>
             <h3 class="text-[14px] font-bold mb-2">{title}</h3>
-            <p class="text-[12px] leading-relaxed" style="color:#b6c2d4">{desc}</p>
+            <p class="text-[12px] leading-relaxed" style="color:var(--ink-2)">{desc}</p>
           </div>
         ))}
       </div>
     </section>
 
     <!-- CTA -->
-    <div class="rounded-2xl border border-[#FFD60A]/25 p-8 text-center" style="background:rgba(255,215,10,0.04)">
+    <div class="rounded-2xl border border-[var(--acc-amber)]/25 p-8 text-center" style="background:rgba(255,215,10,0.04)">
       <h2 class="text-[24px] font-bold mb-3">Open your store</h2>
-      <p class="text-[14px] max-w-lg mx-auto mb-6" style="color:#b6c2d4">
+      <p class="text-[14px] max-w-lg mx-auto mb-6" style="color:var(--ink-2)">
         Every plan can open a store, including the free Starter plan.
       </p>
       <div class="flex flex-wrap justify-center gap-3">
         <a href={`${PORTAL}/store/manage/`}
            class="inline-block px-8 py-3 rounded-xl text-[14px] font-bold hover:-translate-y-0.5 transition-all"
-           style="background:#FFD60A;color:#03050F;box-shadow:0 8px 32px rgba(255,215,10,0.3)">
+           style="background:var(--acc-amber);color:var(--on-acc);box-shadow:0 8px 32px rgba(255,215,10,0.3)">
           Open the store builder
         </a>
         <a href="/price" class="inline-block px-8 py-3 rounded-xl text-[14px] font-bold border border-white/15 hover:bg-white/5">

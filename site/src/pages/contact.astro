@@ -6,19 +6,19 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   title="Contact — Shadow Warden AI"
   description="Get in touch with the Shadow Warden AI team. Sales, support, partnerships, and security inquiries."
 >
-  <div class="pt-14 min-h-screen" style="background:#03050f">
+  <div class="pt-14 min-h-screen" style="background:var(--sw-bg)">
     <div class="mx-auto max-w-3xl px-4 lg:px-8 py-20">
 
       <!-- Header -->
       <div class="mb-14">
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#80b4fd;background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.2)">
+             style="color:var(--acc-blue);background:rgba(var(--acc-blue-rgb),0.08);border:1px solid rgba(var(--acc-blue-rgb),0.2)">
           ◇ Get In Touch
         </div>
-        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-3" style="color:#f1f5f9">
+        <h1 class="text-[clamp(28px,4vw,44px)] font-black leading-tight tracking-tight mb-3" style="color:var(--ink-1)">
           Contact Us
         </h1>
-        <p class="text-[15px] leading-relaxed max-w-lg" style="color:#64748b">
+        <p class="text-[15px] leading-relaxed max-w-lg" style="color:var(--ink-4)">
           We typically respond within one business day. For urgent security incidents, use the emergency contact below.
         </p>
       </div>
@@ -31,40 +31,40 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             title: 'Sales & Pricing',
             desc: 'Questions about plans, and partnership opportunities.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#80b4fd',
+            color: 'var(--acc-blue)',
           },
           {
             icon: '🛠️',
             title: 'Technical Support',
             desc: 'Integration help, bug reports, API questions, and deployment guidance.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#10b981',
+            color: 'var(--acc-green)',
           },
           {
             icon: '🔒',
             title: 'Security & Compliance',
             desc: 'Responsible disclosure, GDPR requests, SOC 2 evidence, and security audits.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#f59e0b',
+            color: 'var(--acc-amber)',
           },
           {
             icon: '📰',
             title: 'Press & Media',
             desc: 'Press kit, analyst briefings, media inquiries, and partnership announcements.',
             email: 'vz@shadow-warden-ai.com',
-            color: '#38bdf8',
+            color: 'var(--acc-cyan)',
           },
         ].map(({ icon, title, desc, email, color }) => (
           <div class="rounded-2xl p-5"
-               style={`background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)`}>
+               style={`background:rgba(var(--ink-rgb),0.02);border:1px solid rgba(var(--ink-rgb),0.07)`}>
             <div class="flex items-center gap-3 mb-3">
               <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[18px]"
                    style={`background:${color}12;border:1px solid ${color}25`}>
                 {icon}
               </div>
-              <div class="text-[14px] font-bold" style="color:#f1f5f9">{title}</div>
+              <div class="text-[14px] font-bold" style="color:var(--ink-1)">{title}</div>
             </div>
-            <p class="text-[12px] leading-relaxed mb-4" style="color:#64748b">{desc}</p>
+            <p class="text-[12px] leading-relaxed mb-4" style="color:var(--ink-4)">{desc}</p>
             <a href={`mailto:${email}`}
                class="inline-flex items-center gap-1.5 text-[12px] font-semibold transition-opacity hover:opacity-70"
                style={`color:${color}`}>
@@ -78,7 +78,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       </div>
 
       <!-- Divider -->
-      <div class="border-t mb-12" style="border-color:rgba(255,255,255,0.06)"></div>
+      <div class="border-t mb-12" style="border-color:rgba(var(--ink-rgb),0.06)"></div>
 
       <!-- Quick links -->
       <div class="grid sm:grid-cols-3 gap-4">
@@ -91,12 +91,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
              target={href.startsWith('http') ? '_blank' : undefined}
              rel={href.startsWith('http') ? 'noopener' : undefined}
              class="flex flex-col gap-2 rounded-2xl p-4 transition-colors"
-             style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)"
-             onmouseover="this.style.borderColor='rgba(128,180,253,0.3)'"
-             onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+             style="background:rgba(var(--ink-rgb),0.02);border:1px solid rgba(var(--ink-rgb),0.07)"
+             onmouseover="this.style.borderColor='rgba(var(--acc-blue-rgb),0.3)'"
+             onmouseout="this.style.borderColor='rgba(var(--ink-rgb),0.07)'">
             <div class="text-[20px]">{icon}</div>
-            <div class="text-[13px] font-semibold" style="color:#f1f5f9">{label}</div>
-            <div class="text-[11px] leading-relaxed" style="color:#475569">{desc}</div>
+            <div class="text-[13px] font-semibold" style="color:var(--ink-1)">{label}</div>
+            <div class="text-[11px] leading-relaxed" style="color:var(--ink-5)">{desc}</div>
           </a>
         ))}
       </div>
@@ -106,13 +106,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
            style="background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15)">
         <span class="text-[18px] flex-shrink-0 mt-0.5">🚨</span>
         <div>
-          <div class="text-[12px] font-bold mb-0.5" style="color:#ef4444">Security Emergency</div>
-          <div class="text-[12px] leading-relaxed" style="color:#64748b">
+          <div class="text-[12px] font-bold mb-0.5" style="color:var(--acc-red)">Security Emergency</div>
+          <div class="text-[12px] leading-relaxed" style="color:var(--ink-4)">
             For active security incidents or zero-day vulnerability reports, email
-            <a href="mailto:vz@shadow-warden-ai.com" style="color:#ef4444;font-weight:600">
+            <a href="mailto:vz@shadow-warden-ai.com" style="color:var(--acc-red);font-weight:600">
               vz@shadow-warden-ai.com
             </a>
-            with subject <span class="font-mono text-[11px]" style="color:#94a3b8">[URGENT]</span>.
+            with subject <span class="font-mono text-[11px]" style="color:var(--ink-3)">[URGENT]</span>.
           </div>
         </div>
       </div>
