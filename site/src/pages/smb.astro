@@ -19,28 +19,28 @@ const responseExample = `{
   title="Shadow Warden for Business — Zero-Trust AI Security for SMBs"
   description="An AI security gateway for small and mid-sized businesses. Block jailbreaks, strip secrets, and keep content out of logs — free to start, $39.99/month for Business."
 >
-  <div class="bg-[#03050F] text-[#F5F5F7] min-h-screen relative z-10">
+  <div class="bg-[var(--sw-bg)] text-[color:var(--ink-1)] min-h-screen relative z-10">
 
     <!-- Hero -->
     <section class="pt-12 pb-24 px-6 text-center relative overflow-hidden">
       <div class="absolute inset-0 pointer-events-none">
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#80b4fd]/10 blur-3xl"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[var(--acc-blue)]/10 blur-3xl"></div>
       </div>
       <div class="max-w-4xl mx-auto relative z-10">
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#80b4fd]/30 bg-[#80b4fd]/10 text-[#80b4fd] text-xs font-medium mb-6">
-          <span class="w-1.5 h-1.5 rounded-full bg-[#80b4fd] animate-pulse"></span>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--acc-blue)]/30 bg-[var(--acc-blue)]/10 text-[color:var(--acc-blue)] text-xs font-medium mb-6">
+          <span class="w-1.5 h-1.5 rounded-full bg-[var(--acc-blue)] animate-pulse"></span>
           For Small &amp; Mid-Sized Businesses
         </div>
         <h1 class="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
           AI Security<br/>
-          <span class="text-[#80b4fd]">at a Small-Business Price</span>
+          <span class="text-[color:var(--acc-blue)]">at a Small-Business Price</span>
         </h1>
         <p class="text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
           One line of code. Every AI request filtered, secrets stripped, jailbreaks blocked.
           Audit trail for every decision. Built for GDPR: content is never logged.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href="/#pricing" class="px-8 py-3.5 rounded-xl bg-[#80b4fd] hover:bg-[#9dc5fe] text-[#070910] font-semibold text-base transition-all hover:shadow-[0_0_30px_rgba(128,180,253,0.4)]">
+          <a href="/#pricing" class="px-8 py-3.5 rounded-xl bg-[var(--acc-blue)] hover:bg-[var(--acc-blue)] text-[color:var(--sw-bg)] font-semibold text-base transition-all hover:shadow-[0_0_30px_rgba(var(--acc-blue-rgb),0.4)]">
             Start Free Trial
           </a>
           <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="px-8 py-3.5 rounded-xl border border-white/10 hover:border-white/20 text-white/80 hover:text-white font-medium text-base transition-all">
@@ -98,23 +98,23 @@ const responseExample = `{
             </p>
             <ul class="space-y-3">
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="mt-0.5 text-[#80b4fd]">&#x2713;</span>
+                <span class="mt-0.5 text-[color:var(--acc-blue)]">&#x2713;</span>
                 Drop-in OpenAI-compatible proxy endpoint
               </li>
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="mt-0.5 text-[#80b4fd]">&#x2713;</span>
+                <span class="mt-0.5 text-[color:var(--acc-blue)]">&#x2713;</span>
                 Works with ChatGPT, Claude, Gemini, any LLM
               </li>
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="mt-0.5 text-[#80b4fd]">&#x2713;</span>
+                <span class="mt-0.5 text-[color:var(--acc-blue)]">&#x2713;</span>
                 15+ secret patterns detected (API keys, passwords, PII)
               </li>
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="mt-0.5 text-[#80b4fd]">&#x2713;</span>
+                <span class="mt-0.5 text-[color:var(--acc-blue)]">&#x2713;</span>
                 Shannon entropy scan catches custom/unknown secrets
               </li>
               <li class="flex items-start gap-3 text-white/70 text-sm">
-                <span class="mt-0.5 text-[#80b4fd]">&#x2713;</span>
+                <span class="mt-0.5 text-[color:var(--acc-blue)]">&#x2713;</span>
                 GDPR: content never logged, only metadata
               </li>
             </ul>
@@ -151,33 +151,33 @@ const responseExample = `{
           <p class="text-white/60 text-lg">Every request passes through our full pipeline. No shortcuts.</p>
         </div>
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x1F9EE;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x1F9EE;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">Topology Guard</h3>
             <p class="text-white/40 text-xs leading-relaxed">Betti number analysis on n-gram point clouds catches obfuscated attacks invisible to regex.</p>
           </div>
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x1F510;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x1F510;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">Secret Redactor</h3>
             <p class="text-white/40 text-xs leading-relaxed">15 regex patterns + Shannon entropy scan. AWS keys, GitHub tokens, passwords, PII — all stripped.</p>
           </div>
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x1F9E0;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x1F9E0;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">Semantic Guard</h3>
             <p class="text-white/40 text-xs leading-relaxed">MiniLM ML model + hyperbolic Poincare ball geometry. 70% cosine + 30% hyperbolic blend.</p>
           </div>
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x1F9F1;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x1F9F1;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">Obfuscation Decoder</h3>
             <p class="text-white/40 text-xs leading-relaxed">Depth-3 recursive decode: base64, hex, ROT13, Caesar, word-split, UUencode, homoglyphs.</p>
           </div>
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x2696;&#xFE0F;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x2696;&#xFE0F;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">Causal Arbiter</h3>
             <p class="text-white/40 text-xs leading-relaxed">Bayesian DAG with Pearl do-calculus for gray-zone decisions. No false positives on edge cases.</p>
           </div>
-          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[#80b4fd]/30 transition-colors">
-            <div class="text-[#80b4fd] text-2xl mb-3">&#x1F4CA;</div>
+          <div class="p-5 rounded-xl border border-white/8 bg-white/[0.02] hover:border-[var(--acc-blue)]/30 transition-colors">
+            <div class="text-[color:var(--acc-blue)] text-2xl mb-3">&#x1F4CA;</div>
             <h3 class="text-white font-semibold mb-1 text-sm">SOC 2 Audit Trail</h3>
             <p class="text-white/40 text-xs leading-relaxed">Every decision logged with metadata only, mapped to GDPR Art. 30. Streamlit dashboard included.</p>
           </div>
@@ -190,19 +190,19 @@ const responseExample = `{
       <div class="max-w-4xl mx-auto">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           <div>
-            <div class="text-4xl font-bold text-[#80b4fd] mb-1">9</div>
+            <div class="text-4xl font-bold text-[color:var(--acc-blue)] mb-1">9</div>
             <div class="text-white/40 text-sm">Pipeline stages</div>
           </div>
           <div>
-            <div class="text-4xl font-bold text-[#80b4fd] mb-1">14</div>
+            <div class="text-4xl font-bold text-[color:var(--acc-blue)] mb-1">14</div>
             <div class="text-white/40 text-sm">Defense layers</div>
           </div>
           <div>
-            <div class="text-4xl font-bold text-[#80b4fd] mb-1">99.9%</div>
+            <div class="text-4xl font-bold text-[color:var(--acc-blue)] mb-1">99.9%</div>
             <div class="text-white/40 text-sm">uptime target</div>
           </div>
           <div>
-            <div class="text-4xl font-bold text-[#80b4fd] mb-1">0</div>
+            <div class="text-4xl font-bold text-[color:var(--acc-blue)] mb-1">0</div>
             <div class="text-white/40 text-sm">Content stored</div>
           </div>
         </div>
@@ -223,8 +223,8 @@ const responseExample = `{
             </p>
             <div class="space-y-4">
               <div class="flex items-start gap-3">
-                <div class="mt-1 w-6 h-6 rounded-md bg-[#80b4fd]/20 border border-[#80b4fd]/30 flex items-center justify-center flex-shrink-0">
-                  <span class="text-[#80b4fd] text-xs">&#x2713;</span>
+                <div class="mt-1 w-6 h-6 rounded-md bg-[var(--acc-blue)]/20 border border-[var(--acc-blue)]/30 flex items-center justify-center flex-shrink-0">
+                  <span class="text-[color:var(--acc-blue)] text-xs">&#x2713;</span>
                 </div>
                 <div>
                   <p class="text-white/80 text-sm font-medium">GDPR Article 35 DPIA</p>
@@ -232,8 +232,8 @@ const responseExample = `{
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <div class="mt-1 w-6 h-6 rounded-md bg-[#80b4fd]/20 border border-[#80b4fd]/30 flex items-center justify-center flex-shrink-0">
-                  <span class="text-[#80b4fd] text-xs">&#x2713;</span>
+                <div class="mt-1 w-6 h-6 rounded-md bg-[var(--acc-blue)]/20 border border-[var(--acc-blue)]/30 flex items-center justify-center flex-shrink-0">
+                  <span class="text-[color:var(--acc-blue)] text-xs">&#x2713;</span>
                 </div>
                 <div>
                   <p class="text-white/80 text-sm font-medium">SOC 2 Type II Evidence</p>
@@ -241,8 +241,8 @@ const responseExample = `{
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <div class="mt-1 w-6 h-6 rounded-md bg-[#80b4fd]/20 border border-[#80b4fd]/30 flex items-center justify-center flex-shrink-0">
-                  <span class="text-[#80b4fd] text-xs">&#x2713;</span>
+                <div class="mt-1 w-6 h-6 rounded-md bg-[var(--acc-blue)]/20 border border-[var(--acc-blue)]/30 flex items-center justify-center flex-shrink-0">
+                  <span class="text-[color:var(--acc-blue)] text-xs">&#x2713;</span>
                 </div>
                 <div>
                   <p class="text-white/80 text-sm font-medium">OWASP LLM Top 10</p>
@@ -277,7 +277,7 @@ const responseExample = `{
     <section class="py-20 px-6 border-t border-white/5" style="background:rgba(16,185,129,0.02)">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-12">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4" style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4" style="color:var(--acc-green);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
             M2M Commerce Store
           </div>
           <h2 class="text-3xl font-bold text-white mb-3">One storefront for people and AI agents</h2>
@@ -288,17 +288,17 @@ const responseExample = `{
         </div>
         <div class="grid md:grid-cols-3 gap-5 mb-8">
           <div class="p-6 rounded-2xl border border-white/8 bg-white/[0.02]">
-            <div class="text-4xl font-black mb-3" style="color:#fbbf24;opacity:0.35;letter-spacing:-0.04em">01</div>
+            <div class="text-4xl font-black mb-3" style="color:var(--acc-amber);opacity:0.35;letter-spacing:-0.04em">01</div>
             <div class="text-sm font-bold text-white mb-2">Build your store</div>
             <div class="text-white/50 text-sm leading-relaxed">Categories, products, photos and shipping zones in the portal. Names and descriptions in English, French, German, Spanish and Italian.</div>
           </div>
           <div class="p-6 rounded-2xl border border-white/8 bg-white/[0.02]">
-            <div class="text-4xl font-black mb-3" style="color:#10b981;opacity:0.35;letter-spacing:-0.04em">02</div>
+            <div class="text-4xl font-black mb-3" style="color:var(--acc-green);opacity:0.35;letter-spacing:-0.04em">02</div>
             <div class="text-sm font-bold text-white mb-2">Buyers send requests</div>
             <div class="text-white/50 text-sm leading-relaxed">People get shipping quoted for their country and send an order request. Agents read a catalog feed and order with the buyer&rsquo;s passkey on that offer.</div>
           </div>
           <div class="p-6 rounded-2xl border border-white/8 bg-white/[0.02]">
-            <div class="text-4xl font-black mb-3" style="color:#80b4fd;opacity:0.35;letter-spacing:-0.04em">03</div>
+            <div class="text-4xl font-black mb-3" style="color:var(--acc-blue);opacity:0.35;letter-spacing:-0.04em">03</div>
             <div class="text-sm font-bold text-white mb-2">You answer each order</div>
             <div class="text-white/50 text-sm leading-relaxed">Accept, decline, ship and complete it in the portal. Payment is agreed between you and the buyer: the platform takes none yet.</div>
           </div>
@@ -308,7 +308,7 @@ const responseExample = `{
             <div class="text-sm font-bold text-white mb-1">Every plan can open a store, including the free Starter plan</div>
             <div class="text-xs text-white/50">No card payments or payouts on the platform yet.</div>
           </div>
-          <a href="/business-community/m2m-store" class="flex-shrink-0 px-5 py-2.5 rounded-lg text-sm font-bold text-[#070910] whitespace-nowrap transition-all" style="background:#10b981;box-shadow:0 4px 16px rgba(16,185,129,0.3)">
+          <a href="/business-community/m2m-store" class="flex-shrink-0 px-5 py-2.5 rounded-lg text-sm font-bold text-[color:var(--sw-bg)] whitespace-nowrap transition-all" style="background:var(--acc-green);box-shadow:0 4px 16px rgba(16,185,129,0.3)">
             See how it works
           </a>
         </div>
@@ -337,7 +337,7 @@ const responseExample = `{
               <li class="text-white/50 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>Basic 9-layer pipeline</li>
               <li class="text-white/50 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>$1 test-net wallet for x402 trials</li>
               <li class="text-white/50 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>No credit card required</li>
-              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>PQC ML-DSA-65 <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:#fbbf24;background:rgba(251,191,36,0.1)">Not on a plan</span></li>
+              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>PQC ML-DSA-65 <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:var(--acc-amber);background:rgba(251,191,36,0.1)">Not on a plan</span></li>
             </ul>
             <a href="/community/new" class="block text-center py-2.5 rounded-lg border border-white/10 text-white/60 hover:border-white/20 hover:text-white text-sm font-medium transition-colors">
               Start Free Trial
@@ -346,7 +346,7 @@ const responseExample = `{
 
           <!-- Individual -->
           <div class="p-6 rounded-2xl border border-white/8 bg-white/[0.02] flex flex-col">
-            <div class="text-[11px] font-bold uppercase tracking-wider mb-2" style="color:#10b981">Individual</div>
+            <div class="text-[11px] font-bold uppercase tracking-wider mb-2" style="color:var(--acc-green)">Individual</div>
             <div class="text-3xl font-black text-white mb-1">$5<span class="text-lg font-normal text-white/40">/mo</span></div>
             <div class="text-[11px] text-white/30 mb-5">+ metered x402 billing</div>
             <ul class="space-y-2 mb-6 flex-1">
@@ -354,29 +354,29 @@ const responseExample = `{
               <li class="text-white/60 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>x402 nanopayments ($0.000001/call)</li>
               <li class="text-white/60 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>Free /.well-known/agent.json listing</li>
               <li class="text-white/60 text-xs flex items-start gap-2"><span class="text-emerald-400 mt-0.5">&#x2713;</span>Dynamic Model Router (Haiku for search)</li>
-              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>SOVA Agent <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:#80b4fd;background:rgba(128,180,253,0.1)">Not on a plan</span></li>
+              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>SOVA Agent <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:var(--acc-blue);background:rgba(var(--acc-blue-rgb),0.1)">Not on a plan</span></li>
             </ul>
-            <a href="/price" class="block text-center py-2.5 rounded-lg border text-sm font-semibold transition-colors" style="border-color:rgba(16,185,129,0.3);color:#10b981">
+            <a href="/price" class="block text-center py-2.5 rounded-lg border text-sm font-semibold transition-colors" style="border-color:rgba(16,185,129,0.3);color:var(--acc-green)">
               Get Individual
             </a>
           </div>
 
           <!-- Community Business — featured -->
-          <div class="p-6 rounded-2xl border border-[#80b4fd]/40 bg-[#80b4fd]/[0.08] flex flex-col relative">
-            <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#80b4fd] text-[#070910] text-xs font-bold whitespace-nowrap">
+          <div class="p-6 rounded-2xl border border-[var(--acc-blue)]/40 bg-[var(--acc-blue)]/[0.08] flex flex-col relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[var(--acc-blue)] text-[color:var(--sw-bg)] text-xs font-bold whitespace-nowrap">
               Best for SMBs
             </div>
-            <div class="text-[11px] font-bold uppercase tracking-wider text-[#80b4fd] mb-2">Community Business</div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-[color:var(--acc-blue)] mb-2">Community Business</div>
             <div class="text-3xl font-black text-white mb-1">$39.99<span class="text-lg font-normal text-white/40">/mo</span></div>
             <div class="text-[11px] text-white/30 mb-5">+ 1.5% take rate on cleared trades</div>
             <ul class="space-y-2 mb-6 flex-1">
-              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[#80b4fd] mt-0.5">&#x2713;</span>10,000 req/month</li>
-              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[#80b4fd] mt-0.5">&#x2713;</span>Marketplace Node activated</li>
-              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[#80b4fd] mt-0.5">&#x2713;</span>ClearingEngine + 1.5% GMV take rate</li>
-              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[#80b4fd] mt-0.5">&#x2713;</span>GDPR export, Slack alerts, member limits</li>
-              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>PQC ML-DSA-65 <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:#fbbf24;background:rgba(251,191,36,0.1)">Not on a plan</span></li>
+              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[color:var(--acc-blue)] mt-0.5">&#x2713;</span>10,000 req/month</li>
+              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[color:var(--acc-blue)] mt-0.5">&#x2713;</span>Marketplace Node activated</li>
+              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[color:var(--acc-blue)] mt-0.5">&#x2713;</span>ClearingEngine + 1.5% GMV take rate</li>
+              <li class="text-white/80 text-xs flex items-start gap-2"><span class="text-[color:var(--acc-blue)] mt-0.5">&#x2713;</span>GDPR export, Slack alerts, member limits</li>
+              <li class="text-white/25 text-xs flex items-start gap-2"><span class="text-white/15">&#x2713;</span>PQC ML-DSA-65 <span class="ml-auto text-[9px] px-1.5 py-0.5 rounded" style="color:var(--acc-amber);background:rgba(251,191,36,0.1)">Not on a plan</span></li>
             </ul>
-            <a href="/price" class="block text-center py-2.5 rounded-lg bg-[#80b4fd] hover:bg-[#9dc5fe] text-[#070910] text-sm font-bold transition-colors">
+            <a href="/price" class="block text-center py-2.5 rounded-lg bg-[var(--acc-blue)] hover:bg-[var(--acc-blue)] text-[color:var(--sw-bg)] text-sm font-bold transition-colors">
               Start 14-day Trial
             </a>
           </div>
@@ -384,14 +384,14 @@ const responseExample = `{
         </div>
 
         <!-- Lemon Squeezy architecture note -->
-        <div class="mt-8 rounded-xl p-5 grid sm:grid-cols-3 gap-4" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07)">
+        <div class="mt-8 rounded-xl p-5 grid sm:grid-cols-3 gap-4" style="background:rgba(var(--ink-rgb),0.02);border:1px solid rgba(var(--ink-rgb),0.07)">
           <div>
             <div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Checkout flow</div>
-            <div class="text-xs text-white/50 leading-relaxed">Tier upgrade redirects to Lemon Squeezy overlay with <code class="text-[#fbbf24] text-[10px]">?checkout[custom][user_id]=agent_id</code> binding your account.</div>
+            <div class="text-xs text-white/50 leading-relaxed">Tier upgrade redirects to Lemon Squeezy overlay with <code class="text-[color:var(--acc-amber)] text-[10px]">?checkout[custom][user_id]=agent_id</code> binding your account.</div>
           </div>
           <div>
             <div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Webhook verification</div>
-            <div class="text-xs text-white/50 leading-relaxed">FastAPI verifies every <code class="text-[#80b4fd] text-[10px]">X-Signature</code> HMAC before unlocking PQC or SOVA in your tenant record.</div>
+            <div class="text-xs text-white/50 leading-relaxed">FastAPI verifies every <code class="text-[color:var(--acc-blue)] text-[10px]">X-Signature</code> HMAC before unlocking PQC or SOVA in your tenant record.</div>
           </div>
           <div>
             <div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Global tax handled</div>
@@ -411,7 +411,7 @@ const responseExample = `{
           Deploy in 5 minutes. No credit card required. Works with your existing AI setup.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <a href="/#pricing" class="px-8 py-3.5 rounded-xl bg-[#80b4fd] hover:bg-[#9dc5fe] text-[#070910] font-semibold text-base transition-all hover:shadow-[0_0_30px_rgba(128,180,253,0.4)]">
+          <a href="/#pricing" class="px-8 py-3.5 rounded-xl bg-[var(--acc-blue)] hover:bg-[var(--acc-blue)] text-[color:var(--sw-bg)] font-semibold text-base transition-all hover:shadow-[0_0_30px_rgba(var(--acc-blue-rgb),0.4)]">
             Start Free Trial
           </a>
           <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="px-8 py-3.5 rounded-xl border border-white/10 hover:border-white/20 text-white/80 hover:text-white font-medium text-base transition-all">
@@ -426,7 +426,7 @@ const responseExample = `{
       <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-2.5 text-white/60 text-sm">
           <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-            <path d="M16 2L4 8v8c0 7.7 5.1 14.9 12 17 6.9-2.1 12-9.3 12-17V8L16 2z" fill="#80b4fd" opacity="0.9"/>
+            <path d="M16 2L4 8v8c0 7.7 5.1 14.9 12 17 6.9-2.1 12-9.3 12-17V8L16 2z" fill="#3b82f6" opacity="0.9"/>
           </svg>
           Shadow Warden AI &copy; 2025. Proprietary.
         </div>

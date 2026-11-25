@@ -1,6 +1,7 @@
 ﻿---
 import { PRODUCT } from '../data/product';
 import '../styles/global.css';
+import '../styles/shell.css';
 import AccessibilityWidget from '../components/AccessibilityWidget.astro';
 
 interface Props {
@@ -204,7 +205,57 @@ function isActive(href: string) {
   if (href === '/') return currentPath === '/';
   return currentPath === href || currentPath.startsWith(href + '/');
 }
-const isSettingsActive = isActive('/settings');
+// Quick links above the hubs. /sellers is the product (S0); the badge says
+// the page is new, not that anything about it is measured.
+const quickLinks: { label: string; href: string; badge?: string }[] = [
+  { label: 'For Amazon sellers', href: '/sellers', badge: 'New' },
+  { label: 'Docs',               href: '/doc' },
+  { label: 'Pricing',            href: '/price' },
+];
+
+// One 24×24 stroke icon per destination (Lucide geometry, inlined so the
+// sidebar costs no request). Unknown hrefs fall back to a dot.
+const ICONS: Record<string, string> = {
+  '/sellers': '<path d="M3 9h18l-1.5 10.5a2 2 0 0 1-2 1.5h-11a2 2 0 0 1-2-1.5L3 9Z"/><path d="M8 9V7a4 4 0 0 1 8 0v2"/>',
+  '/doc': '<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5A2.5 2.5 0 0 0 4 21.5"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19"/>',
+  '/price': '<path d="M12.6 2.6 21.4 11.4a2 2 0 0 1 0 2.8l-7.2 7.2a2 2 0 0 1-2.8 0L2.6 12.6A2 2 0 0 1 2 11.2V4a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6Z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  '/cyber-security/security-pipeline': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>',
+  '/cyber-security/agentic-soc': '<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 4v4M9 13v2M15 13v2"/>',
+  '/cyber-security/cryptography': '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  '/cyber-security/ai-research-evolution': '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7 15h10"/>',
+  '/cyber-security/document-intelligence': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+  '/playground': '<polygon points="6 3 20 12 6 21 6 3"/>',
+  '/fraud-score': '<path d="M12 14 16 10"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/>',
+  '/trust': '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+  '/cyber-security/compliance-privacy': '<path d="M12 3v18M7 21h10M3 7h18M6 7l-3 8a3.5 3.5 0 0 0 6 0Zm12 0-3 8a3.5 3.5 0 0 0 6 0Z"/>',
+  '/smb': '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+  '/dashboard': '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  '/status': '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  '/agentic': '<path d="M3 9 5 3h14l2 6"/><path d="M4 9v11h16V9M3 9h18M9 20v-6h6v6"/>',
+  '/business-community': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  '/business-community/m2m-store': '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>',
+  '/community': '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+  '/tunnel': '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/>',
+  '/tunnel/masque-tunnels': '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  '/doc/quick-start': '<path d="M5 19c-1.5 1.3-2 3-2 3s1.7-.5 3-2c.7-.8.7-2-.1-2.9A2.2 2.2 0 0 0 5 19ZM12 15l-3-3a22 22 0 0 1 2-4A13 13 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2Z"/>',
+  '/doc/api-reference': '<path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/>',
+  '/doc/authentication': '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  '/doc/rate-limits': '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
+  '/sdk': '<path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/>',
+  '/cli': '<path d="m4 17 6-6-6-6M12 19h8"/>',
+  '/mcp': '<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  '/doc/changelog': '<path d="M3 12a9 9 0 1 0 9-9 9.8 9.8 0 0 0-6.7 2.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/>',
+  '/roadmap': '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/>',
+  '/settings': '<path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/>',
+  '/contact': '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+};
+const icon = (href: string) => ICONS[href] ?? '<circle cx="12" cy="12" r="2.5"/>';
+// The single most specific menu entry the current page sits under, so one
+// row is marked current even when /tunnel and /tunnel/masque-tunnels both match.
+const activeItem = categories
+  .flatMap(c => c.items)
+  .filter((i): i is { label: string; href: string } => 'href' in i && i.href.startsWith('/') && isActive(i.href))
+  .sort((a, b) => b.href.length - a.href.length)[0];
 // A hub is active when the current page is the hub or any page it lists.
 // A page a hub lists by name belongs to that hub, even when it also sits under
 // another hub's path (/cyber-security/compliance-privacy is listed by Govern
@@ -258,7 +309,7 @@ if (breadcrumbs && currentPath !== '/') {
   <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={new URL(ogImage, SITE_URL).href} />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="theme-color" content="#f6f7f9" />
   <link rel="icon" href="/logo.png" type="image/png" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="canonical" href={canonicalUrl} />
@@ -268,564 +319,368 @@ if (breadcrumbs && currentPath !== '/') {
   {markdown && <link rel="alternate" type="text/markdown" href={markdown} title="Markdown version of this page" />}
   <title>{title}</title>
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />
-  <!-- Anti-FOUC: apply stored/system theme before first paint -->
+  <!-- Anti-FOUC: light unless the visitor chose dark. Key v2: the old key
+       was written on every visit, so it cannot tell a choice from a default. -->
   <script is:inline>
-    (function(){try{
-      var t=localStorage.getItem('sw-theme');
-      if(!t) t=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark';
-      var r=document.documentElement;
-      r.classList.add(t);r.setAttribute('data-theme',t);r.style.colorScheme=t;
-    }catch(e){}}());
+    (function(){var r=document.documentElement;try{
+      var t=localStorage.getItem('sw-theme-v2')==='dark'?'dark':'light';
+      r.classList.add(t);r.setAttribute('data-theme',t);
+    }catch(e){r.classList.add('light');}}());
   </script>
 </head>
 
 <body>
-  <!-- Top announcement banner -->
-  <div id="top-banner" style="background:#0c1020;border-bottom:1px solid rgba(128,180,253,0.14);position:fixed;top:0;left:0;right:0;z-index:60;height:36px">
-    <a href="/sellers"
-       class="flex items-center justify-center gap-2 px-4 py-2 transition-colors"
-       style="text-decoration:none;color:#a8b8d0"
-       onmouseover="this.style.color='#f0f4fc'" onmouseout="this.style.color='#a8b8d0'">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-      <span style="font-size:12px;font-weight:600;letter-spacing:0.01em">For Amazon sellers — check your catalog free</span>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </a>
-    <button id="banner-close" aria-label="Dismiss" type="button"
-            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#6b7c96;cursor:pointer;padding:4px;line-height:1"
-            onmouseover="this.style.color='#f0f4fc'" onmouseout="this.style.color='#6b7c96'">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-
-  <!-- Navbar -->
-  <header id="navbar" class="fixed left-0 right-0 z-50 transition-all duration-300"
-          style="top:36px;background:rgba(10,10,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.06)">
-    <!-- Header spans wider than the 1280px content cap so the five hubs, the
-         Docs/Contact links and the action cluster never wrap. -->
-    <div class="mx-auto max-w-[1560px] px-4 lg:px-6 2xl:px-8 h-14 flex items-center gap-2 2xl:gap-6">
-
-      <!-- Logo -->
-      <a href="/" class="flex items-center gap-2.5 shrink-0">
-        <img src="/logo.png" alt="Shadow Warden AI"
-             style="height:52px;width:auto;display:block" />
-        <span class="hidden md:block xl:hidden 2xl:block text-[13px] font-black tracking-tight leading-none whitespace-nowrap" style="color:#f1f5f9;letter-spacing:-0.3px">Shadow-<span style="color:#80b4fd">Warden</span>-AI</span>
+  <!-- App shell: a fixed sidebar (desktop) that becomes a top bar + drawer
+       below 1024px. <header id="navbar"> is one element in both shapes, so the
+       logo, Get Started and the hub links are the same nodes everywhere. -->
+  <header id="navbar" class="sw-side">
+    <div class="sw-side__brand">
+      <a href="/" class="sw-brand" aria-label="Shadow Warden AI — home">
+        <img src="/logo.png" alt="Shadow Warden AI" width="74" height="40" />
+        <span class="sw-brand__name">Shadow Warden<span class="sw-brand__ai">AI</span></span>
       </a>
+    </div>
 
-      <!-- Desktop nav -->
-      <nav class="hidden xl:flex items-center gap-0.5 2xl:gap-1">
-        {categories.map(cat => {
-          const active = isHubActive(cat);
-          return (
-          <div class="relative group">
-            <a href={cat.href}
-               class="flex items-center gap-1 px-2 2xl:px-2.5 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
-               style={active
-                 ? `color:${cat.color};background:rgba(255,255,255,0.06)`
-                 : 'color:#94a3b8'}
-               onmouseover={`this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.05)'`}
-               onmouseout={active
-                 ? `this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.06)'`
-                 : `this.style.color='#94a3b8';this.style.background='transparent'`}
-               data-color={cat.color}>
-              {cat.label}
-              {cat.items.length > 0 && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="opacity-50">
-                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-              )}
+    <!-- Primary action. First /signup link in the DOM: on mobile it sits in the
+         top bar, on desktop CSS order moves it to the foot of the sidebar. -->
+    <div class="sw-side__cta">
+      <a href="/signup" class="sw-cta">Get Started</a>
+      <button id="mobile-btn" type="button" class="sw-iconbtn sw-only-mobile" aria-label="Open menu" aria-controls="mobile-menu" aria-expanded="false">
+        <svg id="icon-menu" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        <svg id="icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="display:none"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <nav class="sw-side__nav" aria-label="Primary">
+      <ul class="sw-quick">
+        {quickLinks.map(q => (
+          <li>
+            <a href={q.href} class="sw-item" aria-current={isActive(q.href) ? 'page' : undefined}>
+              <svg class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icon(q.href)} />
+              <span class="sw-item__label">{q.label}</span>
+              {q.badge && <span class="sw-badge">{q.badge}</span>}
             </a>
-            {cat.items.length > 0 && (
-              <div class="absolute top-full left-0 mt-1 w-56 rounded-xl py-1.5 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-150"
-                   style="background:#16161f;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 40px rgba(0,0,0,0.5)">
+          </li>
+        ))}
+      </ul>
+
+      {categories.map((cat, ci) => {
+        const open = isHubActive(cat);
+        const listId = `hub-${ci}`;
+        return (
+          <div class="group sw-hub" data-hub={cat.label} data-open={open ? 'true' : 'false'} style={`--hub:${cat.color}`}>
+            <div class="sw-hub__head">
+              <a href={cat.href} class="sw-hub__link" aria-current={isActive(cat.href) && currentPath.replace(/(.)\/$/, '$1') === cat.href ? 'page' : undefined}>
+                <span class="sw-hub__mark" aria-hidden="true"></span>
+                <span class="sw-hub__label">{cat.label}</span>
+              </a>
+              <button type="button" class="sw-hub__toggle" aria-expanded={open ? 'true' : 'false'} aria-controls={listId} aria-label={`${cat.label} section`}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+              </button>
+            </div>
+            <div class="sw-hub__body" id={listId} data-hub-list>
+              <ul class="sw-hub__list">
                 {cat.items.map(item => 'divider' in item ? (
-                  <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 12px"/>
+                  <li class="sw-sep" role="separator"></li>
                 ) : (
-                  <a href={item.href}
-                     class="block px-4 py-2 text-[13px] transition-colors duration-100"
-                     style="color:#94a3b8"
-                     onmouseover={`this.style.color='${cat.color}';this.style.background='rgba(255,255,255,0.04)'`}
-                     onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
-                    {item.label}
-                  </a>
+                  <li>
+                    <a href={item.href} class="sw-item"
+                       aria-current={item.href.startsWith('/') && isActive(item.href) && item === activeItem ? 'page' : undefined}
+                       {...(item.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}>
+                      {item.href.startsWith('http')
+                        ? <span class="sw-live" aria-hidden="true"></span>
+                        : <svg class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icon(item.href)} />}
+                      <span class="sw-item__label">{item.label.replace(/^●\s*/, '')}</span>
+                      {item.href.startsWith('http') && (
+                        <svg class="sw-item__ext" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>
+                      )}
+                    </a>
+                  </li>
                 ))}
-              </div>
-            )}
-          </div>
-          ); })}
-      </nav>
-
-      <!-- Right actions -->
-      <div class="ml-auto flex items-center gap-2 shrink-0">
-
-        <!-- Live badge -->
-        <div class="hidden sm:flex xl:hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-             style="color:#10b981;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2)">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#10b981"></span>
-          Live
-        </div>
-
-        <!-- Docs + Contact: cross-cutting, so they sit outside the hubs (like Help) -->
-        <a href="/doc" class="hidden 2xl:inline px-2 py-1.5 text-[12px] font-medium transition-colors hover:text-white" style="color:#94a3b8">Docs</a>
-        <a href="/contact" id="nav-contact" class="hidden 2xl:inline px-2 py-1.5 text-[12px] font-medium transition-colors hover:text-white" style="color:#94a3b8">Contact</a>
-
-        <!-- GitHub -->
-        <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener"
-           class="hidden sm:flex items-center gap-1.5 px-3 xl:px-2 2xl:px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)"
-           onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.color='#f1f5f9'"
-           onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
-          </svg>
-          <span class="hidden sm:inline xl:hidden 2xl:inline">GitHub</span>
-        </a>
-
-        <!-- Theme toggle (DS-01) -->
-        <button id="theme-toggle" type="button" aria-label="Toggle light/dark mode"
-                class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
-                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
-                onmouseover="this.style.borderColor='rgba(128,180,253,0.3)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.08)'"
-                onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
-          <!-- Sun icon (shown in dark mode) -->
-          <svg id="tt-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-          </svg>
-          <!-- Moon icon (shown in light mode, hidden by default) -->
-          <svg id="tt-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
-
-        <!-- Accessibility icon -->
-        <button id="a11y-nav-btn" type="button" aria-label="Accessibility settings"
-                class="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-150"
-                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
-                onmouseover="this.style.borderColor='rgba(128,180,253,0.4)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.08)'"
-                onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
-          <!-- Universal accessibility person icon (stroke-based, renders cleanly at 16px) -->
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="4" r="2"/>
-            <path d="M12 6v6"/>
-            <path d="M6 10h12"/>
-            <path d="M9 20l3-8 3 8"/>
-          </svg>
-        </button>
-
-        <!-- Sign In — bordered button (shown when logged out) -->
-        <a id="nav-signin" href="/login"
-           class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150"
-           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);text-decoration:none"
-           onmouseover="this.style.borderColor='rgba(128,180,253,0.5)';this.style.color='#80b4fd';this.style.background='rgba(128,180,253,0.06)'"
-           onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8';this.style.background='transparent'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-          </svg>
-          Sign In
-        </a>
-
-        <!-- Logged-in: avatar dropdown + visible Sign Out button -->
-        <div id="nav-user" class="items-center gap-1" style="display:none">
-
-          <!-- Avatar button → dropdown -->
-          <div class="relative">
-            <button id="nav-avatar-btn" type="button"
-                    class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all duration-150"
-                    style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08);background:transparent;cursor:pointer"
-                    onmouseover="this.style.borderColor='rgba(255,255,255,0.18)';this.style.color='#f1f5f9'"
-                    onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
-              <div id="nav-avatar-initials"
-                   class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                   style="background:linear-gradient(135deg,#80b4fd 0%,#38bdf8 100%);color:#070910">?</div>
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true" class="opacity-40">
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <!-- Dropdown panel -->
-            <div id="nav-user-dropdown"
-                 class="absolute right-0 top-full mt-1.5 w-52 rounded-xl py-1.5"
-                 style="background:#16161f;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 40px rgba(0,0,0,0.5);display:none">
-              <div class="px-4 py-2.5" style="border-bottom:1px solid rgba(255,255,255,0.06)">
-                <div id="nav-user-email" class="text-[12px] font-medium truncate" style="color:#f1f5f9">...</div>
-                <div class="text-[10px] mt-0.5" style="color:#10b981">Authenticated</div>
-              </div>
-              <a href="/agentic"
-                 class="block px-4 py-2 text-[13px] transition-colors"
-                 style="color:#94a3b8;text-decoration:none"
-                 onmouseover="this.style.color='#06b6d4';this.style.background='rgba(6,182,212,0.05)'"
-                 onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
-                Agentic Marketplace
-              </a>
-              <a href="https://portal.shadow-warden-ai.com"
-                 class="block px-4 py-2 text-[13px] transition-colors"
-                 style="color:#94a3b8;text-decoration:none"
-                 onmouseover="this.style.color='#f1f5f9';this.style.background='rgba(255,255,255,0.04)'"
-                 onmouseout="this.style.color='#94a3b8';this.style.background='transparent'">
-                Dashboard
-              </a>
+              </ul>
             </div>
           </div>
+        );
+      })}
+    </nav>
 
-          <!-- Sign Out — red bordered icon+text button, directly visible -->
-          <button id="nav-signout-btn" type="button"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-150"
-                  style="color:#ef4444;border:1px solid rgba(239,68,68,0.25);background:transparent;cursor:pointer"
-                  onmouseover="this.style.borderColor='rgba(239,68,68,0.5)';this.style.background='rgba(239,68,68,0.06)';this.style.color='#f87171'"
-                  onmouseout="this.style.borderColor='rgba(239,68,68,0.25)';this.style.background='transparent';this.style.color='#ef4444'">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            Sign Out
-          </button>
-        </div>
-
-        <!-- Get Started -->
-        <a href="/signup"
-           class="btn-primary text-[12px] px-4 py-1.5">
-          Get Started
+    <div class="sw-side__foot">
+      <div class="sw-foot__row">
+        <button id="theme-toggle" type="button" class="sw-item sw-theme" aria-label="Switch colour theme">
+          <svg id="tt-moon" class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg id="tt-sun" class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          <span class="sw-item__label" id="tt-label">Dark theme</span>
+        </button>
+        <button id="a11y-nav-btn" type="button" class="sw-iconbtn" aria-label="Accessibility settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4" r="2"/><path d="M12 6v6M6 10h12M9 20l3-8 3 8"/></svg>
+        </button>
+        <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank" rel="noopener" class="sw-iconbtn" aria-label="GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
         </a>
+      </div>
 
-        <!-- Mobile hamburger / close -->
-        <button id="mobile-btn" class="xl:hidden p-2 rounded-lg transition-colors" aria-label="Toggle menu"
-                style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
-          <svg id="icon-menu" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-          <svg id="icon-close" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+      <a id="nav-signin" href="/login" class="sw-item">
+        <svg class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span class="sw-item__label">Sign in</span>
+      </a>
+
+      <div id="nav-user" class="sw-user" style="display:none">
+        <button id="nav-avatar-btn" type="button" class="sw-item" aria-haspopup="menu">
+          <span id="nav-avatar-initials" class="sw-avatar">?</span>
+          <span class="sw-item__label"><span id="nav-user-email">Signed in</span></span>
+        </button>
+        <div id="nav-user-dropdown" class="sw-menu" role="menu" style="display:none">
+          <a href="/agentic" role="menuitem" class="sw-item"><span class="sw-item__label">Agentic Marketplace</span></a>
+          <a href="https://portal.shadow-warden-ai.com" role="menuitem" class="sw-item"><span class="sw-item__label">Seller workspace</span></a>
+        </div>
+        <button id="nav-signout-btn" type="button" class="sw-item sw-item--danger">
+          <svg class="sw-item__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
+          <span class="sw-item__label">Sign out</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Mobile menu — z-40: above content, below the z-50 navbar. It renders after the
-       navbar, so at an equal z-index it covered the navbar's close toggle. -->
-  <div id="mobile-menu" class="hidden fixed inset-0 z-40 xl:hidden flex-col pt-14"
-       style="background:rgba(10,10,15,0.98);backdrop-filter:blur(24px)">
-    <div class="flex-1 overflow-y-auto px-4 py-6 space-y-1">
+  <!-- Mobile drawer — the same table as the sidebar, every hub open. -->
+  <div id="mobile-menu" class="sw-drawer hidden" role="dialog" aria-modal="true" aria-label="Site menu">
+    <div class="sw-drawer__panel">
+      <ul class="sw-quick">
+        {quickLinks.map(q => (
+          <li><a href={q.href} class="sw-item"><span class="sw-item__label">{q.label}</span>{q.badge && <span class="sw-badge">{q.badge}</span>}</a></li>
+        ))}
+      </ul>
       {categories.map(cat => (
-        <div>
-          <a href={cat.href}
-             class="block px-4 py-3 rounded-xl text-[15px] font-semibold"
-             style={`color:${cat.color}`}>
-            {cat.label}
-          </a>
-          {cat.items.map(item => 'divider' in item ? null : (
-            <a href={item.href}
-               class="block px-8 py-2 text-[13px]"
-               style="color:#64748b">
-              {item.label}
-            </a>
-          ))}
+        <div class="sw-hub" data-open="true" style={`--hub:${cat.color}`}>
+          <div class="sw-hub__head">
+            <a href={cat.href} class="sw-hub__link"><span class="sw-hub__mark" aria-hidden="true"></span><span class="sw-hub__label">{cat.label}</span></a>
+          </div>
+          <ul class="sw-hub__list">
+            {cat.items.map(item => 'divider' in item ? null : (
+              <li><a href={item.href} class="sw-item"><span class="sw-item__label">{item.label.replace(/^●\s*/, '')}</span></a></li>
+            ))}
+          </ul>
         </div>
       ))}
-      <div class="pt-4 border-t mt-4 space-y-2" style="border-color:rgba(255,255,255,0.06)">
-        <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
-           class="block px-4 py-3 rounded-xl text-[13px] font-medium" style="color:#94a3b8">
-          ⭐ Star on GitHub
-        </a>
-        <a href="/settings"
-           class="flex items-center gap-3 px-4 py-3 rounded-xl text-[13px] font-medium"
-           style="color:#94a3b8">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          Settings
-        </a>
-        <a id="mobile-signin" href="https://portal.shadow-warden-ai.com/login"
-           class="block px-4 py-3 rounded-xl text-[13px] font-medium text-center"
-           style="color:#94a3b8;border:1px solid rgba(255,255,255,0.08)">
-          Sign In
-        </a>
-        <button id="mobile-signout" type="button"
-                class="hidden w-full px-4 py-3 rounded-xl text-[13px] font-medium text-center"
-                style="color:#ef4444;border:1px solid rgba(239,68,68,0.25);background:transparent;cursor:pointer">
-          Sign Out
-        </button>
-        <a href="https://portal.shadow-warden-ai.com"
-           class="block mt-2 px-4 py-3 rounded-xl text-[13px] font-semibold text-center"
-           style="background:#80b4fd;color:#070910;box-shadow:color(display-p3 0.38 0.61 0.96 / 0.22) 0px -5px 10px 0px inset,color(display-p3 0.38 0.61 0.96 / 0.16) 0px 2px 4px 0px">
-          Get Started Free
-        </a>
+      <div class="sw-drawer__foot">
+        <a href="/settings" class="sw-item"><span class="sw-item__label">Settings</span></a>
+        <a id="mobile-signin" href="https://portal.shadow-warden-ai.com/login" class="sw-item"><span class="sw-item__label">Sign in</span></a>
+        <button id="mobile-signout" type="button" class="sw-item sw-item--danger" style="display:none"><span class="sw-item__label">Sign out</span></button>
+        <button id="mobile-theme" type="button" class="sw-item"><span class="sw-item__label">Switch theme</span></button>
       </div>
     </div>
   </div>
 
-  <!-- Page content -->
-  <div id="page-spacer" style="height:92px"></div>
-  <main>
-    {crumbs.length > 0 && (
-      <nav aria-label="Breadcrumb" class="mx-auto max-w-7xl px-4 lg:px-8 pt-4">
-        <ol class="flex flex-wrap items-center gap-1.5 text-[12px]" style="color:#94a3b8">
-          {crumbs.map((c, i) => (
-            <li class="flex items-center gap-1.5">
-              {i > 0 && <span aria-hidden="true" style="color:#475569">›</span>}
-              {c.href
-                ? <a href={c.href} class="transition-colors hover:text-white">{c.label}</a>
-                : <span aria-current="page" style="color:#cbd5e1">{c.label}</span>}
-            </li>
-          ))}
-        </ol>
-      </nav>
-    )}
-    <slot />
-  </main>
+  <div class="sw-main">
+    <div id="top-banner" class="sw-banner">
+      <a href="/sellers" class="sw-banner__link">
+        <span class="sw-banner__tag">New</span>
+        <span>For Amazon sellers — check your catalog free</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <button id="banner-close" type="button" class="sw-banner__close" aria-label="Dismiss announcement">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
 
-  <!-- Footer -->
-  <footer class="mt-24 border-t" style="border-color:rgba(255,255,255,0.06)">
-    <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
-      <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-8 mb-10">
-        <div class="lg:col-span-2">
-          <div class="flex items-center gap-2 mb-3">
-            <img src="/logo.png" alt="Shadow Warden AI"
-                 style="height:40px;width:auto;border-radius:6px;display:block" />
-          </div>
-          <p class="text-[13px] leading-relaxed max-w-xs" style="color:#64748b">
-            A workspace for Amazon sellers: listing, label and account-health risks, found early.
-            Independent of Amazon. Data stored in the EU.
-          </p>
-          <div class="flex items-center gap-3 mt-4">
-            <a href="https://github.com/zborrman/Shadow-Warden-AI" target="_blank"
-               class="text-[12px] font-medium transition-colors hover:text-white" style="color:#64748b">GitHub</a>
-            <span style="color:#1e1e2a">·</span>
-            <a href="/doc"
-               class="text-[12px] font-medium transition-colors hover:text-white" style="color:#64748b">Docs</a>
-            <span style="color:#1e1e2a">·</span>
-            <a href="/contact"
-               class="text-[12px] font-medium transition-colors hover:text-white" style="color:#64748b">Contact</a>
-          </div>
-        </div>
-        {[
-          { title: 'Product', links: [
-            ...categories.map(c => ({ label: c.label, href: c.href })),
-            { label: '● Live dashboards', href: LIVE_DASHBOARDS[0].href },
-          ]},
-          { title: 'Documentation', links: [
-            { label: 'Quick Start', href: '/doc/quick-start' },
-            { label: 'API Reference', href: '/doc/api-reference' },
-            { label: 'Compliance', href: '/doc/compliance' },
-            { label: 'Changelog', href: '/doc/changelog' },
-          ]},
-          { title: 'Legal', links: [
-            { label: 'About', href: '/about' },
-            { label: 'Trust Center', href: '/trust' },
-            { label: 'Terms of Service', href: '/terms' },
-            { label: 'Refund Policy', href: '/refund' },
-            { label: 'Privacy Notice', href: '/privacy' },
-            { label: 'GDPR DPIA', href: '/doc/compliance' },
-            // "SOC 2 Type II" alone read as a certification we hold. We hold
-            // none: docs/capability-matrix.md rates this SELF-ATTESTED — a
-            // control mapping and an evidence collector, which is preparation.
-            // The anchor was wrong too (#reports; the section is #tab-reports),
-            // so the link never even reached what it named.
-            { label: 'SOC 2 readiness', href: '/trust#tab-reports' },
-          ]},
-        ].map(col => (
-          <div>
-            <div class="text-[11px] font-semibold tracking-widest uppercase mb-4" style="color:#475569">{col.title}</div>
-            <ul class="space-y-2.5">
-              {col.links.map(l => (
-                <li>
-                  <a href={l.href}
-                     class="text-[13px] transition-colors hover:text-white"
-                     style="color:#64748b">{l.label}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div class="pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-3"
-           style="border-color:rgba(255,255,255,0.05)">
-        <p class="text-[12px]" style="color:#475569">© 2026 Shadow Warden AI. All rights reserved.</p>
-        <div class="flex items-center gap-2">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#10b981"></span>
-          <span class="text-[12px]" style="color:#475569">All systems operational · {PRODUCT.display}</span>
-        </div>
+    <div class="sw-topbar">
+      {crumbs.length > 0 ? (
+        <nav aria-label="Breadcrumb" class="sw-crumbs">
+          <ol>
+            {crumbs.map((c, i) => (
+              <li>
+                {i > 0 && <span class="sw-crumbs__sep" aria-hidden="true">/</span>}
+                {c.href
+                  ? <a href={c.href}>{c.label}</a>
+                  : <span aria-current="page">{c.label}</span>}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      ) : <span class="sw-topbar__title">Seller protection workspace</span>}
+      <div class="sw-topbar__actions">
+        <a href="/doc" class="sw-toplink">Docs</a>
+        <a href="/contact" id="nav-contact" class="sw-toplink">Contact</a>
+        <a href="/status" class="sw-toplink">Status</a>
       </div>
     </div>
-  </footer>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="sw-footer">
+      <div class="sw-footer__inner">
+        <div class="sw-footer__grid">
+          <div class="sw-footer__about">
+            <img src="/logo.png" alt="Shadow Warden AI" width="74" height="40" />
+            <p>
+              A workspace for Amazon sellers: listing, label and account-health risks, found early.
+              Independent of Amazon. Data stored in the EU.
+            </p>
+          </div>
+          {[
+            { title: 'Product', links: [
+              ...categories.map(c => ({ label: c.label, href: c.href })),
+              { label: 'Live dashboards', href: LIVE_DASHBOARDS[0].href },
+            ]},
+            { title: 'Documentation', links: [
+              { label: 'Quick Start', href: '/doc/quick-start' },
+              { label: 'API Reference', href: '/doc/api-reference' },
+              { label: 'Compliance', href: '/doc/compliance' },
+              { label: 'Changelog', href: '/doc/changelog' },
+            ]},
+            { title: 'Legal', links: [
+              { label: 'About', href: '/about' },
+              { label: 'Trust Center', href: '/trust' },
+              { label: 'Terms of Service', href: '/terms' },
+              { label: 'Refund Policy', href: '/refund' },
+              { label: 'Privacy Notice', href: '/privacy' },
+              { label: 'GDPR DPIA', href: '/doc/compliance' },
+              // "SOC 2 Type II" alone read as a certification we hold. We hold
+              // none: docs/capability-matrix.md rates this SELF-ATTESTED — a
+              // control mapping and an evidence collector, which is preparation.
+              // The anchor was wrong too (#reports; the section is #tab-reports),
+              // so the link never even reached what it named.
+              { label: 'SOC 2 readiness', href: '/trust#tab-reports' },
+            ]},
+          ].map(col => (
+            <div>
+              <h2 class="sw-footer__title">{col.title}</h2>
+              <ul>
+                {col.links.map(l => <li><a href={l.href}>{l.label}</a></li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <div class="sw-footer__base">
+          <p>© 2026 Shadow Warden AI. All rights reserved.</p>
+          <p>{PRODUCT.display}</p>
+        </div>
+      </div>
+    </footer>
+  </div>
 
   <script>
-    // ── Top banner dismiss ──
-    (function() {
-      const BANNER_KEY = 'sw_banner_v52_dismissed';
-      const banner  = document.getElementById('top-banner')!;
-      const navbar  = document.getElementById('navbar')!;
-      const BANNER_H = 36;
-
-      const spacer = document.getElementById('page-spacer');
-
-      function applyBannerState(dismissed: boolean) {
-        if (dismissed) {
-          banner.style.display = 'none';
-          navbar.style.top = '0';
-          if (spacer) spacer.style.height = '56px';
-        } else {
-          banner.style.display = '';
-          navbar.style.top = BANNER_H + 'px';
-          if (spacer) spacer.style.height = '92px';
-        }
-      }
-
-      const dismissed = sessionStorage.getItem(BANNER_KEY) === '1';
-      applyBannerState(dismissed);
-
+    // ── Announcement strip ──
+    (function () {
+      const KEY = 'sw_banner_v52_dismissed';
+      const banner = document.getElementById('top-banner');
+      if (sessionStorage.getItem(KEY) === '1' && banner) banner.style.display = 'none';
       document.getElementById('banner-close')?.addEventListener('click', () => {
-        sessionStorage.setItem(BANNER_KEY, '1');
-        applyBannerState(true);
+        sessionStorage.setItem(KEY, '1');
+        if (banner) banner.style.display = 'none';
       });
     })();
 
-    // ── Mobile menu ──
-    const btn       = document.getElementById('mobile-btn')!;
-    const menu      = document.getElementById('mobile-menu')!;
-    const iconMenu  = document.getElementById('icon-menu')!;
-    const iconClose = document.getElementById('icon-close')!;
+    // ── Sidebar sections: open/closed survives navigation ──
+    (function () {
+      const KEY = 'sw-hubs';
+      let saved: Record<string, boolean> = {};
+      try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { saved = {}; }
+      document.querySelectorAll<HTMLElement>('#navbar .sw-hub').forEach(hub => {
+        const name = hub.dataset.hub || '';
+        const btn = hub.querySelector<HTMLButtonElement>('.sw-hub__toggle');
+        const set = (open: boolean) => {
+          hub.dataset.open = open ? 'true' : 'false';
+          btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        // The hub holding the current page is always open; others follow the visitor.
+        if (hub.dataset.open !== 'true' && saved[name]) set(true);
+        btn?.addEventListener('click', () => {
+          const open = hub.dataset.open !== 'true';
+          set(open);
+          saved[name] = open;
+          try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {}
+        });
+      });
+      document.querySelector('#navbar .sw-item[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
+    })();
 
+    // ── Mobile drawer ──
+    const btn = document.getElementById('mobile-btn')!;
+    const menu = document.getElementById('mobile-menu')!;
+    const iconMenu = document.getElementById('icon-menu')!;
+    const iconClose = document.getElementById('icon-close')!;
     function openMenu() {
       menu.classList.remove('hidden');
-      menu.style.display = 'flex';
-      menu.style.flexDirection = 'column';
-      iconMenu.style.display  = 'none';
+      iconMenu.style.display = 'none';
       iconClose.style.display = 'block';
-      btn.style.color  = '#f1f5f9';
-      btn.style.borderColor = 'rgba(255,255,255,0.25)';
+      btn.setAttribute('aria-expanded', 'true');
+      document.documentElement.style.overflow = 'hidden';
     }
-
     function closeMenu() {
       menu.classList.add('hidden');
-      menu.style.display = '';
-      iconMenu.style.display  = 'block';
+      iconMenu.style.display = 'block';
       iconClose.style.display = 'none';
-      btn.style.color  = '#94a3b8';
-      btn.style.borderColor = 'rgba(255,255,255,0.08)';
+      btn.setAttribute('aria-expanded', 'false');
+      document.documentElement.style.overflow = '';
     }
-
     btn.addEventListener('click', () => menu.classList.contains('hidden') ? openMenu() : closeMenu());
+    menu.addEventListener('click', e => { if (e.target === menu) closeMenu(); });
     document.querySelectorAll('#mobile-menu a').forEach(a => a.addEventListener('click', closeMenu));
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 
-    // ── Accessibility nav button → forward click to the fixed widget trigger ──
     document.getElementById('a11y-nav-btn')?.addEventListener('click', () => {
       document.getElementById('a11y-trigger')?.click();
     });
 
-    // ── DS-01 Theme toggle — Slack-inspired smooth switch ──
-    (function() {
-      const THEME_KEY = 'sw-theme';
-      const toggleBtn = document.getElementById('theme-toggle') as HTMLButtonElement | null;
-      const sunIcon   = document.getElementById('tt-sun')  as SVGElement | null;
-      const moonIcon  = document.getElementById('tt-moon') as SVGElement | null;
-
-      function applyTheme(theme: 'dark' | 'light', animate = false) {
+    // ── Theme: light by default, dark only when the visitor picks it ──
+    (function () {
+      const KEY = 'sw-theme-v2';
+      const sun = document.getElementById('tt-sun');
+      const moon = document.getElementById('tt-moon');
+      const label = document.getElementById('tt-label');
+      const meta = document.querySelector('meta[name="theme-color"]');
+      function paint(theme: 'light' | 'dark') {
         const root = document.documentElement;
-
-        function commit() {
-          root.setAttribute('data-theme', theme);
-          root.classList.remove('dark', 'light');
-          root.classList.add(theme);
-          root.style.colorScheme = theme;
-          if (sunIcon && moonIcon) {
-            sunIcon.style.display  = theme === 'dark'  ? '' : 'none';
-            moonIcon.style.display = theme === 'light' ? '' : 'none';
-          }
-          localStorage.setItem(THEME_KEY, theme);
+        root.classList.remove('dark', 'light');
+        root.classList.add(theme);
+        root.setAttribute('data-theme', theme);
+        if (sun && moon) {
+          sun.style.display = theme === 'dark' ? '' : 'none';
+          moon.style.display = theme === 'light' ? '' : 'none';
         }
-
-        if (animate) {
-          // Slack-style: brief opacity dip hides the filter flip (60ms → commit → fade back)
-          root.style.transition = 'opacity 60ms ease';
-          root.style.opacity = '0.82';
-          setTimeout(() => {
-            commit();
-            requestAnimationFrame(() => {
-              root.style.opacity = '1';
-              setTimeout(() => { root.style.transition = ''; }, 140);
-            });
-          }, 65);
-        } else {
-          commit();
-        }
+        if (label) label.textContent = theme === 'dark' ? 'Light theme' : 'Dark theme';
+        meta?.setAttribute('content', theme === 'dark' ? '#070910' : '#f6f7f9');
       }
-
-      // First visit: use OS preference; returning: use stored choice
-      const stored  = localStorage.getItem(THEME_KEY) as 'dark' | 'light' | null;
-      const sysPrefs = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-      applyTheme(stored ?? sysPrefs, false);
-
-      // OS preference changes while tab is open
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
-        if (!localStorage.getItem(THEME_KEY)) {
-          applyTheme(e.matches ? 'light' : 'dark', true);
-        }
-      });
-
-      toggleBtn?.addEventListener('click', () => {
-        const current = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-        applyTheme(current === 'dark' ? 'light' : 'dark', true);
-      });
+      function flip() {
+        const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+        try { localStorage.setItem(KEY, next); } catch {}
+        const swap = () => paint(next);
+        const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+        if (doc.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) doc.startViewTransition(swap);
+        else swap();
+      }
+      paint(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      document.getElementById('theme-toggle')?.addEventListener('click', flip);
+      document.getElementById('mobile-theme')?.addEventListener('click', flip);
     })();
 
     // ── Auth state — read sw_logged_in indicator cookie (no API call needed) ──
     // sw_logged_in is a non-HttpOnly Secure=Lax cookie set alongside sw_session on login/signup.
-    // It never carries the JWT; it only signals "a session exists" so the nav can update
-    // without a network round-trip (avoids Cloudflare Bot Fight Mode on XHR).
-    (function() {
-      const signin      = document.getElementById('nav-signin')         as HTMLAnchorElement | null;
-      const userWidget  = document.getElementById('nav-user')           as HTMLElement | null;
-      const avatarBtn   = document.getElementById('nav-avatar-btn')     as HTMLButtonElement | null;
-      const dropdown    = document.getElementById('nav-user-dropdown')  as HTMLElement | null;
-      const emailEl     = document.getElementById('nav-user-email')     as HTMLElement | null;
-      const initialsEl  = document.getElementById('nav-avatar-initials')as HTMLElement | null;
-      const signoutBtn  = document.getElementById('nav-signout-btn')    as HTMLButtonElement | null;
-      const mSignin     = document.getElementById('mobile-signin')      as HTMLAnchorElement | null;
-      const mSignout    = document.getElementById('mobile-signout')     as HTMLButtonElement | null;
-
-      function showAuthed(email: string) {
-        if (signin)     signin.style.display     = 'none';
-        if (userWidget) userWidget.style.display = 'flex';
-        if (emailEl)    emailEl.textContent       = email;
-        if (initialsEl) initialsEl.textContent    = email.split('@')[0]?.slice(0, 2).toUpperCase() || '?';
-        if (mSignin)    mSignin.style.display     = 'none';
-        if (mSignout)   mSignout.style.display    = 'block';
-      }
-
-      function showAnon() {
-        if (signin)     signin.style.display     = 'flex';
-        if (userWidget) userWidget.style.display = 'none';
-        if (mSignin)    mSignin.style.display     = '';
-        if (mSignout)   mSignout.style.display    = 'none';
-      }
-
-      // Check sw_logged_in indicator cookie — set by /auth/login and /auth/signup.
-      const cookieStr = document.cookie;
-      const isLoggedIn = cookieStr.split(';').some(c => c.trim() === 'sw_logged_in=1');
+    // It never carries the JWT; it only signals "a session exists".
+    (function () {
+      const signin = document.getElementById('nav-signin');
+      const userWidget = document.getElementById('nav-user');
+      const avatarBtn = document.getElementById('nav-avatar-btn');
+      const dropdown = document.getElementById('nav-user-dropdown');
+      const signoutBtn = document.getElementById('nav-signout-btn');
+      const mSignin = document.getElementById('mobile-signin');
+      const mSignout = document.getElementById('mobile-signout');
+      const isLoggedIn = document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1');
       if (isLoggedIn) {
-        showAuthed('');
-      } else {
-        showAnon();
+        if (signin) signin.style.display = 'none';
+        if (userWidget) userWidget.style.display = 'block';
+        if (mSignin) mSignin.style.display = 'none';
+        if (mSignout) mSignout.style.display = '';
       }
-
-      // Avatar dropdown toggle
-      avatarBtn?.addEventListener('click', (e) => {
+      avatarBtn?.addEventListener('click', e => {
         e.stopPropagation();
         if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
       });
-      document.addEventListener('click', () => {
-        if (dropdown) dropdown.style.display = 'none';
-      });
-
-      // Sign out
+      document.addEventListener('click', () => { if (dropdown) dropdown.style.display = 'none'; });
       async function doSignOut() {
-        try {
-          await fetch('/api/auth/logout', { method: 'POST' });
-        } catch {}
-        showAnon();
+        try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
         window.location.href = '/';
       }
       signoutBtn?.addEventListener('click', doSignOut);
@@ -833,14 +688,11 @@ if (breadcrumbs && currentPath !== '/') {
     })();
 
     // ── Scroll-reveal ──
-    (function() {
+    (function () {
       if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      const io = new IntersectionObserver((entries) => {
+      const io = new IntersectionObserver(entries => {
         entries.forEach(e => {
-          if (e.isIntersecting) {
-            e.target.classList.add('is-visible');
-            io.unobserve(e.target);
-          }
+          if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
         });
       }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
       document.querySelectorAll('.fade-in-section').forEach(el => io.observe(el));

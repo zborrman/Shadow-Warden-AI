@@ -7,16 +7,16 @@
 
       <!-- Left: copy -->
       <div>
-        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#FFD60A] mb-3">
+        <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[color:var(--acc-amber)] mb-3">
           Business Value
         </p>
         <h2 class="text-[42px] lg:text-[50px] font-bold tracking-[-2px] mb-6">
           Calculate your<br />
-          <span class="bg-gradient-to-r from-[#FFD60A] to-[#FF9F0A] bg-clip-text text-transparent">
+          <span class="bg-gradient-to-r from-[var(--acc-amber)] to-[var(--acc-amber)] bg-clip-text text-transparent">
             ROI in 30 seconds.
           </span>
         </h2>
-        <p class="text-[16px] text-[#8E8E9E] leading-relaxed mb-8">
+        <p class="text-[16px] text-[color:var(--ink-3)] leading-relaxed mb-8">
           Block attackers before they reach your upstream models.
           Save 100% of LLM costs on malicious traffic.
           IBM 2024 data: average breach costs $4.88M.
@@ -29,11 +29,11 @@
             ['Breach Prevention', 'Prevent PII leaks, data exfiltration, and prompt injection attacks that trigger regulatory fines.'],
             ['Zero-Trust Agent Sandbox', 'Complete control over tool-calling and agent capabilities — no runaway automation costs.'],
           ].map(([title, desc]) => (
-            <div class="flex gap-4 p-4 rounded-xl bg-[#080D1E] border border-white/[0.06]">
-              <span class="mt-0.5 text-[#FFD60A] font-bold text-lg flex-shrink-0">✦</span>
+            <div class="flex gap-4 p-4 rounded-xl bg-[var(--sw-bg)] border border-white/[0.06]">
+              <span class="mt-0.5 text-[color:var(--acc-amber)] font-bold text-lg flex-shrink-0">✦</span>
               <div>
                 <div class="text-[14px] font-semibold mb-1">{title}</div>
-                <div class="text-[13px] text-[#8E8E9E] leading-relaxed">{desc}</div>
+                <div class="text-[13px] text-[color:var(--ink-3)] leading-relaxed">{desc}</div>
               </div>
             </div>
           ))}
@@ -42,7 +42,7 @@
 
       <!-- Right: calculator card -->
       <div
-        class="rounded-2xl border border-white/[0.08] bg-[#080D1E] p-8
+        class="rounded-2xl border border-white/[0.08] bg-[var(--sw-bg)] p-8
                shadow-[0_32px_80px_rgba(0,0,0,0.5)]"
       >
         <h3 class="text-[16px] font-bold mb-6">Dollar Impact Calculator</h3>
@@ -52,70 +52,70 @@
 
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+              <label class="text-[12px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">
                 Monthly AI Requests
               </label>
-              <span id="label-req" class="text-[13px] font-bold text-[#0A84FF]">100,000</span>
+              <span id="label-req" class="text-[13px] font-bold text-[color:var(--acc-blue-2)]">100,000</span>
             </div>
             <input
               id="slider-req" type="range"
               min="1000" max="1000000" step="1000" value="100000"
-              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+              class="w-full accent-[var(--acc-blue-2)] cursor-pointer h-1 rounded-full bg-white/[0.08]"
             />
           </div>
 
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+              <label class="text-[12px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">
                 Malicious Traffic Rate
               </label>
-              <span id="label-mal" class="text-[13px] font-bold text-[#0A84FF]">3%</span>
+              <span id="label-mal" class="text-[13px] font-bold text-[color:var(--acc-blue-2)]">3%</span>
             </div>
             <input
               id="slider-mal" type="range"
               min="1" max="20" step="1" value="3"
-              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+              class="w-full accent-[var(--acc-blue-2)] cursor-pointer h-1 rounded-full bg-white/[0.08]"
             />
           </div>
 
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+              <label class="text-[12px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">
                 Avg. Cost per Incident ($)
               </label>
-              <span id="label-cost" class="text-[13px] font-bold text-[#0A84FF]">$45,000</span>
+              <span id="label-cost" class="text-[13px] font-bold text-[color:var(--acc-blue-2)]">$45,000</span>
             </div>
             <input
               id="slider-cost" type="range"
               min="5000" max="500000" step="5000" value="45000"
-              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+              class="w-full accent-[var(--acc-blue-2)] cursor-pointer h-1 rounded-full bg-white/[0.08]"
             />
           </div>
 
           <div>
             <div class="flex justify-between mb-2">
-              <label class="text-[12px] font-semibold text-[#8E8E9E] uppercase tracking-wide">
+              <label class="text-[12px] font-semibold text-[color:var(--ink-3)] uppercase tracking-wide">
                 Incidents per Month
               </label>
-              <span id="label-inc" class="text-[13px] font-bold text-[#0A84FF]">12</span>
+              <span id="label-inc" class="text-[13px] font-bold text-[color:var(--acc-blue-2)]">12</span>
             </div>
             <input
               id="slider-inc" type="range"
               min="1" max="200" step="1" value="12"
-              class="w-full accent-[#0A84FF] cursor-pointer h-1 rounded-full bg-white/[0.08]"
+              class="w-full accent-[var(--acc-blue-2)] cursor-pointer h-1 rounded-full bg-white/[0.08]"
             />
           </div>
         </div>
 
         <!-- Result -->
-        <div class="rounded-xl border border-[#30D158]/25 bg-[#30D158]/[0.05] p-6 text-center">
-          <p class="text-[11px] font-bold tracking-[2px] uppercase text-[#30D158] mb-2">
+        <div class="rounded-xl border border-[var(--acc-green)]/25 bg-[var(--acc-green)]/[0.05] p-6 text-center">
+          <p class="text-[11px] font-bold tracking-[2px] uppercase text-[color:var(--acc-green)] mb-2">
             Estimated Annual Savings
           </p>
-          <p id="roi-result" class="text-[48px] font-bold tracking-[-2px] text-[#30D158]">
+          <p id="roi-result" class="text-[48px] font-bold tracking-[-2px] text-[color:var(--acc-green)]">
             $6,480,000
           </p>
-          <p id="roi-multiplier" class="text-[13px] text-[#8E8E9E] mt-2">
+          <p id="roi-multiplier" class="text-[13px] text-[color:var(--ink-3)] mt-2">
             vs. Community Business at $39.99/mo
           </p>
         </div>

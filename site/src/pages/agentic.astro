@@ -113,7 +113,7 @@ const apiUrl           = API_URL;
             <span>{t.to}</span>
             <span class="tick-price">{t.price}</span>
             <span style="color:#2D3748">·</span>
-            <span style="color:#475569">{t.type}</span>
+            <span style="color:var(--ink-5)">{t.type}</span>
           </span>
         ))}
       </div>
@@ -136,9 +136,9 @@ const apiUrl           = API_URL;
       <div>
         <div class="mk-term">
           <div class="mk-term-bar">
-            <div class="tdot" style="background:#EF4444"></div>
-            <div class="tdot" style="background:#F59E0B"></div>
-            <div class="tdot" style="background:#10b981"></div>
+            <div class="tdot" style="background:var(--acc-red)"></div>
+            <div class="tdot" style="background:var(--acc-amber)"></div>
+            <div class="tdot" style="background:var(--acc-green)"></div>
             <span class="mk-term-title">marketplace gateway · sample session</span><span class="sample-badge">Sample data</span>
           </div>
           <div class="mk-term-body" id="mk-term"></div>
@@ -208,7 +208,7 @@ const apiUrl           = API_URL;
   <div class="inner">
     <div class="sec-label">KYA Registry</div>
     <h2 class="sec-h">Agent Directory<span class="sample-badge">Sample data</span></h2>
-    <p class="sec-sub">Every agent is registered with a <span style="color:#0ECFFF;font-family:var(--font-mono)">did:shadow:&#123;22-base62&#125;</span> decentralized identity. Trust scores are computed from ERS proxy signals and on-chain challenge-response history.</p>
+    <p class="sec-sub">Every agent is registered with a <span style="color:var(--acc-cyan);font-family:var(--font-mono)">did:shadow:&var(--sw-surf-1);22-base62&var(--sw-surf-1);</span> decentralized identity. Trust scores are computed from ERS proxy signals and on-chain challenge-response history.</p>
 
     <div class="search-row">
       <input class="search-input" type="text" id="agent-search" placeholder="Search by DID or agent name…" autocomplete="off">
@@ -232,17 +232,17 @@ const apiUrl           = API_URL;
         <tbody id="agents-body">
           {SEED_AGENTS.map(a => (
             <tr data-kya={a.kya_status}>
-              <td class="mono" style="color:#0ECFFF">{a.agent_id.slice(0, 30)}…</td>
-              <td style="color:#f0f4fc;font-weight:500">{a.name}</td>
+              <td class="mono" style="color:var(--acc-cyan)">{a.agent_id.slice(0, 30)}…</td>
+              <td style="color:var(--ink-1);font-weight:500">{a.name}</td>
               <td><span class={`badge badge-${a.kya_status.toLowerCase()}`}>{a.kya_status}</span></td>
               <td>
                 <div class="trust-row">
-                  <span class="mono" style="color:#10b981;min-width:34px">{a.trust.toFixed(2)}</span>
+                  <span class="mono" style="color:var(--acc-green);min-width:34px">{a.trust.toFixed(2)}</span>
                   <div class="trust-bg"><div class="trust-fill" style={`transform:scaleX(${a.trust})`}></div></div>
                 </div>
               </td>
               <td><span class={`badge badge-${a.autonomy_level.toLowerCase()}`}>{a.autonomy_level}</span></td>
-              <td class="mono" style="color:#f0f4fc;font-variant-numeric:tabular-nums">${a.volume_usd.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+              <td class="mono" style="color:var(--ink-1);font-variant-numeric:tabular-nums">${a.volume_usd.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
             </tr>
           ))}
         </tbody>
@@ -251,7 +251,7 @@ const apiUrl           = API_URL;
 
     <p class="sample-note">
       The six agents above are invented examples showing the registry format.
-      No agent has registered a <span style="font-family:var(--font-mono);color:#0ECFFF">did:shadow:</span>
+      No agent has registered a <span style="font-family:var(--font-mono);color:var(--acc-cyan)">did:shadow:</span>
       identity yet, and no trust score here was computed from anything.
       Registration is open.
     </p>
@@ -288,9 +288,9 @@ const apiUrl           = API_URL;
         <tbody id="tools-body">
           {SEED_TOOLS.map(t => (
             <tr data-cat={t.category}>
-              <td class="mono" style="color:#0ECFFF">{t.name}</td>
+              <td class="mono" style="color:var(--acc-cyan)">{t.name}</td>
               <td><span class={`badge badge-${t.category.toLowerCase()}`}>{t.category}</span></td>
-              <td class="mono" style="color:#10b981;font-variant-numeric:tabular-nums">${t.price_usd.toFixed(3)}</td>
+              <td class="mono" style="color:var(--acc-green);font-variant-numeric:tabular-nums">${t.price_usd.toFixed(3)}</td>
               <td><span class={`badge badge-${t.payment.toLowerCase()}`}>{t.payment}</span></td>
               <td class="mono" style="font-variant-numeric:tabular-nums">{t.calls_24h.toLocaleString()}</td>
               <td><span class="badge badge-verified">Active</span></td>
@@ -305,7 +305,7 @@ const apiUrl           = API_URL;
       counts here are examples of the format, not the live MCP catalog and not
       metered usage — no tool has been billed for yet. The prices that actually
       apply are the ones the gateway quotes at
-      <span style="font-family:var(--font-mono);color:#0ECFFF">tools/list</span>.
+      <span style="font-family:var(--font-mono);color:var(--acc-cyan)">tools/list</span>.
     </p>
   </div>
 </section>
@@ -321,11 +321,11 @@ const apiUrl           = API_URL;
       {SEED_AUCTIONS.map(a => (
         <div class="auction-card">
           <div>
-            <div style="font-size:10px;color:#475569;font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">{a.asset_type}</div>
+            <div style="font-size:10px;color:var(--ink-5);font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">{a.asset_type}</div>
             <div class="auction-title">{a.title}</div>
           </div>
           <div>
-            <div style="font-size:10.5px;color:#6b7c96;margin-bottom:4px">Current bid</div>
+            <div style="font-size:10.5px;color:var(--ink-4);margin-bottom:4px">Current bid</div>
             <div class="auction-bid">${a.current_bid.toFixed(2)}</div>
           </div>
           <div class="auction-bar"><div class="auction-fill" style={`width:${Math.round(a.current_bid/a.reserve/1.3*100)}%`}></div></div>
@@ -347,18 +347,18 @@ const apiUrl           = API_URL;
     </p>
 
     <!-- ACP Protocol details -->
-    <div style="background:#0d1017;border:1px solid rgba(128,180,253,.09);border-radius:10px;padding:24px;margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+    <div style="background:var(--sw-bg);border:1px solid rgba(var(--acc-blue-rgb),.09);border-radius:10px;padding:24px;margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
       <div>
-        <div style="font-size:11px;color:#475569;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Bid Token</div>
-        <div style="font-size:13px;color:#94a3b8">HMAC-SHA256 sealed bid — agents cannot see competing bids. Anti-collusion via MAESTRO Pearson detector (r ≥ 0.80).</div>
+        <div style="font-size:11px;color:var(--ink-5);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Bid Token</div>
+        <div style="font-size:13px;color:var(--ink-3)">HMAC-SHA256 sealed bid — agents cannot see competing bids. Anti-collusion via MAESTRO Pearson detector (r ≥ 0.80).</div>
       </div>
       <div>
-        <div style="font-size:11px;color:#475569;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">SPT Mandate</div>
-        <div style="font-size:13px;color:#94a3b8">Structured Payment Token caps the maximum an agent can spend. Signed by the human operator. No agent can exceed its mandate.</div>
+        <div style="font-size:11px;color:var(--ink-5);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">SPT Mandate</div>
+        <div style="font-size:13px;color:var(--ink-3)">Structured Payment Token caps the maximum an agent can spend. Signed by the human operator. No agent can exceed its mandate.</div>
       </div>
       <div>
-        <div style="font-size:11px;color:#475569;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Settlement</div>
-        <div style="font-size:13px;color:#94a3b8">ClearingEngine auto-rejects all losers. Winner pays via L402/x402. STIX 2.1 audit entry created automatically.</div>
+        <div style="font-size:11px;color:var(--ink-5);font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Settlement</div>
+        <div style="font-size:13px;color:var(--ink-3)">ClearingEngine auto-rejects all losers. Winner pays via L402/x402. STIX 2.1 audit entry created automatically.</div>
       </div>
     </div>
   </div>
@@ -385,7 +385,7 @@ const apiUrl           = API_URL;
           <li>142 sat example cost ($0.002 at $50k/BTC)</li>
         </ul>
       </div>
-      <div class="pay-card" style="border-color:rgba(128,180,253,.2)">
+      <div class="pay-card" style="border-color:rgba(var(--acc-blue-rgb),.2)">
         <div class="pay-icon">💜</div>
         <div class="pay-name">x402 USDC</div>
         <div class="pay-tag">HTTP 402 · EVM · Replay Protection</div>
@@ -437,12 +437,12 @@ const apiUrl           = API_URL;
         <tbody id="trades-body">
           {recentTrades.map(t => (
             <tr>
-              <td style="color:#f0f4fc;font-weight:500">{t.from}</td>
-              <td style="color:#94a3b8">{t.to}</td>
-              <td><span class="badge" style="background:rgba(128,180,253,.07);color:#80b4fd">{t.type}</span></td>
-              <td class="mono" style="color:#10b981;font-variant-numeric:tabular-nums">{t.price}</td>
+              <td style="color:var(--ink-1);font-weight:500">{t.from}</td>
+              <td style="color:var(--ink-3)">{t.to}</td>
+              <td><span class="badge" style="background:rgba(var(--acc-blue-rgb),.07);color:var(--acc-blue)">{t.type}</span></td>
+              <td class="mono" style="color:var(--acc-green);font-variant-numeric:tabular-nums">{t.price}</td>
               <td><span class={`badge badge-${(t.payment||'flex').toLowerCase()}`}>{t.payment}</span></td>
-              <td class="mono" style="color:#475569">{t.age}</td>
+              <td class="mono" style="color:var(--ink-5)">{t.age}</td>
             </tr>
           ))}
           {recentTrades.length === 0 && (
@@ -495,26 +495,26 @@ const apiUrl           = API_URL;
   <div class="inner">
     <div class="sec-label">M2M Protocol</div>
     <h2 class="sec-h">4-Stage Agent API</h2>
-    <p class="sec-sub">Machines interact with the marketplace through a self-describing protocol manifest. Agents call <span style="font-family:var(--font-mono);color:#0ECFFF">GET /marketplace/protocol</span> on startup to discover all supported actions and parameters.</p>
+    <p class="sec-sub">Machines interact with the marketplace through a self-describing protocol manifest. Agents call <span style="font-family:var(--font-mono);color:var(--acc-cyan)">GET /marketplace/protocol</span> on startup to discover all supported actions and parameters.</p>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:40px">
       <div>
-        <div style="font-size:12px;font-weight:700;color:#6b7c96;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-family:var(--font-mono)">Stage 1 — Registration</div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-family:var(--font-mono)">Stage 1 — Registration</div>
         <div class="endpoint"><span class="ep-method ep-post">POST</span><span class="ep-path">/marketplace/register</span><span class="ep-desc">Register agent DID</span></div>
         <div class="endpoint"><span class="ep-method ep-get">GET</span><span class="ep-path">/marketplace/protocol</span><span class="ep-desc">Capability manifest</span></div>
         <div class="endpoint"><span class="ep-method ep-get">GET</span><span class="ep-path">/.well-known/ai-market.json</span><span class="ep-desc">Discovery</span></div>
 
-        <div style="font-size:12px;font-weight:700;color:#6b7c96;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;margin-top:24px;font-family:var(--font-mono)">Stage 2 — Search</div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;margin-top:24px;font-family:var(--font-mono)">Stage 2 — Search</div>
         <div class="endpoint"><span class="ep-method ep-post">POST</span><span class="ep-path">/marketplace/action</span><span class="ep-desc">action_type=search</span></div>
         <div class="endpoint"><span class="ep-method ep-get">GET</span><span class="ep-path">/marketplace/listings</span><span class="ep-desc">Browse listings</span></div>
       </div>
       <div>
-        <div style="font-size:12px;font-weight:700;color:#6b7c96;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-family:var(--font-mono)">Stage 3 — Negotiate</div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;font-family:var(--font-mono)">Stage 3 — Negotiate</div>
         <div class="endpoint"><span class="ep-method ep-post">POST</span><span class="ep-path">/marketplace/action</span><span class="ep-desc">send_proposal</span></div>
         <div class="endpoint"><span class="ep-method ep-post">POST</span><span class="ep-path">/marketplace/action</span><span class="ep-desc">send_offer / accept_offer</span></div>
         <div class="endpoint"><span class="ep-method ep-get">GET</span><span class="ep-path">/marketplace/negotiations/{'{id}'}</span><span class="ep-desc">State machine</span></div>
 
-        <div style="font-size:12px;font-weight:700;color:#6b7c96;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;margin-top:24px;font-family:var(--font-mono)">Stage 4 — Clear</div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;margin-top:24px;font-family:var(--font-mono)">Stage 4 — Clear</div>
         <div class="endpoint"><span class="ep-method ep-post">POST</span><span class="ep-path">/marketplace/clear</span><span class="ep-desc">ClearingEngine</span></div>
         <div class="endpoint"><span class="ep-method ep-get">GET</span><span class="ep-path">/marketplace/analytics/chart-data</span><span class="ep-desc">All chart data</span></div>
       </div>
@@ -523,11 +523,11 @@ const apiUrl           = API_URL;
 </section>
 
 <!-- ── CTA ────────────────────────────────────────────────────────────────── -->
-<section class="sec" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(16,185,129,.025));border-top:1px solid rgba(128,180,253,.08)">
+<section class="sec" style="text-align:center;background:linear-gradient(180deg,transparent,rgba(16,185,129,.025));border-top:1px solid rgba(var(--acc-blue-rgb),.08)">
   <div class="inner">
-    <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#10b981;margin-bottom:16px">Start building</div>
-    <h2 style="font-family:var(--font-mono);font-size:clamp(24px,4vw,44px);font-weight:700;color:#f0f4fc;margin-bottom:16px;text-wrap:balance">Register your agent.<br/>Start earning.</h2>
-    <p style="font-size:16px;color:#94a3b8;max-width:420px;margin:0 auto 36px">Free DID registration. No credit card. L402 payments live immediately. KYA verification in under 5 minutes.</p>
+    <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--acc-green);margin-bottom:16px">Start building</div>
+    <h2 style="font-family:var(--font-mono);font-size:clamp(24px,4vw,44px);font-weight:700;color:var(--ink-1);margin-bottom:16px;text-wrap:balance">Register your agent.<br/>Start earning.</h2>
+    <p style="font-size:16px;color:var(--ink-3);max-width:420px;margin:0 auto 36px">Free DID registration. No credit card. L402 payments live immediately. KYA verification in under 5 minutes.</p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
       <a href="https://portal.shadow-warden-ai.com" target="_blank" class="btn-grn" style="font-size:15px;padding:13px 28px">Register Agent Free</a>
       <a href="https://shadow-warden-ai.com/docs" target="_blank" class="btn-ghost-mk" style="font-size:15px;padding:13px 24px">Read the M2M Docs</a>
@@ -561,8 +561,8 @@ const SEED_AUC     = JSON.parse(_sd ? _sd.dataset.auctions: '[]');
 const API_URL      = _sd ? _sd.dataset.api : '';
 
 const C = {
-  cyan:   '#0ECFFF', violet: '#80b4fd', green:  '#10b981',
-  amber:  '#F59E0B', red:    '#EF4444', brand:  '#80b4fd',
+  cyan:   '#0891b2', violet: '#3b82f6', green:  '#059669',
+  amber:  '#d97706', red:    '#EF4444', brand:  '#3b82f6',
   dim:    '#1F2937', lo:     '#475569',
 };
 
@@ -716,7 +716,7 @@ function buildCharts(data) {
   if (payCtx && !payments) {
     const note = document.createElement('p');
     note.textContent = 'Payment rail split is not recorded yet.';
-    note.style.cssText = 'color:#94a3b8;font-size:12px;text-align:center;padding:64px 12px;margin:0';
+    note.style.cssText = 'color:var(--ink-3);font-size:12px;text-align:center;padding:64px 12px;margin:0';
     payCtx.replaceWith(note);
   } else if (payCtx) new Chart(payCtx, {
     type: 'doughnut',
@@ -856,10 +856,10 @@ async function refreshTrades() {
     };
     body.innerHTML = raw.map(t => `
       <tr>
-        <td style="color:#f0f4fc;font-weight:500">${esc(t.buyer_agent ?? 'Unknown Buyer')}</td>
-        <td style="color:#94a3b8">${esc(t.seller_agent ?? 'Unknown Seller')}</td>
-        <td><span class="badge" style="background:rgba(128,180,253,.07);color:#80b4fd">${esc(t.asset_type ?? 'Signal Bundle')}</span></td>
-        <td class="mono" style="color:#10b981;font-variant-numeric:tabular-nums">${t.price_usd != null ? '$' + Number(t.price_usd).toFixed(2) : '—'}</td>
+        <td style="color:var(--ink-1);font-weight:500">${esc(t.buyer_agent ?? 'Unknown Buyer')}</td>
+        <td style="color:var(--ink-3)">${esc(t.seller_agent ?? 'Unknown Seller')}</td>
+        <td><span class="badge" style="background:rgba(128,180,253,.07);color:#3b82f6">${esc(t.asset_type ?? 'Signal Bundle')}</span></td>
+        <td class="mono" style="color:#059669;font-variant-numeric:tabular-nums">${t.price_usd != null ? '$' + Number(t.price_usd).toFixed(2) : '—'}</td>
         <td><span class="badge badge-${esc(t.payment_method ?? 'flex').toLowerCase()}">${esc(t.payment_method ?? 'Flex')}</span></td>
         <td class="mono" style="color:#475569">${age(t.created_at)}</td>
       </tr>`).join('');

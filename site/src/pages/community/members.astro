@@ -6,67 +6,67 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   title="Community Members — Shadow Warden AI"
   description="Manage members of your secure collaboration community."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+  <section class="pt-28 pb-24 min-h-screen" style="background:var(--sw-bg)">
     <div class="mx-auto max-w-3xl px-4 lg:px-8">
 
       <!-- Breadcrumb -->
-      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:#475569">
-        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Communities</a>
+      <div class="flex items-center gap-2 mb-6 text-[13px]" style="color:var(--ink-5)">
+        <a href="/community" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Communities</a>
         <span>›</span>
-        <a href="#" id="bc-comm" style="color:#64748b;text-decoration:none">—</a>
+        <a href="#" id="bc-comm" style="color:var(--ink-4);text-decoration:none">—</a>
         <span>›</span>
-        <span style="color:#94a3b8">Members</span>
+        <span style="color:var(--ink-3)">Members</span>
       </div>
 
       <!-- Tab nav -->
       <div class="flex gap-2 mb-6" style="overflow-x:auto;padding-bottom:4px" id="tab-nav"></div>
 
       <!-- Join Requests (shown only to owner/admin) -->
-      <div id="join-requests-section" style="display:none;background:#0d1220;border:1px solid rgba(191,90,242,0.2);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div id="join-requests-section" style="display:none;background:var(--sw-surf-1);border:1px solid rgba(191,90,242,0.2);border-radius:16px;padding:20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <p style="font-size:14px;font-weight:700;color:#BF5AF2;margin:0">📨 Join Requests <span id="req-count" style="font-size:12px;font-weight:400;color:#64748b"></span></p>
+          <p style="font-size:14px;font-weight:700;color:var(--acc-violet);margin:0">📨 Join Requests <span id="req-count" style="font-size:12px;font-weight:400;color:var(--ink-4)"></span></p>
         </div>
         <div id="requests-list"></div>
       </div>
 
       <!-- Add member -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
-        <p class="text-[14px] font-semibold mb-4" style="color:#f1f5f9">Add Person</p>
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;padding:20px;margin-bottom:16px">
+        <p class="text-[14px] font-semibold mb-4" style="color:var(--ink-1)">Add Person</p>
         <div style="display:flex;gap:10px">
           <input id="member-id-input" type="text" placeholder="USER-XXXX" maxlength="20"
-                 style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:14px;font-family:monospace;outline:none;transition:border-color 0.2s"
-                 onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+                 style="flex:1;background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.1);border-radius:10px;padding:10px 14px;color:var(--ink-1);font-size:14px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                 onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(var(--ink-rgb),0.1)'" />
           <button id="add-member-btn"
-                  style="padding:10px 20px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);border-radius:10px;color:#06b6d4;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
+                  style="padding:10px 20px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);border-radius:10px;color:var(--acc-cyan);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
                   onmouseover="this.style.background='rgba(6,182,212,0.25)'" onmouseout="this.style.background='rgba(6,182,212,0.15)'">
             + Add
           </button>
         </div>
-        <p id="add-err" style="color:#FF2D55;font-size:12px;margin-top:8px;display:none"></p>
+        <p id="add-err" style="color:var(--acc-red);font-size:12px;margin-top:8px;display:none"></p>
       </div>
 
       <!-- Search + Members list -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin-bottom:16px">
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;padding:20px;margin-bottom:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-          <p style="font-size:14px;font-weight:600;color:#f1f5f9;margin:0">Members <span id="member-count" style="color:#475569;font-weight:400"></span></p>
+          <p style="font-size:14px;font-weight:600;color:var(--ink-1);margin:0">Members <span id="member-count" style="color:var(--ink-5);font-weight:400"></span></p>
           <input id="member-search" type="text" placeholder="Search by ID or role…" maxlength="30"
-                 style="background:#0a0a12;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:7px 12px;color:#f1f5f9;font-size:13px;font-family:monospace;outline:none;width:200px;transition:border-color 0.2s"
-                 onfocus="this.style.borderColor='rgba(6,182,212,0.4)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'" />
+                 style="background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:8px;padding:7px 12px;color:var(--ink-1);font-size:13px;font-family:monospace;outline:none;width:200px;transition:border-color 0.2s"
+                 onfocus="this.style.borderColor='rgba(6,182,212,0.4)'" onblur="this.style.borderColor='rgba(var(--ink-rgb),0.08)'" />
         </div>
         <div id="member-limit-bar" style="display:none"></div>
-        <div id="members-list"><p style="color:#475569;font-size:13px">No members yet.</p></div>
+        <div id="members-list"><p style="color:var(--ink-5);font-size:13px">No members yet.</p></div>
       </div>
 
       <!-- Merge community -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px">
-        <p class="text-[14px] font-semibold mb-2" style="color:#f1f5f9">Merge Another Community</p>
-        <p class="text-[12px] mb-4" style="color:#64748b">Import all members from another community. Their roles become Member; current community Owner is preserved.</p>
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;padding:20px">
+        <p class="text-[14px] font-semibold mb-2" style="color:var(--ink-1)">Merge Another Community</p>
+        <p class="text-[12px] mb-4" style="color:var(--ink-4)">Import all members from another community. Their roles become Member; current community Owner is preserved.</p>
         <div style="display:flex;gap:10px">
           <input id="merge-id-input" type="text" placeholder="COMM-XXXX" maxlength="20"
-                 style="flex:1;background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#f1f5f9;font-size:14px;font-family:monospace;outline:none;transition:border-color 0.2s"
-                 onfocus="this.style.borderColor='rgba(191,90,242,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+                 style="flex:1;background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.1);border-radius:10px;padding:10px 14px;color:var(--ink-1);font-size:14px;font-family:monospace;outline:none;transition:border-color 0.2s"
+                 onfocus="this.style.borderColor='rgba(191,90,242,0.5)'" onblur="this.style.borderColor='rgba(var(--ink-rgb),0.1)'" />
           <button id="merge-btn"
-                  style="padding:10px 20px;background:rgba(191,90,242,0.1);border:1px solid rgba(191,90,242,0.25);border-radius:10px;color:#BF5AF2;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
+                  style="padding:10px 20px;background:rgba(191,90,242,0.1);border:1px solid rgba(191,90,242,0.25);border-radius:10px;color:var(--acc-violet);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap"
                   onmouseover="this.style.background='rgba(191,90,242,0.2)'" onmouseout="this.style.background='rgba(191,90,242,0.1)'">
             Merge
           </button>
@@ -85,8 +85,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
     const TIERS: Record<string, any> = {
       starter:           { name:'Starter',           color:'#64748b', maxMem:0  },
-      individual:        { name:'Individual',         color:'#06b6d4', maxMem:5  },
-      community_business:{ name:'Community Business', color:'#BF5AF2', maxMem:10 },
+      individual:        { name:'Individual',         color:'#0891b2', maxMem:5  },
+      community_business:{ name:'Community Business', color:'#9333ea', maxMem:10 },
     };
     function getTier(): string { return localStorage.getItem(TIER_KEY) || 'starter'; }
     function getTC(): any { return TIERS[getTier()] || TIERS.community_business; }
@@ -127,8 +127,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
     }
 
     const ROLE_STYLES: Record<string, string> = {
-      owner: 'background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.3);color:#FFD60A',
-      admin: 'background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#06b6d4',
+      owner: 'background:rgba(255,214,10,0.12);border:1px solid rgba(255,214,10,0.3);color:#d97706',
+      admin: 'background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.25);color:#0891b2',
       member: 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#64748b',
     };
 
@@ -146,10 +146,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       nav.innerHTML = tabs.map(t => `
         <a href="${t.href}"
            style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;
-                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4'
+                  ${t.active ? 'background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#0891b2'
                              : 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b'};
                   transition:all 0.15s"
-           ${!t.active ? `onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
+           ${!t.active ? `onmouseover="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'"` : ''}>
           ${t.label}
         </a>
       `).join('');
@@ -172,16 +172,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         ${reqs.map((r, i) => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(191,90,242,0.06);border:1px solid rgba(191,90,242,0.15);border-radius:10px;gap:12px">
             <div>
-              <span style="font-size:13px;font-family:monospace;font-weight:700;color:#e2e8f0">${esc(r.userId)}</span>
+              <span style="font-size:13px;font-family:monospace;font-weight:700;color:var(--ink-1)">${esc(r.userId)}</span>
               <span style="font-size:11px;color:#475569;margin-left:10px">${new Date(r.ts).toLocaleString()}</span>
             </div>
             <div style="display:flex;gap:8px">
               <button data-req-i="${i}" data-req-action="approve"
-                      style="padding:5px 12px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:6px;color:#30D158;font-size:11px;font-weight:700;cursor:pointer">
+                      style="padding:5px 12px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);border-radius:6px;color:#16a34a;font-size:11px;font-weight:700;cursor:pointer">
                 Approve
               </button>
               <button data-req-i="${i}" data-req-action="decline"
-                      style="padding:5px 12px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#FF2D55;font-size:11px;font-weight:700;cursor:pointer">
+                      style="padding:5px 12px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#e11d48;font-size:11px;font-weight:700;cursor:pointer">
                 Decline
               </button>
             </div>
@@ -233,7 +233,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       if (countEl) {
         const ratio = max === -1 ? `(${members.length})` : `(${members.length}/${max})`;
         countEl.textContent = ratio;
-        countEl.style.color = atLimit ? '#FF2D55' : '#475569';
+        countEl.style.color = atLimit ? '#e11d48' : '#475569';
       }
 
       const limitBar = document.getElementById('member-limit-bar');
@@ -241,10 +241,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const pct = Math.min(members.length / max * 100, 100);
         limitBar.innerHTML = `
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <div style="flex:1;height:4px;border-radius:2px;background:#1e293b;overflow:hidden">
-              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#FF2D55' : tc.color};border-radius:2px;transition:width 0.5s"></div>
+            <div style="flex:1;height:4px;border-radius:2px;background:var(--sw-surf-3);overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${pct >= 100 ? '#e11d48' : tc.color};border-radius:2px;transition:width 0.5s"></div>
             </div>
-            <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#FF2D55' : '#475569'};white-space:nowrap">
+            <span style="font-size:11px;font-family:monospace;color:${atLimit ? '#e11d48' : '#475569'};white-space:nowrap">
               ${members.length}/${max} · <span style="color:${tc.color}">${tc.name}</span>
             </span>
           </div>
@@ -282,19 +282,19 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
           return `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;gap:10px">
               <div style="display:flex;align-items:center;gap:10px;min-width:0">
-                <span style="font-size:13px;font-family:monospace;font-weight:600;color:#e2e8f0">${esc(m.id)}${isMe ? ' <span style="font-size:10px;color:#475569">(you)</span>' : ''}</span>
+                <span style="font-size:13px;font-family:monospace;font-weight:600;color:var(--ink-1)">${esc(m.id)}${isMe ? ' <span style="font-size:10px;color:#475569">(you)</span>' : ''}</span>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                 ${canManage && !isOwner && m.id !== myUserId ? `
                   <select data-member="${esc(m.id)}" class="role-select"
-                          style="background:#0a0a12;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;outline:none">
+                          style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 8px;color:var(--ink-3);font-size:11px;font-weight:600;cursor:pointer;outline:none">
                     <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
                     <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Admin</option>
                   </select>
                 ` : `<span style="padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;${roleStyle}">${m.role.toUpperCase()}</span>`}
                 ${canManage && !isOwner ? `
                   <button data-member="${esc(m.id)}" class="remove-btn"
-                          style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#FF2D55;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                          style="padding:4px 10px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:6px;color:#e11d48;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s"
                           onmouseover="this.style.background='rgba(255,45,85,0.18)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
                     Remove
                   </button>
@@ -358,14 +358,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       myUserId = localStorage.getItem('sw_user_id') || 'USER-ANON';
 
       if (!communityId) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#FF2D55">No community ID. <a href="/community" style="color:#06b6d4">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">No community ID. <a href="/community" style="color:#0891b2">Back</a></div>`;
         return;
       }
 
       const comms = loadCommunities();
       const c = comms.find((x: any) => x.id === communityId);
       if (!c) {
-        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#FF2D55">Community not found. <a href="/community" style="color:#06b6d4">Back</a></div>`;
+        document.body.innerHTML = `<div style="padding:80px 24px;text-align:center;color:#e11d48">Community not found. <a href="/community" style="color:#0891b2">Back</a></div>`;
         return;
       }
 
@@ -411,18 +411,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         const errEl = document.getElementById('merge-err');
         const mergeId = input.value.trim().toUpperCase();
         if (!mergeId.match(/^COMM-[0-9A-F]{4}$/)) {
-          if (errEl) { errEl.textContent = 'Format: COMM-XXXX'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Format: COMM-XXXX'; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
           return;
         }
         if (mergeId === communityId) {
-          if (errEl) { errEl.textContent = 'Cannot merge with itself.'; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = 'Cannot merge with itself.'; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
           return;
         }
         const cs = loadCommunities();
         const target = cs.find((x: any) => x.id === communityId);
         const source = cs.find((x: any) => x.id === mergeId);
         if (!source) {
-          if (errEl) { errEl.textContent = `${mergeId} not found in your communities.`; errEl.style.color = '#FF2D55'; errEl.style.display = 'block'; }
+          if (errEl) { errEl.textContent = `${mergeId} not found in your communities.`; errEl.style.color = '#e11d48'; errEl.style.display = 'block'; }
           return;
         }
         const targetMems = normalizeMembers(target.members);
@@ -439,7 +439,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
         addLog(target, 'community_merged', myUserId, `Merged ${added} members from ${mergeId}`);
         saveCommunities(cs);
         input.value = '';
-        if (errEl) { errEl.textContent = `✓ Merged ${added} new members from ${mergeId}.`; errEl.style.color = '#30D158'; errEl.style.display = 'block'; }
+        if (errEl) { errEl.textContent = `✓ Merged ${added} new members from ${mergeId}.`; errEl.style.color = '#16a34a'; errEl.style.display = 'block'; }
         renderAll();
       });
     }

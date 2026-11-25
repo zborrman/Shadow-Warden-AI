@@ -6,71 +6,71 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
   title="Storage — Shadow Warden AI"
   description="View and manage your local Community data storage."
 >
-  <section class="pt-28 pb-24 min-h-screen" style="background:#0a0a0f">
+  <section class="pt-28 pb-24 min-h-screen" style="background:var(--sw-bg)">
     <div class="mx-auto max-w-2xl px-4 lg:px-8">
 
       <!-- Breadcrumb -->
-      <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:#475569">
-        <a href="/community" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Community</a>
+      <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:var(--ink-5)">
+        <a href="/community" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Community</a>
         <span>›</span>
-        <a href="/account" style="color:#64748b;text-decoration:none" onmouseover="this.style.color='#06b6d4'" onmouseout="this.style.color='#64748b'">Account</a>
+        <a href="/account" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Account</a>
         <span>›</span>
-        <span style="color:#94a3b8">Storage</span>
+        <span style="color:var(--ink-3)">Storage</span>
       </div>
 
       <!-- Account nav -->
       <div class="flex gap-2 mb-8" style="overflow-x:auto;padding-bottom:4px">
         <a href="/account"
-           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
-           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-4);transition:all 0.15s"
+           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(var(--ink-rgb),0.03)'">
           Profile
         </a>
         <a href="/account/privacy"
-           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:#64748b;transition:all 0.15s"
-           onmouseover="this.style.color='#94a3b8';this.style.background='rgba(255,255,255,0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(255,255,255,0.03)'">
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(var(--ink-rgb),0.03);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-4);transition:all 0.15s"
+           onmouseover="this.style.color='var(--ink-3)';this.style.background='rgba(var(--ink-rgb),0.07)'" onmouseout="this.style.color='#64748b';this.style.background='rgba(var(--ink-rgb),0.03)'">
           Privacy
         </a>
         <a href="/account/storage"
-           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:#06b6d4">
+           style="padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);color:var(--acc-cyan)">
           Storage
         </a>
       </div>
 
       <!-- Storage overview -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:24px;margin-bottom:16px">
-        <p class="text-[15px] font-semibold mb-5" style="color:#f1f5f9">Storage Overview</p>
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;padding:24px;margin-bottom:16px">
+        <p class="text-[15px] font-semibold mb-5" style="color:var(--ink-1)">Storage Overview</p>
         <div id="storage-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"></div>
-        <div style="height:6px;border-radius:3px;background:#1e293b;overflow:hidden;margin-bottom:8px">
-          <div id="usage-bar" style="height:100%;border-radius:3px;background:linear-gradient(90deg,#06b6d4,#0e7490);transition:width 0.5s ease;width:0%"></div>
+        <div style="height:6px;border-radius:3px;background:var(--sw-surf-3);overflow:hidden;margin-bottom:8px">
+          <div id="usage-bar" style="height:100%;border-radius:3px;background:linear-gradient(90deg,var(--acc-cyan),#0e7490);transition:width 0.5s ease;width:0%"></div>
         </div>
-        <p id="usage-text" class="text-[11px] font-mono" style="color:#475569">Calculating…</p>
+        <p id="usage-text" class="text-[11px] font-mono" style="color:var(--ink-5)">Calculating…</p>
       </div>
 
       <!-- Data breakdown -->
-      <div style="background:#0d1220;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
-        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06)">
-          <p class="text-[14px] font-semibold" style="color:#f1f5f9">Data Breakdown</p>
+      <div style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.08);border-radius:16px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(var(--ink-rgb),0.06)">
+          <p class="text-[14px] font-semibold" style="color:var(--ink-1)">Data Breakdown</p>
         </div>
         <div id="data-breakdown"></div>
       </div>
 
       <!-- Danger zone -->
       <div style="background:rgba(255,45,85,0.04);border:1px solid rgba(255,45,85,0.2);border-radius:16px;padding:20px">
-        <p class="text-[13px] font-semibold mb-2" style="color:#FF2D55">Clear Data</p>
-        <p class="text-[12px] mb-4" style="color:#64748b">This removes all community data stored in your browser. Your USER ID and account settings will also be cleared.</p>
+        <p class="text-[13px] font-semibold mb-2" style="color:var(--acc-red)">Clear Data</p>
+        <p class="text-[12px] mb-4" style="color:var(--ink-4)">This removes all community data stored in your browser. Your USER ID and account settings will also be cleared.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button id="clear-tunnel-btn"
-                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:#FF2D55;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:var(--acc-red);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
                   onmouseover="this.style.background='rgba(255,45,85,0.16)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
             Clear Tunnel Messages
           </button>
           <button id="clear-all-btn"
-                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:#FF2D55;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
+                  style="padding:9px 16px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);border-radius:10px;color:var(--acc-red);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s"
                   onmouseover="this.style.background='rgba(255,45,85,0.16)'" onmouseout="this.style.background='rgba(255,45,85,0.08)'">
             Clear All Data
           </button>
         </div>
-        <p id="clear-msg" style="font-size:12px;margin-top:10px;display:none;color:#30D158"></p>
+        <p id="clear-msg" style="font-size:12px;margin-top:10px;display:none;color:var(--acc-green)"></p>
       </div>
     </div>
   </section>
@@ -114,10 +114,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       const statsEl = document.getElementById('storage-stats');
       if (statsEl) {
         statsEl.innerHTML = [
-          { label: 'Communities', value: comms.length.toString(), icon: '🏛️', color: '#06b6d4' },
-          { label: 'Tunnel Messages', value: totalMsgs.toString(), icon: '🔒', color: '#BF5AF2' },
-          { label: 'Total Members', value: comms.reduce((a: number, c: any) => a + (c.members || []).length, 0).toString(), icon: '👥', color: '#30D158' },
-          { label: 'Local Storage Used', value: fmtBytes(totalBytes), icon: '💾', color: '#FFD60A' },
+          { label: 'Communities', value: comms.length.toString(), icon: '🏛️', color: '#0891b2' },
+          { label: 'Tunnel Messages', value: totalMsgs.toString(), icon: '🔒', color: '#9333ea' },
+          { label: 'Total Members', value: comms.reduce((a: number, c: any) => a + (c.members || []).length, 0).toString(), icon: '👥', color: '#16a34a' },
+          { label: 'Local Storage Used', value: fmtBytes(totalBytes), icon: '💾', color: '#d97706' },
         ].map(s => `
           <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:14px">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
@@ -145,14 +145,14 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
             label: c.name,
             sub: `${c.id} · ${c.msgs} tunnel msgs`,
             bytes: c.bytes,
-            color: '#06b6d4',
+            color: '#0891b2',
           })),
-          { label: 'Account & Privacy Settings', sub: 'Profile + privacy preferences', bytes: accBytes + privBytes, color: '#30D158' },
+          { label: 'Account & Privacy Settings', sub: 'Profile + privacy preferences', bytes: accBytes + privBytes, color: '#16a34a' },
         ];
         breakdownEl.innerHTML = rows.map((r: any) => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.04)">
             <div>
-              <p style="font-size:13px;font-weight:600;color:#e2e8f0;margin:0 0 2px">${r.label}</p>
+              <p style="font-size:13px;font-weight:600;color:var(--ink-1);margin:0 0 2px">${r.label}</p>
               <p style="font-size:11px;color:#475569;font-family:monospace;margin:0">${r.sub}</p>
             </div>
             <span style="font-size:12px;font-family:monospace;color:${r.color};font-weight:600">${fmtBytes(r.bytes)}</span>

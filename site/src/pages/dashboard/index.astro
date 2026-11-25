@@ -36,14 +36,14 @@ const dashboards = [
 <BaseLayout title="Dashboard — Shadow Warden AI"
             description="OTel distributed tracing, Prometheus/Grafana, SOC event log, uptime monitoring, financial impact analysis.">
   <div class="pt-14">
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+    <div class="border-b" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-surf-1)">
       <div class="mx-auto max-w-7xl px-4 lg:px-8 py-16">
         <div class="flex items-center gap-3 mb-3">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center text-[18px] font-bold"
-               style="background:rgba(128,180,253,.15);color:#80b4fd">▣</div>
-          <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:#f1f5f9">Dashboard</h1>
+               style="background:rgba(var(--acc-blue-rgb),.15);color:var(--acc-blue)">▣</div>
+          <h1 class="text-[clamp(1.75rem,3.5vw,2.5rem)] font-bold" style="color:var(--ink-1)">Dashboard</h1>
         </div>
-        <p class="text-[15px] max-w-2xl leading-relaxed" style="color:#94a3b8">
+        <p class="text-[15px] max-w-2xl leading-relaxed" style="color:var(--ink-3)">
           Full-stack observability. OTel traces, Prometheus metrics, Grafana SLOs, SOC event log,
           uptime monitor, and financial impact analysis — all in one place.
         </p>
@@ -52,48 +52,48 @@ const dashboards = [
 
     <div class="mx-auto max-w-7xl px-4 lg:px-8 py-12">
       <!-- Live dashboards -->
-      <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">Live Dashboards</h2>
+      <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:var(--ink-5)">Live Dashboards</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
         {dashboards.map((d: any) => (
           <Fragment>
           {d.url ? (
           <a href={d.url} target="_blank" rel="noopener"
              class="group block rounded-xl p-5 transition-all duration-200 no-underline"
-             style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+             style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)"
              onmouseover={`this.style.borderColor='${d.subdomain ? '#0A84FF40' : '#80b4fd40'}';this.style.transform='translateY(-1px)'`}
-             onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+             onmouseout="this.style.borderColor='rgba(var(--ink-rgb),0.07)';this.style.transform='translateY(0)'">
             <div class="flex items-start justify-between mb-3">
               <div class="text-[22px]">{d.icon}</div>
               {d.subdomain && (
                 <div class="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold"
-                     style="color:#0A84FF;background:rgba(10,132,255,0.12);border:1px solid rgba(10,132,255,0.2)">
+                     style="color:var(--acc-blue-2);background:rgba(10,132,255,0.12);border:1px solid rgba(10,132,255,0.2)">
                   <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
                   HTTPS
                 </div>
               )}
             </div>
-            <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{d.name}</div>
+            <div class="text-[14px] font-semibold mb-1" style="color:var(--ink-1)">{d.name}</div>
             {d.subdomain && (
-              <div class="text-[10px] font-mono mb-1.5" style="color:#475569">{d.subdomain}</div>
+              <div class="text-[10px] font-mono mb-1.5" style="color:var(--ink-5)">{d.subdomain}</div>
             )}
-            <div class="text-[12px] leading-relaxed mb-3" style="color:#64748b">{d.desc}</div>
-            <div class="flex items-center gap-1 text-[11px] font-semibold" style={`color:${d.subdomain ? '#0A84FF' : '#80b4fd'}`}>
+            <div class="text-[12px] leading-relaxed mb-3" style="color:var(--ink-4)">{d.desc}</div>
+            <div class="flex items-center gap-1 text-[11px] font-semibold" style={`color:${d.subdomain ? 'var(--acc-blue-2)' : 'var(--acc-blue)'}`}>
               Open <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="group-hover:translate-x-0.5 transition-transform"><path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
             </div>
           </a>
           ) : (
           <div class="block rounded-xl p-5 no-underline"
-               style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+               style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
             <div class="flex items-start justify-between mb-3">
               <div class="text-[22px]">{d.icon}</div>
               <div class="px-1.5 py-0.5 rounded-md text-[9px] font-bold"
-                   style="color:#64748b;background:rgba(100,116,139,0.12);border:1px solid rgba(100,116,139,0.2)">
+                   style="color:var(--ink-4);background:rgba(100,116,139,0.12);border:1px solid rgba(100,116,139,0.2)">
                 INTERNAL
               </div>
             </div>
-            <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{d.name}</div>
-            <div class="text-[12px] leading-relaxed mb-3" style="color:#64748b">{d.desc}</div>
-            <div class="text-[10px] font-mono leading-relaxed" style="color:#475569">
+            <div class="text-[14px] font-semibold mb-1" style="color:var(--ink-1)">{d.name}</div>
+            <div class="text-[12px] leading-relaxed mb-3" style="color:var(--ink-4)">{d.desc}</div>
+            <div class="text-[10px] font-mono leading-relaxed" style="color:var(--ink-5)">
               Not published. Reach it over a tunnel:<br />{d.tunnel}
             </div>
           </div>
@@ -102,24 +102,24 @@ const dashboards = [
         ))}
       </div>
 
-      <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:#475569">Feature Categories</h2>
+      <h2 class="text-[14px] font-semibold tracking-widest uppercase mb-5" style="color:var(--ink-5)">Feature Categories</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {subcats.map(sub => {
           const count = features.filter(f => f.subcategory === sub).length;
           return (
             <a href={`/dashboard/${slugify(sub)}`}
                class="group block rounded-xl p-5 transition-all duration-200 no-underline"
-               style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+               style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)"
                onmouseover="this.style.borderColor='#80b4fd40';this.style.transform='translateY(-1px)'"
-               onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+               onmouseout="this.style.borderColor='rgba(var(--ink-rgb),0.07)';this.style.transform='translateY(0)'">
               <div class="flex items-start justify-between">
-                <div class="text-[14px] font-semibold" style="color:#f1f5f9">{sub}</div>
+                <div class="text-[14px] font-semibold" style="color:var(--ink-1)">{sub}</div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     class="group-hover:translate-x-1 transition-transform mt-0.5" style="color:#475569">
+                     class="group-hover:translate-x-1 transition-transform mt-0.5" style="color:var(--ink-5)">
                   <path stroke-linecap="round" d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
               </div>
-              <div class="text-[11px] mt-1" style="color:#475569">{count} features</div>
+              <div class="text-[11px] mt-1" style="color:var(--ink-5)">{count} features</div>
             </a>
           );
         })}

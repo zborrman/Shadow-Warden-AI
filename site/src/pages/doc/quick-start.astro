@@ -3,10 +3,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 <BaseLayout title="Quick Start — Shadow Warden AI">
   <div class="pt-14">
-    <div class="border-b" style="border-color:rgba(255,255,255,0.06);background:#111118">
+    <div class="border-b" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-surf-1)">
       <div class="mx-auto max-w-7xl px-4 lg:px-8 py-14">
-        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:#f1f5f9">Quick Start</h1>
-        <p class="text-[14px]" style="color:#475569">Up in 5 minutes with Docker Compose</p>
+        <h1 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-2" style="color:var(--ink-1)">Quick Start</h1>
+        <p class="text-[14px]" style="color:var(--ink-5)">Up in 5 minutes with Docker Compose</p>
       </div>
     </div>
     <div class="mx-auto max-w-3xl px-4 lg:px-8 py-12 space-y-8">
@@ -48,15 +48,15 @@ cp .env.example .env
         <div>
           <div class="flex items-center gap-3 mb-3">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0"
-                 style="background:rgba(128,180,253,.15);color:#80b4fd">{step.n}</div>
-            <h2 class="text-[16px] font-semibold" style="color:#f1f5f9">{step.title}</h2>
+                 style="background:rgba(var(--acc-blue-rgb),.15);color:var(--acc-blue)">{step.n}</div>
+            <h2 class="text-[16px] font-semibold" style="color:var(--ink-1)">{step.title}</h2>
           </div>
           <div class="code-block relative">
             <pre class="rounded-xl p-4 pb-10 overflow-x-auto text-[12px] leading-relaxed font-mono"
-                 style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8">{step.code}</pre>
+                 style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07);color:var(--ink-3)">{step.code}</pre>
             <button
               class="copy-btn absolute bottom-2.5 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all"
-              style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:#475569"
+              style="background:rgba(var(--ink-rgb),0.05);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-5)"
               data-code={step.code}
               aria-label="Copy code"
             >
@@ -65,7 +65,7 @@ cp .env.example .env
                 <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
               </svg>
               <!-- check icon (hidden by default) -->
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="check-icon" style="display:none">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="check-icon" style="display:none">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
               <span class="copy-label">Copy</span>
@@ -74,11 +74,11 @@ cp .env.example .env
         </div>
       ))}
 
-      <div class="rounded-xl p-5" style="background:rgba(128,180,253,.08);border:1px solid rgba(128,180,253,.2)">
-        <div class="text-[13px] font-semibold mb-1" style="color:#80b4fd">Need help?</div>
-        <p class="text-[13px]" style="color:#94a3b8">
-          Open an issue on <a href="https://github.com/zborrman/Shadow-Warden-AI/issues" target="_blank" class="underline" style="color:#80b4fd">GitHub</a>
-          or read the full <a href="/doc/api-reference" class="underline" style="color:#80b4fd">API Reference</a>.
+      <div class="rounded-xl p-5" style="background:rgba(var(--acc-blue-rgb),.08);border:1px solid rgba(var(--acc-blue-rgb),.2)">
+        <div class="text-[13px] font-semibold mb-1" style="color:var(--acc-blue)">Need help?</div>
+        <p class="text-[13px]" style="color:var(--ink-3)">
+          Open an issue on <a href="https://github.com/zborrman/Shadow-Warden-AI/issues" target="_blank" class="underline" style="color:var(--acc-blue)">GitHub</a>
+          or read the full <a href="/doc/api-reference" class="underline" style="color:var(--acc-blue)">API Reference</a>.
         </p>
       </div>
     </div>
@@ -110,7 +110,7 @@ cp .env.example .env
       copyIcon.style.display  = "none";
       checkIcon.style.display = "block";
       label.textContent       = "Copied!";
-      label.style.color       = "#10b981";
+      label.style.color       = "#059669";
       btn.style.borderColor   = "rgba(16,185,129,0.3)";
       btn.style.background    = "rgba(16,185,129,0.08)";
 

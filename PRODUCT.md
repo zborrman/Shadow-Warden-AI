@@ -96,5 +96,5 @@ WCAG AA as the floor. Body text must achieve ≥4.5:1 against its background at 
 
 Visual commitments recorded before this project had a DESIGN.md. They are design decisions, not product truth; `/impeccable document` should move them into DESIGN.md and this section should then be deleted.
 
-- **Dark is the environment.** The dark theme is not an aesthetic choice — it matches the operational context: SOC screens, terminal sessions, late-night incident response. Every color decision must hold at ambient dark conditions.
+- **Light is the default on the marketing site (owner decision, 2026-11-25).** The product is now a seller workspace read in daylight office conditions, not a SOC wall; `site/` opens light and keeps dark as the visitor's choice (`html.dark`). The SOC dashboard is unchanged. Every colour still has to hold in both themes — it comes from the tokens in `site/src/styles/global.css`, never a literal.
 - **Earned color.** The indigo-violet-cyan palette is reserved for signal: active states, critical values, primary actions. Overusing it dilutes its meaning. When everything glows, nothing alerts.

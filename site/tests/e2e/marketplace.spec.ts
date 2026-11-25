@@ -15,14 +15,18 @@ import { test, expect, Page } from '@playwright/test';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Hover the nav item matching `label` and return the dropdown locator. */
+/**
+ * Open the sidebar hub matching `label` and return its item list. The desktop
+ * nav is a sidebar inside <header id="navbar">: each hub is a section whose
+ * list opens from a chevron (it was a hover dropdown before 2026-11-25).
+ */
 async function hoverNavItem(page: Page, label: string) {
-  // The desktop nav lives inside <header id="navbar">. We locate the link by text.
-  const trigger = page.locator('#navbar nav').locator('a', { hasText: label }).first();
+  const hub = page.locator(`#navbar [data-hub="${label}"]`);
+  const trigger = hub.locator('a.sw-hub__link');
   await trigger.hover();
-  // The sibling dropdown div appears when the .group ancestor is hovered.
-  const group = trigger.locator('xpath=ancestor::div[contains(@class,"group")]');
-  const dropdown = group.locator('div[class*="group-hover"]').first();
+  const toggle = hub.locator('.sw-hub__toggle');
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  const dropdown = hub.locator('[data-hub-list]');
   return { trigger, dropdown };
 }
 

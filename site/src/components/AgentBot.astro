@@ -25,33 +25,33 @@ const demoMessages = [
 
 <!-- Agentic Bot Modal -->
 <div id="agent-modal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4"
-     style="background:rgba(3,5,15,0.92);backdrop-filter:blur(24px)">
-  <div class="w-full max-w-3xl h-[88vh] rounded-2xl border border-[#BF5AF2]/25 bg-[#080D1E]
+     style="background:color-mix(in oklab, var(--sw-bg) 92%, transparent);backdrop-filter:blur(24px)">
+  <div class="w-full max-w-3xl h-[88vh] rounded-2xl border border-[var(--acc-violet)]/25 bg-[var(--sw-bg)]
               flex flex-col overflow-hidden shadow-[0_40px_120px_rgba(191,90,242,0.15)]">
 
     <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.07] flex-shrink-0"
          style="background:linear-gradient(90deg,rgba(191,90,242,0.08),transparent)">
       <div class="flex items-center gap-3">
-        <div class="relative w-9 h-9 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF]
+        <div class="relative w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--acc-violet)] to-[var(--acc-blue-2)]
                     flex items-center justify-center text-lg"
              style="box-shadow:0 0 20px rgba(191,90,242,0.4)">
           🤖
-          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#30D158]
-                       border-2 border-[#080D1E] animate-pulse"></span>
+          <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--acc-green)]
+                       border-2 border-[var(--sw-bg)] animate-pulse"></span>
         </div>
         <div>
           <div class="text-[14px] font-bold">SOVA Agent</div>
-          <div class="text-[10px] text-[#30D158]">Claude Opus 4.6 · 92 tools · ARQ scheduler</div>
+          <div class="text-[10px] text-[color:var(--acc-green)]">Claude Opus 4.6 · 92 tools · ARQ scheduler</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="clearAgentChat()" class="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07]
-                                                   text-[11px] text-[#8E8E9E] hover:text-[#F5F5F7] transition-colors">
+                                                   text-[11px] text-[color:var(--ink-3)] hover:text-[color:var(--ink-1)] transition-colors">
           Clear
         </button>
         <button onclick="closeAgent()" class="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/[0.1]
-                                               flex items-center justify-center text-[#8E8E9E] transition-colors text-sm">✕</button>
+                                               flex items-center justify-center text-[color:var(--ink-3)] transition-colors text-sm">✕</button>
       </div>
     </div>
 
@@ -59,15 +59,15 @@ const demoMessages = [
     <div id="agent-messages" class="flex-1 overflow-y-auto p-5 space-y-4">
       <!-- Welcome -->
       <div class="flex gap-3">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--acc-violet)] to-[var(--acc-blue-2)] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
         <div class="flex-1">
-          <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">
+          <div class="rounded-2xl rounded-tl-sm bg-[var(--sw-surf-1)] border border-white/[0.06] px-4 py-3 text-[13px] text-[color:var(--ink-1)] leading-[1.6]">
             Hello! I'm SOVA — your autonomous AI security operator.
-            I have access to <span class="text-[#BF5AF2] font-bold">30 specialized tools</span> including threat intelligence,
+            I have access to <span class="text-[color:var(--acc-violet)] font-bold">30 specialized tools</span> including threat intelligence,
             system health, forensics, compliance reports, and visual patrol via Playwright.
             How can I help secure your AI infrastructure today?
           </div>
-          <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.8 · ready</div>
+          <div class="text-[9px] text-[color:var(--ink-5)] mt-1 ml-1">SOVA · Claude Opus 4.8 · ready</div>
         </div>
       </div>
 
@@ -76,34 +76,34 @@ const demoMessages = [
         <div class={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
           <div class={`w-8 h-8 rounded-xl flex items-center justify-center text-sm flex-shrink-0 mt-0.5
                        ${m.role === 'user'
-                         ? 'bg-[#FF2D55]/20 border border-[#FF2D55]/25'
-                         : 'bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF]'}`}>
+                         ? 'bg-[var(--acc-red)]/20 border border-[var(--acc-red)]/25'
+                         : 'bg-gradient-to-br from-[var(--acc-violet)] to-[var(--acc-blue-2)]'}`}>
             {m.role === 'user' ? '👤' : '🤖'}
           </div>
           <div class="flex-1 max-w-[85%]">
             {m.tool && (
-              <div class="mb-2 rounded-xl border border-[#FFD60A]/20 bg-[#FFD60A]/[0.04] px-3 py-2.5 font-mono text-[10px]">
-                <div class="text-[#FFD60A] font-bold mb-1">⚡ tool: {m.tool.name}({m.tool.args})</div>
-                <div class="text-[#8E8E9E] break-all">{m.tool.result}</div>
+              <div class="mb-2 rounded-xl border border-[var(--acc-amber)]/20 bg-[var(--acc-amber)]/[0.04] px-3 py-2.5 font-mono text-[10px]">
+                <div class="text-[color:var(--acc-amber)] font-bold mb-1">⚡ tool: {m.tool.name}({m.tool.args})</div>
+                <div class="text-[color:var(--ink-3)] break-all">{m.tool.result}</div>
               </div>
             )}
             <div class={`rounded-2xl px-4 py-3 text-[13px] leading-[1.6]
                           ${m.role === 'user'
-                            ? 'rounded-tr-sm bg-[#FF2D55]/15 border border-[#FF2D55]/20 text-[#F5F5F7]'
-                            : 'rounded-tl-sm bg-[#0D1428] border border-white/[0.06] text-[#F5F5F7]'}`}>
+                            ? 'rounded-tr-sm bg-[var(--acc-red)]/15 border border-[var(--acc-red)]/20 text-[color:var(--ink-1)]'
+                            : 'rounded-tl-sm bg-[var(--sw-surf-1)] border border-white/[0.06] text-[color:var(--ink-1)]'}`}>
               {m.text}
             </div>
             {m.stats && (
               <div class="mt-2 grid grid-cols-4 gap-2">
                 {m.stats.map(s => (
-                  <div class="text-center p-2 rounded-lg bg-[#30D158]/[0.06] border border-[#30D158]/15">
-                    <div class="text-[14px] font-bold text-[#30D158]">{s.v}</div>
-                    <div class="text-[8px] text-[#48485A] uppercase tracking-wide">{s.k}</div>
+                  <div class="text-center p-2 rounded-lg bg-[var(--acc-green)]/[0.06] border border-[var(--acc-green)]/15">
+                    <div class="text-[14px] font-bold text-[color:var(--acc-green)]">{s.v}</div>
+                    <div class="text-[8px] text-[color:var(--ink-5)] uppercase tracking-wide">{s.k}</div>
                   </div>
                 ))}
               </div>
             )}
-            <div class="text-[9px] text-[#48485A] mt-1 ml-1">
+            <div class="text-[9px] text-[color:var(--ink-5)] mt-1 ml-1">
               {m.role === 'user' ? 'You' : 'SOVA · just now'}
             </div>
           </div>
@@ -112,12 +112,12 @@ const demoMessages = [
 
       <!-- Thinking indicator (hidden by default) -->
       <div id="agent-thinking" class="hidden flex gap-3">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0">🤖</div>
-        <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--acc-violet)] to-[var(--acc-blue-2)] flex items-center justify-center text-sm flex-shrink-0">🤖</div>
+        <div class="rounded-2xl rounded-tl-sm bg-[var(--sw-surf-1)] border border-white/[0.06] px-4 py-3">
           <div class="flex gap-1">
-            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:0ms"></span>
-            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:150ms"></span>
-            <span class="w-2 h-2 rounded-full bg-[#BF5AF2] animate-bounce" style="animation-delay:300ms"></span>
+            <span class="w-2 h-2 rounded-full bg-[var(--acc-violet)] animate-bounce" style="animation-delay:0ms"></span>
+            <span class="w-2 h-2 rounded-full bg-[var(--acc-violet)] animate-bounce" style="animation-delay:150ms"></span>
+            <span class="w-2 h-2 rounded-full bg-[var(--acc-violet)] animate-bounce" style="animation-delay:300ms"></span>
           </div>
         </div>
       </div>
@@ -129,8 +129,8 @@ const demoMessages = [
         {quickActions.map(a => (
           <button onclick={`sendAgentMessage('${a.cmd}')`}
                   class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                         bg-white/[0.04] border border-white/[0.07] text-[11px] text-[#8E8E9E]
-                         hover:border-[#BF5AF2]/30 hover:text-[#F5F5F7] transition-all duration-150 whitespace-nowrap">
+                         bg-white/[0.04] border border-white/[0.07] text-[11px] text-[color:var(--ink-3)]
+                         hover:border-[var(--acc-violet)]/30 hover:text-[color:var(--ink-1)] transition-all duration-150 whitespace-nowrap">
             <span>{a.icon}</span>{a.label}
           </button>
         ))}
@@ -139,12 +139,12 @@ const demoMessages = [
       <div class="flex gap-2">
         <input id="agent-input" type="text"
                placeholder="Ask SOVA anything about your AI security..."
-               class="flex-1 bg-[#03050F] border border-white/[0.08] rounded-xl px-4 py-2.5
-                      text-[13px] text-[#F5F5F7] placeholder-[#48485A]
-                      focus:border-[#BF5AF2]/40 focus:outline-none transition-colors"
+               class="flex-1 bg-[var(--sw-bg)] border border-white/[0.08] rounded-xl px-4 py-2.5
+                      text-[13px] text-[color:var(--ink-1)] placeholder-[var(--ink-5)]
+                      focus:border-[var(--acc-violet)]/40 focus:outline-none transition-colors"
                onkeydown="if(event.key==='Enter')sendAgentMessage()" />
         <button onclick="sendAgentMessage()"
-                class="px-4 py-2.5 rounded-xl bg-[#BF5AF2] text-white font-bold text-[13px]
+                class="px-4 py-2.5 rounded-xl bg-[var(--acc-violet)] text-[#fff] font-bold text-[13px]
                        hover:bg-[#A855F7] transition-colors flex-shrink-0"
                 style="box-shadow:0 4px 16px rgba(191,90,242,0.35)">
           Send ↑
@@ -167,7 +167,7 @@ const demoMessages = [
     const msgs = document.getElementById('agent-messages');
     if (msgs) msgs.innerHTML = `
       <div class="flex gap-3">
-        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#9333ea] to-[#2563eb] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
         <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">
           Chat cleared. Ready for your next command!
         </div>
@@ -187,9 +187,9 @@ const demoMessages = [
     const userDiv = document.createElement('div');
     userDiv.className = 'flex gap-3 flex-row-reverse';
     userDiv.innerHTML = `
-      <div class="w-8 h-8 rounded-xl bg-[#FF2D55]/20 border border-[#FF2D55]/25 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">👤</div>
+      <div class="w-8 h-8 rounded-xl bg-[#e11d48]/20 border border-[#e11d48]/25 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">👤</div>
       <div class="flex-1 max-w-[85%]">
-        <div class="rounded-2xl rounded-tr-sm bg-[#FF2D55]/15 border border-[#FF2D55]/20 px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${text}</div>
+        <div class="rounded-2xl rounded-tr-sm bg-[#e11d48]/15 border border-[#e11d48]/20 px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${text}</div>
         <div class="text-[9px] text-[#48485A] mt-1 ml-1 text-right">You · just now</div>
       </div>`;
     msgs.appendChild(userDiv);
@@ -211,7 +211,7 @@ const demoMessages = [
     const botDiv = document.createElement('div');
     botDiv.className = 'flex gap-3';
     botDiv.innerHTML = `
-      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#BF5AF2] to-[#0A84FF] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-[#9333ea] to-[#2563eb] flex items-center justify-center text-sm flex-shrink-0 mt-0.5">🤖</div>
       <div class="flex-1 max-w-[85%]">
         <div class="rounded-2xl rounded-tl-sm bg-[#0D1428] border border-white/[0.06] px-4 py-3 text-[13px] text-[#F5F5F7] leading-[1.6]">${reply}</div>
         <div class="text-[9px] text-[#48485A] mt-1 ml-1">SOVA · Claude Opus 4.8</div>

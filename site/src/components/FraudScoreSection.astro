@@ -1,52 +1,52 @@
 ---
 const scoreDimensions = [
-  { id: 'behavioral', label: 'Behavioral Anomaly', score: 0.87, color: '#FF2D55',
+  { id: 'behavioral', label: 'Behavioral Anomaly', score: 0.87, color: '#e11d48',
     desc: 'Session velocity, request pattern deviation, typing cadence analysis', sources: ['ERS sliding window', 'Session guard', 'Topology β₀'] },
-  { id: 'semantic',   label: 'Semantic Risk',      score: 0.72, color: '#FF9F0A',
+  { id: 'semantic',   label: 'Semantic Risk',      score: 0.72, color: '#ea580c',
     desc: 'MiniLM hyperbolic embedding distance from known-safe cluster centroids', sources: ['Hyperbolic Brain', 'Causal Arbiter', 'Semantic rules'] },
-  { id: 'identity',   label: 'Identity Spoofing',  score: 0.61, color: '#FFD60A',
+  { id: 'identity',   label: 'Identity Spoofing',  score: 0.61, color: '#d97706',
     desc: 'API key rotation patterns, tenant fingerprint drift, JWT claim anomalies', sources: ['Auth Guard', 'RBAC', 'HMAC verify'] },
-  { id: 'exfiltration', label: 'Exfil Probability', score: 0.94, color: '#BF5AF2',
+  { id: 'exfiltration', label: 'Exfil Probability', score: 0.94, color: '#9333ea',
     desc: 'PII pattern density, Shannon entropy spikes, output volume anomaly', sources: ['PII Vault', 'Output Guard', 'Taint tracker'] },
-  { id: 'injection',  label: 'Injection Depth',    score: 0.55, color: '#0A84FF',
+  { id: 'injection',  label: 'Injection Depth',    score: 0.55, color: '#2563eb',
     desc: 'Multi-turn prompt injection chain score from AgentMonitor INJECTION_CHAIN', sources: ['Agent monitor', 'Worm guard', 'Tool guard'] },
-  { id: 'sovereign',  label: 'Sovereign Violation', score: 0.33, color: '#30D158',
+  { id: 'sovereign',  label: 'Sovereign Violation', score: 0.33, color: '#16a34a',
     desc: 'Cross-border data transfer compliance risk from Sovereign router', sources: ['Transfer guard', 'Jurisdiction matrix', 'STIX chain'] },
 ];
 
 const eliteFeatures = [
   {
-    icon: '🎯', color: '#FF2D55', title: 'Real-Time Composite Score',
+    icon: '🎯', color: '#e11d48', title: 'Real-Time Composite Score',
     desc: 'Weighted fusion of 6 risk dimensions. Bayesian network combines causal evidence into a single FraudScore (0.0–1.0) with confidence interval.',
   },
   {
-    icon: '🌐', color: '#30D158', title: 'Sovereign Identity Graph',
+    icon: '🌐', color: '#16a34a', title: 'Sovereign Identity Graph',
     desc: 'Maps entity relationships across SEP communities. Detects coordinated fraud rings using UECIID graph traversal and causal transfer proof chains.',
   },
   {
-    icon: '⏱️', color: '#0A84FF', title: 'Temporal Pattern Engine',
+    icon: '⏱️', color: '#2563eb', title: 'Temporal Pattern Engine',
     desc: 'Redis time-series sliding windows (1m/5m/1h/24h) track velocity, burst, and pattern drift. Anomaly score amplifies on temporal correlation.',
   },
   {
-    icon: '🔮', color: '#BF5AF2', title: 'Predictive Blocking',
+    icon: '🔮', color: '#9333ea', title: 'Predictive Blocking',
     desc: 'FraudScore v4.0 uses the Causal Arbiter\'s do-calculus to compute counterfactual: P(fraud | intervene on session) before the attack completes.',
   },
   {
-    icon: '📋', color: '#FFD60A', title: 'Litigation-Ready Evidence',
+    icon: '📋', color: '#d97706', title: 'Litigation-Ready Evidence',
     desc: 'Every FraudScore decision generates a SHA-256 attested XAI report with causal chain, counterfactuals, and PDF export for legal/compliance use.',
   },
   {
-    icon: '🏛️', color: '#5AC8FA', title: 'Multi-Jurisdiction Awareness',
+    icon: '🏛️', color: '#0284c7', title: 'Multi-Jurisdiction Awareness',
     desc: 'Score adjusts thresholds per jurisdiction. PHI in EU triggers stricter GDPR-aligned fraud controls vs. GENERAL data in US jurisdiction.',
   },
 ];
 
 const tiers = [
-  { name: 'Standard', score: '< 0.40', action: 'ALLOW',       color: '#30D158', strategy: 'Pass-through with logging' },
-  { name: 'Elevated', score: '0.40–0.65', action: 'MONITOR',    color: '#FFD60A', strategy: 'Enhanced telemetry + soft flag' },
-  { name: 'High',     score: '0.65–0.80', action: 'CHALLENGE',  color: '#FF9F0A', strategy: 'CAPTCHA / re-auth + rate limit' },
-  { name: 'Critical', score: '0.80–0.92', action: 'SHADOW BAN', color: '#FF2D55', strategy: 'Gaslight / delay strategy active' },
-  { name: 'Extreme',  score: '≥ 0.92',    action: 'BLOCK + ALERT', color: '#BF5AF2', strategy: 'Hard block + Slack/PagerDuty' },
+  { name: 'Standard', score: '< 0.40', action: 'ALLOW',       color: '#16a34a', strategy: 'Pass-through with logging' },
+  { name: 'Elevated', score: '0.40–0.65', action: 'MONITOR',    color: '#d97706', strategy: 'Enhanced telemetry + soft flag' },
+  { name: 'High',     score: '0.65–0.80', action: 'CHALLENGE',  color: '#ea580c', strategy: 'CAPTCHA / re-auth + rate limit' },
+  { name: 'Critical', score: '0.80–0.92', action: 'SHADOW BAN', color: '#e11d48', strategy: 'Gaslight / delay strategy active' },
+  { name: 'Extreme',  score: '≥ 0.92',    action: 'BLOCK + ALERT', color: '#9333ea', strategy: 'Hard block + Slack/PagerDuty' },
 ];
 ---
 
@@ -69,21 +69,21 @@ const tiers = [
       <div class="flex-1">
         <div class="flex items-center gap-3 mb-4 flex-wrap">
           <div class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-[1.5px]"
-               style="background:rgba(255,45,85,0.15);color:#FF2D55;border:1px solid rgba(255,45,85,0.3)">
+               style="background:rgba(255,45,85,0.15);color:var(--acc-red);border:1px solid rgba(255,45,85,0.3)">
             FraudScore Sovereign
           </div>
           <div class="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-[1.5px]"
-               style="background:rgba(191,90,242,0.15);color:#BF5AF2;border:1px solid rgba(191,90,242,0.3)">
+               style="background:rgba(191,90,242,0.15);color:var(--acc-violet);border:1px solid rgba(191,90,242,0.3)">
             v4.0 Elite
           </div>
         </div>
         <h2 class="text-[42px] lg:text-[52px] font-black tracking-[-2.5px] leading-[1.0] mb-4">
           6-dimensional<br />
-          <span style="background:linear-gradient(135deg,#FF2D55,#BF5AF2,#0A84FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          <span style="background:linear-gradient(135deg,var(--acc-red),var(--acc-violet),var(--acc-blue-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
             sovereign fraud scoring.
           </span>
         </h2>
-        <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+        <p class="text-[16px] text-[color:var(--ink-3)] max-w-xl leading-relaxed">
           FraudScore v4.0 Elite fuses behavioral, semantic, identity, exfiltration, injection,
           and sovereign violation signals into a single composite score — computed
           with causal explainability.
@@ -91,49 +91,49 @@ const tiers = [
       </div>
 
       <!-- Live score gauge -->
-      <div class="flex-shrink-0 rounded-2xl border border-[#FF2D55]/25 bg-[#080D1E] p-7 text-center"
+      <div class="flex-shrink-0 rounded-2xl border border-[var(--acc-red)]/25 bg-[var(--sw-bg)] p-7 text-center"
            style="box-shadow:0 0 60px rgba(255,45,85,0.1)">
-        <div class="text-[10px] font-bold uppercase tracking-[2px] text-[#48485A] mb-3">Live Composite Score</div>
+        <div class="text-[10px] font-bold uppercase tracking-[2px] text-[color:var(--ink-5)] mb-3">Live Composite Score</div>
         <!-- SVG gauge -->
         <div class="relative w-36 h-20 mx-auto mb-3">
           <svg viewBox="0 0 140 80" class="w-full h-full">
             <!-- Background arc -->
-            <path d="M10 75 A60 60 0 0 1 130 75" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10" stroke-linecap="round"/>
+            <path d="M10 75 A60 60 0 0 1 130 75" fill="none" stroke="rgba(var(--ink-rgb),0.06)" stroke-width="10" stroke-linecap="round"/>
             <!-- Score arc - 0.81 = 81% of 180° = 145.8° -->
             <path d="M10 75 A60 60 0 0 1 130 75" fill="none" stroke="url(#gaugeGrad)" stroke-width="10"
                   stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="35.8"/>
             <defs>
               <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#30D158"/>
-                <stop offset="50%" stop-color="#FFD60A"/>
-                <stop offset="100%" stop-color="#FF2D55"/>
+                <stop offset="0%" stop-color="#16a34a"/>
+                <stop offset="50%" stop-color="#d97706"/>
+                <stop offset="100%" stop-color="#e11d48"/>
               </linearGradient>
             </defs>
             <!-- Needle -->
-            <line x1="70" y1="75" x2="26" y2="28" stroke="#FF2D55" stroke-width="2.5" stroke-linecap="round"/>
-            <circle cx="70" cy="75" r="5" fill="#FF2D55"/>
+            <line x1="70" y1="75" x2="26" y2="28" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="70" cy="75" r="5" fill="#e11d48"/>
           </svg>
         </div>
-        <div class="text-[52px] font-black text-[#FF2D55] leading-none tracking-[-3px] mb-1">0.81</div>
-        <div class="text-[11px] font-bold text-[#FF2D55] uppercase tracking-wider mb-2">CRITICAL</div>
-        <div class="text-[10px] text-[#8E8E9E]">Shadow Ban strategy: gaslight</div>
-        <div class="text-[9px] text-[#48485A] mt-1">6 signals fused</div>
+        <div class="text-[52px] font-black text-[color:var(--acc-red)] leading-none tracking-[-3px] mb-1">0.81</div>
+        <div class="text-[11px] font-bold text-[color:var(--acc-red)] uppercase tracking-wider mb-2">CRITICAL</div>
+        <div class="text-[10px] text-[color:var(--ink-3)]">Shadow Ban strategy: gaslight</div>
+        <div class="text-[9px] text-[color:var(--ink-5)] mt-1">6 signals fused</div>
       </div>
     </div>
 
     <!-- 6 Dimensions -->
     <div class="mb-10">
-      <div class="text-[11px] font-bold uppercase tracking-[2px] text-[#48485A] mb-5">
+      <div class="text-[11px] font-bold uppercase tracking-[2px] text-[color:var(--ink-5)] mb-5">
         6 Risk Dimensions
       </div>
       <div class="space-y-3">
         {scoreDimensions.map(d => (
-          <div class="rounded-xl border border-white/[0.05] bg-[#080D1E] p-5
+          <div class="rounded-xl border border-white/[0.05] bg-[var(--sw-bg)] p-5
                       hover:border-white/[0.09] transition-colors duration-200">
             <div class="flex items-center gap-4 flex-wrap">
               <div class="w-32 flex-shrink-0">
                 <div class="text-[12px] font-bold mb-0.5">{d.label}</div>
-                <div class="text-[10px] text-[#48485A]">Signal weight</div>
+                <div class="text-[10px] text-[color:var(--ink-5)]">Signal weight</div>
               </div>
               <div class="flex-1 min-w-[200px]">
                 <!-- Score bar -->
@@ -145,7 +145,7 @@ const tiers = [
                   <div class="text-[15px] font-black font-mono w-12 text-right"
                        style={`color:${d.color}`}>{d.score.toFixed(2)}</div>
                 </div>
-                <div class="text-[11px] text-[#8E8E9E] mb-2">{d.desc}</div>
+                <div class="text-[11px] text-[color:var(--ink-3)] mb-2">{d.desc}</div>
                 <div class="flex gap-2 flex-wrap">
                   {d.sources.map(s => (
                     <span class="text-[9px] font-mono px-2 py-0.5 rounded"
@@ -165,21 +165,21 @@ const tiers = [
       <!-- Elite features -->
       <div class="grid sm:grid-cols-2 gap-4">
         {eliteFeatures.map(f => (
-          <div class="rounded-xl border border-white/[0.06] bg-[#080D1E] p-5
+          <div class="rounded-xl border border-white/[0.06] bg-[var(--sw-bg)] p-5
                       hover:-translate-y-0.5 transition-all duration-200">
             <div class="flex items-center gap-2.5 mb-3">
               <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                    style={`background:${f.color}12`}>{f.icon}</div>
               <div class="text-[13px] font-bold">{f.title}</div>
             </div>
-            <p class="text-[11px] text-[#8E8E9E] leading-[1.65]">{f.desc}</p>
+            <p class="text-[11px] text-[color:var(--ink-3)] leading-[1.65]">{f.desc}</p>
           </div>
         ))}
       </div>
 
       <!-- Decision tiers -->
-      <div class="rounded-2xl border border-white/[0.06] bg-[#080D1E] p-6">
-        <div class="text-[12px] font-bold text-[#48485A] uppercase tracking-wider mb-5">
+      <div class="rounded-2xl border border-white/[0.06] bg-[var(--sw-bg)] p-6">
+        <div class="text-[12px] font-bold text-[color:var(--ink-5)] uppercase tracking-wider mb-5">
           5 Decision Tiers
         </div>
         <div class="space-y-3">
@@ -194,15 +194,15 @@ const tiers = [
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-[11px] font-bold" style={`color:${t.color}`}>{t.action}</span>
               </div>
-              <div class="text-[10px] text-[#8E8E9E]">{t.strategy}</div>
+              <div class="text-[10px] text-[color:var(--ink-3)]">{t.strategy}</div>
             </div>
           ))}
         </div>
-        <div class="mt-4 pt-4 border-t border-white/[0.05] text-[10px] text-[#8E8E9E]">
+        <div class="mt-4 pt-4 border-t border-white/[0.05] text-[10px] text-[color:var(--ink-3)]">
           Score recalculated on every request · Redis sliding window per session ·
-          Shadow ban strategies: <span class="text-[#FF2D55]">gaslight</span> /
-          <span class="text-[#FF9F0A]">delay</span> /
-          <span class="text-[#48485A]">standard</span>
+          Shadow ban strategies: <span class="text-[color:var(--acc-red)]">gaslight</span> /
+          <span class="text-[color:var(--acc-amber)]">delay</span> /
+          <span class="text-[color:var(--ink-5)]">standard</span>
         </div>
       </div>
     </div>

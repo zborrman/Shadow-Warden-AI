@@ -23,10 +23,10 @@ const {
      class="fixed inset-0 z-[9000] hidden items-center justify-center p-4"
      style="background:rgba(0,0,0,0.72);backdrop-filter:blur(8px)">
   <div class="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-       style="background:#0e0e1c;border:1px solid rgba(255,255,255,0.08)">
+       style="background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.08)">
 
     <!-- Header -->
-    <div class="px-6 pt-6 pb-4" style={`border-bottom:1px solid ${danger ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.06)'}`}>
+    <div class="px-6 pt-6 pb-4" style={`border-bottom:1px solid ${danger ? 'rgba(239,68,68,0.15)' : 'rgba(var(--ink-rgb),0.06)'}`}>
       <div class="flex items-center gap-3 mb-1">
         {danger && (
           <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -37,24 +37,24 @@ const {
             </svg>
           </div>
         )}
-        <h2 class="text-[16px] font-bold" style="color:#f1f5f9">{title}</h2>
+        <h2 class="text-[16px] font-bold" style="color:var(--ink-1)">{title}</h2>
       </div>
-      <p class="text-[13px] leading-relaxed" style="color:#94a3b8">{message}</p>
+      <p class="text-[13px] leading-relaxed" style="color:var(--ink-3)">{message}</p>
     </div>
 
     <!-- Body -->
     <div class="px-6 py-5">
       {requireText && (
         <div class="mb-4">
-          <label class="block text-[12px] font-medium mb-2" style="color:#64748b">
-            Type <code class="text-[11px] px-1.5 py-0.5 rounded" style="color:#f1f5f9;background:rgba(255,255,255,0.08)">{requireText}</code> to confirm
+          <label class="block text-[12px] font-medium mb-2" style="color:var(--ink-4)">
+            Type <code class="text-[11px] px-1.5 py-0.5 rounded" style="color:var(--ink-1);background:rgba(var(--ink-rgb),0.08)">{requireText}</code> to confirm
           </label>
           <input
             type="text"
             id={`${id}-input`}
             placeholder={requireText}
             class="w-full px-3 py-2 rounded-lg text-[13px] outline-none transition-colors"
-            style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:#f1f5f9"
+            style="background:rgba(var(--ink-rgb),0.04);border:1px solid rgba(var(--ink-rgb),0.1);color:var(--ink-1)"
           />
         </div>
       )}
@@ -63,7 +63,7 @@ const {
         <button
           id={`${id}-cancel`}
           class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
-          style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#94a3b8">
+          style="background:rgba(var(--ink-rgb),0.04);border:1px solid rgba(var(--ink-rgb),0.08);color:var(--ink-3)">
           Cancel
         </button>
         <button
@@ -71,7 +71,7 @@ const {
           data-redirect={redirectTo}
           data-require={requireText}
           class="flex-1 px-4 py-2.5 rounded-lg text-[13px] font-semibold transition-all"
-          style={danger ? 'background:#dc2626;color:#fff' : 'background:#80b4fd;color:#070910'}
+          style={danger ? 'background:#dc2626;color:#fff' : 'background:var(--acc-blue);color:var(--on-acc)'}
           disabled={!!requireText}>
           {confirmLabel}
         </button>

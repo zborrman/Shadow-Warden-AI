@@ -11,7 +11,7 @@ interface Props {
   features: Feature[];
   accent?: string;
 }
-const { features, accent = '#80b4fd' } = Astro.props;
+const { features, accent = '#3b82f6' } = Astro.props;
 
 const statusLabel: Record<string, string> = {
   shipped:     '✅ Shipped',
@@ -30,25 +30,25 @@ const tierColor: Record<string, string> = {
 };
 const tierText: Record<string, string> = {
   'All':                '#94a3b8',
-  'Individual+':        '#10b981',
-  'Community Business+':'#38bdf8',
-  'Community Business': '#38bdf8',
-  'Not on a plan':         '#06b6d4',
+  'Individual+':        '#059669',
+  'Community Business+':'#0284c7',
+  'Community Business': '#0284c7',
+  'Not on a plan':         '#0891b2',
   'Starter':            '#94a3b8',
-  'Individual':         '#10b981',
+  'Individual':         '#059669',
 };
 ---
 
 <div class="space-y-3">
   {features.map(f => (
     <div class="rounded-xl p-5 transition-all duration-200"
-         style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+         style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)"
          onmouseover={`this.style.borderColor='${accent}30'`}
-         onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+         onmouseout="this.style.borderColor='rgba(var(--ink-rgb),0.07)'">
       <div class="flex items-start justify-between gap-3 mb-2">
         <div class="flex items-center gap-2.5 flex-1 min-w-0">
-          <span class="text-[10px] font-mono font-bold shrink-0" style="color:#475569">{f.id}</span>
-          <h3 class="text-[14px] font-semibold" style="color:#f1f5f9">{f.feature}</h3>
+          <span class="text-[10px] font-mono font-bold shrink-0" style="color:var(--ink-5)">{f.id}</span>
+          <h3 class="text-[14px] font-semibold" style="color:var(--ink-1)">{f.feature}</h3>
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <span class={`text-[10px] font-semibold px-2 py-0.5 rounded-md status-${f.status}`}>
@@ -56,13 +56,13 @@ const tierText: Record<string, string> = {
           </span>
         </div>
       </div>
-      <p class="text-[13px] leading-relaxed mb-3" style="color:#94a3b8">{f.description}</p>
+      <p class="text-[13px] leading-relaxed mb-3" style="color:var(--ink-3)">{f.description}</p>
       <div class="flex items-center gap-2">
         <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md tier-badge"
-              style={`color:${tierText[f.tier] ?? '#94a3b8'};background:${tierColor[f.tier] ?? 'rgba(148,163,184,.12)'}`}>
+              style={`color:${tierText[f.tier] ?? 'var(--ink-3)'};background:${tierColor[f.tier] ?? 'rgba(148,163,184,.12)'}`}>
           {f.tier}
         </span>
-        <span class="text-[10px] font-mono" style="color:#475569">{f.version}</span>
+        <span class="text-[10px] font-mono" style="color:var(--ink-5)">{f.version}</span>
       </div>
     </div>
   ))}

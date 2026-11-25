@@ -32,17 +32,17 @@ const subDescs: Record<string, string> = {
 
       <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#06b6d4;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#06b6d4"></span>
+             style="color:var(--acc-cyan);background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--acc-cyan)"></span>
           Sovereign AI Cloud · {shipped} features shipped
         </div>
-        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
+        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:var(--ink-1)">
           Your AI Traffic.<br/>
-          <span style="color:#38bdf8">
+          <span style="color:var(--acc-cyan)">
             Your Jurisdiction.
           </span>
         </h1>
-        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-8" style="color:#94a3b8">
+        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-8" style="color:var(--ink-3)">
           MASQUE-protocol encrypted tunnels across 8 jurisdictions. Every AI request is routed to a
           jurisdiction-compliant tunnel with a cryptographically signed attestation.
         </p>
@@ -54,68 +54,68 @@ const subDescs: Record<string, string> = {
     </section>
 
     <!-- Jurisdiction map -->
-    <section class="py-16 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+    <section class="py-16 border-y" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-bg)">
       <div class="mx-auto max-w-5xl px-4 lg:px-8 text-center">
-        <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-3" style="color:#f1f5f9">
+        <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-bold mb-3" style="color:var(--ink-1)">
           8 Jurisdictions · Always Compliant
         </h2>
-        <p class="text-[14px] mb-10" style="color:#64748b">
+        <p class="text-[14px] mb-10" style="color:var(--ink-4)">
           Traffic is routed to the lowest-latency ACTIVE tunnel in an allowed jurisdiction for the request's data class.
         </p>
         <div class="grid grid-cols-4 sm:grid-cols-8 gap-3 max-w-3xl mx-auto mb-10">
           {[
-            {code:'EU',name:'European Union',color:'#06b6d4'},
-            {code:'US',name:'United States',color:'#06b6d4'},
-            {code:'UK',name:'United Kingdom',color:'#06b6d4'},
-            {code:'CA',name:'Canada',color:'#06b6d4'},
-            {code:'SG',name:'Singapore',color:'#10b981'},
-            {code:'AU',name:'Australia',color:'#10b981'},
-            {code:'JP',name:'Japan',color:'#10b981'},
-            {code:'CH',name:'Switzerland',color:'#06b6d4'},
+            {code:'EU',name:'European Union',color:'var(--acc-cyan)'},
+            {code:'US',name:'United States',color:'var(--acc-cyan)'},
+            {code:'UK',name:'United Kingdom',color:'var(--acc-cyan)'},
+            {code:'CA',name:'Canada',color:'var(--acc-cyan)'},
+            {code:'SG',name:'Singapore',color:'var(--acc-green)'},
+            {code:'AU',name:'Australia',color:'var(--acc-green)'},
+            {code:'JP',name:'Japan',color:'var(--acc-green)'},
+            {code:'CH',name:'Switzerland',color:'var(--acc-cyan)'},
           ].map(j => (
             <div class="flex flex-col items-center gap-2">
               <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[13px] font-black"
                    style={`color:${j.color};background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15)`}>
                 {j.code}
               </div>
-              <span class="text-[9px] font-semibold uppercase tracking-wide text-center leading-tight" style="color:#475569">{j.name}</span>
+              <span class="text-[9px] font-semibold uppercase tracking-wide text-center leading-tight" style="color:var(--ink-5)">{j.name}</span>
             </div>
           ))}
         </div>
 
         <!-- Transfer rules matrix -->
-        <div class="rounded-2xl overflow-x-auto" style="border:1px solid rgba(255,255,255,0.07)">
+        <div class="rounded-2xl overflow-x-auto" style="border:1px solid rgba(var(--ink-rgb),0.07)">
           <table class="w-full text-[12px]" style="border-collapse:collapse">
             <thead>
-              <tr style="background:#131929;border-bottom:1px solid rgba(255,255,255,0.07)">
-                <th class="text-left px-4 py-3 font-semibold" style="color:#94a3b8">Data Class</th>
+              <tr style="background:var(--sw-surf-1);border-bottom:1px solid rgba(var(--ink-rgb),0.07)">
+                <th class="text-left px-4 py-3 font-semibold" style="color:var(--ink-3)">Data Class</th>
                 {['EU','US','UK','CA','SG','AU','JP','CH'].map(j => (
-                  <th class="px-3 py-3 font-bold text-center" style="color:#f1f5f9">{j}</th>
+                  <th class="px-3 py-3 font-bold text-center" style="color:var(--ink-1)">{j}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                {cls:'GENERAL',   cells:['✓','✓','✓','✓','✓','✓','✓','✓'], color:'#10b981'},
-                {cls:'PII',       cells:['✓','✓','✓','✓','~','~','~','✓'], color:'#f59e0b'},
-                {cls:'FINANCIAL', cells:['✓','✓','✓','✓','~','~','~','✓'], color:'#f59e0b'},
-                {cls:'PHI',       cells:['✓','✓','✓','✓','✗','✗','✗','✓'], color:'#ef4444'},
-                {cls:'CLASSIFIED',cells:['✗','✗','✗','✗','✗','✗','✗','✗'], color:'#ef4444'},
+                {cls:'GENERAL',   cells:['✓','✓','✓','✓','✓','✓','✓','✓'], color:'var(--acc-green)'},
+                {cls:'PII',       cells:['✓','✓','✓','✓','~','~','~','✓'], color:'var(--acc-amber)'},
+                {cls:'FINANCIAL', cells:['✓','✓','✓','✓','~','~','~','✓'], color:'var(--acc-amber)'},
+                {cls:'PHI',       cells:['✓','✓','✓','✓','✗','✗','✗','✓'], color:'var(--acc-red)'},
+                {cls:'CLASSIFIED',cells:['✗','✗','✗','✗','✗','✗','✗','✗'], color:'var(--acc-red)'},
               ].map((row, i) => (
-                <tr style={`border-bottom:1px solid rgba(255,255,255,0.04);background:${i%2===0?'#0a0a0f':'#111118'}`}>
+                <tr style={`border-bottom:1px solid rgba(var(--ink-rgb),0.04);background:${i%2===0?'var(--sw-bg)':'var(--sw-surf-1)'}`}>
                   <td class="px-4 py-3 font-mono font-bold text-[11px]" style={`color:${row.color}`}>{row.cls}</td>
                   {row.cells.map(v => (
                     <td class="px-3 py-3 text-center font-bold"
-                        style={`color:${v==='✓'?'#10b981':v==='~'?'#f59e0b':'#334155'}`}>{v}</td>
+                        style={`color:${v==='✓'?'var(--acc-green)':v==='~'?'var(--acc-amber)':'var(--ink-5)'}`}>{v}</td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          <div class="px-4 py-2 text-[11px] flex gap-4" style="background:#0a0a0f;color:#475569">
-            <span><span style="color:#10b981">✓</span> Allowed</span>
-            <span><span style="color:#f59e0b">~</span> Adequacy check required</span>
-            <span><span style="color:#334155">✗</span> Blocked</span>
+          <div class="px-4 py-2 text-[11px] flex gap-4" style="background:var(--sw-bg);color:var(--ink-5)">
+            <span><span style="color:var(--acc-green)">✓</span> Allowed</span>
+            <span><span style="color:var(--acc-amber)">~</span> Adequacy check required</span>
+            <span><span style="color:var(--ink-5)">✗</span> Blocked</span>
           </div>
         </div>
       </div>
@@ -130,15 +130,15 @@ const subDescs: Record<string, string> = {
             return (
               <a href={`/tunnel/${slugify(sub)}`}
                  class="group block rounded-2xl p-6 transition-all duration-200"
-                 style="background:#111118;border:1px solid rgba(255,255,255,0.07)"
+                 style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)"
                  onmouseover="this.style.borderColor='rgba(6,182,212,0.35)';this.style.transform='translateY(-2px)'"
-                 onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.transform='translateY(0)'">
+                 onmouseout="this.style.borderColor='rgba(var(--ink-rgb),0.07)';this.style.transform='translateY(0)'">
                 <div class="text-[28px] mb-3">{subIcons[sub] ?? '🔗'}</div>
-                <div class="text-[16px] font-bold mb-2" style="color:#f1f5f9">{sub}</div>
-                <p class="text-[13px] leading-relaxed mb-4" style="color:#64748b">{subDescs[sub] ?? ''}</p>
+                <div class="text-[16px] font-bold mb-2" style="color:var(--ink-1)">{sub}</div>
+                <p class="text-[13px] leading-relaxed mb-4" style="color:var(--ink-4)">{subDescs[sub] ?? ''}</p>
                 <div class="flex items-center justify-between">
                   <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md"
-                        style="color:#06b6d4;background:rgba(6,182,212,0.1)">{count} features</span>
+                        style="color:var(--acc-cyan);background:rgba(6,182,212,0.1)">{count} features</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"
                        class="group-hover:translate-x-1 transition-transform">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
@@ -151,27 +151,27 @@ const subDescs: Record<string, string> = {
 
         <!-- Feature grid -->
         <div class="text-center mb-10">
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:#f1f5f9">All Tunnel Features</h2>
-          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">Sovereign routing layer. Built and tested; not part of any plan today.</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-3" style="color:var(--ink-1)">All Tunnel Features</h2>
+          <p class="text-[15px] max-w-xl mx-auto" style="color:var(--ink-3)">Sovereign routing layer. Built and tested; not part of any plan today.</p>
         </div>
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map(f => (
             <div class="rounded-xl p-5 transition-all duration-200"
-                 style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+                 style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
               <div class="flex items-center justify-between mb-3">
                 <span class="text-[10px] font-bold font-mono px-2 py-0.5 rounded"
-                      style="color:#06b6d4;background:rgba(6,182,212,0.1)">{f.id}</span>
+                      style="color:var(--acc-cyan);background:rgba(6,182,212,0.1)">{f.id}</span>
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded"
-                      style={`color:${f.status==='shipped'?'#10b981':'#f59e0b'};background:${f.status==='shipped'?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)'}`}>
+                      style={`color:${f.status==='shipped'?'var(--acc-green)':'var(--acc-amber)'};background:${f.status==='shipped'?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)'}`}>
                   {f.status === 'shipped' ? '✓ Shipped' : f.status}
                 </span>
               </div>
-              <div class="text-[14px] font-semibold mb-1" style="color:#f1f5f9">{f.feature}</div>
-              <div class="text-[11px] mb-2" style="color:#475569">{f.subcategory} · {f.version}</div>
-              <p class="text-[12px] leading-relaxed" style="color:#64748b">{f.description}</p>
+              <div class="text-[14px] font-semibold mb-1" style="color:var(--ink-1)">{f.feature}</div>
+              <div class="text-[11px] mb-2" style="color:var(--ink-5)">{f.subcategory} · {f.version}</div>
+              <p class="text-[12px] leading-relaxed" style="color:var(--ink-4)">{f.description}</p>
               <div class="mt-3">
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded"
-                      style="color:#38bdf8;background:rgba(128,180,253,0.1)">{f.tier}</span>
+                      style="color:var(--acc-cyan);background:rgba(var(--acc-blue-rgb),0.1)">{f.tier}</span>
               </div>
             </div>
           ))}
@@ -180,18 +180,18 @@ const subDescs: Record<string, string> = {
     </section>
 
     <!-- Attestation explainer -->
-    <section class="py-20 border-t" style="border-color:rgba(255,255,255,0.06)">
+    <section class="py-20 border-t" style="border-color:rgba(var(--ink-rgb),0.06)">
       <div class="mx-auto max-w-5xl px-4 lg:px-8">
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-semibold"
-                 style="color:#06b6d4;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
+                 style="color:var(--acc-cyan);background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2)">
               🔏 Sovereignty Attestation
             </div>
-            <h2 class="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold mb-4 leading-tight" style="color:#f1f5f9">
+            <h2 class="text-[clamp(1.4rem,2.8vw,2.1rem)] font-bold mb-4 leading-tight" style="color:var(--ink-1)">
               Every routing decision<br/>gets a signed receipt
             </h2>
-            <p class="text-[14px] leading-relaxed mb-6" style="color:#64748b">
+            <p class="text-[14px] leading-relaxed mb-6" style="color:var(--ink-4)">
               Each request routed through a sovereign tunnel generates an HMAC-SHA256 signed attestation
               stored in Redis with a 7-year TTL. Auditors can verify any historical routing decision.
             </p>
@@ -204,17 +204,17 @@ const subDescs: Record<string, string> = {
               ].map(([k, v]) => (
                 <div class="flex gap-3">
                   <span class="text-[11px] font-bold mt-0.5 px-2 py-0.5 rounded h-fit shrink-0"
-                        style="color:#06b6d4;background:rgba(6,182,212,0.08)">{k}</span>
-                  <span class="text-[13px]" style="color:#64748b">{v}</span>
+                        style="color:var(--acc-cyan);background:rgba(6,182,212,0.08)">{k}</span>
+                  <span class="text-[13px]" style="color:var(--ink-4)">{v}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-            <div class="text-[11px] font-bold mb-4 tracking-widest uppercase" style="color:#475569">
+          <div class="rounded-2xl p-6" style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
+            <div class="text-[11px] font-bold mb-4 tracking-widest uppercase" style="color:var(--ink-5)">
               Attestation object
             </div>
-            <pre class="text-[11px] font-mono leading-relaxed overflow-auto" style="color:#94a3b8">{`{
+            <pre class="text-[11px] font-mono leading-relaxed overflow-auto" style="color:var(--ink-3)">{`{
   "attest_id": "att_0Xk4aB7mN2p",
   "request_id": "req_8f3a2c1d",
   "tenant_id":  "acme-corp",
@@ -235,10 +235,10 @@ const subDescs: Record<string, string> = {
       <div class="mx-auto max-w-2xl px-4">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-6 text-[28px]"
              style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2)">🌐</div>
-        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-4" style="color:#f1f5f9">
+        <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-bold mb-4" style="color:var(--ink-1)">
           Sovereign AI Cloud is not on a plan today
         </h2>
-        <p class="text-[15px] mb-8" style="color:#64748b">
+        <p class="text-[15px] mb-8" style="color:var(--ink-4)">
           The routing layer is built and tested. No plan includes it, so it cannot be bought.
         </p>
         <div class="flex flex-wrap gap-3 justify-center">

@@ -17,7 +17,7 @@ const API = '/api';
 
     body {
       min-height: 100vh;
-      background: #0a0a0f;
+      background: var(--sw-bg);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -32,7 +32,7 @@ const API = '/api';
       top: 0; left: 0; right: 0; bottom: 0;
       background:
         radial-gradient(ellipse 60% 50% at 50% -10%, rgba(6,182,212,.10) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 30% at 20% 80%, rgba(128,180,253,.06) 0%, transparent 60%);
+        radial-gradient(ellipse 40% 30% at 20% 80%, rgba(var(--acc-blue-rgb),.06) 0%, transparent 60%);
       pointer-events: none;
     }
 
@@ -40,8 +40,8 @@ const API = '/api';
       position: relative;
       width: 100%;
       max-width: 420px;
-      background: #111118;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--sw-surf-1);
+      border: 1px solid rgba(var(--ink-rgb),0.08);
       border-radius: 16px;
       padding: 2.5rem 2rem;
     }
@@ -58,21 +58,21 @@ const API = '/api';
       font-size: 14px;
       font-weight: 800;
       letter-spacing: -0.3px;
-      color: #f1f5f9;
+      color: var(--ink-1);
     }
-    .logo-text span { color: #80b4fd; }
+    .logo-text span { color: var(--acc-blue); }
 
     h1 {
       font-size: 20px;
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--ink-1);
       text-align: center;
       margin-bottom: 0.35rem;
       letter-spacing: -0.3px;
     }
     .subtitle {
       font-size: 13px;
-      color: #64748b;
+      color: var(--ink-4);
       text-align: center;
       margin-bottom: 1.75rem;
     }
@@ -81,7 +81,7 @@ const API = '/api';
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #94a3b8;
+      color: var(--ink-3);
       margin-bottom: 6px;
     }
     input[type="email"],
@@ -89,10 +89,10 @@ const API = '/api';
       width: 100%;
       height: 40px;
       padding: 0 12px;
-      background: #0d0e15;
-      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--sw-bg);
+      border: 1px solid rgba(var(--ink-rgb),0.1);
       border-radius: 8px;
-      color: #f1f5f9;
+      color: var(--ink-1);
       font-size: 14px;
       outline: none;
       transition: border-color 0.15s, box-shadow 0.15s;
@@ -107,13 +107,13 @@ const API = '/api';
       border-color: rgba(239,68,68,0.5) !important;
       box-shadow: 0 0 0 3px rgba(239,68,68,.08) !important;
     }
-    input::placeholder { color: #475569; }
+    input::placeholder { color: var(--ink-5); }
 
     .field-hint {
       margin-top: -0.75rem;
       margin-bottom: 1rem;
       font-size: 11px;
-      color: #ef4444;
+      color: var(--acc-red);
       display: none;
     }
     .field-hint.visible { display: block; }
@@ -129,12 +129,12 @@ const API = '/api';
       flex: 1;
       height: 3px;
       border-radius: 2px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(var(--ink-rgb),0.08);
       transition: background 0.25s;
     }
     .pw-label {
       font-size: 10px;
-      color: #64748b;
+      color: var(--ink-4);
       white-space: nowrap;
       min-width: 32px;
       text-align: right;
@@ -143,7 +143,7 @@ const API = '/api';
     .btn-primary {
       width: 100%;
       height: 40px;
-      background: #06b6d4;
+      background: var(--acc-cyan);
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -163,7 +163,7 @@ const API = '/api';
       background: rgba(239,68,68,0.08);
       border: 1px solid rgba(239,68,68,0.2);
       border-radius: 8px;
-      color: #fca5a5;
+      color: var(--acc-red);
       font-size: 13px;
       text-align: center;
     }
@@ -173,10 +173,10 @@ const API = '/api';
       text-align: center;
       margin-top: 1.5rem;
       font-size: 13px;
-      color: #475569;
+      color: var(--ink-5);
     }
     .footer-link a {
-      color: #06b6d4;
+      color: var(--acc-cyan);
       text-decoration: none;
       font-weight: 500;
     }
@@ -187,17 +187,17 @@ const API = '/api';
       text-align: center;
       margin-top: 0.75rem;
       font-size: 12px;
-      color: #334155;
+      color: var(--ink-5);
       text-decoration: none;
       transition: color 0.15s;
     }
-    .back-link:hover { color: #64748b; }
+    .back-link:hover { color: var(--ink-4); }
 
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
-      border: 2px solid rgba(255,255,255,0.3);
+      border: 2px solid rgba(var(--ink-rgb),0.3);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
@@ -256,7 +256,7 @@ const API = '/api';
       document.getElementById('pw-bar-3'),
       document.getElementById('pw-bar-4'),
     ];
-    const COLORS = ['#ef4444', '#f97316', '#eab308', '#10b981'];
+    const COLORS = ['#ef4444', '#ea580c', '#eab308', '#059669'];
     const LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
 
     // If already logged in (sw_logged_in indicator cookie present), skip to marketplace

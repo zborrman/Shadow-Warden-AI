@@ -25,7 +25,7 @@ const tiers = [
     name: 'Individual',
     price_monthly: 5,
     price_annual: 51,
-    color: '#10b981',
+    color: '#059669',
     tint: 'rgba(16,185,129,0.08)',
     tag: null,
     highlight: false,
@@ -39,7 +39,7 @@ const tiers = [
     name: 'Community Business',
     price_monthly: 39.99,
     price_annual: 407.90,
-    color: '#38bdf8',
+    color: '#0284c7',
     tint: 'rgba(128,180,253,0.08)',
     tag: 'Teams',
     highlight: false,
@@ -79,13 +79,13 @@ const planUrls = Object.fromEntries(tiers.map(t => {
   description="Transparent pricing for every team size. Free, Individual and Business. 14-day trial, no card required."
   markdown="/pricing.md"
 >
-  <div class="pt-14" style="background:#03050f">
+  <div class="pt-14" style="background:var(--sw-bg)">
 
     <!-- Plan configurator: choices on the left, a sticky summary on the right. -->
     <section id="calculator" class="py-14">
       <div class="mx-auto max-w-6xl px-4 lg:px-8">
-        <h1 class="text-[clamp(28px,4vw,40px)] font-black tracking-tight mb-2" style="color:#f1f5f9">Choose your plan</h1>
-        <p class="text-[14px] mb-10" style="color:#94a3b8">
+        <h1 class="text-[clamp(28px,4vw,40px)] font-black tracking-tight mb-2" style="color:var(--ink-1)">Choose your plan</h1>
+        <p class="text-[14px] mb-10" style="color:var(--ink-3)">
           14-day trial on paid plans, no card required. Cancel anytime. Prices in USD.
         </p>
 
@@ -102,12 +102,12 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                            checked={t.key === 'individual'} data-rank={i}
                            data-name={t.name} data-monthly={t.price_monthly} data-annual={t.price_annual} />
                     <span class="cfg-radio" aria-hidden="true"></span>
-                    <span class="block text-[14px] font-semibold" style="color:#f1f5f9">{t.name}</span>
-                    <span class="block mt-1 text-[22px] font-black" style="color:#f1f5f9">
+                    <span class="block text-[14px] font-semibold" style="color:var(--ink-1)">{t.name}</span>
+                    <span class="block mt-1 text-[22px] font-black" style="color:var(--ink-1)">
                       {t.price_monthly === 0 ? 'Free' : `$${t.price_monthly}`}
-                      {t.price_monthly > 0 && <span class="text-[12px] font-medium" style="color:#64748b">/mo</span>}
+                      {t.price_monthly > 0 && <span class="text-[12px] font-medium" style="color:var(--ink-4)">/mo</span>}
                     </span>
-                    <span class="block mt-1 text-[12px]" style="color:#64748b">
+                    <span class="block mt-1 text-[12px]" style="color:var(--ink-4)">
                       {t.features[0]}{t.price_annual > 0 && ` · or $${t.price_annual.toFixed(2)}/yr`}
                     </span>
                   </label>
@@ -137,7 +137,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
             <!-- 3. Add-ons -->
             <fieldset>
               <legend class="cfg-h2">Add-ons</legend>
-              <p class="text-[13px] mb-4" style="color:#64748b">Each add-on is its own subscription: added after the plan, cancelled on its own.</p>
+              <p class="text-[13px] mb-4" style="color:var(--ink-4)">Each add-on is its own subscription: added after the plan, cancelled on its own.</p>
               <div class="space-y-3">
                 {addons.map((a: any) => {
                   const varId = VARIANT_IDS[a.key];
@@ -149,16 +149,16 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                              data-name={a.name} data-price={a.price} data-url={url} />
                       <span class="min-w-0 flex-1">
                         <span class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                          <span class="text-[14px] font-semibold" style="color:#f1f5f9">
+                          <span class="text-[14px] font-semibold" style="color:var(--ink-1)">
                             {a.name}
                             {a.planned && <span class="ml-2 cfg-badge">Planned</span>}
                           </span>
-                          <span class="text-[15px] font-semibold" style="color:#f1f5f9">
-                            +${a.price}<span class="text-[12px] font-normal" style="color:#64748b"> / month</span>
+                          <span class="text-[15px] font-semibold" style="color:var(--ink-1)">
+                            +${a.price}<span class="text-[12px] font-normal" style="color:var(--ink-4)"> / month</span>
                           </span>
                         </span>
-                        <span class="block mt-1 text-[12px] leading-relaxed" style="color:#64748b">{a.desc}</span>
-                        <span class="cfg-addon-note block mt-1 text-[11px]" style="color:#f59e0b" hidden>
+                        <span class="block mt-1 text-[12px] leading-relaxed" style="color:var(--ink-4)">{a.desc}</span>
+                        <span class="cfg-addon-note block mt-1 text-[11px]" style="color:var(--acc-amber)" hidden>
                           Needs {a.tier.replace('+', '')} or higher.
                         </span>
                       </span>
@@ -175,19 +175,19 @@ const planUrls = Object.fromEntries(tiers.map(t => {
                 <label class="cfg-option">
                   <input type="radio" name="cfg-period" value="monthly" class="sr-only" checked />
                   <span class="cfg-radio" aria-hidden="true"></span>
-                  <span class="flex justify-between text-[14px] font-semibold" style="color:#f1f5f9">
+                  <span class="flex justify-between text-[14px] font-semibold" style="color:var(--ink-1)">
                     Monthly <span id="cfg-monthly-price"></span>
                   </span>
-                  <span class="block mt-1 text-[12px]" style="color:#64748b">Billed each month. Cancel anytime.</span>
+                  <span class="block mt-1 text-[12px]" style="color:var(--ink-4)">Billed each month. Cancel anytime.</span>
                 </label>
                 <label class="cfg-option">
                   <input type="radio" name="cfg-period" value="annual" class="sr-only" />
                   <span class="cfg-radio" aria-hidden="true"></span>
-                  <span class="flex justify-between text-[14px] font-semibold" style="color:#f1f5f9">
+                  <span class="flex justify-between text-[14px] font-semibold" style="color:var(--ink-1)">
                     <span>Yearly <span class="cfg-badge cfg-badge-save">save 15%</span></span>
-                    <span><s id="cfg-annual-list" style="color:#64748b;font-weight:400"></s> <span id="cfg-annual-price"></span></span>
+                    <span><s id="cfg-annual-list" style="color:var(--ink-4);font-weight:400"></s> <span id="cfg-annual-price"></span></span>
                   </span>
-                  <span class="block mt-1 text-[12px]" style="color:#64748b">The plan is billed once a year. Add-ons stay monthly.</span>
+                  <span class="block mt-1 text-[12px]" style="color:var(--ink-4)">The plan is billed once a year. Add-ons stay monthly.</span>
                 </label>
               </div>
             </fieldset>
@@ -196,27 +196,27 @@ const planUrls = Object.fromEntries(tiers.map(t => {
           <!-- Summary -->
           <aside class="lg:sticky lg:top-24 space-y-4" aria-label="Plan summary">
             <div class="cfg-card">
-              <h2 class="px-5 py-4 text-[16px] font-bold border-b" style="color:#f1f5f9;border-color:rgba(255,255,255,0.08)">Plan Summary</h2>
+              <h2 class="px-5 py-4 text-[16px] font-bold border-b" style="color:var(--ink-1);border-color:rgba(var(--ink-rgb),0.08)">Plan Summary</h2>
               <div class="px-5 py-4 space-y-2 text-[13px]" id="cfg-lines"></div>
-              <div class="px-5 py-4 border-t" style="border-color:rgba(255,255,255,0.08)">
-                <div class="flex justify-between text-[16px] font-bold" style="color:#f1f5f9">
+              <div class="px-5 py-4 border-t" style="border-color:rgba(var(--ink-rgb),0.08)">
+                <div class="flex justify-between text-[16px] font-bold" style="color:var(--ink-1)">
                   <span>Total</span><span id="cfg-total"></span>
                 </div>
-                <p class="mt-1 text-[12px]" style="color:#64748b" id="cfg-basis"></p>
+                <p class="mt-1 text-[12px]" style="color:var(--ink-4)" id="cfg-basis"></p>
               </div>
             </div>
             <div class="cfg-card px-5 py-4">
-              <div class="flex justify-between items-baseline text-[16px] font-bold" style="color:#f1f5f9">
-                <span>Due today</span><span>$0 <span class="text-[11px] font-normal" style="color:#64748b">USD</span></span>
+              <div class="flex justify-between items-baseline text-[16px] font-bold" style="color:var(--ink-1)">
+                <span>Due today</span><span>$0 <span class="text-[11px] font-normal" style="color:var(--ink-4)">USD</span></span>
               </div>
-              <p class="mt-1 text-[12px]" style="color:#64748b" id="cfg-due-note"></p>
+              <p class="mt-1 text-[12px]" style="color:var(--ink-4)" id="cfg-due-note"></p>
               <button type="button" id="cfg-cta" class="mt-4 w-full rounded-xl py-3 text-[14px] font-semibold text-white"
                       style="background:linear-gradient(135deg,#6366f1,#8b5cf6)"></button>
               <div id="cfg-addon-ctas" class="mt-3 space-y-2"></div>
-              <p class="mt-3 text-center text-[11px]" style="color:#475569">Payments are processed by Lemon Squeezy.</p>
+              <p class="mt-3 text-center text-[11px]" style="color:var(--ink-5)">Payments are processed by Lemon Squeezy.</p>
             </div>
-            <p class="text-center text-[12px]" style="color:#64748b">
-              Questions? <a href="/contact" style="color:#818cf8">Contact us</a>
+            <p class="text-center text-[12px]" style="color:var(--ink-4)">
+              Questions? <a href="/contact" style="color:var(--acc-violet)">Contact us</a>
             </p>
           </aside>
         </div>
@@ -231,10 +231,10 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
         <div class="text-center mb-10">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-[11px] font-bold tracking-widest uppercase"
-               style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+               style="color:#059669;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
             ◈ Marketplace ROI Estimator
           </div>
-          <h2 class="text-[22px] font-black mb-2" style="color:#f1f5f9;letter-spacing:-0.02em">
+          <h2 class="text-[22px] font-black mb-2" style="color:var(--ink-1);letter-spacing:-0.02em">
             How much will you earn?
           </h2>
           <p class="text-[13px] max-w-lg mx-auto" style="color:#6b7c96">
@@ -248,25 +248,25 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
             <!-- LEFT: Inputs -->
             <div class="p-7" style="border-right:1px solid rgba(16,185,129,0.12)">
-              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#10b981">Your numbers</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#059669">Your numbers</div>
 
               <!-- Period toggle -->
               <div class="mb-6">
-                <div class="text-[12px] font-semibold mb-2" style="color:#a8b8d0">Time period</div>
+                <div class="text-[12px] font-semibold mb-2" style="color:var(--ink-3)">Time period</div>
                 <div class="inline-flex rounded-lg overflow-hidden" style="border:1px solid rgba(255,255,255,0.1)">
                   <button id="roi-monthly" class="roi-period-btn active px-5 py-2 text-[12px] font-semibold transition-all" data-p="monthly">Monthly</button>
                   <button id="roi-annual"  class="roi-period-btn px-5 py-2 text-[12px] font-semibold transition-all" data-p="annual">
                     Annual
-                    <span class="ml-1 px-1.5 py-0.5 rounded text-[9px]" style="color:#10b981;background:rgba(16,185,129,0.15)">−15%</span>
+                    <span class="ml-1 px-1.5 py-0.5 rounded text-[9px]" style="color:#059669;background:rgba(16,185,129,0.15)">−15%</span>
                   </button>
                 </div>
               </div>
 
               <!-- Tier selector -->
               <div class="mb-6">
-                <div class="text-[12px] font-semibold mb-2" style="color:#a8b8d0">Plan tier</div>
+                <div class="text-[12px] font-semibold mb-2" style="color:var(--ink-3)">Plan tier</div>
                 <select id="roi-tier" class="w-full px-3 py-2.5 rounded-lg text-[13px] font-medium outline-none transition-all"
-                        style="background:#0c1020;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;-webkit-appearance:none">
+                        style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.1);color:var(--ink-1);-webkit-appearance:none">
                   <option value="starter">Starter — Free (1,000 req/mo)</option>
                   <option value="individual">Individual — $5/mo (5,000 req/mo)</option>
                   <option value="community" selected>Community Business — $39.99/mo (15,000 req/mo)</option>
@@ -276,8 +276,8 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- Trades slider -->
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
-                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Trades per month</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-trades-val">33</div>
+                  <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Trades per month</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-trades-val">33</div>
                 </div>
                 <input id="roi-trades" type="range" min="0" max="10000" value="33" step="1" class="roi-slider w-full" />
                 <div class="flex justify-between mt-1">
@@ -289,22 +289,22 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- AOV input -->
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
-                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Avg. order value (USD)</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-aov-display">$500</div>
+                  <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Avg. order value (USD)</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-aov-display">$500</div>
                 </div>
                 <div class="relative">
                   <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:#64748b">$</span>
                   <input id="roi-aov" type="number" min="0" max="1000000" value="500" step="1"
                          class="w-full pl-7 pr-3 py-2.5 rounded-lg text-[13px] font-medium outline-none"
-                         style="background:#0c1020;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9" />
+                         style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.1);color:var(--ink-1)" />
                 </div>
               </div>
 
               <!-- API calls slider -->
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-2">
-                  <div class="text-[12px] font-semibold" style="color:#a8b8d0">Monthly search API calls (x402)</div>
-                  <div class="text-[14px] font-black tabular-nums" style="color:#10b981" id="roi-api-val">10,000</div>
+                  <div class="text-[12px] font-semibold" style="color:var(--ink-3)">Monthly search API calls (x402)</div>
+                  <div class="text-[14px] font-black tabular-nums" style="color:#059669" id="roi-api-val">10,000</div>
                 </div>
                 <input id="roi-api" type="range" min="0" max="1000000" value="10000" step="1000" class="roi-slider w-full" />
                 <div class="flex justify-between mt-1">
@@ -316,13 +316,13 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- Sponsored listing toggle -->
               <div class="flex items-center justify-between py-3 px-4 rounded-lg" style="background:rgba(251,191,36,0.04);border:1px solid rgba(251,191,36,0.12)">
                 <div>
-                  <div class="text-[12px] font-semibold" style="color:#fbbf24">Sponsored listing boost (+0.15 similarity)</div>
+                  <div class="text-[12px] font-semibold" style="color:#d97706">Sponsored listing boost (+0.15 similarity)</div>
                   <div class="text-[11px] mt-0.5" style="color:#64748b">pgvector priority placement — $29/mo add-on</div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input id="roi-sponsored" type="checkbox" class="sr-only" />
                   <div id="roi-sponsored-track" class="w-9 h-5 rounded-full transition-all" style="background:rgba(255,255,255,0.1)">
-                    <div id="roi-sponsored-thumb" class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm"></div>
+                    <div id="roi-sponsored-thumb" class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[#fff] transition-all shadow-sm"></div>
                   </div>
                 </label>
               </div>
@@ -330,53 +330,53 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 
             <!-- RIGHT: Results -->
             <div class="p-7 flex flex-col">
-              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#10b981">Your projection</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider mb-6" style="color:#059669">Your projection</div>
 
               <!-- Net profit counter -->
               <div class="text-center mb-8 py-6 rounded-xl" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15)">
                 <div class="text-[11px] uppercase tracking-widest mb-2" style="color:#6b7c96">Projected net profit</div>
-                <div id="roi-net" class="text-[48px] font-black leading-none tabular-nums" style="color:#10b981;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">$0</div>
+                <div id="roi-net" class="text-[48px] font-black leading-none tabular-nums" style="color:#059669;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">$0</div>
                 <div id="roi-period-label" class="text-[11px] mt-2" style="color:#6b7c96">per month</div>
-                <div id="roi-margin" class="text-[12px] font-semibold mt-1" style="color:#10b981"></div>
+                <div id="roi-margin" class="text-[12px] font-semibold mt-1" style="color:#059669"></div>
               </div>
 
               <!-- Breakdown table -->
               <div class="space-y-2 mb-6 flex-1">
                 {[
-                  { id: 'roi-r-gmv',     label: 'Gross Revenue (GMV)',         icon: '+', color: '#80b4fd' },
+                  { id: 'roi-r-gmv',     label: 'Gross Revenue (GMV)',         icon: '+', color: '#3b82f6' },
                   { id: 'roi-r-take',    label: 'Platform take rate',           icon: '−', color: '#ef4444' },
                   { id: 'roi-r-sub',     label: 'SaaS subscription',            icon: '−', color: '#ef4444' },
                   { id: 'roi-r-x402',    label: 'x402 compute costs',           icon: '−', color: '#ef4444' },
-                  { id: 'roi-r-sponsor', label: 'Sponsored listing boost',       icon: '−', color: '#fbbf24' },
+                  { id: 'roi-r-sponsor', label: 'Sponsored listing boost',       icon: '−', color: '#d97706' },
                 ].map(r => (
                   <div class="flex items-center justify-between py-2 px-3 rounded-lg" style="background:rgba(255,255,255,0.02)">
                     <div class="flex items-center gap-2">
                       <span class="text-[11px] font-mono w-4 text-center" style={`color:${r.color}`}>{r.icon}</span>
-                      <span class="text-[12px]" style="color:#a8b8d0">{r.label}</span>
+                      <span class="text-[12px]" style="color:var(--ink-3)">{r.label}</span>
                     </div>
                     <span class="text-[13px] font-bold tabular-nums" id={r.id} style={`color:${r.color}`}>$0.00</span>
                   </div>
                 ))}
 
                 <div class="flex items-center justify-between py-2.5 px-3 rounded-lg mt-1" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
-                  <span class="text-[13px] font-bold" style="color:#10b981">Net Profit</span>
-                  <span class="text-[16px] font-black tabular-nums" id="roi-r-net" style="color:#10b981">$0.00</span>
+                  <span class="text-[13px] font-bold" style="color:#059669">Net Profit</span>
+                  <span class="text-[16px] font-black tabular-nums" id="roi-r-net" style="color:#059669">$0.00</span>
                 </div>
               </div>
 
               <!-- Upsell tip -->
               <div id="roi-upsell" class="hidden rounded-lg p-4" style="background:rgba(128,180,253,0.08);border:1px solid rgba(128,180,253,0.22)">
                 <div class="flex items-start gap-3">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#80b4fd" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" class="flex-shrink-0 mt-0.5">
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                   <div>
-                    <div class="text-[12px] font-semibold mb-1" style="color:#80b4fd">Smart upgrade suggestion</div>
-                    <div class="text-[11px] leading-relaxed" id="roi-upsell-text" style="color:#94a3b8"></div>
+                    <div class="text-[12px] font-semibold mb-1" style="color:#3b82f6">Smart upgrade suggestion</div>
+                    <div class="text-[11px] leading-relaxed" id="roi-upsell-text" style="color:var(--ink-3)"></div>
                     <a href="#roi-estimator" onclick="document.getElementById('roi-tier').value=this.dataset.tier;window._roiCalc();return false;"
                        id="roi-upsell-cta" data-tier="community"
                        class="inline-block mt-2 text-[11px] font-semibold px-3 py-1 rounded"
-                       style="color:#80b4fd;background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">
+                       style="color:#3b82f6;background:rgba(128,180,253,0.12);border:1px solid rgba(128,180,253,0.25)">
                        Apply upgrade →
                     </a>
                   </div>
@@ -386,7 +386,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
               <!-- ROI vs breach cost -->
               <div id="roi-roi-box" class="mt-4 text-center py-3 rounded-lg" style="background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06)">
                 <div class="text-[11px]" style="color:#475569">Annual ROI vs. $4.88M IBM breach cost</div>
-                <div id="roi-roi-val" class="text-[20px] font-black" style="color:#fbbf24">—</div>
+                <div id="roi-roi-val" class="text-[20px] font-black" style="color:#d97706">—</div>
               </div>
             </div>
           </div>
@@ -397,7 +397,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     <!-- FAQ strip -->
     <section class="pb-20 border-t" style="border-color:rgba(255,255,255,0.06)">
       <div class="mx-auto max-w-3xl px-4 pt-16">
-        <h2 class="text-[20px] font-bold mb-8 text-center" style="color:#f1f5f9">Frequently Asked Questions</h2>
+        <h2 class="text-[20px] font-bold mb-8 text-center" style="color:var(--ink-1)">Frequently Asked Questions</h2>
         <div class="space-y-4">
           {[
             { q: 'Do you offer a free trial?', a: '14 days on Individual and Community Business — no credit card required.' },
@@ -408,7 +408,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
             { q: 'What happens if I exceed my request limit?', a: 'Requests beyond the monthly limit of your plan are refused until the next billing period or an upgrade. No plan bills for overage.' },
           ].map(item => (
             <details class="group rounded-xl p-4 cursor-pointer" style="border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.02)">
-              <summary class="flex items-center justify-between gap-4 text-[13px] font-medium list-none" style="color:#f1f5f9">
+              <summary class="flex items-center justify-between gap-4 text-[13px] font-medium list-none" style="color:var(--ink-1)">
                 {item.q}
                 <svg class="flex-shrink-0 group-open:rotate-180 transition-transform" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M6 9l6 6 6-6"/>
@@ -427,34 +427,34 @@ const planUrls = Object.fromEntries(tiers.map(t => {
 <LemonSqueezyCheckout />
 
 <style>
-  .cfg-h2 { display:block; font-size:18px; font-weight:700; color:#f1f5f9; margin-bottom:12px; }
+  .cfg-h2 { display:block; font-size:18px; font-weight:700; color:var(--ink-1); margin-bottom:12px; }
   .cfg-option { position:relative; display:block; cursor:pointer; padding:16px 16px 16px 44px; border-radius:12px;
     border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.02); transition:border-color .15s, background .15s; }
   .cfg-option:hover { border-color:rgba(129,140,248,0.45); }
-  .cfg-option.is-checked { border-color:#818cf8; background:rgba(99,102,241,0.10); }
-  .cfg-option:has(input:focus-visible) { outline:2px solid #818cf8; outline-offset:2px; }
+  .cfg-option.is-checked { border-color:#6366f1; background:rgba(99,102,241,0.10); }
+  .cfg-option:has(input:focus-visible) { outline:2px solid #6366f1; outline-offset:2px; }
   .cfg-option:has(input:disabled) { opacity:.5; cursor:not-allowed; }
   .cfg-radio { position:absolute; left:16px; top:19px; width:16px; height:16px; border-radius:999px; border:2px solid #475569; }
-  .cfg-option.is-checked .cfg-radio { border-color:#818cf8; box-shadow:inset 0 0 0 3px #03050f; background:#818cf8; }
+  .cfg-option.is-checked .cfg-radio { border-color:#6366f1; box-shadow:inset 0 0 0 3px #03050f; background:#6366f1; }
   .cfg-table { border:1px solid rgba(255,255,255,0.10); border-radius:12px; overflow:hidden; }
-  .cfg-row { display:flex; justify-content:space-between; gap:16px; padding:11px 16px; font-size:13px; color:#cbd5e1;
+  .cfg-row { display:flex; justify-content:space-between; gap:16px; padding:11px 16px; font-size:13px; color:var(--ink-2);
     border-top:1px solid rgba(255,255,255,0.06); }
-  .cfg-row-head { border-top:0; background:rgba(255,255,255,0.03); font-weight:600; color:#94a3b8; }
-  .cfg-ok { color:#94a3b8; }
+  .cfg-row-head { border-top:0; background:rgba(255,255,255,0.03); font-weight:600; color:var(--ink-3); }
+  .cfg-ok { color:var(--ink-3); }
   .cfg-muted { color:#475569; }
   .cfg-addon { display:flex; gap:12px; cursor:pointer; padding:16px; border-radius:12px;
     border:1px solid rgba(255,255,255,0.10); background:rgba(255,255,255,0.02); }
-  .cfg-addon.is-checked { border-color:#818cf8; background:rgba(99,102,241,0.08); }
+  .cfg-addon.is-checked { border-color:#6366f1; background:rgba(99,102,241,0.08); }
   .cfg-addon.is-disabled { opacity:.55; cursor:not-allowed; }
   /* Drawn, not native: the light theme inverts the page, and a native white box turns black. */
   .cfg-check { appearance:none; margin-top:3px; width:16px; height:16px; flex-shrink:0; border-radius:4px;
     border:2px solid #475569; background:transparent; display:grid; place-content:center; cursor:inherit; }
-  .cfg-check:checked { background:#818cf8; border-color:#818cf8; }
-  .cfg-check:checked::after { content:''; width:8px; height:4px; border-left:2px solid #03050f;
-    border-bottom:2px solid #03050f; transform:rotate(-45deg) translate(1px,-1px); }
-  .cfg-check:focus-visible { outline:2px solid #818cf8; outline-offset:2px; }
+  .cfg-check:checked { background:#6366f1; border-color:#6366f1; }
+  .cfg-check:checked::after { content:''; width:8px; height:4px; border-left:2px solid var(--sw-border-strong);
+    border-bottom:2px solid var(--sw-border-strong); transform:rotate(-45deg) translate(1px,-1px); }
+  .cfg-check:focus-visible { outline:2px solid #6366f1; outline-offset:2px; }
   .cfg-badge { display:inline-block; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:700;
-    color:#f59e0b; background:rgba(245,158,11,0.12); vertical-align:middle; }
+    color:#d97706; background:rgba(245,158,11,0.12); vertical-align:middle; }
   .cfg-badge-save { color:#f472b6; background:rgba(244,114,182,0.12); }
   .cfg-card { border:1px solid rgba(255,255,255,0.10); border-radius:14px; background:rgba(255,255,255,0.03); }
   .billing-toggle {
@@ -464,7 +464,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     cursor: pointer;
   }
   .billing-toggle.active {
-    color: #f1f5f9;
+    color: var(--ink-1);
     background: rgba(255,255,255,0.08);
     box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   }
@@ -482,7 +482,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
   }
   .roi-period-btn.active {
     background: rgba(16,185,129,0.15);
-    color: #10b981;
+    color: #059669;
   }
   .roi-slider {
     -webkit-appearance: none;
@@ -498,9 +498,9 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     appearance: none;
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: #10b981;
+    background: #059669;
     cursor: pointer;
-    border: 2px solid #070910;
+    border: 2px solid var(--sw-border-strong);
     box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
     transition: box-shadow .15s;
   }
@@ -510,9 +510,9 @@ const planUrls = Object.fromEntries(tiers.map(t => {
   .roi-slider::-moz-range-thumb {
     width: 16px; height: 16px;
     border-radius: 50%;
-    background: #10b981;
+    background: #059669;
     cursor: pointer;
-    border: 2px solid #070910;
+    border: 2px solid var(--sw-border-strong);
   }
 </style>
 
@@ -565,7 +565,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
       const netEl = el('roi-net');
       if (netEl) {
         netEl.textContent = fmtDollars(netCents);
-        netEl.style.color = netCents < 0 ? '#ef4444' : '#10b981';
+        netEl.style.color = netCents < 0 ? '#ef4444' : '#059669';
       }
 
       // Period label
@@ -576,7 +576,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
       const marginEl = el('roi-margin');
       if (marginEl) {
         marginEl.textContent = gmvCents > 0 ? `${marginPct}% margin` : '';
-        marginEl.style.color = marginPct >= 80 ? '#10b981' : marginPct >= 50 ? '#fbbf24' : '#ef4444';
+        marginEl.style.color = marginPct >= 80 ? '#059669' : marginPct >= 50 ? '#d97706' : '#ef4444';
       }
 
       // Breakdown
@@ -615,7 +615,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
         const s = el(sliderId) as HTMLInputElement | null;
         if (!s) return;
         const pct = (+s.value / max) * 100;
-        s.style.background = `linear-gradient(to right, #10b981 ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
+        s.style.background = `linear-gradient(to right, #059669 ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
       };
       updateFill('roi-trades', 10000);
       updateFill('roi-api', 1000000);
@@ -667,7 +667,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     const thumb = el('roi-sponsored-thumb');
     sponsoredCb?.addEventListener('change', () => {
       const on = sponsoredCb.checked;
-      if (track) track.style.background = on ? '#10b981' : 'rgba(255,255,255,0.1)';
+      if (track) track.style.background = on ? '#059669' : 'rgba(255,255,255,0.1)';
       if (thumb) thumb.style.transform = on ? 'translateX(16px)' : 'translateX(0)';
       calc();
     });
@@ -742,7 +742,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
     $('cfg-lines')!.replaceChildren(...lines.map(([name, price]) => {
       const row = document.createElement('div')
       row.className = 'flex justify-between gap-3'
-      row.innerHTML = '<span style="color:#cbd5e1"></span><span style="color:#f1f5f9;font-weight:600"></span>'
+      row.innerHTML = '<span style="color:var(--ink-2)"></span><span style="color:var(--ink-1);font-weight:600"></span>'
       row.children[0].textContent = name
       row.children[1].textContent = price
       return row
@@ -766,7 +766,7 @@ const planUrls = Object.fromEntries(tiers.map(t => {
       const b = document.createElement('button')
       b.type = 'button'
       b.className = 'w-full rounded-xl py-2 text-[12px] font-semibold'
-      b.style.cssText = 'color:#c7d2fe;border:1px solid rgba(129,140,248,0.35);background:rgba(129,140,248,0.06)'
+      b.style.cssText = 'color:var(--acc-violet);border:1px solid rgba(129,140,248,0.35);background:rgba(129,140,248,0.06)'
       b.textContent = `Add ${i.dataset.name}`
       b.onclick = () => open(i.dataset.url || '')
       return b

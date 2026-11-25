@@ -7,14 +7,14 @@
 // to publish either. docs/capability-matrix.md holds the measurement; the
 // Grafana panel is the only quotable source.
 const stages = [
-  { id: '01', label: 'Topological\nGatekeeper',   color: '#FF2D55' },
-  { id: '02', label: 'Obfuscation\nDecoder',       color: '#FF9F0A' },
-  { id: '03', label: 'PII & Secret\nVault',        color: '#FFD60A' },
-  { id: '04', label: 'Semantic\nRule Engine',      color: '#30D158' },
-  { id: '05', label: 'Hyperbolic\nBrain',          color: '#0A84FF' },
-  { id: '06', label: 'Causal\nArbiter',            color: '#BF5AF2' },
-  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#FF2D55' },
-  { id: '08', label: 'ERS Shadow\nBan',            color: '#FF9F0A' },
+  { id: '01', label: 'Topological\nGatekeeper',   color: '#e11d48' },
+  { id: '02', label: 'Obfuscation\nDecoder',       color: '#ea580c' },
+  { id: '03', label: 'PII & Secret\nVault',        color: '#d97706' },
+  { id: '04', label: 'Semantic\nRule Engine',      color: '#16a34a' },
+  { id: '05', label: 'Hyperbolic\nBrain',          color: '#2563eb' },
+  { id: '06', label: 'Causal\nArbiter',            color: '#9333ea' },
+  { id: '07', label: 'PhishGuard\n+ SE-Arbiter',  color: '#e11d48' },
+  { id: '08', label: 'ERS Shadow\nBan',            color: '#ea580c' },
 ];
 
 const pillars = [
@@ -27,38 +27,38 @@ const pillars = [
 ];
 ---
 
-<section id="architecture" class="relative py-28 lg:py-36 bg-[#080D1E]">
+<section id="architecture" class="relative py-28 lg:py-36 bg-[var(--sw-bg)]">
   <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
   <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.07] to-transparent"></div>
 
   <div class="mx-auto max-w-7xl px-6 lg:px-8">
     <!-- Header -->
     <div class="mb-16">
-      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#BF5AF2] mb-3">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[color:var(--acc-violet)] mb-3">
         Zero Entry Architecture
       </p>
       <h2 class="text-[42px] lg:text-[52px] font-bold tracking-[-2px] mb-4">
         Every request. Every layer.<br />
-        <span class="bg-gradient-to-r from-[#BF5AF2] to-[#0A84FF] bg-clip-text text-transparent">
+        <span class="bg-gradient-to-r from-[var(--acc-violet)] to-[var(--acc-blue-2)] bg-clip-text text-transparent">
           One synchronous pass.
         </span>
       </h2>
-      <p class="text-[16px] text-[#8E8E9E] max-w-xl leading-relaxed">
+      <p class="text-[16px] text-[color:var(--ink-3)] max-w-xl leading-relaxed">
         A synchronous 8-stage filter pipeline. No async gaps, no blind spots.
         Each stage operates on the same enriched context object.
       </p>
     </div>
 
     <!-- Pipeline flow -->
-    <div class="mb-16 rounded-2xl border border-white/[0.07] bg-[#03050F] p-8 overflow-x-auto">
+    <div class="mb-16 rounded-2xl border border-white/[0.07] bg-[var(--sw-bg)] p-8 overflow-x-auto">
       <!-- Request label -->
       <div class="flex items-center gap-3 mb-8">
-        <div class="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-[13px] font-mono font-bold text-[#F5F5F7]">
+        <div class="px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.03] text-[13px] font-mono font-bold text-[color:var(--ink-1)]">
           POST /filter
         </div>
-        <span class="text-[#48485A] text-[12px]">→ context object flows through all stages</span>
-        <div class="ml-auto flex items-center gap-2 text-[12px] text-[#30D158] font-mono font-bold">
-          <span class="w-2 h-2 rounded-full bg-[#30D158] animate-pulse"></span>
+        <span class="text-[color:var(--ink-5)] text-[12px]">→ context object flows through all stages</span>
+        <div class="ml-auto flex items-center gap-2 text-[12px] text-[color:var(--acc-green)] font-mono font-bold">
+          <span class="w-2 h-2 rounded-full bg-[var(--acc-green)] animate-pulse"></span>
           LIVE
         </div>
       </div>
@@ -75,7 +75,7 @@ const pillars = [
                 class="text-[9px] font-bold font-mono mb-1.5 opacity-50"
                 style={`color:${s.color}`}
               >{s.id}</div>
-              <div class="text-[11px] font-semibold leading-[1.4] whitespace-pre-line text-[#F5F5F7]">
+              <div class="text-[11px] font-semibold leading-[1.4] whitespace-pre-line text-[color:var(--ink-1)]">
                 {s.label}
               </div>
             </div>
@@ -93,32 +93,32 @@ const pillars = [
         </svg>
 
         <!-- Decision block -->
-        <div class="flex-shrink-0 w-[100px] rounded-xl border border-[#30D158]/30 bg-[#30D158]/[0.07] p-3 text-center">
-          <div class="text-[9px] font-bold font-mono mb-1.5 text-[#30D158] opacity-50">DECISION</div>
-          <div class="text-[11px] font-semibold text-[#F5F5F7] leading-[1.4]">ALLOW /<br/>BLOCK</div>
+        <div class="flex-shrink-0 w-[100px] rounded-xl border border-[var(--acc-green)]/30 bg-[var(--acc-green)]/[0.07] p-3 text-center">
+          <div class="text-[9px] font-bold font-mono mb-1.5 text-[color:var(--acc-green)] opacity-50">DECISION</div>
+          <div class="text-[11px] font-semibold text-[color:var(--ink-1)] leading-[1.4]">ALLOW /<br/>BLOCK</div>
         </div>
       </div>
 
       <!-- Side paths -->
       <div class="mt-8 flex flex-wrap gap-4 border-t border-white/[0.05] pt-6">
-        <div class="flex items-center gap-2.5 text-[12px] text-[#8E8E9E]">
-          <span class="w-2.5 h-2.5 rounded-sm bg-[#BF5AF2]/40"></span>
-          HIGH/BLOCK events → <span class="text-[#BF5AF2] font-semibold">Evolution Engine</span> (Claude Opus · hot-reload corpus)
+        <div class="flex items-center gap-2.5 text-[12px] text-[color:var(--ink-3)]">
+          <span class="w-2.5 h-2.5 rounded-sm bg-[var(--acc-violet)]/40"></span>
+          HIGH/BLOCK events → <span class="text-[color:var(--acc-violet)] font-semibold">Evolution Engine</span> (Claude Opus · hot-reload corpus)
         </div>
-        <div class="flex items-center gap-2.5 text-[12px] text-[#8E8E9E]">
-          <span class="w-2.5 h-2.5 rounded-sm bg-[#0A84FF]/40"></span>
-          All decisions → <span class="text-[#0A84FF] font-semibold">Evidence Vault</span> (MinIO · SHA-256 attestation)
+        <div class="flex items-center gap-2.5 text-[12px] text-[color:var(--ink-3)]">
+          <span class="w-2.5 h-2.5 rounded-sm bg-[var(--acc-blue-2)]/40"></span>
+          All decisions → <span class="text-[color:var(--acc-blue-2)] font-semibold">Evidence Vault</span> (MinIO · SHA-256 attestation)
         </div>
-        <div class="flex items-center gap-2.5 text-[12px] text-[#8E8E9E]">
-          <span class="w-2.5 h-2.5 rounded-sm bg-[#FF9F0A]/40"></span>
-          Score ≥0.75 → <span class="text-[#FF9F0A] font-semibold">Shadow Ban</span> (gaslight · delay · standard)
+        <div class="flex items-center gap-2.5 text-[12px] text-[color:var(--ink-3)]">
+          <span class="w-2.5 h-2.5 rounded-sm bg-[var(--acc-amber)]/40"></span>
+          Score ≥0.75 → <span class="text-[color:var(--acc-amber)] font-semibold">Shadow Ban</span> (gaslight · delay · standard)
         </div>
       </div>
     </div>
 
     <!-- Strategic pillars -->
     <div>
-      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[#48485A] mb-6">
+      <p class="text-[11px] font-bold tracking-[2.5px] uppercase text-[color:var(--ink-5)] mb-6">
         4.7 Strategic Pillars
       </p>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -127,7 +127,7 @@ const pillars = [
             <span class="text-2xl flex-shrink-0 mt-0.5">{p.icon}</span>
             <div>
               <div class="text-[14px] font-bold mb-1.5">{p.title}</div>
-              <div class="text-[12px] text-[#8E8E9E] leading-[1.65]">{p.desc}</div>
+              <div class="text-[12px] text-[color:var(--ink-3)] leading-[1.65]">{p.desc}</div>
             </div>
           </div>
         ))}

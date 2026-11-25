@@ -6,52 +6,52 @@ const bcFeatures = (roadmapRaw as any[]).filter(f => f.category === 'Business Co
 
 const moduleConfig = [
   {
-    id: 'sep', icon: '◈', title: 'SEP / UECIID', color: '#BF5AF2', tint: 'rgba(191,90,242,0.1)',
+    id: 'sep', icon: '◈', title: 'SEP / UECIID', color: '#9333ea', tint: 'rgba(191,90,242,0.1)',
     desc: 'Cryptographic entity IDs, inter-community peering, Knock invitations, sovereign data pods, and STIX 2.1 audit chain.',
     ids: ['CM-01','CM-02','CM-03','CM-04','CM-05','CM-09'],
   },
   {
-    id: 'pqc', icon: '🛡', title: 'Post-Quantum Crypto', color: '#80b4fd', tint: 'rgba(128,180,253,0.1)',
+    id: 'pqc', icon: '🛡', title: 'Post-Quantum Crypto', color: '#3b82f6', tint: 'rgba(128,180,253,0.1)',
     desc: 'HybridSigner Ed25519+ML-DSA-65 and HybridKEM X25519+ML-KEM-768. FIPS 204/203 algorithms.',
     ids: [],
     extra: 4,
   },
   {
-    id: 'governance', icon: '🏛', title: 'Governance & Intel', color: '#80b4fd', tint: 'rgba(128,180,253,0.1)',
+    id: 'governance', icon: '🏛', title: 'Governance & Intel', color: '#3b82f6', tint: 'rgba(128,180,253,0.1)',
     desc: 'Versioned community charter, Z-score behavioral anomaly detection, intelligence reports, OAuth agent discovery.',
     ids: ['CM-05','CM-06','CM-07','CM-08'],
   },
   {
-    id: 'smb', icon: '🏢', title: 'SMB Governance Suite', color: '#10b981', tint: 'rgba(16,185,129,0.1)',
+    id: 'smb', icon: '🏢', title: 'SMB Governance Suite', color: '#059669', tint: 'rgba(16,185,129,0.1)',
     desc: 'Eight-module governance toolkit: vendor DPA tracking, cost allocation, budget dashboard, incident register, supplier risk, prompt library, training records, suite wizard.',
     ids: ['CM-35','CM-36','CM-37','CM-38','IN-25'],
   },
   {
-    id: 'secrets', icon: '🔑', title: 'Secrets Governance', color: '#f59e0b', tint: 'rgba(245,158,11,0.1)',
+    id: 'secrets', icon: '🔑', title: 'Secrets Governance', color: '#d97706', tint: 'rgba(245,158,11,0.1)',
     desc: 'Multi-vault connectors (AWS SM, Azure KV, HashiCorp, GCP SM), SQLite inventory, policy engine, lifecycle rotation alerts.',
     ids: [],
     extra: 4,
   },
   {
-    id: 'obsidian', icon: '📔', title: 'Obsidian Integration', color: '#BF5AF2', tint: 'rgba(191,90,242,0.1)',
+    id: 'obsidian', icon: '📔', title: 'Obsidian Integration', color: '#9333ea', tint: 'rgba(191,90,242,0.1)',
     desc: 'Auto-scan notes on modify, data class inference, SEP share with UECIID provenance, XAI pipeline sidebar, offline queue.',
     ids: ['IN-01'],
     extra: 10,
   },
   {
-    id: 'bi', icon: '📊', title: 'Business Intelligence', color: '#06b6d4', tint: 'rgba(6,182,212,0.1)',
+    id: 'bi', icon: '📊', title: 'Business Intelligence', color: '#0891b2', tint: 'rgba(6,182,212,0.1)',
     desc: 'Eight analytics functions, OLS trend predictions, community benchmarking, 15-min SQLite cache, PDF report builder.',
     ids: ['CM-39'],
     extra: 7,
   },
   {
-    id: 'semantic', icon: '⬡', title: 'Semantic Layer', color: '#06b6d4', tint: 'rgba(6,182,212,0.1)',
+    id: 'semantic', icon: '⬡', title: 'Semantic Layer', color: '#0891b2', tint: 'rgba(6,182,212,0.1)',
     desc: 'Nine built-in BI models, deterministic SQL generator, self-service tenant catalog, Redis query cache, AI query endpoint.',
     ids: [],
     extra: 5,
   },
   {
-    id: 'commerce', icon: '⚡', title: 'M2M Commerce Store', color: '#f97316', tint: 'rgba(249,115,22,0.1)',
+    id: 'commerce', icon: '⚡', title: 'M2M Commerce Store', color: '#ea580c', tint: 'rgba(249,115,22,0.1)',
     desc: 'UCP/AP2/MCP procurement protocols, multi-agent auction, FIDO2 passkeys, Web3 mandate contract, Commerce Budget Guardian.',
     ids: ['CM-40','CM-41','CM-42','CM-43','CM-44'],
   },
@@ -62,7 +62,7 @@ const moduleConfig = [
     extra: 6,
   },
   {
-    id: 'compliance', icon: '✅', title: 'Compliance Dashboard', color: '#10b981', tint: 'rgba(16,185,129,0.1)',
+    id: 'compliance', icon: '✅', title: 'Compliance Dashboard', color: '#059669', tint: 'rgba(16,185,129,0.1)',
     desc: '19 controls across GDPR/SOC2/ISO27001/HIPAA, real-time gap manager, WebSocket push, SOVA remediation tools.',
     ids: [],
     extra: 5,
@@ -80,7 +80,7 @@ const allBcJson = JSON.stringify(bcFeatures);
 // modules it feeds; the layout renders that as text, not as crossing lines, so
 // it stays readable at any width.
 const archGroups = [
-  { name: 'Core Protocols', color: '#80b4fd', modules: [
+  { name: 'Core Protocols', color: '#3b82f6', modules: [
     { id: 'SEP', icon: '◈', label: 'SEP / UECIID', desc: 'Cryptographic entity IDs, peering, STIX 2.1 audit chain, sovereign pods.' },
     { id: 'PQC', icon: '🛡', label: 'Post-Quantum Crypto', desc: 'Ed25519+ML-DSA-65 HybridSigner, X25519+ML-KEM-768 HybridKEM.' },
   ]},
@@ -88,7 +88,7 @@ const archGroups = [
     { id: 'Charter', icon: '🏛', label: 'Charter & Intel', desc: 'Versioned charter lifecycle, OAuth agent discovery, community intelligence.' },
     { id: 'Behavioral', icon: '📡', label: 'Anomaly Detection', desc: 'Z-score anomaly detection, 30-day baseline, NORMAL/ELEVATED/CRITICAL.' },
   ]},
-  { name: 'SMB Suite', color: '#34d399', modules: [
+  { name: 'SMB Suite', color: '#059669', modules: [
     { id: 'Vendor', icon: '🏢', label: 'Vendor Gov', desc: 'AI vendor DPA tracking, expiry alerts, risk tier classification.' },
     { id: 'Cost', icon: '💰', label: 'Cost Allocation', desc: 'Per-dept/vendor spend tracking, monthly summaries.' },
     { id: 'Budget', icon: '📈', label: 'Budget Dashboard', desc: 'Budget caps, threshold alerts, approval workflow.' },
@@ -97,11 +97,11 @@ const archGroups = [
     { id: 'Prompts', icon: '📚', label: 'Prompt Library', desc: 'UECIID provenance, injection screening before save, community sharing.' },
     { id: 'Training', icon: '🎓', label: 'Training Records', desc: 'HMAC-SHA256 attestation, behavioral hooks, compliance report.' },
   ]},
-  { name: 'Data & Secrets', color: '#fbbf24', modules: [
+  { name: 'Data & Secrets', color: '#d97706', modules: [
     { id: 'Secrets', icon: '🔑', label: 'Secrets Gov', desc: 'Multi-vault connectors, SQLite inventory, lifecycle rotation.' },
     { id: 'Obsidian', icon: '📔', label: 'Obsidian', desc: 'Auto-scan notes, data class inference, SEP share, XAI pipeline sidebar.' },
   ]},
-  { name: 'Analytics & Commerce', color: '#38bdf8', modules: [
+  { name: 'Analytics & Commerce', color: '#0284c7', modules: [
     { id: 'BI', icon: '📊', label: 'Business Intel', desc: 'Eight analytics functions, OLS trend predictions, PDF report builder.' },
     { id: 'Semantic', icon: '⬡', label: 'Semantic Layer', desc: 'Nine BI models, deterministic SQL, self-service catalog, Redis cache.' },
     { id: 'Commerce', icon: '⚡', label: 'M2M Commerce Store', desc: 'UCP/AP2/MCP protocols, multi-agent auction, FIDO2, Web3 mandate.' },
@@ -131,22 +131,22 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     <!-- ── Hero ── -->
     <section class="relative py-24 overflow-hidden">
       <div class="absolute inset-0 pointer-events-none"
-           style="background-image:linear-gradient(rgba(128,180,253,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(128,180,253,0.04) 1px,transparent 1px);background-size:56px 56px"></div>
+           style="background-image:linear-gradient(rgba(var(--acc-blue-rgb),0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--acc-blue-rgb),0.04) 1px,transparent 1px);background-size:56px 56px"></div>
       <div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-[1000px] h-[560px] pointer-events-none"
-           style="background:radial-gradient(ellipse,rgba(128,180,253,0.1) 0%,transparent 65%)"></div>
+           style="background:radial-gradient(ellipse,rgba(var(--acc-blue-rgb),0.1) 0%,transparent 65%)"></div>
       <div class="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#BF5AF2;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
-          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:#BF5AF2"></span>
+             style="color:var(--acc-violet);background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full animate-pulse" style="background:var(--acc-violet)"></span>
           Business Community Ecosystem
         </div>
-        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:#f1f5f9">
+        <h1 class="text-[clamp(36px,5vw,68px)] font-black leading-[1.05] tracking-tight mb-5" style="color:var(--ink-1)">
           Secure AI Communities<br/>
-          <span style="color:#BF5AF2">
+          <span style="color:var(--acc-violet)">
             Built for Business
           </span>
         </h1>
-        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-10" style="color:#94a3b8">
+        <p class="text-[17px] leading-relaxed max-w-2xl mx-auto mb-10" style="color:var(--ink-3)">
           70+ features across 11 modules — federated entity IDs, post-quantum cryptography,
           SMB governance, agentic commerce, and real-time compliance — all in one ecosystem.
         </p>
@@ -162,24 +162,24 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     </section>
 
     <!-- ── Stats ── -->
-    <section class="py-10 border-y" style="border-color:rgba(255,255,255,0.06);background:#0d0d14">
+    <section class="py-10 border-y" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-bg)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="stats-grid">
           {[
-            { id: 'members_count',     label: 'Active Members',      val: '—',  unit: 'users',   icon: '👥', color: '#BF5AF2' },
-            { id: 'monthly_transfers', label: 'SEP Transfers / Mo',  val: '—',  unit: 'tx',      icon: '⇄',  color: '#80b4fd' },
-            { id: 'published_ueciid',  label: 'Published UECIIDs',   val: '—', unit: 'records', icon: '◈',  color: '#06b6d4' },
-            { id: 'avg_reputation',    label: 'Avg. Reputation',     val: '—',    unit: '/ 5.0',   icon: '🏅', color: '#10b981' },
+            { id: 'members_count',     label: 'Active Members',      val: '—',  unit: 'users',   icon: '👥', color: 'var(--acc-violet)' },
+            { id: 'monthly_transfers', label: 'SEP Transfers / Mo',  val: '—',  unit: 'tx',      icon: '⇄',  color: 'var(--acc-blue)' },
+            { id: 'published_ueciid',  label: 'Published UECIIDs',   val: '—', unit: 'records', icon: '◈',  color: 'var(--acc-cyan)' },
+            { id: 'avg_reputation',    label: 'Avg. Reputation',     val: '—',    unit: '/ 5.0',   icon: '🏅', color: 'var(--acc-green)' },
           ].map(s => (
-            <div class="rounded-2xl p-6 stat-card" style="background:#111118">
+            <div class="rounded-2xl p-6 stat-card" style="background:var(--sw-surf-1)">
               <div class="text-[20px] mb-3">{s.icon}</div>
               <div class="text-[28px] font-black mb-1" style={`color:${s.color}`} data-stat={s.id}>{s.val}</div>
-              <div class="text-[11px] uppercase tracking-widest font-semibold mb-1" style="color:#64748b">{s.label}</div>
-              <div class="text-[11px]" style="color:#475569">{s.unit}</div>
+              <div class="text-[11px] uppercase tracking-widest font-semibold mb-1" style="color:var(--ink-4)">{s.label}</div>
+              <div class="text-[11px]" style="color:var(--ink-5)">{s.unit}</div>
             </div>
           ))}
         </div>
-        <p id="stats-source" class="text-center text-[11px] mt-4" style="color:#64748b">
+        <p id="stats-source" class="text-center text-[11px] mt-4" style="color:var(--ink-4)">
           Loading live data…
         </p>
       </div>
@@ -189,11 +189,11 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     <section class="py-24">
       <div class="mx-auto max-w-7xl px-4 lg:px-8">
         <div class="text-center mb-14">
-          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#BF5AF2">11 Modules</p>
-          <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-black mb-4" style="color:#f1f5f9">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:var(--acc-violet)">11 Modules</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-black mb-4" style="color:var(--ink-1)">
             The full ecosystem at a glance
           </h2>
-          <p class="text-[15px] max-w-xl mx-auto" style="color:#94a3b8">
+          <p class="text-[15px] max-w-xl mx-auto" style="color:var(--ink-3)">
             Every module ships production-ready. Click any card to explore features and documentation.
           </p>
         </div>
@@ -202,15 +202,15 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
           {modules.map(m => (
             <a href={`/business-community#${m.id}`}
                class="rounded-2xl p-6 module-card block"
-               style={`background:#111118;text-decoration:none;--hover-border:${m.color}44`}>
+               style={`background:var(--sw-surf-1);text-decoration:none;--hover-border:${m.color}44`}>
               <div class="flex items-center justify-between mb-4">
                 <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[20px]"
                      style={`background:${m.tint};color:${m.color}`}>{m.icon}</div>
                 <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg"
                       style={`color:${m.color};background:${m.tint}`}>{m.count} features</span>
               </div>
-              <div class="text-[15px] font-bold mb-2" style="color:#f1f5f9">{m.title}</div>
-              <p class="text-[13px] leading-relaxed" style="color:#64748b">{m.desc}</p>
+              <div class="text-[15px] font-bold mb-2" style="color:var(--ink-1)">{m.title}</div>
+              <p class="text-[13px] leading-relaxed" style="color:var(--ink-4)">{m.desc}</p>
             </a>
           ))}
         </div>
@@ -218,14 +218,14 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     </section>
 
     <!-- ── Architecture Diagram ── -->
-    <section id="architecture" class="py-20 border-y" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+    <section id="architecture" class="py-20 border-y" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-bg)">
       <div class="mx-auto max-w-6xl px-4 lg:px-8">
         <div class="text-center mb-12">
-          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#80b4fd">Architecture</p>
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:#f1f5f9">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:var(--acc-blue)">Architecture</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:var(--ink-1)">
             How the modules connect
           </h2>
-          <p class="text-[14px] max-w-xl mx-auto" style="color:#94a3b8">
+          <p class="text-[14px] max-w-xl mx-auto" style="color:var(--ink-3)">
             Eighteen modules in five groups. Each one lists what it feeds and what feeds it.
           </p>
         </div>
@@ -233,23 +233,23 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
         <div class="columns-1 md:columns-2 lg:columns-3 gap-5">
           {archGroups.map(g => (
             <div class="rounded-2xl p-5 mb-5 break-inside-avoid"
-                 style={`background:#0e0e18;border:1px solid rgba(255,255,255,0.08);border-top:2px solid ${g.color}`}>
+                 style={`background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.08);border-top:2px solid ${g.color}`}>
               <h3 class="text-[11px] uppercase tracking-widest font-bold mb-4" style={`color:${g.color}`}>{g.name}</h3>
               <ul class="space-y-4">
                 {g.modules.map(m => (
                   <li>
                     <div class="flex items-center gap-2">
                       <span aria-hidden="true" class="text-[15px]">{m.icon}</span>
-                      <span class="text-[14px] font-semibold" style="color:#f1f5f9">{m.label}</span>
+                      <span class="text-[14px] font-semibold" style="color:var(--ink-1)">{m.label}</span>
                     </div>
-                    <p class="text-[12.5px] leading-relaxed mt-1" style="color:#94a3b8">{m.desc}</p>
+                    <p class="text-[12.5px] leading-relaxed mt-1" style="color:var(--ink-3)">{m.desc}</p>
                     {archFeeds(m.id).length > 0 && (
-                      <p class="text-[12px] mt-1.5" style="color:#cbd5e1">
+                      <p class="text-[12px] mt-1.5" style="color:var(--ink-2)">
                         <span aria-hidden="true" style={`color:${g.color}`}>→ </span>feeds {archFeeds(m.id).join(', ')}
                       </p>
                     )}
                     {archFedBy(m.id).length > 0 && (
-                      <p class="text-[12px] mt-0.5" style="color:#94a3b8">
+                      <p class="text-[12px] mt-0.5" style="color:var(--ink-3)">
                         <span aria-hidden="true">← </span>fed by {archFedBy(m.id).join(', ')}
                       </p>
                     )}
@@ -266,33 +266,33 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     <section id="search-section" class="py-20">
       <div class="mx-auto max-w-4xl px-4 lg:px-8">
         <div class="text-center mb-10">
-          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:#06b6d4">35 Features</p>
-          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:#f1f5f9">
+          <p class="text-[11px] uppercase tracking-widest font-bold mb-3" style="color:var(--acc-cyan)">35 Features</p>
+          <h2 class="text-[clamp(1.5rem,3vw,2.25rem)] font-black mb-4" style="color:var(--ink-1)">
             Find any feature instantly
           </h2>
         </div>
 
         <div class="relative mb-6">
-          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:#64748b" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color:var(--ink-4)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input id="feature-search" type="text" placeholder="Search features — e.g. UECIID, audit chain, budget..."
                  class="w-full pl-11 pr-4 py-4 rounded-xl text-[14px] outline-none"
-                 style="background:#111118;border:1px solid rgba(255,255,255,0.1);color:#f1f5f9;transition:border-color 200ms cubic-bezier(0.23,1,0.32,1)"
-                 onfocus="this.style.borderColor='rgba(128,180,253,0.5)'"
-                 onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
+                 style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.1);color:var(--ink-1);transition:border-color 200ms cubic-bezier(0.23,1,0.32,1)"
+                 onfocus="this.style.borderColor='rgba(var(--acc-blue-rgb),0.5)'"
+                 onblur="this.style.borderColor='rgba(var(--ink-rgb),0.1)'" />
         </div>
 
         <div id="search-results" class="space-y-3">
           <!-- populated by JS -->
         </div>
-        <div id="search-empty" class="hidden text-center py-10 text-[14px]" style="color:#475569">
+        <div id="search-empty" class="hidden text-center py-10 text-[14px]" style="color:var(--ink-5)">
           No features matched your query.
         </div>
         <div id="search-placeholder" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
           {['SEP Peering','SMB Suite','Budget Guardian','Compliance'].map(q => (
             <button class="search-chip px-3 py-2 rounded-lg text-[12px] font-medium"
-                    style="background:#111118;border:1px solid rgba(255,255,255,0.07);color:#94a3b8;cursor:pointer;transition:border-color 150ms cubic-bezier(0.23,1,0.32,1)"
+                    style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07);color:var(--ink-3);cursor:pointer;transition:border-color 150ms cubic-bezier(0.23,1,0.32,1)"
                     data-query={q}
                     >{q}</button>
           ))}
@@ -307,27 +307,27 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
           const items = bcFeatures.filter(f => f.subcategory === sub);
           if (!items.length) return null;
           return (
-            <details class="mb-4 rounded-2xl overflow-hidden" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <details class="mb-4 rounded-2xl overflow-hidden" style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
               <summary class="flex items-center justify-between px-6 py-4 cursor-pointer select-none"
-                       style="color:#f1f5f9;list-style:none"
+                       style="color:var(--ink-1);list-style:none"
                        class="details-summary">
                 <span class="font-semibold text-[15px]">{sub}</span>
                 <span class="text-[12px] px-2.5 py-1 rounded-lg font-bold"
-                      style="background:rgba(128,180,253,0.1);color:#BF5AF2">{items.length} features</span>
+                      style="background:rgba(var(--acc-blue-rgb),0.1);color:var(--acc-violet)">{items.length} features</span>
               </summary>
               <div class="px-6 pb-5 pt-1">
                 <div class="grid md:grid-cols-2 gap-2">
                   {items.map(f => (
                     <div class="flex items-start gap-3 rounded-xl px-4 py-3"
-                         style="background:#0e0e18;border:1px solid rgba(255,255,255,0.05)">
+                         style="background:var(--sw-bg);border:1px solid rgba(var(--ink-rgb),0.05)">
                       <span class="text-[10px] font-mono mt-0.5 shrink-0 px-1.5 py-0.5 rounded"
-                            style="color:#64748b;background:#1a1a28">{f.id}</span>
+                            style="color:var(--ink-4);background:var(--sw-surf-1)">{f.id}</span>
                       <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                          <span class="text-[13px] font-semibold" style="color:#e2e8f0">{f.feature}</span>
+                          <span class="text-[13px] font-semibold" style="color:var(--ink-1)">{f.feature}</span>
                           <span class={`status-${f.status} text-[10px]`}>{f.status}</span>
                         </div>
-                        <p class="text-[12px] mt-0.5 line-clamp-2" style="color:#64748b">{f.description}</p>
+                        <p class="text-[12px] mt-0.5 line-clamp-2" style="color:var(--ink-4)">{f.description}</p>
                       </div>
                     </div>
                   ))}
@@ -344,10 +344,10 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     <section class="py-20">
       <div class="mx-auto max-w-5xl px-4 lg:px-8">
         <div class="text-center mb-12">
-          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-black mb-3" style="color:#f1f5f9">
+          <h2 class="text-[clamp(1.3rem,2.5vw,2rem)] font-black mb-3" style="color:var(--ink-1)">
             Where to work with communities
           </h2>
-          <p class="text-[14px]" style="color:#94a3b8">Three interfaces — pick the one that fits your workflow.</p>
+          <p class="text-[14px]" style="color:var(--ink-3)">Three interfaces — pick the one that fits your workflow.</p>
         </div>
         <div class="grid md:grid-cols-3 gap-5">
           {[
@@ -355,26 +355,26 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
               icon: '🌐', title: 'Tenant Portal', badge: 'portal',
               desc: 'Full community management — join, peer, share, manage members, configure governance.',
               href: '/community', cta: 'Open Portal',
-              color: '#BF5AF2', tint: 'rgba(191,90,242,0.08)',
+              color: 'var(--acc-violet)', tint: 'rgba(191,90,242,0.08)',
             },
             {
               icon: '📟', title: 'SOC Dashboard', badge: 'dashboard',
               desc: 'Real-time community activity, SEP transfer timeline, incident feed, compliance posture.',
               href: '/dashboard', cta: 'Open Dashboard',
-              color: '#80b4fd', tint: 'rgba(128,180,253,0.08)',
+              color: 'var(--acc-blue)', tint: 'rgba(var(--acc-blue-rgb),0.08)',
             },
             {
               icon: '📈', title: 'Community Intelligence', badge: 'analytics',
               desc: 'Deep-dive BI: 8-tab community intelligence, benchmark percentiles, predictive trend charts. The Streamlit view of this data is an operator surface, reachable over a tunnel rather than published.',
               href: '/community', cta: 'Open Portal',
-              color: '#06b6d4', tint: 'rgba(6,182,212,0.08)',
+              color: 'var(--acc-cyan)', tint: 'rgba(6,182,212,0.08)',
             },
           ].map(p => (
-            <div class="rounded-2xl p-6" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
+            <div class="rounded-2xl p-6" style="background:var(--sw-surf-1);border:1px solid rgba(var(--ink-rgb),0.07)">
               <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[20px] mb-4"
                    style={`background:${p.tint};color:${p.color}`}>{p.icon}</div>
-              <div class="text-[15px] font-bold mb-2" style="color:#f1f5f9">{p.title}</div>
-              <p class="text-[13px] leading-relaxed mb-5" style="color:#64748b">{p.desc}</p>
+              <div class="text-[15px] font-bold mb-2" style="color:var(--ink-1)">{p.title}</div>
+              <p class="text-[13px] leading-relaxed mb-5" style="color:var(--ink-4)">{p.desc}</p>
               <a href={p.href}
                  class="inline-flex items-center gap-1.5 text-[13px] font-semibold"
                  style={`color:${p.color}`}>
@@ -390,17 +390,17 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     </section>
 
     <!-- ── CTA ── -->
-    <section class="py-24 border-t" style="border-color:rgba(255,255,255,0.06);background:#0a0a0f">
+    <section class="py-24 border-t" style="border-color:rgba(var(--ink-rgb),0.06);background:var(--sw-bg)">
       <div class="mx-auto max-w-3xl px-4 lg:px-8 text-center">
         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 text-[11px] font-bold tracking-widest uppercase"
-             style="color:#10b981;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
-          <span class="w-1.5 h-1.5 rounded-full" style="background:#10b981"></span>
+             style="color:var(--acc-green);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+          <span class="w-1.5 h-1.5 rounded-full" style="background:var(--acc-green)"></span>
           No credit card required for Starter
         </div>
-        <h2 class="text-[clamp(2rem,4vw,3.25rem)] font-black leading-tight mb-5" style="color:#f1f5f9">
+        <h2 class="text-[clamp(2rem,4vw,3.25rem)] font-black leading-tight mb-5" style="color:var(--ink-1)">
           Ready to join a secure<br/>AI community?
         </h2>
-        <p class="text-[16px] leading-relaxed mb-10 max-w-xl mx-auto" style="color:#94a3b8">
+        <p class="text-[16px] leading-relaxed mb-10 max-w-xl mx-auto" style="color:var(--ink-3)">
           Start free with Starter and upgrade when your community needs more members, SEP transfers, or advanced compliance controls.
         </p>
         <div class="flex flex-wrap items-center justify-center gap-4">
@@ -408,7 +408,7 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
             Start Free (Starter)
           </a>
           <a href="/price" class="btn-ghost text-[15px] px-8 py-3.5 rounded-xl"
-             style="border:1px solid rgba(128,180,253,0.3);color:#BF5AF2">
+             style="border:1px solid rgba(var(--acc-blue-rgb),0.3);color:var(--acc-violet)">
             Community+ · $39.99/mo
           </a>
         </div>
@@ -432,9 +432,9 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
   const features  = window.__BC_FEATURES__ || [];
 
   const statusColors = {
-    shipped:     { bg: 'rgba(16,185,129,0.1)',  text: '#10b981' },
-    in_progress: { bg: 'rgba(245,158,11,0.1)',  text: '#f59e0b' },
-    planned:     { bg: 'rgba(128,180,253,0.1)',   text: '#80b4fd' },
+    shipped:     { bg: 'rgba(16,185,129,0.1)',  text: '#059669' },
+    in_progress: { bg: 'rgba(245,158,11,0.1)',  text: '#d97706' },
+    planned:     { bg: 'rgba(128,180,253,0.1)',   text: '#3b82f6' },
     cancelled:   { bg: 'rgba(100,116,139,0.1)', text: '#64748b' },
   };
 
@@ -452,11 +452,11 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
     empty.classList.add('hidden');
     results.innerHTML = matched.map(f => {
       const sc = statusColors[f.status] || statusColors.planned;
-      return `<div class="flex items-start gap-4 rounded-xl px-5 py-4" style="background:#111118;border:1px solid rgba(255,255,255,0.07)">
-        <span class="text-[11px] font-mono shrink-0 mt-0.5 px-2 py-1 rounded" style="color:#64748b;background:#1a1a28">${f.id}</span>
+      return `<div class="flex items-start gap-4 rounded-xl px-5 py-4" style="background:var(--sw-bg);border:1px solid rgba(255,255,255,0.07)">
+        <span class="text-[11px] font-mono shrink-0 mt-0.5 px-2 py-1 rounded" style="color:#64748b;background:var(--sw-surf-1)">${f.id}</span>
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap mb-1">
-            <span class="text-[14px] font-semibold" style="color:#f1f5f9">${f.feature}</span>
+            <span class="text-[14px] font-semibold" style="color:var(--ink-1)">${f.feature}</span>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-md" style="color:${sc.text};background:${sc.bg}">${f.status}</span>
             <span class="text-[10px]" style="color:#475569">${f.tier}</span>
           </div>
@@ -513,26 +513,26 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
 <style>
   /* ── Typography ── */
   summary::-webkit-details-marker { display: none; }
-  details[open] summary { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  details[open] summary { border-bottom: 1px solid rgba(var(--ink-rgb),0.06); }
   .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* ── Stat cards ── */
   .stat-card {
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(var(--ink-rgb),0.07);
     transition: border-color 200ms cubic-bezier(0.23,1,0.32,1), transform 200ms cubic-bezier(0.23,1,0.32,1);
   }
   @media (hover: hover) and (pointer: fine) {
-    .stat-card:hover { border-color: rgba(128,180,253,0.3); transform: translateY(-2px); }
+    .stat-card:hover { border-color: rgba(var(--acc-blue-rgb),0.3); transform: translateY(-2px); }
   }
 
   /* ── Module cards ── */
   .module-card {
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(var(--ink-rgb),0.07);
     transition: border-color 200ms cubic-bezier(0.23,1,0.32,1), transform 200ms cubic-bezier(0.23,1,0.32,1);
   }
   @media (hover: hover) and (pointer: fine) {
     .module-card:hover {
-      border-color: var(--hover-border, rgba(128,180,253,0.26));
+      border-color: var(--hover-border, rgba(var(--acc-blue-rgb),0.26));
       transform: translateY(-3px);
     }
     .module-card:active { transform: translateY(-1px) scale(0.99); }
@@ -547,7 +547,7 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
   /* ── Accordion summary ── */
   .details-summary { transition: background 150ms cubic-bezier(0.23,1,0.32,1); }
   @media (hover: hover) and (pointer: fine) {
-    .details-summary:hover { background: rgba(128,180,253,0.04); }
+    .details-summary:hover { background: rgba(var(--acc-blue-rgb),0.04); }
   }
 
   /* ── Search chips ── */
@@ -556,7 +556,7 @@ const archFedBy = (id: string) => archEdges.filter(([, to]) => to === id).map(([
                 transform 100ms cubic-bezier(0.23,1,0.32,1);
   }
   @media (hover: hover) and (pointer: fine) {
-    .search-chip:hover { border-color: rgba(128,180,253,0.3) !important; color: #f1f5f9; }
+    .search-chip:hover { border-color: rgba(var(--acc-blue-rgb),0.3) !important; color: var(--ink-1); }
   }
   .search-chip:active { transform: scale(0.97); }
 
