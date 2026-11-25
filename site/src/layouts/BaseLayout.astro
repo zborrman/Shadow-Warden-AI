@@ -563,20 +563,20 @@ if (breadcrumbs && currentPath !== '/') {
   <script>
     // ── Announcement strip ──
     (function () {
-      const KEY = 'sw_banner_v52_dismissed';
+      const BANNER_STORE = 'sw_banner_v52_dismissed';
       const banner = document.getElementById('top-banner');
-      if (sessionStorage.getItem(KEY) === '1' && banner) banner.style.display = 'none';
+      if (sessionStorage.getItem(BANNER_STORE) === '1' && banner) banner.style.display = 'none';
       document.getElementById('banner-close')?.addEventListener('click', () => {
-        sessionStorage.setItem(KEY, '1');
+        sessionStorage.setItem(BANNER_STORE, '1');
         if (banner) banner.style.display = 'none';
       });
     })();
 
     // ── Sidebar sections: open/closed survives navigation ──
     (function () {
-      const KEY = 'sw-hubs';
+      const HUBS_STORE = 'sw-hubs';
       let saved: Record<string, boolean> = {};
-      try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { saved = {}; }
+      try { saved = JSON.parse(localStorage.getItem(HUBS_STORE) || '{}'); } catch { saved = {}; }
       document.querySelectorAll<HTMLElement>('#navbar .sw-hub').forEach(hub => {
         const name = hub.dataset.hub || '';
         const btn = hub.querySelector<HTMLButtonElement>('.sw-hub__toggle');
@@ -590,7 +590,7 @@ if (breadcrumbs && currentPath !== '/') {
           const open = hub.dataset.open !== 'true';
           set(open);
           saved[name] = open;
-          try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {}
+          try { localStorage.setItem(HUBS_STORE, JSON.stringify(saved)); } catch {}
         });
       });
       document.querySelector('#navbar .sw-item[aria-current="page"]')?.scrollIntoView({ block: 'nearest' });
@@ -626,7 +626,7 @@ if (breadcrumbs && currentPath !== '/') {
 
     // ── Theme: light by default, dark only when the visitor picks it ──
     (function () {
-      const KEY = 'sw-theme-v2';
+      const THEME_STORE = 'sw-theme-v2';
       const sun = document.getElementById('tt-sun');
       const moon = document.getElementById('tt-moon');
       const label = document.getElementById('tt-label');
@@ -645,7 +645,7 @@ if (breadcrumbs && currentPath !== '/') {
       }
       function flip() {
         const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-        try { localStorage.setItem(KEY, next); } catch {}
+        try { localStorage.setItem(THEME_STORE, next); } catch {}
         const swap = () => paint(next);
         const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
         if (doc.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) doc.startViewTransition(swap);
