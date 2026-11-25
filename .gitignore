@@ -75,6 +75,7 @@ data/*.db-wal
 # AI/IDE Cache
 .claude/*
 !.claude/skills/
+!.claude/agents/
 
 # Test / build artifacts
 coverage.json
