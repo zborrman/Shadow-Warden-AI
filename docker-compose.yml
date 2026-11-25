@@ -1133,6 +1133,9 @@ services:
       - NEXT_PUBLIC_PROMETHEUS_URL=${PROMETHEUS_PUBLIC_URL:-}
       - NEXT_PUBLIC_MINIO_URL=${MINIO_PUBLIC_URL:-}
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-}
+      # Two-step sign-in (src/lib/twoStep.ts): without it the dashboard login fails
+      # closed with a 503 - it no longer accepts any six digits.
+      - DASHBOARD_TOTP_SECRET=${DASHBOARD_TOTP_SECRET:-}
       # SW-15: the line above turns a missing .env entry into an empty string
       # rather than an absent variable, and the middleware used to read that as
       # "no auth configured -> open access". It now fails closed and answers
