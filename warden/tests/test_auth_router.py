@@ -189,7 +189,7 @@ class TestSignupEndpoint:
     def test_signup_success_sets_cookies(self, client, monkeypatch):
         monkeypatch.setenv("AUTH_JWT_SECRET", "test-secret")
         resp = client.post(
-            "/auth/signup", json={"email": "new@example.com", "password": "longenough"}
+            "/auth/signup", json={"email": "new@example.com", "password": "Sign-up-Pass-71!"}
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -209,7 +209,7 @@ class TestSignupEndpoint:
 
     def test_signup_invalid_email_returns_422(self, client):
         resp = client.post(
-            "/auth/signup", json={"email": "not-an-email", "password": "longenough"}
+            "/auth/signup", json={"email": "not-an-email", "password": "Sign-up-Pass-71!"}
         )
         assert resp.status_code == 422
 
@@ -221,7 +221,7 @@ class TestSignupEndpoint:
 
     def test_signup_duplicate_email_returns_409(self, client, monkeypatch):
         monkeypatch.setenv("AUTH_JWT_SECRET", "test-secret")
-        payload = {"email": "dup@example.com", "password": "longenough"}
+        payload = {"email": "dup@example.com", "password": "Sign-up-Pass-71!"}
         assert client.post("/auth/signup", json=payload).status_code == 200
         resp2 = client.post("/auth/signup", json=payload)
         assert resp2.status_code == 409
@@ -238,7 +238,7 @@ class TestSignupEndpoint:
         monkeypatch.setattr(auth_router, "_email_exists", lambda email: False)
         monkeypatch.setattr(auth_router.user_store, "create_user", lambda email, h: False)
         resp = client.post(
-            "/auth/signup", json={"email": "race@example.com", "password": "longenough"}
+            "/auth/signup", json={"email": "race@example.com", "password": "Sign-up-Pass-71!"}
         )
         assert resp.status_code == 409
 
@@ -248,7 +248,7 @@ class TestSignupEndpoint:
 
         monkeypatch.setattr(auth_router.bcrypt, "hashpw", _boom)
         resp = client.post(
-            "/auth/signup", json={"email": "boom@example.com", "password": "longenough"}
+            "/auth/signup", json={"email": "boom@example.com", "password": "Sign-up-Pass-71!"}
         )
         assert resp.status_code == 500
 
@@ -262,12 +262,12 @@ class TestSignupEndpoint:
         for i in range(limit):
             resp = client.post(
                 "/auth/signup",
-                json={"email": f"u{i}@example.com", "password": "longenough"},
+                json={"email": f"u{i}@example.com", "password": "Sign-up-Pass-71!"},
             )
             assert resp.status_code == 200
         resp = client.post(
             "/auth/signup",
-            json={"email": "onemore@example.com", "password": "longenough"},
+            json={"email": "onemore@example.com", "password": "Sign-up-Pass-71!"},
         )
         assert resp.status_code == 429
 
@@ -276,7 +276,7 @@ class TestSignupEndpoint:
         monkeypatch.delenv("VAULT_MASTER_KEY", raising=False)
         monkeypatch.delenv("SAML_JWT_SECRET", raising=False)
         resp = client.post(
-            "/auth/signup", json={"email": "nosecret@example.com", "password": "longenough"}
+            "/auth/signup", json={"email": "nosecret@example.com", "password": "Sign-up-Pass-71!"}
         )
         assert resp.status_code == 500
 
@@ -366,3 +366,22 @@ class TestLogoutAndMe:
         assert body["authenticated"] is True
         assert body["email"] == "me@example.com"
         assert body["exp"] > time.time()
+
+
+class TestSignupPasswordPolicy:
+    """The site sign-up applies the portal's strong-password rule."""
+
+    def test_eight_lowercase_characters_are_refused(self, client):
+        resp = client.post(
+            "/auth/signup", json={"email": "weak@example.com", "password": "longenough"}
+        )
+        assert resp.status_code == 422
+        assert "stronger password" in resp.json()["detail"]
+
+    def test_password_containing_the_email_name_is_refused(self, client):
+        resp = client.post(
+            "/auth/signup",
+            json={"email": "margaret@example.com", "password": "Margaret-Pass-71!"},
+        )
+        assert resp.status_code == 422
+        assert "email name" in resp.json()["detail"]

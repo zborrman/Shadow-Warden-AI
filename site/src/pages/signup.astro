@@ -1,339 +1,120 @@
 ---
-const title = 'Create Account — Shadow Warden AI';
+import AuthPulse from '../components/auth/AuthPulse.astro';
 const API = '/api';
+// The same strong-password rule as the portal; warden/auth/password_policy.py is
+// the authority and test_portal_password_policy.py keeps this list in step.
+const COMMON = ['password', 'passw0rd', 'qwerty', '123456', 'letmein', 'welcome',
+  'iloveyou', 'admin', 'shadowwarden', 'warden', 'amazon'];
 ---
-<!doctype html>
-<html lang="en" class="dark">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex" />
-  <title>{title}</title>
-  <link rel="icon" href="/logo.png" type="image/png" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<AuthPulse title="Create Account — Shadow Warden AI" step="Create account" heading="Create your account"
+           lead="A strong password is required. It takes a minute.">
+  <form id="signup-form" class="ap-form" novalidate>
+    <p id="error-msg" class="ap-error" role="alert"></p>
 
-    body {
-      min-height: 100vh;
-      background: var(--sw-bg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-      padding: 1.5rem;
-    }
+    <label class="ap-label" for="email">Email address
+      <input id="email" class="ap-field" type="email" name="email" placeholder="you@company.com" autocomplete="email" required />
+    </label>
 
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background:
-        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(6,182,212,.10) 0%, transparent 70%),
-        radial-gradient(ellipse 40% 30% at 20% 80%, rgba(var(--acc-blue-rgb),.06) 0%, transparent 60%);
-      pointer-events: none;
-    }
-
-    .card {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      background: var(--sw-surf-1);
-      border: 1px solid rgba(var(--ink-rgb),0.08);
-      border-radius: 16px;
-      padding: 2.5rem 2rem;
-    }
-
-    .logo-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 2rem;
-    }
-    .logo-wrap img { height: 44px; width: auto; }
-    .logo-text {
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-      color: var(--ink-1);
-    }
-    .logo-text span { color: var(--acc-blue); }
-
-    h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--ink-1);
-      text-align: center;
-      margin-bottom: 0.35rem;
-      letter-spacing: -0.3px;
-    }
-    .subtitle {
-      font-size: 13px;
-      color: var(--ink-4);
-      text-align: center;
-      margin-bottom: 1.75rem;
-    }
-
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--ink-3);
-      margin-bottom: 6px;
-    }
-    input[type="email"],
-    input[type="password"] {
-      width: 100%;
-      height: 40px;
-      padding: 0 12px;
-      background: var(--sw-bg);
-      border: 1px solid rgba(var(--ink-rgb),0.1);
-      border-radius: 8px;
-      color: var(--ink-1);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      margin-bottom: 1rem;
-    }
-    input[type="email"]:focus,
-    input[type="password"]:focus {
-      border-color: rgba(6,182,212,0.5);
-      box-shadow: 0 0 0 3px rgba(6,182,212,.08);
-    }
-    input.error {
-      border-color: rgba(239,68,68,0.5) !important;
-      box-shadow: 0 0 0 3px rgba(239,68,68,.08) !important;
-    }
-    input::placeholder { color: var(--ink-5); }
-
-    .field-hint {
-      margin-top: -0.75rem;
-      margin-bottom: 1rem;
-      font-size: 11px;
-      color: var(--acc-red);
-      display: none;
-    }
-    .field-hint.visible { display: block; }
-
-    .pw-strength {
-      margin-top: -0.75rem;
-      margin-bottom: 1rem;
-      display: flex;
-      gap: 4px;
-      align-items: center;
-    }
-    .pw-bar {
-      flex: 1;
-      height: 3px;
-      border-radius: 2px;
-      background: rgba(var(--ink-rgb),0.08);
-      transition: background 0.25s;
-    }
-    .pw-label {
-      font-size: 10px;
-      color: var(--ink-4);
-      white-space: nowrap;
-      min-width: 32px;
-      text-align: right;
-    }
-
-    .btn-primary {
-      width: 100%;
-      height: 40px;
-      background: var(--acc-cyan);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, opacity 0.15s;
-      margin-top: 0.25rem;
-    }
-    .btn-primary:hover { background: #0e7490; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    #error-msg {
-      display: none;
-      margin-top: 0.75rem;
-      padding: 10px 12px;
-      background: rgba(239,68,68,0.08);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 8px;
-      color: var(--acc-red);
-      font-size: 13px;
-      text-align: center;
-    }
-
-    .footer-link {
-      display: block;
-      text-align: center;
-      margin-top: 1.5rem;
-      font-size: 13px;
-      color: var(--ink-5);
-    }
-    .footer-link a {
-      color: var(--acc-cyan);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .footer-link a:hover { color: #22d3ee; }
-
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 0.75rem;
-      font-size: 12px;
-      color: var(--ink-5);
-      text-decoration: none;
-      transition: color 0.15s;
-    }
-    .back-link:hover { color: var(--ink-4); }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid rgba(var(--ink-rgb),0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo-wrap">
-      <img src="/logo.png" alt="Shadow Warden AI" />
-      <span class="logo-text">Shadow-<span>Warden</span>-AI</span>
+    <div class="ap-label">
+      <label for="password">Password</label>
+      <div class="ap-pw">
+        <input id="password" class="ap-field" type="password" name="password" autocomplete="new-password" required aria-describedby="pw-rules" />
+        <button type="button" class="ap-show" data-for="password" aria-label="Show password">Show</button>
+      </div>
+      <div class="ap-meter" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <ul id="pw-rules" class="ap-rules" aria-live="polite">
+        <li data-r="len">12+ characters</li>
+        <li data-r="up">Upper-case letter</li>
+        <li data-r="lo">Lower-case letter</li>
+        <li data-r="num">A number</li>
+        <li data-r="sym">A symbol</li>
+        <li data-r="own">No email name or common word</li>
+      </ul>
     </div>
 
-    <h1>Create your account</h1>
-    <p class="subtitle">Zero-Trust AI Security Gateway</p>
+    <label class="ap-label" for="confirm">Confirm password
+      <input id="confirm" class="ap-field" type="password" name="confirm" autocomplete="new-password" required />
+    </label>
+    <p id="confirm-hint" class="ap-hint">Passwords don&apos;t match.</p>
 
-    <form id="signup-form" novalidate>
-      <label for="email">Email address</label>
-      <input id="email" type="email" name="email" placeholder="you@company.com" autocomplete="email" required />
+    <button id="submit-btn" class="ap-primary" type="submit">Create Account</button>
+  </form>
 
-      <label for="password">Password</label>
-      <input id="password" type="password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" required />
-      <!-- Strength indicator -->
-      <div class="pw-strength" id="pw-strength" style="display:none">
-        <div class="pw-bar" id="pw-bar-1"></div>
-        <div class="pw-bar" id="pw-bar-2"></div>
-        <div class="pw-bar" id="pw-bar-3"></div>
-        <div class="pw-bar" id="pw-bar-4"></div>
-        <span class="pw-label" id="pw-label"></span>
-      </div>
+  <p class="ap-row">Already have an account? <a href="/login" class="ap-link">Sign in</a></p>
+  <p class="ap-callout">Selling on Amazon? The seller workspace, with two-step verification and password
+    reset, has its own account: <a class="ap-link" href="https://portal.shadow-warden-ai.com/register">create it in the portal</a>.</p>
 
-      <label for="confirm">Confirm password</label>
-      <input id="confirm" type="password" name="confirm" placeholder="Repeat your password" autocomplete="new-password" required />
-      <div class="field-hint" id="confirm-hint">Passwords do not match.</div>
-
-      <button id="submit-btn" class="btn-primary" type="submit">Create Account</button>
-      <div id="error-msg"></div>
-    </form>
-
-    <p class="footer-link">Already have an account? <a href="/login">Sign in here</a></p>
-    <a href="/" class="back-link">← Back to Shadow Warden AI</a>
-  </div>
-
-  <script define:vars={{ API }}>
-    const form      = document.getElementById('signup-form');
-    const submitBtn = document.getElementById('submit-btn');
-    const errorMsg  = document.getElementById('error-msg');
-    const pwInput   = document.getElementById('password');
+  <script define:vars={{ API, COMMON }}>
+    const form = document.getElementById('signup-form');
+    const email = document.getElementById('email');
+    const pw = document.getElementById('password');
     const confirmInput = document.getElementById('confirm');
-    const confirmHint  = document.getElementById('confirm-hint');
-    const pwStrength   = document.getElementById('pw-strength');
-    const pwLabel      = document.getElementById('pw-label');
-    const bars = [
-      document.getElementById('pw-bar-1'),
-      document.getElementById('pw-bar-2'),
-      document.getElementById('pw-bar-3'),
-      document.getElementById('pw-bar-4'),
-    ];
-    const COLORS = ['#b91c1c', '#c2410c', '#eab308', '#047857'];
-    const LABELS = ['Weak', 'Fair', 'Good', 'Strong'];
+    const confirmHint = document.getElementById('confirm-hint');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMsg = document.getElementById('error-msg');
+    const bars = document.querySelectorAll('.ap-meter span');
+    const COLORS = ['#ff6b6b', '#ffb020', '#7fd3ff', '#3ddc97'];
 
-    // If already logged in (sw_logged_in indicator cookie present), skip to marketplace
-    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) {
-      window.location.replace('/agentic');
+    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) window.location.replace('/agentic');
+
+    document.querySelectorAll('.ap-show').forEach(b => b.addEventListener('click', () => {
+      const input = document.getElementById(b.dataset.for);
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      b.textContent = show ? 'Hide' : 'Show';
+      b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    }));
+
+    function rules(v) {
+      const low = v.toLowerCase();
+      const local = (email.value.split('@')[0] || '').toLowerCase();
+      const own = (local.length >= 3 && low.includes(local)) || COMMON.some(w => low.includes(w));
+      return {
+        len: v.length >= 12 && new TextEncoder().encode(v).length <= 72,
+        up: /[A-Z]/.test(v), lo: /[a-z]/.test(v), num: /[0-9]/.test(v), sym: /[^A-Za-z0-9]/.test(v),
+        own: v.length > 0 && !own,
+      };
     }
+    function paint() {
+      const r = rules(pw.value);
+      const passed = Object.values(r).filter(Boolean).length;
+      document.querySelectorAll('#pw-rules li').forEach(li => li.classList.toggle('ok', r[li.dataset.r]));
+      const level = !pw.value ? 0 : passed === 6 ? 4 : passed >= 5 ? 3 : passed >= 3 ? 2 : 1;
+      bars.forEach((b, i) => { b.style.background = i < level ? COLORS[level - 1] : ''; });
+      return passed === 6;
+    }
+    pw.addEventListener('input', paint);
+    email.addEventListener('input', paint);
 
-    // Password strength meter
-    pwInput.addEventListener('input', () => {
-      const v = pwInput.value;
-      pwStrength.style.display = v ? 'flex' : 'none';
-      let score = 0;
-      if (v.length >= 8)  score++;
-      if (v.length >= 12) score++;
-      if (/[A-Z]/.test(v) && /[0-9]/.test(v)) score++;
-      if (/[^A-Za-z0-9]/.test(v)) score++;
-      bars.forEach((b, i) => {
-        b.style.background = i <= score - 1 ? COLORS[score - 1] : 'rgba(255,255,255,0.08)';
-      });
-      pwLabel.textContent = score > 0 ? LABELS[score - 1] : '';
-      pwLabel.style.color = score > 0 ? COLORS[score - 1] : '#556072';
-    });
-
-    // Confirm password match check
     confirmInput.addEventListener('input', () => {
-      const mismatch = confirmInput.value && confirmInput.value !== pwInput.value;
+      const mismatch = confirmInput.value && confirmInput.value !== pw.value;
       confirmInput.classList.toggle('error', !!mismatch);
       confirmHint.classList.toggle('visible', !!mismatch);
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      const email    = document.getElementById('email').value.trim();
-      const password = pwInput.value;
-      const confirm  = confirmInput.value;
-
-      if (!email || !password || !confirm) {
-        showError('Please fill in all fields.');
+      errorMsg.style.display = 'none';
+      const mail = email.value.trim();
+      if (!mail || !pw.value || !confirmInput.value) return showError('Please fill in all fields.');
+      if (!paint()) return showError('Choose a stronger password: every rule above must be ticked.');
+      if (pw.value !== confirmInput.value) {
+        confirmInput.classList.add('error'); confirmHint.classList.add('visible');
         return;
       }
-      if (password !== confirm) {
-        confirmInput.classList.add('error');
-        confirmHint.classList.add('visible');
-        return;
-      }
-      if (password.length < 8) {
-        showError('Password must be at least 8 characters.');
-        return;
-      }
-
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="spinner"></span>';
-      errorMsg.style.display = 'none';
-
       try {
         const res = await fetch(API + '/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: mail, password: pw.value }),
         });
-
-        if (res.ok) {
-          window.location.replace('/agentic');
-          return;
-        }
-
+        if (res.ok) { window.location.replace('/agentic'); return; }
         const data = await res.json().catch(() => ({}));
-        if (res.status === 409) {
-          showError('An account with this email already exists. Try signing in.');
-        } else if (res.status === 422) {
-          showError(data.detail || 'Please check your email and password.');
-        } else if (res.status === 429) {
-          showError('Too many attempts. Please wait a few minutes and try again.');
-        } else {
-          showError(data.detail || 'Registration failed. Please try again.');
-        }
+        if (res.status === 409) showError('An account with this email already exists. Try signing in.');
+        else if (res.status === 422) showError(data.detail || 'Please check your email and password.');
+        else if (res.status === 429) showError('Too many attempts. Please wait a few minutes and try again.');
+        else showError(data.detail || 'Registration failed. Please try again.');
       } catch {
         showError('Could not reach the server. Check your connection.');
       } finally {
@@ -342,10 +123,6 @@ const API = '/api';
       }
     });
 
-    function showError(msg) {
-      errorMsg.textContent = msg;
-      errorMsg.style.display = 'block';
-    }
+    function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
   </script>
-</body>
-</html>
+</AuthPulse>

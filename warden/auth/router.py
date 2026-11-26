@@ -44,7 +44,7 @@ import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from warden.auth import user_store
+from warden.auth import password_policy, user_store
 from warden.client_ip import get_client_ip
 from warden.config import settings
 from warden.db.connect import open_db
@@ -363,9 +363,13 @@ async def signup(request: Request) -> JSONResponse:
     if not email or not _EMAIL_RE.match(email):
         return JSONResponse({"detail": "Invalid email address."}, status_code=422)
 
-    # Validate password length
-    if len(password) < 8:
-        return JSONResponse({"detail": "Password must be at least 8 characters."}, status_code=422)
+    # The same strong-password rule as the portal (warden/auth/password_policy.py).
+    weak = password_policy.problems(password, email)
+    if weak:
+        return JSONResponse(
+            {"detail": "Choose a stronger password. It needs " + ", ".join(weak) + "."},
+            status_code=422,
+        )
 
     # Reject if already registered
     if _email_exists(email):
