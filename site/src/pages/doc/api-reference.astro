@@ -1,78 +1,301 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-// Renders the Redoc API explorer inline — no redirect to docs.shadow-warden-ai.com needed.
-// It sits inside BaseLayout like every other page, so the site navigation stays
-// on screen while you read the reference.
+
+// Every number on this page is counted from the published spec at build time —
+// nothing is typed by hand, so the header cannot drift from the reference below.
+const spec = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public', 'openapi.json'), 'utf-8'));
+const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
+const ops = Object.values(spec.paths as Record<string, Record<string, unknown>>)
+  .flatMap((p) => Object.keys(p).filter((m) => METHODS.includes(m)));
+const version: string = spec.info?.version ?? '';
+const pathCount = Object.keys(spec.paths).length;
+const opCount = ops.length;
+const byMethod = METHODS.map((m) => ({ m, n: ops.filter((o) => o === m).length })).filter((x) => x.n);
+const prod = (spec.servers ?? []).find((s: { description?: string }) => /prod/i.test(s.description ?? ''))?.url
+  ?? 'https://api.shadow-warden-ai.com';
+const fmt = (n: number) => n.toLocaleString('en-US');
 ---
 <BaseLayout
   title="API Reference — Shadow Warden AI"
-  description="Shadow Warden AI REST API — interactive documentation powered by Redoc. 80+ endpoints."
+  description={`Shadow Warden AI REST API reference: ${fmt(opCount)} operations across ${fmt(pathCount)} paths, generated from the gateway's OpenAPI ${version} document.`}
 >
-  <div id="redoc-container" style="min-height:100vh;background:var(--sw-bg)"></div>
+  <section class="ar-hero" aria-labelledby="ar-title">
+    <div class="ar-hero-grid">
+      <div class="ar-intro">
+        <p class="ar-eyebrow"><span class="ar-dot" aria-hidden="true"></span>REST API · OpenAPI 3 · v{version}</p>
+        <h1 id="ar-title">API Reference</h1>
+        <p class="ar-lead">
+          Every endpoint of the Shadow Warden gateway, generated from the same OpenAPI document the
+          server publishes. Send a key in <code>X-API-Key</code>, call <code>POST /filter</code>, read the verdict.
+        </p>
+        <div class="ar-actions">
+          <a class="ar-btn ar-btn-primary" href="/openapi.json" download="shadow-warden-openapi.json">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+            Download OpenAPI
+          </a>
+          <a class="ar-btn" href="/doc/quick-start">Quick Start</a>
+          <a class="ar-btn" href="/doc/authentication">Authentication</a>
+          <a class="ar-btn" href="/doc/rate-limits">Rate limits</a>
+        </div>
+      </div>
 
-  <!-- is:inline prevents Astro/Vite from processing these as ES modules,
-       which would break Redoc's UMD global registration. -->
+      <aside class="ar-card" aria-label="Connection details">
+        <div class="ar-row">
+          <span class="ar-k">Base URL</span>
+          <div class="ar-copy">
+            <code id="ar-base">{prod}</code>
+            <button type="button" class="ar-copy-btn" data-copy={prod} aria-label="Copy base URL">Copy</button>
+          </div>
+        </div>
+        <div class="ar-row">
+          <span class="ar-k">Auth</span>
+          <div class="ar-chips"><code>X-API-Key: &lt;key&gt;</code><code>Bearer · /ext/*</code></div>
+        </div>
+        <div class="ar-row">
+          <span class="ar-k">Try it</span>
+          <div class="ar-copy ar-curl">
+            <code>curl -s {prod}/filter -H "X-API-Key: $KEY" -d '{`{"content":"hello"}`}'</code>
+            <button type="button" class="ar-copy-btn"
+                    data-copy={`curl -s ${prod}/filter -H "X-API-Key: $KEY" -H "Content-Type: application/json" -d '{"content":"hello"}'`}
+                    aria-label="Copy curl example">Copy</button>
+          </div>
+        </div>
+        <dl class="ar-stats">
+          <div><dt>Operations</dt><dd>{fmt(opCount)}</dd></div>
+          <div><dt>Paths</dt><dd>{fmt(pathCount)}</dd></div>
+          <div class="ar-methods" aria-label="Operations by method">
+            {byMethod.map(({ m, n }) => (
+              <span class={`ar-m ar-m-${m}`}><b>{m.toUpperCase()}</b>{fmt(n)}</span>
+            ))}
+          </div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <div class="ar-frame">
+    <div id="redoc-container" aria-busy="true">
+      <div class="ar-loading" role="status">
+        <span class="ar-spin" aria-hidden="true"></span> Loading {fmt(opCount)} operations…
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .ar-hero {
+      position: relative; overflow: hidden;
+      border-bottom: 1px solid var(--sw-border);
+      background:
+        radial-gradient(60% 120% at 100% 0%, var(--sw-tint-blue) 0%, transparent 60%),
+        linear-gradient(180deg, var(--sw-surf-1), var(--sw-bg));
+    }
+    .ar-hero::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+      background-image:
+        linear-gradient(var(--sw-border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--sw-border) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(70% 90% at 85% 10%, #000 0%, transparent 70%);
+    }
+    .ar-hero-grid {
+      position: relative; max-width: 1240px; margin: 0 auto; padding: 44px 40px 40px;
+      display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 40px; align-items: center;
+    }
+    .ar-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px;
+      font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sw-fg-2);
+    }
+    .ar-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--sw-blue); box-shadow: 0 0 0 3px var(--sw-tint-blue); }
+    .ar-intro h1 {
+      margin: 0 0 12px; font-size: clamp(32px, 4vw, 44px); line-height: 1.05; letter-spacing: -.025em;
+      font-weight: 700; color: var(--sw-fg-1);
+    }
+    .ar-lead { margin: 0 0 24px; max-width: 58ch; font-size: 15.5px; line-height: 1.6; color: var(--sw-fg-2); }
+    .ar-lead code, .ar-chips code {
+      font: 500 .86em var(--font-mono); padding: 2px 6px; border-radius: 5px;
+      background: var(--sw-surf-3); border: 1px solid var(--sw-border); color: var(--sw-fg-1);
+    }
+    .ar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ar-btn {
+      display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px;
+      border-radius: 8px; border: 1px solid var(--sw-border-strong); background: var(--sw-surf-1);
+      color: var(--sw-fg-1); font-size: 14px; font-weight: 550; text-decoration: none;
+      transition: border-color .15s ease, transform .15s ease, background-color .15s ease;
+    }
+    .ar-btn:hover { border-color: var(--sw-border-hover); }
+    .ar-btn:active { transform: translateY(1px); }
+    .ar-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .ar-btn-primary { background: var(--sw-blue); border-color: transparent; color: #fff; }
+    :global(html.dark) .ar-btn-primary { color: #06101f; }
+    .ar-btn-primary:hover { border-color: transparent; filter: brightness(1.06); }
+
+    .ar-card {
+      border: 1px solid var(--sw-border-strong); border-radius: 12px; background: var(--sw-surf-1);
+      box-shadow: var(--sw-shadow-lg); padding: 6px 18px 16px;
+    }
+    .ar-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--sw-border); }
+    .ar-k { font: 600 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sw-fg-3); }
+    .ar-copy { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .ar-copy code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font: 500 13px var(--font-mono); color: var(--sw-fg-1); scrollbar-width: none; }
+    .ar-curl code { font-size: 12px; color: var(--sw-fg-2); }
+    .ar-copy-btn {
+      flex: none; min-height: 28px; padding: 0 10px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--sw-border-strong); background: var(--sw-surf-3); color: var(--sw-fg-2);
+      font: 600 12px var(--font-sans); transition: color .15s ease, border-color .15s ease;
+    }
+    .ar-copy-btn:hover { color: var(--sw-fg-1); border-color: var(--sw-border-hover); }
+    .ar-copy-btn[data-done] { color: var(--sw-green); }
+    .ar-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ar-chips code { font-size: 12px; }
+    .ar-stats { display: grid; grid-template-columns: auto auto 1fr; gap: 20px; align-items: end; margin: 14px 0 0; }
+    .ar-stats dt { font: 600 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sw-fg-3); margin-bottom: 6px; }
+    .ar-stats dd { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.02em; color: var(--sw-fg-1); font-variant-numeric: tabular-nums; }
+    .ar-methods { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    .ar-m { display: inline-flex; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 6px; font: 500 11.5px var(--font-mono); color: var(--sw-fg-2); background: var(--sw-surf-3); font-variant-numeric: tabular-nums; }
+    .ar-m b { font-weight: 700; font-size: 10.5px; }
+    .ar-m-get b { color: var(--sw-green); } .ar-m-post b { color: var(--sw-blue); }
+    .ar-m-put b { color: var(--sw-amber); } .ar-m-patch b { color: var(--sw-cyan); } .ar-m-delete b { color: var(--sw-red); }
+
+    .ar-frame { background: var(--sw-surf-1); }
+    #redoc-container { min-height: 100vh; }
+    .ar-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 120px 0; color: var(--sw-fg-3); font-size: 14px; }
+    .ar-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--sw-border-strong); border-top-color: var(--sw-blue); animation: ar-spin .8s linear infinite; }
+    @keyframes ar-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .ar-spin { animation-duration: 2.4s; } .ar-btn { transition: none; } }
+
+    /* Redoc internals: its own footer link, and the info block the hero already covers. */
+    #redoc-container :global(a[href^="https://redocly.com"]) { display: none; }
+    #redoc-container :global(.api-info h1),
+    #redoc-container :global(.api-info > p:first-of-type) { display: none; }
+    #redoc-container :global(.menu-content) { border-right: 1px solid var(--sw-border); }
+    #redoc-container :global(.api-content) { border-right: 0; }
+    /* Redoc dims its section labels with a fixed grey that vanishes on the dark surface. */
+    #redoc-container :global(.api-content h5),
+    #redoc-container :global(.api-content h5 span) { color: var(--sw-fg-2) !important; border-color: var(--sw-border) !important; }
+
+    @media (max-width: 960px) {
+      .ar-hero-grid { grid-template-columns: 1fr; padding: 32px 20px; gap: 24px; }
+      .ar-stats { grid-template-columns: auto auto; }
+      .ar-methods { grid-column: 1 / -1; justify-content: flex-start; }
+    }
+  </style>
+
+  <!-- is:inline: Redoc is a UMD bundle; letting Vite process it breaks its global. -->
   <script is:inline>
     (function () {
+      // Redoc derives shades with polished, so it needs literal colours, not CSS
+      // variables. Two palettes mirror the site tokens in global.css.
+      var PALETTES = {
+        light: {
+          bg: "#ffffff", text: "#0f172a", text2: "#475569", border: "rgba(15,23,42,0.10)",
+          side: "#fbfbfc", sideText: "#334155", sideActive: "#eef3ff",
+          panel: "#0b1220", nested: "#f6f7f9",
+          primary: "#1d4ed8", ok: "#047857", warn: "#b45309", err: "#b91c1c", patch: "#0369a1",
+          okBg: "#ecfdf5", errBg: "#fef2f2",
+        },
+        dark: {
+          bg: "#0c1020", text: "#e2e8f0", text2: "#a3b1c6", border: "rgba(128,180,253,0.12)",
+          side: "#090c16", sideText: "#a3b1c6", sideActive: "#141b2e",
+          panel: "#070910", nested: "#111827",
+          primary: "#80b4fd", ok: "#34d399", warn: "#fbbf24", err: "#f87171", patch: "#38bdf8",
+          okBg: "#052e22", errBg: "#2d0a0a",
+        },
+      };
+
+      function mode() { return document.documentElement.classList.contains("dark") ? "dark" : "light"; }
+
+      function theme(p) {
+        var sans = getComputedStyle(document.body).fontFamily || "Inter, system-ui, sans-serif";
+        return {
+          spacing: { unit: 5, sectionHorizontal: 40, sectionVertical: 36 },
+          colors: {
+            tonalOffset: 0.15,
+            primary: { main: p.primary },
+            success: { main: p.ok }, warning: { main: p.warn }, error: { main: p.err },
+            text: { primary: p.text, secondary: p.text2 },
+            border: { dark: p.border, light: p.border },
+            responses: {
+              success: { color: p.ok, backgroundColor: p.okBg, tabTextColor: p.ok },
+              error: { color: p.err, backgroundColor: p.errBg, tabTextColor: p.err },
+            },
+            // Method badges carry white text, so they take the deep shade in both themes.
+            http: { get: "#047857", post: "#1d4ed8", put: "#b45309", delete: "#b91c1c", patch: "#0369a1", options: "#475569", head: "#475569" },
+          },
+          schema: { nestedBackground: p.nested, linesColor: p.border, typeNameColor: p.text2, requireLabelColor: p.err },
+          typography: {
+            fontSize: "14.5px", lineHeight: "1.65", fontFamily: sans, smoothing: "antialiased",
+            headings: { fontFamily: sans, fontWeight: "700", lineHeight: "1.25" },
+            code: { fontSize: "13px", fontFamily: "'JetBrains Mono', ui-monospace, monospace", color: p.err, backgroundColor: p.nested, wrap: true },
+            links: { color: p.primary, hover: p.primary },
+          },
+          sidebar: {
+            width: "272px", backgroundColor: p.side, textColor: p.sideText,
+            activeTextColor: p.primary, groupItems: { activeBackgroundColor: p.sideActive, textTransform: "uppercase" },
+            level1Items: { activeBackgroundColor: p.sideActive },
+            arrow: { size: "1.2em", color: p.sideText },
+          },
+          rightPanel: { backgroundColor: p.panel, textColor: "#e2e8f0", width: "42%" },
+          codeBlock: { backgroundColor: "#04070d" },
+        };
+      }
+
+      var container = document.getElementById("redoc-container");
+      var rendered = null;
+
+      function render() {
+        var m = mode();
+        if (m === rendered) return;
+        rendered = m;
+        window.Redoc.init("/openapi.json", Object.assign({ theme: theme(PALETTES[m]) }, {
+          // What covers the top of the page: the sticky breadcrumb bar on wide
+          // screens, the #navbar strip below 1024px. #navbar is the full-height
+          // side rail on desktop — measuring it pushed Redoc's menu below the
+          // fold (top = viewport height, height 0), which left its column empty.
+          scrollYOffset: function () {
+            var nav = document.getElementById("navbar");
+            var bar = document.querySelector(".sw-topbar");
+            var cover = 0;
+            if (nav) {
+              var r = nav.getBoundingClientRect();
+              if (r.height < window.innerHeight / 2) cover = r.bottom;
+            }
+            if (bar) {
+              var pos = getComputedStyle(bar).position;
+              if (pos === "sticky" || pos === "fixed") cover = Math.max(cover, bar.getBoundingClientRect().bottom);
+            }
+            return Math.max(0, cover);
+          },
+          hideDownloadButton: true,
+          expandDefaultServerVariables: true,
+          requiredPropsFirst: true,
+          sortPropsAlphabetically: false,
+          menuToggle: true,
+          jsonSampleExpandLevel: 2,
+          hideSingleRequestSampleTab: true,
+          pathInMiddlePanel: true,
+          disableSearch: false,
+        }), container, function () { container.removeAttribute("aria-busy"); });
+      }
+
       var s = document.createElement("script");
       s.src = "https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.js";
       s.onload = function () {
-        Redoc.init(
-          "/openapi.json",
-          {
-            theme: {
-              colors: {
-                primary: { main: "#1d4ed8" },
-                success: { main: "#047857" },
-                warning: { main: "#b45309" },
-                error:   { main: "#b91c1c" },
-                text: { primary: "#e2e8f0", secondary: "#94a3b8" },
-                border: { dark: "rgba(255,255,255,0.08)", light: "rgba(255,255,255,0.08)" },
-                responses: {
-                  success: { color: "#047857", backgroundColor: "#022c22" },
-                  error:   { color: "#b91c1c", backgroundColor: "#2d0a0a" },
-                },
-                http: {
-                  get: "#047857", post: "#1d4ed8", put: "#b45309",
-                  delete: "#b91c1c", patch: "#0369a1",
-                },
-              },
-              typography: {
-                fontSize: "14px",
-                lineHeight: "1.6",
-                fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                headings: {
-                  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-                  fontWeight: "700",
-                },
-                code: {
-                  fontSize: "13px",
-                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                },
-              },
-              sidebar: { width: "280px", backgroundColor: "#080910", textColor: "#556072" },
-              rightPanel: { backgroundColor: "#050610" },
-              schema: { nestedBackground: "#080910" },
-            },
-            // The site header is fixed and its height changes when the top banner
-            // is dismissed, so measure it instead of hard-coding a number.
-            scrollYOffset: function () {
-              var nav = document.getElementById("navbar");
-              return nav ? nav.getBoundingClientRect().bottom : 0;
-            },
-            hideDownloadButton: false,
-            expandDefaultServerVariables: true,
-            requiredPropsFirst: true,
-            menuToggle: true,
-            jsonSampleExpandLevel: 2,
-            hideSingleRequestSampleTab: true,
-            nativeScrollbars: false,
-            disableSearch: false,
-          },
-          document.getElementById("redoc-container")
-        );
+        render();
+        // Repaint when the site theme toggles; Redoc has no live theme switch.
+        new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
       };
       document.head.appendChild(s);
+
+      document.querySelectorAll(".ar-copy-btn").forEach(function (b) {
+        b.addEventListener("click", function () {
+          navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function () {
+            b.textContent = "Copied"; b.setAttribute("data-done", "");
+            setTimeout(function () { b.textContent = "Copy"; b.removeAttribute("data-done"); }, 1600);
+          });
+        });
+      });
     })();
   </script>
 </BaseLayout>
