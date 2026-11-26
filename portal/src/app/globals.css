@@ -104,12 +104,12 @@
 }
 
 /* Text */
-[data-theme="light"] .text-white     { color: #0f172a !important; }
-[data-theme="light"] .text-slate-100 { color: #1e293b !important; }
-[data-theme="light"] .text-slate-200 { color: #334155 !important; }
-[data-theme="light"] .text-slate-300 { color: #475569 !important; }
-[data-theme="light"] .text-slate-400 { color: #64748b !important; }
-[data-theme="light"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="light"] .text-white     { color: #0b1220 !important; }
+[data-theme="light"] .text-slate-100 { color: #0b1220 !important; }
+[data-theme="light"] .text-slate-200 { color: #263142 !important; }
+[data-theme="light"] .text-slate-300 { color: #445063 !important; }
+[data-theme="light"] .text-slate-400 { color: #556072 !important; }
+[data-theme="light"] .text-slate-500 { color: #667085 !important; }
 
 /* Borders that use rgba(255,255,255,…) */
 [data-theme="light"] .border-white\/\[0\.06\] { border-color: #e2e8f0 !important; }
@@ -142,10 +142,10 @@
 
 /* Badges */
 [data-theme="light"] .badge-low    { background-color: rgba(34,  197, 94,  0.12) !important; color: #15803d !important; }
-[data-theme="light"] .badge-medium { background-color: rgba(245, 158, 11,  0.12) !important; color: #d97706 !important; }
-[data-theme="light"] .badge-high   { background-color: rgba(239, 68,  68,  0.12) !important; color: #dc2626 !important; }
+[data-theme="light"] .badge-medium { background-color: rgba(245, 158, 11,  0.12) !important; color: #92400e !important; }
+[data-theme="light"] .badge-high   { background-color: rgba(239, 68,  68,  0.12) !important; color: #b91c1c !important; }
 [data-theme="light"] .badge-block  { background-color: rgba(220, 38,  38,  0.15) !important; color: #b91c1c !important; }
-[data-theme="light"] .badge-active { background-color: rgba(14,  165, 233, 0.12) !important; color: #0284c7 !important; }
+[data-theme="light"] .badge-active { background-color: rgba(37,  99,  235, 0.10) !important; color: #1d4ed8 !important; }
 [data-theme="light"] .badge-revoked{ background-color: rgba(100, 116, 139, 0.12) !important; color: #475569 !important; }
 
 /* Scrollbar */
@@ -160,26 +160,32 @@
   .card-glow {
     @apply bg-dark-800 border border-white/[0.06] rounded-2xl bg-card-gradient;
   }
+  /* Buttons follow the site (.sw-cta): solid blue that reads in both themes
+     (white on #2563eb is 5.2:1), a quiet press instead of a hover zoom. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2
-           bg-brand-gradient text-white font-semibold
-           px-5 py-2.5 rounded-xl
-           transition-all duration-200
-           hover:opacity-90 hover:scale-[1.02]
-           active:scale-[0.98]
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
-           focus:outline-none focus:ring-2 focus:ring-brand-400/50;
+    @apply inline-flex items-center justify-center gap-2 font-semibold text-sm
+           px-4 py-2.5 rounded-[9px] cursor-pointer
+           transition-[background-color,transform,box-shadow] duration-150
+           active:scale-[0.97]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb];
+    background-color: #2563eb;
+    color: #ffffff !important;
+    box-shadow: 0 1px 2px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.14);
   }
+  .btn-primary:not(:disabled):hover { background-color: #1d4ed8; }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2
-           bg-white/[0.05] border border-white/10 text-slate-200 font-medium
-           px-5 py-2.5 rounded-xl
-           transition-all duration-200
-           hover:bg-white/[0.08] hover:border-white/20
-           active:scale-[0.98]
-           disabled:opacity-50 disabled:cursor-not-allowed
-           focus:outline-none focus:ring-2 focus:ring-white/20;
+    @apply inline-flex items-center justify-center gap-2 font-medium text-sm
+           px-4 py-2.5 rounded-[9px] border cursor-pointer
+           transition-[background-color,border-color,transform] duration-150
+           active:scale-[0.97]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb];
+    background-color: var(--sw-surf-1);
+    border-color: var(--sw-border-strong);
+    color: var(--ink-1) !important;
   }
+  .btn-secondary:not(:disabled):hover { border-color: var(--sw-border-hover); background-color: var(--sw-surf-3); }
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2
            bg-red-500/10 border border-red-500/20 text-red-400 font-medium

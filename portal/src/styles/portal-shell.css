@@ -1,0 +1,52 @@
+/* Portal-only parts of the shell, on top of shell.css (a copy of the site's).
+   .pw-scope wraps every signed-in screen (AppShell): inside it the Tailwind
+   palette the pages were written with resolves to the site's tokens, so a card
+   on /store/manage is the same surface as a card on www. The public storefront
+   (/s/…) and the sign-in pages are outside the scope and keep their own look. */
+
+.pw-scope {
+  --color-dark-950: var(--sw-side);
+  --color-dark-900: var(--sw-bg);
+  --color-dark-800: var(--sw-surf-1);
+  --color-dark-700: var(--sw-surf-3);
+  --color-dark-600: var(--sw-surf-3);
+  --color-brand-500: #2563eb;   /* filled buttons: white text 5.2:1 in both themes */
+  --color-brand-600: #1d4ed8;
+  --color-brand-400: var(--acc-blue);
+  --color-brand-300: var(--acc-blue);
+  min-height: 100vh;
+  background: var(--sw-bg);
+  color: var(--ink-1);
+}
+
+/* Dark: lift the quiet greys the pages use for captions to the site's ink-4,
+   so a caption is still 4.5:1 on a card. */
+html.dark .pw-scope { --color-slate-500: #8391a7; --color-slate-600: #7b8aa0; }
+
+.pw-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.pw-loading { margin: 0; padding: 32px clamp(16px, 3vw, 40px); color: var(--ink-4); font-size: 14px; }
+
+/* The page title sits in the breadcrumb as an h1, styled like a crumb. */
+.pw-crumb-title { margin: 0; font: inherit; font-weight: 600; color: var(--ink-1); }
+
+.pw-account {
+  display: flex; align-items: center; gap: 10px; margin-left: 8px; padding: 4px 4px 4px 10px;
+  border-radius: 9px; text-decoration: none; transition: background-color 140ms ease;
+}
+.pw-account:hover { background: rgba(var(--ink-rgb), 0.05); }
+.pw-account__text { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.pw-account__name { font-size: 13px; font-weight: 600; color: var(--ink-1); }
+.pw-account__tenant { font: 11px var(--font-mono); color: var(--ink-4); }
+.pw-account__avatar { width: 30px; height: 30px; border-radius: 8px; font-size: 11px; color: var(--on-acc); }
+
+.sw-item:focus-visible, .sw-hub__toggle:focus-visible, .sw-iconbtn:focus-visible,
+.sw-cta:focus-visible, .sw-toplink:focus-visible, .pw-account:focus-visible, .sw-brand:focus-visible {
+  outline: 2px solid var(--acc-blue); outline-offset: 2px;
+}
+
+/* The drawer is rendered only while open, so it needs no .hidden toggle. */
+.sw-drawer { position: fixed; inset: var(--bar-h) 0 0 0; z-index: 45; background: rgba(15, 23, 42, 0.32); animation: sw-fade 180ms ease both; }
+
+@media (max-width: 1023.98px) {
+  .pw-account__text { display: none; }
+}
