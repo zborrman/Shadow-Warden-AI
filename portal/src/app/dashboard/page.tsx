@@ -107,7 +107,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <TopBar title="Dashboard" />
+      <TopBar title="Overview" />
       <div className="flex-1 p-6 space-y-6 min-h-0">
 
         {/* Stat cards */}
@@ -138,21 +138,22 @@ export default function DashboardPage() {
                 <AreaChart data={daily} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gAllowed" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#38bdf8" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gBlocked" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(127,127,127,0.18)" />
                   <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false}
                     tickFormatter={d => d.slice(5)} />
                   <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
-                  <Area type="monotone" dataKey="allowed" stroke="#38bdf8" strokeWidth={2} fill="url(#gAllowed)" name="allowed" />
+                  <Legend wrapperStyle={{ fontSize: 12 }}
+                    formatter={(v: string) => <span style={{ color: 'var(--ink-3)' }}>{v}</span>} />
+                  <Area type="monotone" dataKey="allowed" stroke="#2563eb" strokeWidth={2} fill="url(#gAllowed)" name="allowed" />
                   <Area type="monotone" dataKey="blocked" stroke="#ef4444" strokeWidth={2} fill="url(#gBlocked)" name="blocked" />
                 </AreaChart>
               </ResponsiveContainer>

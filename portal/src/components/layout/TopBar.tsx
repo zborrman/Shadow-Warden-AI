@@ -1,11 +1,17 @@
 'use client'
-// Page header in the console layout: a breadcrumb on the left, the signed-in
-// account on the right.
+// Page header — the site's sticky top bar (.sw-topbar): breadcrumb trail on the
+// left, a few links and the signed-in account on the right.
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { locate } from '@/components/layout/Sidebar'
+
+const SITE = 'https://www.shadow-warden-ai.com'
 
 export function TopBar({ title }: { title: string }) {
+  const path = usePathname() || '/'
+  const { hub } = locate(path)
   const { data: me } = useQuery({
     queryKey: ['me'],
     queryFn:  () => api.get('/me').then(r => r.data),
@@ -14,21 +20,25 @@ export function TopBar({ title }: { title: string }) {
   const name: string = me?.display_name || me?.email?.split('@')[0] || ''
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.06] bg-dark-900 px-6">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
-        <Link href="/dashboard/" className="text-slate-400 hover:text-slate-200">Shadow Warden</Link>
-        <span className="text-slate-500" aria-hidden>/</span>
-        <h1 className="font-semibold text-slate-100">{title}</h1>
+    <div className="sw-topbar">
+      <nav aria-label="Breadcrumb" className="sw-crumbs">
+        <ol>
+          <li><Link href="/dashboard/">Workspace</Link></li>
+          {hub && <li><span className="sw-crumbs__sep" aria-hidden="true">/</span><span>{hub}</span></li>}
+          <li><span className="sw-crumbs__sep" aria-hidden="true">/</span><h1 aria-current="page" className="pw-crumb-title">{title}</h1></li>
+        </ol>
       </nav>
-      <div className="flex items-center gap-2.5">
-        <span className="hidden text-right sm:block">
-          <span className="block text-sm font-medium leading-none text-slate-100">{name || '…'}</span>
-          <span className="mt-0.5 block text-xs text-slate-400">{me?.tenant_id || '…'}</span>
-        </span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500 text-xs font-bold text-white" aria-hidden>
-          {(name || 'SW').slice(0, 2).toUpperCase()}
-        </span>
+      <div className="sw-topbar__actions">
+        <a href={`${SITE}/doc`} className="sw-toplink" target="_blank" rel="noopener noreferrer">Docs</a>
+        <a href={`${SITE}/status`} className="sw-toplink" target="_blank" rel="noopener noreferrer">Status</a>
+        <Link href="/settings/" className="pw-account" aria-label={`Account settings${name ? ` for ${name}` : ''}`}>
+          <span className="pw-account__text">
+            <span className="pw-account__name">{name || '…'}</span>
+            <span className="pw-account__tenant">{me?.tenant_id || '…'}</span>
+          </span>
+          <span className="sw-avatar pw-account__avatar" aria-hidden="true">{(name || 'SW').slice(0, 2).toUpperCase()}</span>
+        </Link>
       </div>
-    </header>
+    </div>
   )
 }

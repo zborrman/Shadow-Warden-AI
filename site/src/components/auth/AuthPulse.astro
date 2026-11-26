@@ -1,0 +1,120 @@
+---
+// The sign-in / sign-up frame, the same one the portal uses
+// (portal/src/components/auth/AuthShell.tsx, design canvas variant 5 "Pulse"):
+// the Amazon Sales Detector preview on the left, the form on the right.
+// The preview is sample data and says so. Pages pass their content in the slot.
+interface Props { title: string; step: string; heading: string; lead?: string }
+const { title, step, heading, lead } = Astro.props;
+
+const BARS = [58, 70, 80, 62, 48, 32, 24, 20, 28, 44, 64, 82, 90, 84, 76, 80, 86, 92, 98, 90, 74, 60, 42, 30,
+  24, 20, 26, 40, 60, 78, 88, 92, 86, 82, 90, 94, 96, 88];
+const LOW = [24, 20, 16, 18, 14, 16];
+const FEED = [
+  { t: '14:00', text: 'Afternoon orders 71% under the usual Tuesday. Stock on the top seller reads 0.', tag: 'FLAG', fg: '#ff8a8a', bg: '#2a1015' },
+  { t: '09:00', text: 'New offer on 2 of your listings priced 9% below yours.', tag: 'WATCH', fg: '#ffb020', bg: '#2a1f05' },
+  { t: 'Mon', text: 'Sales inside the normal range for all 38 listings.', tag: 'OK', fg: '#3ddc97', bg: '#0f2a1f' },
+];
+---
+<!doctype html>
+<html lang="en" class="dark" translate="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <meta name="color-scheme" content="dark" />
+  <title>{title}</title>
+  <link rel="icon" href="/logo.png" type="image/png" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="agent-protocol" href="/.well-known/agent.json" type="application/json" />
+</head>
+<body>
+  <div class="ap">
+    <section class="ap-art" aria-label="Amazon Sales Detector preview">
+      <div class="ap-art-head">
+        <span class="ap-eyebrow"><span class="ap-live" aria-hidden="true"></span>Amazon Sales Detector · watching</span>
+        <h2>Your store's pulse, read every hour.</h2>
+      </div>
+      <svg viewBox="0 0 600 120" role="img" class="ap-chart"
+           aria-label="Hourly sales pulse for the last 44 hours; the last six hours are low and marked">
+        <g fill="#00c2ff">{BARS.map((h, i) => <rect x={i * 12} y={120 - h} width="8" height={h} rx="1" />)}</g>
+        <g fill="#ff8a8a">{LOW.map((h, i) => <rect x={(BARS.length + i) * 12} y={120 - h} width="8" height={h} rx="1" />)}</g>
+        <rect x={BARS.length * 12 - 4} y="0" width={LOW.length * 12 + 4} height="120" fill="#ff8a8a" fill-opacity="0.07" />
+      </svg>
+      <ol class="ap-feed" aria-label="Detector feed">
+        {FEED.map((f) => (
+          <li>
+            <span class="ap-t">{f.t}</span>
+            <span class="ap-text">{f.text}</span>
+            <span class="ap-tag" style={`color:${f.fg};background:${f.bg}`}>{f.tag}</span>
+          </li>
+        ))}
+      </ol>
+      <p class="ap-note">Sample data. Flags are estimates from the reports you upload, not Amazon's decision.</p>
+    </section>
+
+    <main class="ap-main">
+      <div class="ap-col">
+        <a href="/" class="ap-brand"><span class="ap-mark" aria-hidden="true"></span>Shadow Warden</a>
+        <div>
+          <p class="ap-step">{step}</p>
+          <h1>{heading}</h1>
+          {lead && <p class="ap-lead">{lead}</p>}
+        </div>
+        <slot />
+        <p class="ap-foot">Shadow Warden never asks for your Amazon password. Your data stays in the EU.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #07090c; color: #e6edf3; -webkit-font-smoothing: antialiased;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .ap { min-height: 100vh; display: flex; }
+  .ap-art { display: none; flex: 1; min-width: 0; flex-direction: column; gap: 32px; padding: 56px 64px; border-right: 1px solid #232c38; }
+  @media (min-width: 1024px) { .ap-art { display: flex; } }
+  .ap-art-head { display: flex; flex-direction: column; gap: 12px; max-width: 580px; }
+  .ap-eyebrow { display: flex; align-items: center; gap: 8px; font: 500 12px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: #00c2ff; }
+  .ap-live { width: 8px; height: 8px; border-radius: 50%; background: #3ddc97; box-shadow: 0 0 0 4px rgba(61,220,151,.18); }
+  .ap-art h2 { margin: 0; font-size: 44px; line-height: 50px; font-weight: 600; letter-spacing: -.02em; color: #e6edf3; }
+  .ap-chart { width: 100%; height: auto; display: block; }
+  .ap-feed { list-style: none; margin: 0; padding: 0; border: 1px solid #232c38; border-radius: 8px; background: #0d1117; }
+  .ap-feed li { display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center; padding: 14px 16px; }
+  .ap-feed li + li { border-top: 1px solid #232c38; }
+  .ap-t { font: 12px "JetBrains Mono", ui-monospace, monospace; color: #8b98a8; }
+  .ap-text { font-size: 14px; line-height: 20px; }
+  .ap-tag { font: 11px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .06em; padding: 2px 8px; border-radius: 2px; }
+  .ap-note { margin: auto 0 0; font-size: 13px; line-height: 20px; color: #8b98a8; }
+
+  .ap-main { flex: 1; display: flex; flex-direction: column; justify-content: center; background: #0d1117; padding: 48px 24px; }
+  @media (min-width: 640px) { .ap-main { padding: 48px 40px; } }
+  @media (min-width: 1024px) { .ap-main { flex: none; width: 520px; } }
+  .ap-col { width: 100%; max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+  .ap-brand { display: flex; align-items: center; gap: 10px; color: #e6edf3; text-decoration: none; font: 700 17px "JetBrains Mono", ui-monospace, monospace; }
+  .ap-mark { width: 22px; height: 22px; border-radius: 3px; background: #00c2ff; }
+  .ap-step { margin: 0 0 6px; font: 500 12px "JetBrains Mono", ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8b98a8; }
+  .ap-col h1 { margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -.01em; }
+  .ap-lead { margin: 8px 0 0; font-size: 15px; line-height: 22px; color: #8b98a8; }
+  .ap-foot { margin: 0; padding-top: 16px; border-top: 1px solid #232c38; font-size: 12px; line-height: 18px; color: #8b98a8; }
+
+  /* Hand-off parts the pages share. */
+  .ap-primary {
+    width: 100%; min-height: 48px; border-radius: 8px; border: 1px solid #00c2ff; background: #00c2ff;
+    color: #0b1220; font-size: 15px; font-weight: 600; text-decoration: none;
+    display: flex; align-items: center; justify-content: center; transition: filter .15s ease, transform .1s ease;
+  }
+  .ap-primary:hover { filter: brightness(1.08); }
+  .ap-primary:active { transform: translateY(1px); }
+  .ap-primary:focus-visible, .ap-link:focus-visible { outline: 2px solid #7fd3ff; outline-offset: 3px; }
+  .ap-link { color: #7fd3ff; font-weight: 600; text-decoration: none; }
+  .ap-link:hover { text-decoration: underline; }
+  .ap-row { margin: 0; font-size: 14px; color: #8b98a8; text-align: center; }
+  .ap-points { list-style: none; margin: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #232c38; border-radius: 8px; background: #07090c; font-size: 14px; color: #c6d4e3; }
+  .ap-points li::before { content: "✓"; display: inline-block; width: 20px; color: #3ddc97; }
+  @media (prefers-reduced-motion: reduce) { .ap-primary { transition: none; } }
+</style>

@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import '@/styles/tokens.css'
+import '@/styles/shell.css'
+import '@/styles/portal-shell.css'
 import { Providers } from './providers'
 import AccessibilityWidget from '@/components/ui/AccessibilityWidget'
 
@@ -13,9 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Anti-FOUT: apply stored theme before first paint */}
+        {/* Anti-FOUT: stored theme, else light like the site; the public storefront
+            keeps the dark default its accessibility audit runs against. */}
         <script dangerouslySetInnerHTML={{ __html:
-          `try{var t=localStorage.getItem('sw-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}`
+          `try{var t=localStorage.getItem('sw-theme');if(t!=='light'&&t!=='dark')t=location.pathname.indexOf('/s/')===0?'dark':'light';var r=document.documentElement;r.setAttribute('data-theme',t);r.classList.add(t)}catch(e){}`
         }} />
       </head>
       <body>

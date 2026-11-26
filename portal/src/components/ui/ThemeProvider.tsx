@@ -18,19 +18,26 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
+  // Until the stored choice is read, write nothing: the first effect run would
+  // otherwise save the placeholder "dark" over the visitor's real preference.
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("sw-theme") as Theme | null;
     if (stored === "light" || stored === "dark") setThemeState(stored);
+    // Light by default, like the site; the public storefront keeps dark.
+    else setThemeState(location.pathname.startsWith("/s/") ? "dark" : "light");
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!loaded) return;
     const root = document.documentElement;
     root.setAttribute("data-theme", theme);
     root.classList.remove("light", "dark");
     root.classList.add(theme);
     localStorage.setItem("sw-theme", theme);
-  }, [theme]);
+  }, [theme, loaded]);
 
   const setTheme = (t: Theme) => setThemeState(t);
   const toggle   = () => setThemeState(prev => prev === "dark" ? "light" : "dark");
