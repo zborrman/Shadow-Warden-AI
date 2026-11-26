@@ -23,7 +23,6 @@ export const MARKDOWN_ROUTES = Object.freeze({
   "/price": "/pricing.md",
   "/doc": "/doc.md",
   "/sdk": "/sdk.md",
-  "/agentic": "/agentic.md",
   "/trust": "/trust.md",
   "/developers": "/developers.md",
   "/mcp": "/mcp.md",

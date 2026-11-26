@@ -443,7 +443,6 @@ class TestPublishedLanding:
             "pricing.md",
             "doc.md",
             "sdk.md",
-            "agentic.md",
             "trust.md",
             "developers.md",
             "mcp.md",
@@ -807,7 +806,7 @@ class TestOneLayout:
     # forms, the FraudScore console (it loads its own Tailwind build), and the
     # two pages that only redirect.
     STANDALONE = {"login.astro", "signup.astro", "fraud-score.astro",
-                  "community.astro", "enterprise.astro"}
+                  "community.astro", "enterprise.astro", "agentic.astro"}
 
     def test_the_site_has_one_layout(self):
         assert sorted(p.name for p in _LAYOUTS.glob("*.astro")) == list(_SITE_LAYOUTS)

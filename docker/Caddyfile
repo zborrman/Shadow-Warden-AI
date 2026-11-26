@@ -424,14 +424,6 @@ shadow-warden-ai.com, www.shadow-warden-ai.com {
 			path /sdk /sdk/
 		}
 		rewrite @md_sdk /sdk.md
-		@md_agentic {
-			method GET HEAD
-			header Accept *text/markdown*
-			not header Accept *text/markdown;q=0*
-			not header Accept "*text/markdown; q=0*"
-			path /agentic /agentic/
-		}
-		rewrite @md_agentic /agentic.md
 		@md_trust {
 			method GET HEAD
 			header Accept *text/markdown*
