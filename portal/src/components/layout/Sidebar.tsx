@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+  ClipboardCheck,
   BarChart2, BookOpen, ChevronsLeft, ChevronsRight, ExternalLink,
   Key, LogOut, Moon, Settings, Store, Sun,
 } from 'lucide-react'
@@ -19,6 +20,9 @@ type Section = { id: string; label: string; icon: React.ElementType; groups: { l
 // Only screens whose API a portal session can reach (see 2026-11-19 cut): the
 // portal session is accepted by /portal/* and the store's owner routes.
 const SECTIONS: Section[] = [
+  { id: 'preflight', label: 'Listing Preflight', icon: ClipboardCheck, groups: [
+    { label: 'Before you publish', items: [{ href: '/preflight/', label: 'Listing Preflight' }] },
+  ] },
   { id: 'store', label: 'Store', icon: Store, groups: [
     { label: 'Store', items: [{ href: '/store/manage/', label: 'Store Builder' }] },
   ] },

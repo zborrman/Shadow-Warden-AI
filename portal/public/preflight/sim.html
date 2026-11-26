@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listing Preflight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: clinical inspector — a preflight sheet, not a marketing page.
+   IDEA: an aircraft preflight: every field is a line item that passes, warns or grounds the flight; then the clock runs and the bots arrive.
+   PICTURE: the working form with a pinned inspection tag (verdict, four risk levels) and a 0–72 h bot timeline.
+   COLOUR and TYPE: white sheet, ink #10131a, carmine for critical/high, amber for medium, prussian for actions; Literata titles, Inter body.
+   LAYOUT: steps rail · one calm form column · sticky inspection panel; stacks below 1100/720px. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1217);--sheet:light-dark(#f5f6f8,#161a21);--ink:light-dark(#10131a,#e8ebf0);--mute:light-dark(#4a5260,#a3abb8);--line:light-dark(#d5d9e0,#2a303a);
+--crit:light-dark(#ffffff,#10131a);--critbg:light-dark(#7a0a12,#ff8a92);--red:light-dark(#c1121f,#ff6b74);--redbg:light-dark(#fbe9ea,#3a1518);--warn:light-dark(#8a5300,#f0b45c);--warnbg:light-dark(#fbf0dd,#33260f);--ok:light-dark(#1d6b3a,#6fd49a);--okbg:light-dark(#e5f3ea,#11301f);--blue:light-dark(#0b4f8a,#7cb6ee);--bluebg:light-dark(#e6eef7,#14263a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Literata,Georgia,serif;font-weight:600;line-height:1.1;text-wrap:balance;margin:0}
+a{color:var(--blue)}
+.top{padding:28px max(4vw,16px) 18px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.top h1{font-size:clamp(28px,3.4vw,40px)}
+.top p{margin:6px 0 0;color:var(--mute);max-width:66ch}
+.note{font-size:13px;color:var(--mute)}
+.btn{font:600 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:light-dark(#fff,#0f1217)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.rail button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 360px;gap:28px;padding:24px max(4vw,16px) 40px;max-width:1440px;margin:0 auto}
+.rail{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px;align-self:start}
+.rail button{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;border-radius:6px;font-size:15px}
+.rail button[aria-current=step]{background:var(--sheet);font-weight:600}
+.rail .n{font-size:12px;color:var(--mute);margin-right:6px;font-variant-numeric:tabular-nums}
+.dot{font-size:12px;font-weight:600;border-radius:99px;padding:1px 8px;white-space:nowrap}
+.l-critical{background:var(--critbg);color:var(--crit)}.l-high{background:var(--redbg);color:var(--red)}.l-medium{background:var(--warnbg);color:var(--warn)}.l-low{background:var(--bluebg);color:var(--blue)}.l-ok{background:var(--okbg);color:var(--ok)}
+form{display:flex;flex-direction:column;gap:18px;max-width:700px}
+form h2{font-size:26px}
+.lead{margin:-8px 0 0;color:var(--mute);font-size:15px}
+.f{display:flex;flex-direction:column;gap:6px}
+.f>label,.f legend{font-weight:600;font-size:15px}
+.f small{color:var(--mute);font-size:13px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+input,select,textarea{font:16px Inter,sans-serif;color:var(--ink);background:var(--bg);border:1px solid light-dark(#7b8494,#5a6372);border-radius:6px;padding:10px 12px;min-height:44px;width:100%}
+textarea{min-height:88px;resize:vertical}
+input[type=checkbox]{width:20px;min-height:20px;height:20px;margin:2px 0 0;accent-color:var(--blue);flex:none}
+.cnt{font-size:13px;color:var(--mute);text-align:right;font-variant-numeric:tabular-nums}.cnt.over{color:var(--red);font-weight:600}
+.fi{font-size:13px;display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.fi span{padding:6px 10px;border-radius:4px}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:0}
+.checks label{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;padding:5px 0}
+.drop{border:1.5px dashed light-dark(#7b8494,#5a6372);border-radius:8px;padding:18px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.thumbs{display:flex;flex-wrap:wrap;gap:12px}
+.th{width:120px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mute)}
+.th img{width:120px;height:120px;object-fit:contain;background:repeating-conic-gradient(#e9ecf0 0 25%,#fff 0 50%) 0 0/16px 16px;border:1px solid var(--line);border-radius:6px}
+.th b{color:var(--ink);font-size:13px}
+.nav{display:flex;justify-content:space-between;gap:12px;padding-top:8px;border-top:1px solid var(--line)}
+.panel{position:sticky;top:16px;align-self:start;border:1px solid var(--line);border-radius:10px;background:var(--sheet);padding:20px;display:flex;flex-direction:column;gap:14px}
+.verdict{font-family:Literata,serif;font-size:clamp(24px,2.4vw,30px);font-weight:600;line-height:1.1}
+.status{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:var(--mute)}
+.tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center}
+.tally div{border-radius:6px;padding:8px 2px;font-size:12px;line-height:1.2}
+.tally b{display:block;font:600 22px Literata,serif;font-variant-numeric:tabular-nums}
+.clock{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.clock input{padding:0;min-height:28px;accent-color:var(--blue)}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.issues{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow:auto}
+.issues li{border-radius:6px;padding:10px 12px;font-size:14px;line-height:1.4}
+.issues li button{all:unset;cursor:pointer;font-weight:600;font-size:13px;text-decoration:underline}
+.issues .k{display:block;font-size:12px;font-weight:600;margin-bottom:2px}
+.report table{width:100%;border-collapse:collapse;font-size:14px}
+.report th,.report td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.report th{font-size:13px;color:var(--mute);font-weight:600}
+.arch{max-width:1440px;margin:0 auto;padding:0 max(4vw,16px) 56px}
+.arch summary{cursor:pointer;font:600 20px Literata,serif;padding:12px 0;min-height:44px}
+.arch table{width:100%;border-collapse:collapse;font-size:14px}.arch th,.arch td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}.arch th{color:var(--mute);font-size:13px}
+@media(max-width:1100px){.app{grid-template-columns:200px minmax(0,1fr)}.panel{grid-column:1/-1;position:static}}
+@media(max-width:720px){.app{grid-template-columns:minmax(0,1fr)}.rail{position:static;flex-direction:row;overflow-x:auto}.rail button{flex:none}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Listing Preflight</h1>
+    <p>A pre-flight simulator for marketplace sellers: walk through the add-a-product steps, then run the clock 72 hours forward to see which checks would hide the listing, remove the ASIN or put the account at risk.</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    <div class="f" style="min-width:200px"><label for="mkt" style="font-size:13px">Marketplace</label><select id="mkt"></select></div>
+    <button class="btn" id="example" type="button">Load a listing with errors</button>
+    <button class="btn" id="reset" type="button">Start blank</button>
+  </div>
+</header>
+<p class="note" style="padding:0 max(4vw,16px);margin:10px 0 0">Independent practice tool — not affiliated with or endorsed by Amazon. Nothing leaves your browser. Bot behaviour and thresholds are a simulation built from published policy and seller reports; confirm against current seller help before you publish.</p>
+<div class="app">
+  <nav class="rail" aria-label="Listing steps" id="rail"></nav>
+  <main><form id="form" novalidate></form></main>
+  <aside class="panel" aria-live="polite" id="panel"></aside>
+</div>
+<details class="arch">
+  <summary>How the engine is built — and what this browser version leaves out</summary>
+  <table class="stack"><thead><tr><th>Layer</th><th>Job</th><th>In this simulator</th><th>Needs a backend for</th></tr></thead><tbody id="archrows"></tbody></table>
+</details>
+<details class="arch" id="registry">
+  <summary>Policy registry — real enforcement cases, checked against sources (November 2026)</summary>
+  <p class="note" style="margin:0 0 12px">“official” = Amazon announcement or policy page; “reported” = consistent seller and moderator reports, not a published rule. Dates and figures that did not match the sources were corrected in the notes.</p>
+  <table class="stack"><thead><tr><th>Rule</th><th>Severity</th><th>Effective</th><th>Basis</th><th>What triggers it</th><th>Source</th></tr></thead><tbody id="regrows"></tbody></table>
+  <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap"><button type="button" class="btn" id="copyreg">Copy registry as JSON</button><span class="note" id="regcopied" role="status"></span></div>
+</details>
+<script>
+{
+/* ── 4. Knowledge base: rules as data, per marketplace ─────────────────────────── */
+const MKT={
+  US:{name:'United States',safety:['CPC for children’s products','FCC for radio devices','UL / safety listing for mains power','SDS for batteries, aerosols, chemicals'],docs:{kids:'cpc',radio:'fcc',mains:'ul'}},
+  DE:{name:'Germany (EU)',safety:['CE Declaration of Conformity','GPSR responsible person in the EU','WEEE registration for electronics','SDS for hazmat'],docs:{kids:'ce',radio:'ce',mains:'ce'},gpsr:true,weee:true},
+  UK:{name:'United Kingdom',safety:['UKCA or CE marking','UK responsible person','SDS for hazmat'],docs:{kids:'ukca',radio:'ukca',mains:'ukca'},ukrp:true}
+};
+const TITLE_MAX=75,HL_MAX=125;
+const CATS={home:['Home & Kitchen',['material','dimensions']],apparel:['Clothing, Shoes & Jewelry',['size','color','department','material']],electronics:['Electronics',['model','connectivity']],toys:['Toys & Games',['age']],beauty:['Beauty & Personal Care',['ingredients','unitCount']],grocery:['Grocery & Gourmet Food',['ingredients','allergens','unitCount']],pets:['Pet Supplies',['unitCount','age']]};
+const ATTR={material:'Material',dimensions:'Item dimensions (L × W × H)',size:'Size',color:'Color',department:'Department',model:'Model number',connectivity:'Connectivity technology',age:'Manufacturer minimum age / life stage',unitCount:'Unit count & unit type (e.g. 12 count, 16 fl oz)',ingredients:'Ingredients',allergens:'Allergen information'};
+const DOCN={cpc:'Children’s Product Certificate (CPC)',fcc:'FCC authorization',ul:'UL / safety certification',ce:'CE Declaration of Conformity',ukca:'UKCA or CE Declaration',sds:'Safety Data Sheet (SDS)'};
+const BRANDS=['apple','iphone','ipad','airpods','macbook','samsung','galaxy','sony','playstation','nintendo','xbox','microsoft','google','pixel','nike','adidas','disney','marvel','lego','barbie','hello kitty','pokemon','yeti','stanley','hydro flask','owala','dyson','bose','jbl','gopro','kitchenaid','ninja','crocs','north face'];
+const STOP=new Set('a an the and or for with in on of to by at from x'.split(' '));
+const PROMO=['best seller','bestseller','free shipping','on sale','sale','discount','cheap','#1','hot item','limited time','guaranteed','100% guarantee','money back','top rated','new arrival','buy now'];
+const PEST=['antibacterial','anti-bacterial','antimicrobial','anti-microbial','antiviral','anti-viral','antifungal','kills germs','kills 99','disinfect','disinfects','sanitizer','sanitizing','mold resistant','mold-resistant','mildew resistant','pesticide'];
+const PEST_SOFT=['eco-friendly','non-toxic','nontoxic'];
+const MED=['cure','cures','treat','treats','heals','anti-inflammatory','fda approved','fda-approved','prevents covid','prevents cancer'];
+const CONTACT=/(https?:\/\/|www\.|@[a-z0-9-]+\.[a-z]{2,}|\+?\d[\d\s().-]{8,}\d)/i;
+const EMOJI=/\p{Extended_Pictographic}/u;
+
+/* Policy registry: rules from real enforcement cases, each with how well it is sourced */
+const REG=[
+ {id:'TITLE-75',domain:'content',severity:'medium',action:'TITLE_REWRITTEN_BY_AI',effective:'2026-07-27',verified:'official',source:'https://sellercentral.amazon.com/seller-forums/discussions/t/ac660707-60c7-43e3-a3fd-420d7321cc4e',note:'Titles in all non-media categories ≤75 characters; new Item Highlights field ≤125. Over-limit titles are rewritten by Amazon’s AI rather than suppressed.',fix:'Shorten the title to 75 characters; move details to Item Highlights.'},
+ {id:'POL-01',domain:'supply_chain_docs',severity:'critical',action:'ACCOUNT_DEACTIVATION_SECTION_3',effective:'ongoing',verified:'reported',source:'https://sellercentral.amazon.com/seller-forums/discussions/t/fd10cb81-3328-4524-9a06-4bd22faab9b6',note:'LOA from a distributor is not brand authorization; the LOA must come from the brand owner and permit selling on Amazon.',fix:'Get a letter of authorization from the brand owner that names Amazon, plus invoices from an authorized distributor.'},
+ {id:'POL-02',domain:'supply_chain_docs',severity:'critical',action:'INAUTHENTIC_SECTION_3',effective:'ongoing',verified:'reported',source:'https://sellercentral.amazon.ca/seller-forums/discussions/t/e6d163ab-488d-4b5a-866f-25b3d6f44cc6',note:'Retail receipts (retail arbitrage) are not accepted as proof of authenticity; commercial invoices are.',fix:'Source from the manufacturer or an authorized distributor and keep commercial invoices.'},
+ {id:'POL-03',domain:'api_automation',severity:'high',action:'ACCOUNT_SUSPENSION',effective:'2026-03-04',verified:'official',source:'https://feedvisor.com/university/changes-to-the-participation-agreement/',note:'BSA Agent Policy (in effect 4 March 2026, not June): automated tools must identify themselves; browser automation that imitates a person is high-risk. A human-approval log is recommended by advisers, not quoted from the policy.',fix:'Use only SP-API tools that self-identify; keep a record of who approved price and listing changes.'},
+ {id:'POL-04',domain:'variations_reviews',severity:'low',action:'REVIEWS_NOT_SHARED',effective:'2026-02-12',verified:'official',source:'https://sellercentral.amazon.com/seller-forums/discussions/t/a572986d-9bb1-4e91-a53f-41c575874dd7',note:'From 12 Feb 2026 (rollout to 31 May 2026) reviews are shared only across minor variations (color, pattern, pack size). Flavor, ingredients, material, fit and functional size no longer pool reviews. The change itself is not a suspension; grouping different products is still a variation-policy violation.',fix:'Group only minor variations; list functionally different products separately.'},
+ {id:'POL-05',domain:'safety_compliance',severity:'high',action:'SEARCH_SUPPRESSED',effective:'2024-12-13',verified:'official',source:'',note:'EU GPSR (applies since 13 Dec 2024): manufacturer contact and an EU responsible person are required; hazmat items need an SDS. The “90–100% traffic loss in 24 h” figure is not sourced.',fix:'Fill in manufacturer and responsible-person contacts; upload an SDS or a hazmat exemption sheet.'},
+ {id:'POL-06',domain:'media_policy',severity:'medium',action:'SEARCH_SUPPRESSED',effective:'2026-07-22',verified:'official',source:'https://sellercentral.amazon.com/seller-forums/discussions/t/aa0aee06-aff4-497a-a4b6-9b2ebe06f715',note:'Main image rules (pure white, ~85% fill, no text). Since July 2026: images and videos with photorealistic AI-generated people must carry the required metadata tag. Enforcement for a missing tag is not published.',fix:'Replace the main image; tag media that shows AI-generated people.'},
+ {id:'POL-07',domain:'schema_ptd',severity:'medium',action:'INCOMPLETE_OR_SUPPRESSED',effective:'ongoing',verified:'official',source:'https://developer-docs.amazon.com/sp-api/changelog/notice-of-increase-in-mandatory-attributes-for-select-product-types',note:'Required attributes change by product type (monthly SP-API changelogs). Unit count is required for many consumables. The “816 product types” figure dates from the 2021–2023 dimension rollout, not 2025–26.',fix:'Sync required attributes from Product Type Definitions; fill unit count for consumables.'},
+ {id:'POL-08',domain:'account_linking',severity:'high',action:'ACCOUNT_DEACTIVATION_RELATED',effective:'ongoing',verified:'reported',source:'',note:'Seller reports of related-account reviews triggered by shared IP, devices, warehouses, bank accounts or phone numbers. Detection signals are not published.',fix:'Keep separate infrastructure per legal entity and keep proof of independence (ownership, contracts, accounts).'},
+ {id:'POL-09',domain:'reviews',severity:'critical',action:'ACCOUNT_SUSPENSION',effective:'ongoing',verified:'official',source:'',note:'Incentivized or coordinated reviews violate the community guidelines. That creator campaigns specifically trip AI filters in 2026 is a seller report.',fix:'Stop any off-platform review asks; use only the Request a Review button and Vine.'},
+ {id:'POL-10',domain:'dropshipping',severity:'critical',action:'ACCOUNT_DEACTIVATION',effective:'ongoing',verified:'official',source:'',note:'Drop shipping is allowed only if you are the seller of record and no other retailer’s name appears on packing slips, invoices or packaging.',fix:'Have the supplier remove all third-party branding, or move to FBA or a 3PL.'}
+];
+const RG=Object.fromEntries(REG.map(r=>[r.id,r]));
+
+/* ── 5. Enforcement model ──────────────────────────────────────────────────────── */
+const LVL={critical:{name:'Critical',status:'Account deactivation risk',rank:0},high:{name:'High',status:'Listing removed',rank:1},medium:{name:'Medium',status:'Search suppressed / inactive',rank:2},low:{name:'Low',status:'Listing quality warning',rank:3}};
+const WHEN={0:'at submit',2:'~2 h · pricing bot',24:'~24 h · content bots',48:'~48 h · compliance audit',72:'~72 h · brand & IP review'};
+
+/* ── 1–2. UI state machine ─────────────────────────────────────────────────────── */
+const STEPS=[['identity','Product identity'],['vital','Vital info & variations'],['offer','Offer & pricing'],['content','Content & media'],['safety','Safety & compliance'],['fulfil','Fulfilment & prep'],['account','Account & operations'],['report','Inspection report']];
+const BLANK={mkt:'US',cat:'home',gtinType:'UPC',gtin:'',brand:'',brandStatus:'own',loaFrom:'none',loaAmazon:false,inv:{has:false,kind:'commercial',name:false,addr:false,supplier:false,date:'',qty:''},
+  title:'',hl:'',maker:'',isVar:false,theme:'Color',children:'',attrs:{},
+  sku:'',price:'',list:'',ref:'',qty:'',cond:'New',ful:'FBM',
+  bullets:['','','','',''],desc:'',terms:'',imgs:[],conf:{text:false,props:false,real:false},aiPeople:false,aiTagged:false,
+  haz:{battery:'none',aerosol:false,liquid:false,kids:false,radio:false,mains:false,magnets:false},docs:{},rp:'',mfr:'',weee:'',
+  barcode:'manufacturer',dims:'',weight:'',acct:{auto:'none',approval:false,shared:{ip:false,device:false,warehouse:false,bank:false,phone:false},incent:false,creators:false,drop:false,dropBrand:false}};
+const clone=o=>JSON.parse(JSON.stringify(o));
+let S=clone(BLANK),step='identity',hour=72;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const bytes=s=>new TextEncoder().encode(s).length;
+const words=s=>(s.toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]);
+function gtinOk(d){if(!/^\d+$/.test(d)||![8,12,13,14].includes(d.length))return false;const a=d.split('').map(Number),ck=a.pop();let s=0;a.reverse().forEach((n,i)=>s+=n*(i%2?1:3));return (10-s%10)%10===ck}
+function has(t,list){const l=t.toLowerCase();return list.filter(w=>new RegExp('(^|[^a-z])'+w.replace(/[#.*+?^${}()|[\]\\]/g,'\\$&')+'([^a-z]|$)').test(l))}
+
+/* ── 3. Compliance engine: five validators, each returns findings ─────────────── */
+function inspect(){
+  const I=[],add=(lvl,at,step,field,engine,msg,fix,rule='')=>I.push({lvl,at,step,field,engine,msg,fix,rule});
+  const cat=CATS[S.cat],M=MKT[S.mkt],t=S.title.trim(),own=S.brand.trim().toLowerCase();
+  const B=S.bullets.map(b=>b.trim()).filter(Boolean),copy=[...B,S.desc].join(' \n ');
+  // A. Schema validator (stand-in for Product Type Definitions)
+  if(!S.brand.trim())add('medium',0,'identity','brand','Schema','Brand name is missing.','Enter the brand exactly as on the product or packaging.');
+  const g=S.gtin.replace(/\s/g,'');
+  if(S.gtinType!=='Exempt'){if(!g)add('medium',0,'identity','gtin','Schema','Product ID (UPC/EAN) is missing.','Enter a GS1 barcode number or get a GTIN exemption.');else if(!gtinOk(g))add('medium',0,'identity','gtin',`Schema`,`“${g}” is not a valid ${S.gtinType}: wrong length or check digit.`,'Copy the number from the barcode label.')}
+  else add('low',0,'identity','gtin','Schema','GTIN exemption selected.','The exemption must be approved for this brand and category.');
+  if(g&&gtinOk(g))add('low',0,'identity','gtin','Schema','Barcode prefix not checked against the GS1 registry.','Look the number up in GS1 “Verified by GS1”: the company should match your brand.');
+  if(!t)add('medium',0,'vital','title','Schema','Title is empty — the listing cannot be created.','Write brand + product type + key feature + size/colour.');
+  if(!S.maker.trim())add('low',0,'vital','maker','Schema','Manufacturer is empty.','Name the company that makes the product.');
+  cat[1].forEach(k=>{if(!String(S.attrs[k]||'').trim())add('medium',0,'vital','attr-'+k,'Schema',`${ATTR[k]} is required for ${cat[0]} — the listing stays “Incomplete”.`,'Fill in the attribute.','POL-07')});
+  if(!S.sku.trim())add('low',0,'offer','sku','Schema','No SKU — one will be generated.','Set your own SKU so reports match your system.');
+  else if(S.sku.length>40)add('medium',0,'offer','sku',`Schema`,`SKU is ${S.sku.length} characters; the maximum is 40.`,'Shorten the SKU.');
+  const p=parseFloat(S.price),lp=parseFloat(S.list),rf=parseFloat(S.ref);
+  if(!(p>0))add('medium',0,'offer','price','Schema','Price is missing or zero — the offer stays inactive.','Enter a price above 0.');
+  if(S.qty===''||+S.qty<=0)add('low',0,'offer','qty','Schema','Quantity is 0 — shown as inactive (out of stock).','Add stock or send inventory in.');
+  // Offer: fair pricing
+  if(p>0&&lp>0&&lp<p)add('low',2,'offer','list','Pricing','List price is lower than your price.','List price must be at or above the selling price.');
+  if(p>0&&rf>0&&p>rf*1.5)add('medium',2,'offer','price','Pricing',`Price is ${Math.round(p/rf*100)}% of the typical market price — likely deactivated as a pricing error.`,'Check for a typo; price near recent prices for this item.');
+  if(p>0&&rf>0&&p<rf*.4)add('medium',2,'offer','price','Pricing','Price is far below the market price — may be blocked as a pricing error.','Check for a missing digit.');
+  // B. NLP scanner
+  if(t){
+    if(t.length>TITLE_MAX)add('medium',24,'vital','title','Text scanner',`Title is ${t.length} characters; the limit is ${TITLE_MAX} since 27 July 2026 — Amazon’s AI will rewrite it for you.`,'Keep brand + product type + key spec in 75 characters; move the rest to Item Highlights.','TITLE-75');
+    const noBrand=own?t.split(S.brand.trim()).join(''):t,bad=[...new Set(noBrand.match(/[!$?_{}^¬¦]/g)||[])];
+    if(bad.length)add('medium',24,'vital','title','Text scanner',`Title uses characters that are not allowed: ${bad.join(' ')}`,'Remove them unless part of the registered brand name.');
+    if(EMOJI.test(t))add('medium',24,'vital','title','Text scanner','Title contains emoji.','Remove emoji and decorative symbols.');
+    const cnt={};words(t).forEach(w=>{if(!STOP.has(w))cnt[w]=(cnt[w]||0)+1});
+    const rep=Object.entries(cnt).filter(([,n])=>n>2).map(([w,n])=>`“${w}” ×${n}`);
+    if(rep.length)add('medium',24,'vital','title','Text scanner',`Words repeated more than twice: ${rep.join(', ')}.`,'Use each word at most twice (articles and prepositions excepted).');
+    const pr=has(t,PROMO);if(pr.length)add('low',24,'vital','title','Text scanner',`Promotional wording in the title: ${pr.join(', ')}.`,'Titles describe the product; move offers to promotions.');
+    if((t.match(/\b[A-Z]{3,}\b/g)||[]).filter(w=>w.toLowerCase()!==own).length>=3)add('low',24,'vital','title','Text scanner','Several words in ALL CAPS.','Capitalise only the first letter of each word.');
+  }
+  const hl=S.hl.trim();
+  if(!hl&&t.length>TITLE_MAX)add('low',0,'vital','hl','Schema','Item Highlights is empty while the title is over 75 characters.','Move materials, use cases and compatibility into Item Highlights (125 characters).','TITLE-75');
+  if(hl.length>HL_MAX)add('medium',0,'vital','hl','Schema',`Item Highlights is ${hl.length} characters; the maximum is ${HL_MAX}.`,'Shorten it.','TITLE-75');
+  if(hl&&has(hl,PROMO).length)add('low',24,'vital','hl','Text scanner',`Promotional wording in Item Highlights: ${has(hl,PROMO).join(', ')}.`,'Describe the product, not the offer.');
+  const all=[t,hl,copy,S.terms].join(' ');
+  const pest=has(all,PEST);if(pest.length)add('high',24,'content','bullets','Text scanner',`Pesticide-type claims: ${pest.join(', ')}.`,'Remove them unless the product is registered as a pesticide (EPA in the US, BPR in the EU).');
+  const soft=has(all,PEST_SOFT);if(soft.length)add('medium',24,'content','bullets','Text scanner',`Words sellers report as pesticide triggers: ${soft.join(', ')}.`,'Replace with a specific, provable material claim.');
+  const med=has(all,MED);if(med.length)add('high',24,'content','bullets','Text scanner',`Medical or drug claims: ${med.join(', ')}.`,'Remove disease and treatment claims.');
+  if(B.length===0)add('medium',24,'content','bullets','Text scanner','No bullet points.','Write 3–5 bullets about features and benefits.');else if(B.length<3)add('low',24,'content','bullets','Text scanner',`Only ${B.length} bullet point(s).`,'Use at least 3, ideally 5.');
+  const ship=has(copy,['ship','ships','shipping','free delivery','fast delivery']);if(ship.length)add('medium',24,'content','bullets','Text scanner',`Shipping wording in the copy: ${ship.join(', ')}.`,'Remove shipping and delivery promises.');
+  if(CONTACT.test(copy))add('medium',24,'content','desc','Text scanner','Website, email or phone number in the copy.','Remove contact details and links.');
+  if(/<[a-z][^>]*>/i.test(copy))add('low',24,'content','desc','Text scanner','HTML tags in the copy.','Use plain text with line breaks.');
+  if(!S.desc.trim())add('low',24,'content','desc','Text scanner','Description is empty.','Add a few sentences.');
+  const tb=bytes(S.terms);if(tb>249)add('low',24,'content','terms','Text scanner',`Search terms are ${tb} bytes; only 249 are indexed.`,'Remove repeats and words already in the title.');
+  const tw=[...new Set(words(S.terms).filter(w=>w.length>3&&t.toLowerCase().includes(w)))];if(tw.length)add('low',24,'content','terms','Text scanner',`Search terms repeat title words: ${tw.slice(0,5).join(', ')}.`,'Use the space for synonyms.');
+  // C. IP & trademark checker (local list, not a registry search)
+  const hits=(txt)=>BRANDS.filter(b=>b!==own&&!own.includes(b)&&new RegExp('(^|[^a-z])'+b+'([^a-z]|$)').test(txt.toLowerCase()));
+  hits(t).forEach(b=>{const ok=new RegExp('compatible with[^.]{0,30}'+b,'i').test(t);add(ok?'low':'critical',72,'vital','title','IP checker',ok?`Title names “${b}” in a compatibility phrase.`:`Title uses the trademark “${b}” outside a “compatible with” phrase.`,ok?'Keep it after the product type, never as the first words.':'Remove the brand, or write “compatible with …” after your own product name.')});
+  hits(S.terms).forEach(b=>add('critical',72,'content','terms','IP checker',`Search terms contain another brand: “${b}”.`,'Search terms may only contain your own brand.'));
+  hits(copy).filter(b=>!new RegExp('(compatible with|fits|for use with)[^.]{0,30}'+b,'i').test(copy)).forEach(b=>add('high',72,'content','bullets','IP checker',`Copy mentions “${b}” outside a compatibility phrase.`,'Mention other brands only as “compatible with …”.'));
+  if(S.brandStatus==='reseller'||S.brandStatus==='gated'){
+    if(S.loaFrom==='none')add(S.brandStatus==='gated'?'critical':'high',72,'identity','loaFrom','Documents',S.brandStatus==='gated'?'Gated brand without a letter of authorization.':'No letter of authorization from the brand owner.','Ask the brand owner for an LOA that permits selling on Amazon.','POL-01');
+    else if(S.loaFrom==='distributor')add('critical',72,'identity','loaFrom','Documents','LOA comes from a distributor, not the brand owner — not accepted as authorization.','Get the LOA directly from the brand owner.','POL-01');
+    else if(!S.loaAmazon)add('high',72,'identity','loaFrom','Documents','The LOA does not say you may sell on Amazon.','Ask for wording that explicitly authorizes sales on Amazon.','POL-01');}
+  if(S.brandStatus==='reseller'||S.brandStatus==='gated'){const v=S.inv;
+    if(!v.has)add('high',72,'identity','inv','Documents','No supplier invoice on file — authenticity complaints can’t be answered.','Keep an invoice from an authorized distributor.','POL-02');
+    else if(v.kind==='receipt')add('critical',72,'identity','inv','Documents','A retail receipt is not an invoice — retail-arbitrage purchases fail authenticity reviews.','Buy from the manufacturer or an authorized distributor with commercial invoices.','POL-02');
+    else{const miss=[];if(!v.name)miss.push('your name matches the account');if(!v.addr)miss.push('your address matches');if(!v.supplier)miss.push('supplier name, address, phone and website');
+      const age=v.date?(Date.now()-Date.parse(v.date))/864e5:NaN;if(!(age>=0&&age<=365))miss.push('dated within the last 365 days');if(!(+v.qty>=10))miss.push('at least 10 units');
+      if(miss.length)add('critical',72,'identity','inv','Documents',`Invoice would be rejected: missing ${miss.join('; ')}.`,'Ask the supplier for a corrected invoice before you need it.','POL-02')}}
+  // D. Variation policy
+  if(S.isVar){const kids=S.children.split('\n').map(l=>l.trim()).filter(Boolean),pw=new Set(words(t).filter(w=>!STOP.has(w)));
+    if(kids.length<2)add('low',0,'vital','children','Schema','A variation family needs at least two children.','Add each size or colour as a child.');
+    if(['Flavor','Scent','Material','Size (functional)'].includes(S.theme))add('low',24,'vital','theme','Variation policy',`Reviews are not shared across ${S.theme} variations since 12 Feb 2026 — each child shows only its own reviews.`,'Expect lower review counts per child; keep only minor differences in one family.','POL-04');
+    kids.forEach(k=>{const [val,ct=''] =k.split('|').map(s=>s.trim());const cw=words(ct).filter(w=>!STOP.has(w));const share=cw.length?cw.filter(w=>pw.has(w)).length/cw.length:1;
+      if(!val)add('low',0,'vital','children','Schema',`Child “${ct||k}” has no ${S.theme} value.`,`Give every child a ${S.theme}.`);
+      if(share<.4)add('high',48,'vital','children','Variation policy',`Child “${ct}” looks like a different product (${Math.round(share*100)}% shared words with the parent).`,'Only size, colour or similar may differ between children; list different products separately.','POL-04')});}
+  // E. CV image checker
+  const main=S.imgs[0];
+  if(!main)add('medium',0,'content','imgs','Image checker','No main image — the listing is search-suppressed.','Upload at least one image on a pure white background.');
+  S.imgs.forEach((m,i)=>{const n=i?`Image ${i+1}`:'Main image',L=Math.max(m.w,m.h);
+    if(L<500)add('medium',0,'content','imgs','Image checker',`${n} is ${m.w}×${m.h}px; under 500px is rejected.`,'Upload at least 1000px on the longest side.');
+    else if(L<1000)add('low',24,'content','imgs','Image checker',`${n} is ${m.w}×${m.h}px; zoom needs 1000px.`,'Export at 1600–2000px.');
+    if(!/jpe?g|png|gif|tiff/i.test(m.type))add('medium',0,'content','imgs','Image checker',`${n} is ${m.type||'an unknown format'}.`,'Use JPEG, PNG, GIF or TIFF.')});
+  if(main){
+    if(main.nonWhite>3)add('medium',24,'content','imgs','Image checker',`Main image background is not pure white: ${main.nonWhite.toFixed(0)}% of the border is off-white.`,'Set the background to RGB 255, 255, 255 to the edges.','POL-06');
+    else if(main.nearWhite>20)add('low',24,'content','imgs','Image checker',`Border looks white but ${main.nearWhite.toFixed(0)}% is not pure 255.`,'Light grey studio white can fail.');
+    if(main.fill<85)add('low',24,'content','imgs','Image checker',`Product fills about ${main.fill.toFixed(0)}% of the frame; 85% is expected.`,'Crop tighter.','POL-06');
+    if(main.alpha)add('low',24,'content','imgs','Image checker','Main image has transparent pixels.','Flatten onto white.');
+    [['text','No text, logos or watermarks on the main image'],['props','No props that are not included'],['real','Main image is a real photo']].forEach(([k,l])=>{if(!S.conf[k])add('medium',24,'content','conf','Image checker',`Not confirmed: ${l.toLowerCase()}.`,'No OCR here — check the photo and tick the box.','POL-06')});
+  }
+  if(S.aiPeople&&!S.aiTagged)add('medium',24,'content','aiTagged','Image checker','Images show photorealistic AI-generated people without the required metadata tag.','Add the AI-generated-people metadata before upload (applies to images, video and A+).','POL-06');
+  // Hazmat & safety documents
+  const H=S.haz,D=S.docs,need=new Set();
+  if(H.battery!=='none'||H.aerosol||H.liquid)need.add('sds');
+  if(H.magnets&&H.kids)add('high',48,'safety','haz.magnets','Documents','Magnets in a children’s product: small-magnet safety rules apply.','Confirm magnet size and flux limits and include the warning.','POL-05');
+  if(H.kids)need.add(M.docs.kids);if(H.radio)need.add(M.docs.radio);if(H.mains)need.add(M.docs.mains);
+  need.forEach(d=>{if(!D[d])add('high',48,'safety','doc-'+d,'Documents',`${DOCN[d]} required — not provided.`,`Upload the ${DOCN[d]} before listing${d==='sds'?' or sending to the warehouse':''}.`,'POL-05')});
+  if(H.battery.startsWith('lithium'))add('low',48,'safety','battery','Documents','Lithium batteries: the listing needs battery type, cell count and watt-hours.','Fill in the battery attributes; expect a dangerous-goods review.');
+  if(M.gpsr&&!S.rp.trim())add('high',48,'safety','rp','Documents','No EU responsible person (GPSR).','Name an EU-based economic operator and their contact details.','POL-05');
+  if(M.gpsr&&!S.mfr.trim())add('high',48,'safety','mfr','Documents','No manufacturer contact (GPSR): name, postal address and email or website.','Add the manufacturer’s contact details.','POL-05');
+  if(M.ukrp&&!S.rp.trim()&&(H.kids||H.radio||H.mains))add('high',48,'safety','rp','Documents','No UK responsible person for a regulated product.','Name the UK importer or authorized representative.');
+  if(M.weee&&(H.mains||H.radio||S.cat==='electronics')&&!S.weee.trim())add('high',48,'safety','weee','Documents','No WEEE registration number for electrical goods.','Register with the national WEEE register and enter the number.');
+  // Fulfilment
+  if(S.ful==='FBA'){
+    if(S.barcode==='manufacturer'&&S.brandStatus!=='generic')add('high',72,'fulfil','barcode','Fulfilment','Manufacturer barcode for a branded item: your stock is pooled with other sellers’.','Use the warehouse label (FNSKU) so counterfeit complaints can’t come from someone else’s units.');
+    if(!S.dims.trim()||!S.weight.trim())add('medium',0,'fulfil','dims','Fulfilment','Package dimensions or weight missing — the shipment can’t be created.','Measure the packed unit.');
+    if(need.has('sds')&&!D.sds)add('high',48,'fulfil','barcode','Fulfilment','Hazmat item without an SDS: the warehouse will refuse it.','Upload the SDS before creating the shipment.');
+  }
+  if(S.ful==='FBM'&&S.acct.drop&&S.acct.dropBrand)add('critical',72,'account','acct.dropBrand','Account review','Drop-shipped orders arrive with another retailer’s name on the slip, invoice or box.','You must be the seller of record; have the supplier remove their branding or switch to FBA/3PL.','POL-10');
+  // Account & operations (account-level, not listing-level)
+  const A=S.acct;
+  if(A.auto==='browser')add('critical',72,'account','acct.auto','Account review','Browser automation or scraping that imitates a person.','Replace it with an SP-API tool that identifies itself as automated.','POL-03');
+  if(A.auto==='api'&&!A.approval)add('high',72,'account','acct.approval','Account review','Automated price or listing changes go out without a recorded human approval.','Add an approval step and keep an audit log of who approved what.','POL-03');
+  const sh=Object.entries(A.shared).filter(([,v])=>v).map(([k])=>({ip:'IP address',device:'device',warehouse:'warehouse address',bank:'bank account',phone:'phone number'}[k]));
+  if(sh.length)add(A.shared.bank||A.shared.phone?'high':'medium',72,'account','acct.shared','Account review',`Shares ${sh.join(', ')} with another seller account — may be linked as a related account.`,'Separate the infrastructure and keep proof the businesses are independent.','POL-08');
+  if(A.incent)add('critical',72,'account','acct.incent','Account review','Reviews are incentivized or coordinated off the platform.','Stop it; use only Request a Review and Vine.','POL-09');
+  if(A.creators&&!A.incent)add('medium',72,'account','acct.creators','Account review','Creator or influencer campaigns drive sudden review spikes.','Make sure creators never ask buyers for reviews; watch review timing.','POL-09');
+  return I;
+}
+
+/* ── UI ────────────────────────────────────────────────────────────────────────── */
+function counts(I,st){const c={critical:0,high:0,medium:0,low:0};I.filter(i=>!st||i.step===st).forEach(i=>c[i.lvl]++);return c}
+function fieldIssues(I,f){const l=I.filter(i=>i.field===f);return l.length?`<div class="fi">${l.map(i=>`<span class="l-${i.lvl}">${LVL[i.lvl].name}: ${esc(i.msg)}</span>`).join('')}</div>`:''}
+const fld=(id,label,ctrl,help,I)=>`<div class="f"><label for="${id}">${label}</label>${ctrl}${help?`<small>${help}</small>`:''}${fieldIssues(I,id)}</div>`;
+const inp=(k,v,x='')=>`<input id="${k}" data-k="${k}" value="${esc(v)}" ${x}>`;
+const sel=(k,opts,v)=>`<select id="${k}" data-k="${k}">${opts.map(o=>{const [val,l]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${val===v?'selected':''}>${esc(l)}</option>`}).join('')}</select>`;
+const chk=(path,label,on)=>`<label><input type="checkbox" data-p="${path}" ${on?'checked':''}>${label}</label>`;
+
+function renderForm(){
+  const I=inspect(),cat=CATS[S.cat],M=MKT[S.mkt],f=$('form');let h='';
+  if(step==='identity')h=`<h2>Product identity</h2><p class="lead">Barcode, category and who owns the brand.</p>
+    ${fld('cat','Category (browse node)',sel('cat',Object.entries(CATS).map(([k,v])=>[k,v[0]]),S.cat),'Sets the required attributes.',I)}
+    <div class="row">${fld('gtinType','Product ID type',sel('gtinType',['UPC','EAN','GTIN','Exempt'],S.gtinType),'',I)}
+    ${fld('gtin','Product ID',inp('gtin',S.gtin,`inputmode="numeric" ${S.gtinType==='Exempt'?'disabled':''}`),'8, 12, 13 or 14 digits; check digit verified.',I)}</div>
+    ${fld('brand','Brand name',inp('brand',S.brand,'autocomplete="off"'),'',I)}
+    ${fld('brandStatus','Your relation to the brand',sel('brandStatus',[['own','My brand (enrolled in brand registry)'],['generic','Generic / unbranded'],['reseller','I resell another company’s brand'],['gated','Another company’s gated brand']],S.brandStatus),'',I)}
+    ${S.brandStatus==='reseller'||S.brandStatus==='gated'?`<fieldset class="checks f"><legend>Letter of authorization</legend>${fld('loaFrom','Who issued your LOA?',sel('loaFrom',[['none','I don’t have one'],['brand','The brand owner'],['distributor','A distributor or supplier']],S.loaFrom),'',I)}${S.loaFrom==='brand'?chk('loaAmazon','The letter explicitly allows selling on Amazon',S.loaAmazon):''}</fieldset>`:''}
+    ${S.brandStatus==='reseller'||S.brandStatus==='gated'?`<fieldset class="checks f" id="inv"><legend>Supplier invoice check</legend>${chk('inv.has','I have proof of purchase for this product',S.inv.has)}
+      ${S.inv.has?`<div class="f" style="margin:6px 0"><label for="invkind">Type of document</label><select id="invkind" data-p="inv.kind"><option value="commercial" ${S.inv.kind==='commercial'?'selected':''}>Commercial invoice from manufacturer or distributor</option><option value="receipt" ${S.inv.kind==='receipt'?'selected':''}>Retail receipt (store or online shop)</option></select></div>${chk('inv.name','Buyer name on the invoice matches my seller account',S.inv.name)}${chk('inv.addr','Buyer address matches my account address',S.inv.addr)}${chk('inv.supplier','Supplier name, address, phone and website are printed',S.inv.supplier)}
+      <div class="row" style="margin-top:6px">${fld('invdate','Invoice date',`<input id="invdate" type="date" data-p="inv.date" value="${esc(S.inv.date)}">`,'',I)}${fld('invqty','Units on invoice',`<input id="invqty" inputmode="numeric" data-p="inv.qty" value="${esc(S.inv.qty)}">`,'',I)}</div>`:''}${fieldIssues(I,'inv')}</fieldset>`:''}`;
+  if(step==='vital')h=`<h2>Vital info & variations</h2><p class="lead">Title, manufacturer, required attributes and the parent–child family.</p>
+    ${fld('title','Product title',`<textarea id="title" data-k="title" rows="2">${esc(S.title)}</textarea><div class="cnt" id="cnt-title"></div>`,'75 characters since 27 July 2026: brand + product type + key spec.',I)}
+    ${fld('hl','Item highlights',`<textarea id="hl" data-k="hl" rows="2">${esc(S.hl)}</textarea><div class="cnt" id="cnt-hl"></div>`,'New searchable field, up to 125 characters: materials, use, compatibility.',I)}
+    ${fld('maker','Manufacturer',inp('maker',S.maker),'',I)}
+    ${cat[1].map(k=>fld('attr-'+k,ATTR[k]+' <small>(required)</small>',`<input id="attr-${k}" data-p="attrs.${k}" value="${esc(S.attrs[k]||'')}">`,'',I)).join('')}
+    <fieldset class="checks f"><legend>Variations</legend>${chk('isVar','This product is a variation family (sizes, colours…)',S.isVar)}
+      ${S.isVar?`<div class="row">${fld('theme','Variation theme',sel('theme',['Color','Size','SizeColor','Pattern','Pack size','Style','Scent','Flavor','Material','Size (functional)'],S.theme),'',I)}</div>${fld('children','Children — one per line: value | child title',`<textarea id="children" data-k="children" rows="4">${esc(S.children)}</textarea>`,'Children must be the same product; only the theme may change.',I)}`:''}</fieldset>`;
+  if(step==='offer')h=`<h2>Offer & pricing</h2>
+    ${fld('sku','Seller SKU',inp('sku',S.sku),'Up to 40 characters.',I)}
+    <div class="row">${fld('price','Your price',inp('price',S.price,'inputmode="decimal"'),'',I)}${fld('list','List price',inp('list',S.list,'inputmode="decimal"'),'Optional.',I)}${fld('ref','Typical market price',inp('ref',S.ref,'inputmode="decimal"'),'What this item usually sells for — used for the fair-pricing check.',I)}</div>
+    <div class="row">${fld('qty','Quantity',inp('qty',S.qty,'inputmode="numeric"'),'',I)}${fld('cond','Condition',sel('cond',['New','Renewed','Used – Like New','Used – Good'],S.cond),'',I)}${fld('ful','Fulfilment',sel('ful',[['FBM','I ship it myself'],['FBA','Marketplace warehouse']],S.ful),'',I)}</div>`;
+  if(step==='content')h=`<h2>Content & media</h2>
+    <div class="f"><label for="file">Product images</label><div class="drop"><input id="file" type="file" accept="image/*" multiple style="max-width:320px"><span class="note">First image = main image. Checked locally for size, format, white border, fill and transparency.</span></div>${fieldIssues(I,'imgs')}</div>
+    <div class="thumbs">${S.imgs.map((m,i)=>`<div class="th"><img src="${m.url}" alt="${i?'Image '+(i+1):'Main image'}"><b>${i?'Image '+(i+1):'Main image'}</b>${m.w}×${m.h}px${i===0?`<br>white border ${(100-m.nonWhite).toFixed(0)}% · fill ${m.fill.toFixed(0)}%`:''}<button type="button" class="btn" data-del="${i}" style="min-height:32px;font-size:13px">Remove</button></div>`).join('')}</div>
+    ${S.imgs[0]?`<fieldset class="checks f"><legend>Confirm what a scan can’t see</legend>${chk('conf.text','No text, logos, badges or watermarks on the main image',S.conf.text)}${chk('conf.props','No props or accessories that are not included',S.conf.props)}${chk('conf.real','The main image is a real photograph',S.conf.real)}${fieldIssues(I,'conf')}</fieldset>`:''}
+    <fieldset class="checks f"><legend>AI-generated people</legend>${chk('aiPeople','Some images or videos show photorealistic AI-generated people',S.aiPeople)}${S.aiPeople?chk('aiTagged','They carry the required AI metadata tag',S.aiTagged):''}${fieldIssues(I,'aiTagged')}</fieldset>
+    ${S.bullets.map((b,i)=>fld('b'+i,`Bullet point ${i+1}`,`<input id="b${i}" data-p="bullets.${i}" value="${esc(b)}">`,'',I)).join('')}
+    <div id="bul-issues">${fieldIssues(I,'bullets')}</div>
+    ${fld('desc','Product description',`<textarea id="desc" data-k="desc" rows="5">${esc(S.desc)}</textarea>`,'Plain text.',I)}
+    ${fld('terms','Backend search terms',`${inp('terms',S.terms)}<div class="cnt" id="cnt-terms"></div>`,'Synonyms separated by spaces; only your own brand.',I)}`;
+  if(step==='safety')h=`<h2>Safety & compliance</h2><p class="lead">Rule set: ${esc(M.name)} — ${esc(M.safety.join(' · '))}.</p>
+    <fieldset class="checks f"><legend>What the product contains or does</legend>
+      <div class="f" style="margin:4px 0 8px"><label for="battery">Batteries</label>${`<select id="battery" data-p="haz.battery">${[['none','None'],['alkaline','Alkaline / NiMH'],['lithium-ion','Lithium-ion'],['lithium-metal','Lithium metal']].map(([v,l])=>`<option value="${v}" ${S.haz.battery===v?'selected':''}>${l}</option>`).join('')}</select>`}${fieldIssues(I,'battery')}</div>
+      ${chk('haz.aerosol','Aerosol or pressurised container',S.haz.aerosol)}${chk('haz.liquid','Liquids, gels or chemicals',S.haz.liquid)}${chk('haz.kids','Designed for children under 12',S.haz.kids)}${chk('haz.radio','Wireless / radio transmitter (Bluetooth, Wi-Fi)',S.haz.radio)}${chk('haz.mains','Plugs into mains power',S.haz.mains)}${chk('haz.magnets','Contains magnets',S.haz.magnets)}${fieldIssues(I,'haz.magnets')}</fieldset>
+    <fieldset class="checks f"><legend>Documents on file</legend>${[...new Set(['sds',MKT[S.mkt].docs.kids,MKT[S.mkt].docs.radio,MKT[S.mkt].docs.mains])].map(d=>`${chk('docs.'+d,DOCN[d],S.docs[d])}${fieldIssues(I,'doc-'+d)}`).join('')}</fieldset>
+    ${M.gpsr||M.ukrp?fld('rp',M.gpsr?'EU responsible person (GPSR)':'UK responsible person',inp('rp',S.rp),'Company name, address and email.',I):''}
+    ${M.gpsr?fld('mfr','Manufacturer contact (GPSR)',inp('mfr',S.mfr),'Name, postal address and email or website.',I):''}
+    ${M.weee?fld('weee','WEEE registration number',inp('weee',S.weee),'Required for electrical and electronic goods.',I):''}`;
+  if(step==='fulfil')h=`<h2>Fulfilment & prep</h2>${S.ful!=='FBA'?`<p class="lead">You ship this product yourself — warehouse prep checks are skipped.</p><fieldset class="checks f"><legend>Drop shipping</legend>${chk('acct.drop','A supplier or another retailer ships orders directly to my buyers',S.acct.drop)}${S.acct.drop?chk('acct.dropBrand','Their name, logo or invoice can end up in the buyer’s package',S.acct.dropBrand):''}${fieldIssues(I,'acct.dropBrand')}</fieldset>`:`
+    ${fld('barcode','Barcode on each unit',sel('barcode',[['manufacturer','Manufacturer barcode (UPC/EAN)'],['fnsku','Warehouse label (FNSKU) on every unit']],S.barcode),'',I)}
+    <div class="row">${fld('dims','Packed dimensions (cm)',inp('dims',S.dims,'placeholder="30 × 10 × 10"'),'',I)}${fld('weight','Packed weight (kg)',inp('weight',S.weight,'inputmode="decimal"'),'',I)}</div>`}`;
+  if(step==='account')h=`<h2>Account & operations</h2><p class="lead">Account-level risks: they don’t hide one listing, they put the whole account under review.</p>
+    ${fld('acct.auto','Automation that touches your account',`<select id="acct.auto" data-p="acct.auto">${[['none','None'],['api','Tools via the official SP-API (repricer, listing tool)'],['browser','Browser automation, scraping or bots logging in as me']].map(([v,l])=>`<option value="${v}" ${S.acct.auto===v?'selected':''}>${l}</option>`).join('')}</select>`,'Agent Policy in the Business Solutions Agreement, in effect since 4 March 2026.',I)}
+    ${S.acct.auto==='api'?`<fieldset class="checks f"><legend>Human oversight</legend>${chk('acct.approval','A person approves automated price and listing changes, and approvals are logged',S.acct.approval)}${fieldIssues(I,'acct.approval')}</fieldset>`:''}
+    <fieldset class="checks f"><legend>Shared with another seller account</legend>${[['ip','Office or home internet (IP address)'],['device','Computers or phones used to log in'],['warehouse','Warehouse or 3PL address'],['bank','Bank account or card'],['phone','Phone number']].map(([k,l])=>chk('acct.shared.'+k,l,S.acct.shared[k])).join('')}${fieldIssues(I,'acct.shared')}</fieldset>
+    <fieldset class="checks f"><legend>Reviews</legend>${chk('acct.incent','We offer refunds, gifts or discounts for reviews, or ask buyers to review in groups or chats',S.acct.incent)}${chk('acct.creators','We run creator or influencer campaigns that send buyers to the listing',S.acct.creators)}${fieldIssues(I,'acct.incent')}${fieldIssues(I,'acct.creators')}</fieldset>`;
+  if(step==='report'){const ord=r=>LVL[r.lvl].rank*100+r.at;
+    h=`<h2>Inspection report</h2><p class="lead">${esc(M.name)} rules · sorted by severity, then by when the problem surfaces.</p><div class="report"><table class="stack"><thead><tr><th>Level</th><th>Simulated status</th><th>Surfaces</th><th>Problem</th><th>Fix</th><th>Rule</th></tr></thead><tbody>${I.sort((a,b)=>ord(a)-ord(b)).map(i=>`<tr><td><span class="dot l-${i.lvl}">${LVL[i.lvl].name}</span></td><td>${i.rule==='TITLE-75'?'Title rewritten by marketplace AI':LVL[i.lvl].status}</td><td style="white-space:nowrap">${WHEN[i.at]}</td><td>${esc(i.msg)} <span class="note">(${esc(i.engine)})</span></td><td>${esc(i.fix)}</td><td>${i.rule?`<span style="white-space:nowrap">${i.rule}</span><br><span class="note">${RG[i.rule].verified}</span>`:''}</td></tr>`).join('')||'<tr><td colspan="6">No problems found.</td></tr>'}</tbody></table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" class="btn pri" id="copy">Copy report</button><button type="button" class="btn" id="copyjson">Copy as JSON</button><span class="note" id="copied" role="status"></span></div>
+    <p class="note">Sources: <a href="https://sellercentral.amazon.com/seller-forums/discussions/t/ac660707-60c7-43e3-a3fd-420d7321cc4e">75-character titles and Item Highlights</a> (from 27 July 2026), <a href="https://sellercentral.amazon.com/gp/help/external/GYTR6SYGFA5E3EQC">title requirements</a> (banned characters, words at most twice), main image rules (pure white RGB 255, ~85% fill, 1000px for zoom). Policy rules POL-01…POL-10 are listed with their sources at the bottom of the page. Shipping wording, “eco-friendly”/“non-toxic” and delayed bot timing come from seller reports, not published policy.</p>`}
+  const i=STEPS.findIndex(s=>s[0]===step);
+  h+=`<div class="nav"><button type="button" class="btn" id="prev" ${i===0?'disabled':''}>Back</button><button type="button" class="btn pri" id="next">${i===STEPS.length-1?'Back to start':'Save and continue'}</button></div>`;
+  f.innerHTML=h;counters();
+}
+function counters(){const ct=$('cnt-title'),cs=$('cnt-terms'),ch=$('cnt-hl'),lim=TITLE_MAX;
+  if(ch){const n=S.hl.trim().length;ch.textContent=`${n} / ${HL_MAX}`;ch.className='cnt'+(n>HL_MAX?' over':'')}
+  if(ct){const n=S.title.trim().length;ct.textContent=`${n} / ${lim}`;ct.className='cnt'+(n>lim?' over':'')}
+  if(cs){const b=bytes(S.terms);cs.textContent=`${b} / 249 bytes`;cs.className='cnt'+(b>249?' over':'')}}
+function renderSide(){
+  const I=inspect(),live=I.filter(i=>i.at<=hour),c=counts(live),total=counts(I);
+  $('rail').innerHTML=STEPS.map(([k,l],n)=>{const x=counts(I,k),top=['critical','high','medium','low'].find(v=>x[v]);const badge=k==='report'?'':top&&top!=='low'?`<span class="dot l-${top}">${x.critical+x.high+x.medium}</span>`:`<span class="dot l-ok">✓</span>`;return `<button type="button" data-step="${k}" ${k===step?'aria-current="step"':''}><span><span class="n">${n+1}</span>${l}</span>${badge}</button>`}).join('');
+  const worst=['critical','high','medium','low'].find(v=>c[v]);
+  const formBlock=I.some(i=>i.at===0&&i.lvl!=='low');
+  const verdict=!worst?['Live and healthy','var(--ok)','Active']:formBlock&&hour===0?['Blocked at submit','var(--red)','Incomplete']:[{critical:'Account at risk',high:'Listing removed',medium:'Hidden from search',low:'Live with warnings'}[worst],worst==='low'?'var(--blue)':worst==='medium'?'var(--warn)':'var(--red)',LVL[worst].status];
+  const hidden=I.length-live.length;
+  if(!$('hour'))$('panel').innerHTML=`<div id="pv"></div><div class="tally" id="pt"></div>
+   <div class="clock"><label for="hour" style="font-weight:600;font-size:14px">Run the clock after publishing</label><input id="hour" type="range" min="0" max="72" step="1" value="${hour}" list="hrs"><datalist id="hrs"><option value="0"></option><option value="2"></option><option value="24"></option><option value="48"></option><option value="72"></option></datalist>
+     <div class="ticks"><span>0 h</span><span>24 h</span><span>48 h</span><span>72 h</span></div><span class="note" id="ph"></span></div>
+   <ul class="issues" id="pl"></ul><div class="note" id="pn"></div>`;
+  $('hour').value=hour;
+  $('pv').innerHTML=`<div class="note">Simulated status after ${hour} h</div><div class="verdict" style="color:${verdict[1]}">${verdict[0]}</div><div class="status">${esc(verdict[2])}</div>`;
+  $('pt').innerHTML=['critical','high','medium','low'].map(v=>`<div class="l-${v}"><b>${c[v]}</b>${LVL[v].name}</div>`).join('');
+  $('ph').textContent=hidden?`${hidden} more problem(s) still to surface: delayed bots run at ~2, 24, 48 and 72 h.`:'Every check has run.';
+  $('pl').innerHTML=`${live.filter(i=>i.lvl!=='low').sort((a,b)=>LVL[a.lvl].rank-LVL[b.lvl].rank).map(i=>`<li class="l-${i.lvl}"><span class="k">${LVL[i.lvl].name} · ${esc(WHEN[i.at])}</span>${esc(i.msg)} <button type="button" data-go="${i.step}" data-f="${i.field}">Fix</button></li>`).join('')||'<li class="l-ok">Nothing above low risk at this point.</li>'}`;
+  $('pn').textContent=`${total.low} low-risk notes in the report.`;
+}
+function refreshIssues(){
+  const I=inspect();document.querySelectorAll('#form .fi').forEach(n=>n.remove());
+  document.querySelectorAll('#form .f').forEach(box=>{if(box.tagName==='FIELDSET')return;const ctl=box.querySelector('input[id],select[id],textarea[id]');if(!ctl)return;const id=ctl.id==='file'?'imgs':ctl.id;const html=fieldIssues(I,id);if(html)box.insertAdjacentHTML('beforeend',html)});
+  const extra={conf:'fieldset legend+label',inv:'#inv'};
+  const b=$('bul-issues');if(b)b.innerHTML=fieldIssues(I,'bullets');
+  document.querySelectorAll('#form fieldset').forEach(fs=>{const keys=fs.id==='inv'?['inv']:fs.querySelector('[data-p^="conf"]')?['conf']:fs.querySelector('[data-p="aiPeople"]')?['aiTagged']:fs.querySelector('[data-p="haz.magnets"]')?['haz.magnets']:fs.querySelector('[data-p="acct.approval"]')?['acct.approval']:fs.querySelector('[data-p^="acct.shared"]')?['acct.shared']:fs.querySelector('[data-p="acct.incent"]')?['acct.incent','acct.creators']:fs.querySelector('[data-p="acct.drop"]')?['acct.dropBrand']:[];keys.forEach(k=>fs.insertAdjacentHTML('beforeend',fieldIssues(I,k)));
+    fs.querySelectorAll('[data-p^="docs."]').forEach(c=>{const d=c.dataset.p.slice(5);c.closest('label').insertAdjacentHTML('afterend',fieldIssues(I,'doc-'+d))})});
+  counters();renderSide();
+}
+function go(s,field){step=s;renderForm();renderSide();const el=field&&$(field);(el||$('form').querySelector('h2')).scrollIntoView({block:'center'});if(el&&el.focus)el.focus()}
+function setPath(p,v){const k=p.split('.');let o=S;while(k.length>1)o=o[k.shift()];o[k[0]]=v}
+const STRUCT=new Set(['cat','gtinType','brandStatus','loaFrom','inv.has','inv.kind','isVar','ful','aiPeople','acct.auto','acct.drop','haz.kids','haz.radio','haz.mains','haz.battery','haz.aerosol','haz.liquid']);
+
+function analyse(file){return new Promise(res=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{
+  const W=img.naturalWidth,H=img.naturalHeight,k=Math.min(1,400/Math.max(W,H)),w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k));
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(img,0,0,w,h);const d=x.getImageData(0,0,w,h).data;
+  const band=Math.max(1,Math.round(Math.min(w,h)*.02));let tot=0,off=0,near=0,alpha=false,minX=w,minY=h,maxX=-1,maxY=-1;
+  for(let y=0;y<h;y++)for(let xx=0;xx<w;xx++){const i=(y*w+xx)*4,m=Math.min(d[i],d[i+1],d[i+2]),a=d[i+3];if(a<255)alpha=true;
+    if(m<245&&a>10){if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;if(y<minY)minY=y;if(y>maxY)maxY=y}
+    if(xx<band||y<band||xx>=w-band||y>=h-band){tot++;if(m<240||a<250)off++;else if(m<255)near++}}
+  const fill=maxX<0?0:Math.max((maxX-minX+1)/w,(maxY-minY+1)/h)*100;
+  res({url,w:W,h:H,type:file.type,nonWhite:off/tot*100,nearWhite:near/tot*100,fill,alpha})};
+  img.onerror=()=>res({url,w:0,h:0,type:file.type,nonWhite:100,nearWhite:0,fill:0,alpha:false});img.src=url})}
+function sampleImage(){const c=document.createElement('canvas');c.width=900;c.height=900;const x=c.getContext('2d');
+  x.fillStyle='#ececec';x.fillRect(0,0,900,900);x.fillStyle='#2f6f8f';x.fillRect(360,190,180,520);x.fillStyle='#1f4f66';x.fillRect(390,140,120,60);
+  x.fillStyle='#c1121f';x.font='bold 64px sans-serif';x.fillText('SALE',40,90);
+  return new Promise(r=>c.toBlob(b=>r(new File([b],'bottle.png',{type:'image/png'})),'image/png'))}
+
+$('mkt').innerHTML=Object.entries(MKT).map(([k,v])=>`<option value="${k}">${esc(v.name)}</option>`).join('');
+$('archrows').innerHTML=[
+ ['1. Simulator UI','Replays the add-a-product steps','7 steps in this page, form state in the browser','Saved drafts, multi-user accounts'],
+ ['2. Workflow & state','Step order, drafts, delayed bot checks','State machine + 0–72 h clock: each rule has a delay (0, 2, 24, 48, 72 h)','Real queues (Temporal/Celery), re-checks after edits'],
+ ['3. Compliance engine','Schema, text, IP, image and document validators','All five, as local rules: sample category attributes, word lists, 34-brand list, pixel checks, invoice/hazmat questionnaire','Live Product Type Definitions (SP-API), OCR/object detection, LLM claim classifier'],
+ ['4. Knowledge base','Category schemas, banned words, trademarks','Rule sets for US, Germany (EU) and UK in the page','GS1 prefix lookup, USPTO/EUIPO trademark search, updated policy feeds'],
+ ['5. Enforcement & reporting','Maps findings to real consequences','Critical / High / Medium / Low with simulated status; copy as text or JSON','Risk scoring from real enforcement cases, PDF export']
+ ,['Keeping rules current','Rules change without one changelog','Rules dated and sourced in the registry below','Weekly Product Type Definitions sync, Seller Forums news monitor, appeal-outcome feedback loop']
+].map(r=>`<tr>${r.map((c,i)=>i?`<td>${esc(c)}</td>`:`<td><b>${esc(c)}</b></td>`).join('')}</tr>`).join('');
+$('regrows').innerHTML=REG.map(r=>`<tr><td><b>${r.id}</b></td><td><span class="dot l-${r.severity}">${LVL[r.severity].name}</span></td><td>${esc(r.effective)}</td><td><span class="dot ${r.verified==='official'?'l-ok':'l-medium'}">${r.verified}</span></td><td>${esc(r.note)}</td><td>${r.source?`<a href="${esc(r.source)}">source</a>`:''}</td></tr>`).join('');
+
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.id==='hour'){hour=+t.value;renderSide();return}
+  if(t.id==='mkt'){S.mkt=t.value;renderForm();renderSide();return}
+  const key=t.dataset.k||t.dataset.p;if(!key)return;
+  setPath(key,t.type==='checkbox'?t.checked:t.value);
+  if(STRUCT.has(key)||key.startsWith('docs.')){const y=scrollY;renderForm();renderSide();scrollTo(0,y);const el=document.querySelector(`[data-k="${key}"],[data-p="${key}"]`);el&&el.focus();return}
+  refreshIssues()});
+document.addEventListener('change',async e=>{if(e.target.id==='file'){for(const f of [...e.target.files])S.imgs.push(await analyse(f));renderForm();renderSide()}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.step)go(b.dataset.step);
+  else if(b.dataset.go){const f=b.dataset.f;go(b.dataset.go,f==='imgs'?'file':f==='bullets'?'b0':['conf','inv','aiTagged','haz.magnets','acct.shared','acct.incent','acct.creators','acct.approval','acct.dropBrand'].includes(f)||f.startsWith('doc-')?null:f)}
+  else if(b.dataset.del!==undefined){S.imgs.splice(+b.dataset.del,1);renderForm();renderSide()}
+  else if(b.id==='next'){const i=STEPS.findIndex(s=>s[0]===step);go(STEPS[(i+1)%STEPS.length][0])}
+  else if(b.id==='prev'){const i=STEPS.findIndex(s=>s[0]===step);if(i>0)go(STEPS[i-1][0])}
+  else if(b.id==='reset'){S=clone(BLANK);S.mkt=$('mkt').value;hour=72;go('identity')}
+  else if(b.id==='example'){S=clone(BLANK);Object.assign(S,{mkt:$('mkt').value,cat:'home',brand:'Hydra Peak',brandStatus:'own',gtin:'012345678906',
+    title:'BEST SELLER!! Hydra Peak Stainless Steel Water Bottle Insulated Water Bottle Leak Proof Water Bottle 32 oz Fits Stanley Lids {Blue} $$ Free Shipping',hl:'',maker:'',attrs:{material:'Stainless steel'},aiPeople:true,aiTagged:false,
+    acct:{auto:'api',approval:false,shared:{ip:true,device:false,warehouse:true,bank:false,phone:false},incent:false,creators:true,drop:false,dropBrand:false},
+    isVar:true,theme:'Color',children:'Blue | Hydra Peak Water Bottle 32 oz Blue\nBlack | Hydra Peak Water Bottle 32 oz Black\nPink | Hydra Peak Kids Lunch Box Set',
+    sku:'HP-32-BLU',price:'64.99',list:'24.99',ref:'24.99',qty:'0',ful:'FBA',
+    bullets:['Keeps drinks cold 24 hours and hot 12 hours','Antibacterial lid kills germs on contact, eco-friendly','Ships fast in 1 day from our warehouse',' ',''],desc:'Visit www.hydrapeak-example.com for 20% off! <b>Lifetime warranty</b>.',
+    terms:'water bottle insulated stanley yeti owala alternative stainless steel bottle for gym hiking camping kids school office travel sports flask thermos tumbler cup mug jug canteen leakproof bpa free double wall vacuum 32oz 40oz 24oz blue black pink green purple',
+    haz:{battery:'none',aerosol:false,liquid:false,kids:false,radio:false,mains:false,magnets:false},barcode:'manufacturer',dims:'',weight:''});
+    S.imgs=[await analyse(await sampleImage())];hour=72;go('identity')}
+  else if(b.id==='copy'||b.id==='copyjson'||b.id==='copyreg'){const I=inspect(),txt=b.id==='copy'?I.map(i=>`[${LVL[i.lvl].name} · ${LVL[i.lvl].status} · ${WHEN[i.at]}${i.rule?' · '+i.rule:''}] ${i.msg} → ${i.fix}`).join('\n'):b.id==='copyreg'?JSON.stringify(REG.map(r=>({rule_id:r.id,domain:r.domain,severity:r.severity.toUpperCase(),enforcement_action:r.action,effective_date:r.effective,verification:r.verified,source:r.source||null,note:r.note,remediation:r.fix})),null,2):JSON.stringify({marketplace:S.mkt,findings:I.map(({lvl,at,step,engine,msg,fix,rule})=>({level:lvl,status:LVL[lvl].status,surfacesAfterHours:at,step,engine,rule_id:rule||null,problem:msg,fix}))},null,2);
+    const out=$(b.id==='copyreg'?'regcopied':'copied');try{await navigator.clipboard.writeText(txt);out.textContent='Copied.'}catch{out.textContent='Copy was blocked by the browser — select the table instead.'}}
+});
+document.addEventListener('submit',e=>e.preventDefault());
+renderForm();renderSide();
+}
+</script>
+</body>
+</html>
