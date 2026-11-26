@@ -360,7 +360,7 @@ function CloseAccount() {
           </Row>
           <div className="flex justify-end px-5 py-3">
             <button type="submit" disabled={!ready || close.isPending}
-                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">
+                    className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-[#fff] hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50">
               <Trash2 className="h-4 w-4" aria-hidden /> Close my account
             </button>
           </div>

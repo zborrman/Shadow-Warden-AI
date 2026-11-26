@@ -111,6 +111,15 @@
 [data-theme="light"] .text-slate-400 { color: #556072 !important; }
 [data-theme="light"] .text-slate-500 { color: #667085 !important; }
 
+/* Signal colours: the -200/-300/-400 shades were picked for a dark page and
+   fall to 1.4-3:1 on white. In light they take the site's darkened hues
+   (>= 4.5:1 on white and on their own 10% tint). */
+[data-theme="light"] :is(.text-red-200, .text-red-300, .text-red-400)             { color: #b91c1c !important; }
+[data-theme="light"] :is(.text-amber-200, .text-amber-300, .text-amber-400)       { color: #92400e !important; }
+[data-theme="light"] :is(.text-emerald-200, .text-emerald-300, .text-emerald-400,
+                         .text-green-300, .text-green-400)                        { color: #047857 !important; }
+[data-theme="light"] :is(.text-cyan-300, .text-cyan-400, .text-sky-300, .text-sky-400) { color: #0e7490 !important; }
+
 /* Borders that use rgba(255,255,255,…) */
 [data-theme="light"] .border-white\/\[0\.06\] { border-color: #e2e8f0 !important; }
 [data-theme="light"] .border-white\/10         { border-color: #cbd5e1 !important; }

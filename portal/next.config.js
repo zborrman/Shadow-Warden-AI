@@ -20,7 +20,7 @@ const SECURITY_HEADERS = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',   // Node.js server — required for /api/hub/* server-side proxy
+  output: 'standalone',   // Node.js server: the storefront renders on request (ISR)
   poweredByHeader: false,
   async headers() {
     return [
@@ -51,6 +51,19 @@ const nextConfig = {
         headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
       },
     ];
+  },
+  // Screens retired on 2026-11-26 (owner decision): they did not work with a
+  // seller's session, and the compliance one showed the platform's own data to
+  // every seller. Old links land on Overview instead of a 404.
+  async redirects() {
+    const retired = ['communities', 'community-hub', 'compliance', 'cost-allocation', 'deployment',
+      'doc-scanner', 'extension', 'hub', 'incidents', 'intelligence', 'prompts', 'supplier-risk',
+      'training', 'vendor-governance', 'settings/agents', 'settings/api-keys', 'settings/compliance',
+      'settings/notifications', 'settings/secrets'];
+    return retired.flatMap(r => [
+      { source: `/${r}`, destination: '/dashboard/', permanent: false },
+      { source: `/${r}/:rest*`, destination: '/dashboard/', permanent: false },
+    ]);
   },
   trailingSlash: true,    // /dashboard → /dashboard/index.html
   images: { unoptimized: true },
