@@ -1,86 +1,46 @@
 """
 warden/auth/router.py
 ─────────────────────
-HttpOnly-cookie session auth for the Shadow Warden site.
+The marketing site's own account endpoints — retired 2026-11-26.
 
 Endpoints
 ─────────
-  POST /auth/login   — validate credentials, set HttpOnly sw_session cookie
-  POST /auth/signup  — register new user, auto-login (same cookie)
-  POST /auth/logout  — delete the cookie
-  GET  /auth/me      — return current user from cookie (CORS-safe, credentials:include)
+  POST /auth/login   — 410, points at the portal sign-in
+  POST /auth/signup  — 410, points at the portal sign-up
+  POST /auth/logout  — clears any leftover site cookies
+  GET  /auth/me      — reads a leftover sw_session cookie (1 h TTL), else 401
 
-Cookie strategy
-───────────────
-  • key=sw_session, httponly=True, secure=True, samesite=lax
-  • domain=.shadow-warden-ai.com  (covers api.* and www.*)
-  • max_age=3600  (env AUTH_SESSION_TTL to override)
+Why retired
+───────────
+In production `user_store` read and wrote `warden_core.portal_users`, the
+portal's own account table. So the site login was a second password check on
+portal accounts — no second factor, no per-account lockout (only a per-IP
+limit, which an attacker rotating addresses does not meet) — and the site
+sign-up created portal accounts outside the portal's enrolment. The cookie it
+issued granted nothing but nav state. The portal (`/portal/auth/*`) is the one
+place an account is created or used: strong password, TOTP, per-account
+lockout, reset by emailed token.
 
-User store (priority order)
-───────────────────────────
-  1. SQLite DB at AUTH_DB_PATH (default /tmp/warden_auth.db) — writable, persists registrations
-  2. AUTH_USERS_JSON — JSON array: [{"email":"...", "password_hash":"<bcrypt>"}]
-  3. AUTH_ADMIN_EMAIL + AUTH_ADMIN_PASSWORD_HASH — single-user shortcut
-
-Generate a bcrypt hash:
-  python3 -c "import bcrypt; print(bcrypt.hashpw(b'yourpass', bcrypt.gensalt()).decode())"
+Nothing here issues a credential any more. Do not bring the old handlers back:
+add what is missing to the portal instead.
 """
 from __future__ import annotations
 
-import collections
 import hashlib
-import json
-import logging
 import os
-import re
-import sqlite3
-import threading
-import time
-from collections.abc import Generator
-from contextlib import contextmanager
 from typing import Any
 
-import bcrypt
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from warden.auth import user_store
-from warden.client_ip import get_client_ip
 from warden.config import settings
-from warden.db.connect import open_db
-
-log = logging.getLogger("warden.auth")
 
 _COOKIE = "sw_session"
 _ALG = "HS256"
-_TTL = settings.auth_session_ttl
 _DOMAIN = settings.auth_cookie_domain
-# Resolved per call (see _db_path), never snapshotted at import: warden/auth/
-# user_store.py resolves the *same* file, and two modules holding two
-# independently-captured copies of one path is how they end up pointed at
-# different databases. The project already learned this with signing keys.
 
-# Signup rate limit: max 5 registrations per IP per hour
-_SIGNUP_RATE_LIMIT = settings.auth_signup_rate_limit
-_SIGNUP_RATE_WINDOW = 3600
-
-# Login rate limit: separate budget from signup — a login flood must not be
-# spendable out of the signup allowance, and vice versa. Counts every attempt,
-# not just failures: an attacker who knows one valid password would otherwise
-# get an unmetered oracle for the rest.
-_LOGIN_RATE_LIMIT = int(os.getenv("AUTH_LOGIN_RATE_LIMIT", "10"))
-_LOGIN_RATE_WINDOW = int(os.getenv("AUTH_LOGIN_RATE_WINDOW", "300"))
-
-# Hard cap on tracked buckets. Entries are only evicted when their own key is
-# touched again, so without a sweep this dict grows once per distinct client
-# address and never shrinks — and now that the limiter sees the *real* client IP
-# rather than one constant proxy address, an attacker rotating source addresses
-# turns that into unbounded memory growth. The sweep runs only when the store is
-# over the cap, so the common path stays a single dict lookup.
-_RATE_STORE_MAX_KEYS = int(os.getenv("AUTH_RATE_STORE_MAX_KEYS", "10000"))
-
-_rate_lock = threading.Lock()
-_rate_store: dict[str, list[float]] = collections.defaultdict(list)
+PORTAL_LOGIN_URL = "https://portal.shadow-warden-ai.com/login"
+PORTAL_REGISTER_URL = "https://portal.shadow-warden-ai.com/register"
 
 try:
     from jose import JWTError as _JWTError
@@ -90,94 +50,6 @@ except ImportError:  # pragma: no cover
     _JOSE_OK = False
     _JWTError = Exception  # type: ignore[assignment,misc]
 
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-# ── SQLite user store ──────────────────────────────────────────────────────────
-
-# Schema + path now live with the code that opens the file — see
-# warden/auth/user_store.py. Importing it is what registers the DDL.
-_AUTH_DDL = user_store._AUTH_DDL
-
-
-def _db_path() -> str:
-    """The one resolver for warden_auth.db, shared with `user_store`."""
-    return user_store.sqlite_path()
-
-
-@contextmanager
-def _db() -> Generator[sqlite3.Connection, None, None]:
-    path = _db_path()
-    with open_db("auth", path, module_default_path=path) as con:
-        yield con
-
-
-def _db_get_user(email: str) -> str | None:
-    """Return bcrypt hash for email from SQLite, or None."""
-    try:
-        with _db() as conn:
-            row = conn.execute(
-                "SELECT password_hash FROM users WHERE email = ? COLLATE NOCASE", (email,)
-            ).fetchone()
-        return row[0] if row else None
-    except Exception as exc:
-        log.warning("auth db read error: %s", exc)
-        return None
-
-
-def _db_create_user(email: str, pw_hash: str) -> bool:
-    """Insert user. Returns False if email already exists."""
-    try:
-        with _db() as conn:
-            conn.execute(
-                "INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, pw_hash)
-            )
-        return True
-    except sqlite3.IntegrityError:
-        return False
-    except Exception as exc:
-        log.error("auth db write error: %s", exc)
-        return False
-
-
-def _load_env_users() -> dict[str, str]:
-    """Return {email_lower: bcrypt_hash} from env-var config (read-only, pre-seeded accounts)."""
-    raw = settings.auth_users_json
-    if raw:
-        try:
-            return {u["email"].lower(): u["password_hash"] for u in json.loads(raw)}
-        except Exception as exc:
-            log.warning("AUTH_USERS_JSON parse error: %s", exc)
-    email = settings.auth_admin_email
-    pw_hash = settings.auth_admin_password_hash
-    if email and pw_hash:
-        return {email.lower(): pw_hash}
-    return {}
-
-
-def _email_exists(email: str) -> bool:
-    """Check the account store (Postgres → SQLite) and env-var users."""
-    if user_store.email_exists(email):
-        return True
-    return email.lower() in _load_env_users()
-
-
-def _lookup_password_hash(email: str) -> str | None:
-    """Return the stored hash from the account store, then env users.
-
-    D-4: this used to read `warden_auth.db` only, which is why an account
-    created in the customer portal could not log in here and vice versa.
-    `user_store` reads Postgres `portal_users` first and falls back to the same
-    SQLite table, so both front doors now see one set of accounts — and a
-    deployment with no DATABASE_URL behaves exactly as it did before.
-    """
-    h = user_store.find_password_hash(email)
-    if h:
-        return h
-    return _load_env_users().get(email.lower())
-
-
-# ── JWT helpers ────────────────────────────────────────────────────────────────
 
 def _secret() -> str:
     s = os.getenv("AUTH_JWT_SECRET", "")
@@ -189,216 +61,34 @@ def _secret() -> str:
     raise RuntimeError("AUTH_JWT_SECRET is not configured")
 
 
-def _issue(email: str) -> str:
-    if not _JOSE_OK:
-        raise RuntimeError("python-jose not installed")
-    now = int(time.time())
-    return _jwt.encode(
-        {"sub": email, "iat": now, "exp": now + _TTL},
-        _secret(),
-        algorithm=_ALG,
-    )
-
-
 def _decode(token: str) -> dict[str, Any] | None:
     if not _JOSE_OK:
         return None
     try:
         return _jwt.decode(token, _secret(), algorithms=[_ALG])
-    except _JWTError:
+    except (_JWTError, RuntimeError):
         return None
 
 
-def _sweep_rate_store(now: float) -> None:
-    """Drop aged-out buckets. Caller must hold ``_rate_lock``.
-
-    Removes any bucket whose newest attempt is older than the longest window in
-    use, then — if the store is still over the cap because every bucket is
-    genuinely active — evicts least-recently-active buckets down to the cap.
-    Eviction can only forget a *counter*, never grant a session, and the
-    least-recently-active entries are the ones least likely to be mid-attack.
-    """
-    horizon = max(_SIGNUP_RATE_WINDOW, _LOGIN_RATE_WINDOW)
-    cutoff = now - horizon
-
-    for key in [k for k, ts in _rate_store.items() if not ts or ts[-1] <= cutoff]:
-        del _rate_store[key]
-
-    overflow = len(_rate_store) - _RATE_STORE_MAX_KEYS
-    if overflow > 0:
-        oldest = sorted(_rate_store, key=lambda k: _rate_store[k][-1])[:overflow]
-        for key in oldest:
-            del _rate_store[key]
-
-
-def _rate_check(
-    ip: str,
-    *,
-    limit: int = _SIGNUP_RATE_LIMIT,
-    window: int = _SIGNUP_RATE_WINDOW,
-    bucket: str = "signup",
-) -> bool:
-    """Return True if IP is within rate limit, False if exceeded.
-
-    The bucket name namespaces the counter so login and signup can't drain each
-    other's allowance. Defaults preserve the original signup-only behaviour.
-    """
-    key = f"{bucket}:{ip}"
-    now = time.time()
-    cutoff = now - window
-    with _rate_lock:
-        if len(_rate_store) > _RATE_STORE_MAX_KEYS:
-            _sweep_rate_store(now)
-        timestamps = _rate_store[key]
-        # evict old entries
-        _rate_store[key] = [t for t in timestamps if t > cutoff]
-        if len(_rate_store[key]) >= limit:
-            return False
-        _rate_store[key].append(now)
-    return True
-
-
-# ── Router ─────────────────────────────────────────────────────────────────────
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _cookie_response(email: str, *, status: int = 200, body: dict | None = None) -> JSONResponse:
-    """Build a JSONResponse with the session cookie set."""
-    token = _issue(email)
-    resp = JSONResponse(body or {"ok": True, "email": email}, status_code=status)
-    resp.set_cookie(
-        key=_COOKIE,
-        value=token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        domain=_DOMAIN,
-        max_age=_TTL,
-        path="/",
+def _retired(where: str) -> JSONResponse:
+    return JSONResponse(
+        {"detail": "Site accounts are retired. Use the Shadow Warden portal.", "location": where},
+        status_code=410,
+        headers={"Link": f'<{where}>; rel="alternate"'},
     )
-    # Non-HttpOnly indicator cookie — lets client JS detect auth state without an API call.
-    # Does NOT carry the JWT; only signals "a session exists" (safe to read via JS).
-    resp.set_cookie(
-        key="sw_logged_in",
-        value="1",
-        httponly=False,
-        secure=True,
-        samesite="lax",
-        domain=_DOMAIN,
-        max_age=_TTL,
-        path="/",
-    )
-    return resp
 
 
-@router.post("/login", summary="Issue session cookie (HttpOnly, Secure)")
-async def login(request: Request) -> JSONResponse:
-    # Credential stuffing gate. This endpoint had no limit of any kind, at any
-    # layer: the Cloudflare bypass rule disabled edge rate limiting on it, and
-    # nothing in-app counted attempts.
-    client_ip = get_client_ip(request) or "unknown"
-    if not _rate_check(
-        client_ip,
-        limit=_LOGIN_RATE_LIMIT,
-        window=_LOGIN_RATE_WINDOW,
-        bucket="login",
-    ):
-        return JSONResponse(
-            {"detail": "Too many login attempts. Please try again later."},
-            status_code=429,
-        )
-
-    try:
-        body = await request.json()
-        email: str = (body.get("email") or "").strip().lower()
-        password: str = body.get("password") or ""
-    except Exception:
-        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
-
-    stored_hash = _lookup_password_hash(email)
-    if not stored_hash:
-        # Constant-time dummy check to prevent email enumeration via timing.
-        bcrypt.checkpw(b"x", bcrypt.hashpw(b"x", bcrypt.gensalt(rounds=4)))
-        return JSONResponse({"detail": "Invalid credentials"}, status_code=401)
-
-    try:
-        valid = bcrypt.checkpw(password.encode(), stored_hash.encode())
-    except Exception:
-        valid = False
-
-    if not valid:
-        return JSONResponse({"detail": "Invalid credentials"}, status_code=401)
-
-    # D-4 lazy migration — strictly *after* the password verified above. An
-    # account that still lives only in SQLite is promoted into portal_users, so
-    # the two stores converge through ordinary traffic instead of a flag day.
-    # Never move this before the check: it writes a usable credential.
-    user_store.note_successful_login(email, stored_hash)
-
-    try:
-        return _cookie_response(email)
-    except RuntimeError as exc:
-        log.error("auth token issue failed: %s", exc)
-        return JSONResponse({"detail": str(exc)}, status_code=500)
+@router.post("/login", summary="Retired: sign in at the portal (410)")
+async def login() -> JSONResponse:
+    return _retired(PORTAL_LOGIN_URL)
 
 
-@router.post("/signup", summary="Register new account and auto-login (HttpOnly cookie)")
-async def signup(request: Request) -> JSONResponse:
-    # Rate limit by client IP
-    client_ip = get_client_ip(request) or "unknown"
-    if not _rate_check(client_ip, bucket="signup"):
-        return JSONResponse(
-            {"detail": "Too many registration attempts. Please try again later."},
-            status_code=429,
-        )
-
-    try:
-        body = await request.json()
-        email: str = (body.get("email") or "").strip().lower()
-        password: str = body.get("password") or ""
-    except Exception:
-        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
-
-    # Validate email format
-    if not email or not _EMAIL_RE.match(email):
-        return JSONResponse({"detail": "Invalid email address."}, status_code=422)
-
-    # Validate password length
-    if len(password) < 8:
-        return JSONResponse({"detail": "Password must be at least 8 characters."}, status_code=422)
-
-    # Reject if already registered
-    if _email_exists(email):
-        return JSONResponse({"detail": "An account with this email already exists."}, status_code=409)
-
-    # Hash password and store
-    try:
-        pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    except Exception as exc:
-        log.error("bcrypt hash failed: %s", exc)
-        return JSONResponse({"detail": "Registration failed. Please try again."}, status_code=500)
-
-    # D-4: writes to portal_users when Postgres is configured, SQLite otherwise.
-    # Uniqueness is checked across both stores, so a site signup can no longer
-    # shadow an existing portal account with a second password.
-    try:
-        created = user_store.create_user(email, pw_hash)
-    except Exception as exc:
-        # user_store deliberately does not fall back to SQLite when the Postgres
-        # write fails — a silent reroute is exactly how the two stores forked.
-        log.error("signup: account store write failed: %s", exc)
-        return JSONResponse({"detail": "Registration failed. Please try again."}, status_code=500)
-
-    if not created:
-        return JSONResponse({"detail": "An account with this email already exists."}, status_code=409)
-
-    log.info("new user registered: %s", email)
-
-    try:
-        return _cookie_response(email, body={"ok": True, "email": email, "created": True})
-    except RuntimeError as exc:
-        log.error("auth token issue failed: %s", exc)
-        return JSONResponse({"detail": str(exc)}, status_code=500)
+@router.post("/signup", summary="Retired: create the account at the portal (410)")
+async def signup() -> JSONResponse:
+    return _retired(PORTAL_REGISTER_URL)
 
 
 @router.post("/logout", summary="Clear session cookie")

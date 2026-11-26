@@ -126,12 +126,14 @@ test.describe('Global Navigation', () => {
     await expect(gh).toHaveAttribute('target', '_blank');
   });
 
-  test('Sign In button links to /login', async ({ page }) => {
-    await expect(page.locator('#nav-signin')).toHaveAttribute('href', '/login');
+  // Site accounts were retired on 2026-11-26 (owner decision): every account
+  // lives in the portal, which has two-step verification. See warden/auth/router.py.
+  test('Sign In button links to the portal sign-in', async ({ page }) => {
+    await expect(page.locator('#nav-signin')).toHaveAttribute('href', 'https://portal.shadow-warden-ai.com/login');
   });
 
-  test('"Get Started" CTA links to /signup and is visible', async ({ page }) => {
-    const cta = page.locator('a[href="/signup"]', { hasText: /get started/i }).first();
+  test('"Get Started" CTA links to the portal sign-up and is visible', async ({ page }) => {
+    const cta = page.locator('a[href="https://portal.shadow-warden-ai.com/register"]', { hasText: /get started/i }).first();
     await expect(cta).toBeVisible();
   });
 
@@ -426,35 +428,33 @@ test.describe('Mobile Navigation', () => {
 // 6. Sign Up / Sign In pages
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Auth Pages', () => {
-  test('signup page renders with form and logo', async ({ page }) => {
+  // /signup and /login are hand-off pages to the portal: no password field on
+  // the marketing site, ever.
+  test('signup page hands off to the portal', async ({ page }) => {
     await page.goto('/signup');
     await expect(page.locator('h1')).toContainText('Create your account');
-    await expect(page.locator('#email')).toBeVisible();
-    await expect(page.locator('#password')).toBeVisible();
-    await expect(page.locator('#confirm')).toBeVisible();
-    await expect(page.locator('#submit-btn')).toBeVisible();
+    await expect(page.locator('#continue-btn')).toHaveAttribute('href', 'https://portal.shadow-warden-ai.com/register');
+    await expect(page.locator('#continue-btn')).toBeVisible();
   });
 
-  test('signup page has link to login', async ({ page }) => {
+  test('signup page has link to sign in', async ({ page }) => {
     await page.goto('/signup');
-    await expect(page.locator('a[href="/login"]')).toBeVisible();
+    await expect(page.locator('a[href="https://portal.shadow-warden-ai.com/login"]')).toBeVisible();
   });
 
-  test('signup client validates password mismatch', async ({ page }) => {
-    await page.goto('/signup');
-    await page.fill('#email', 'test@example.com');
-    await page.fill('#password', 'Password1!');
-    await page.fill('#confirm', 'Different1!');
-    await page.locator('#confirm').dispatchEvent('input');
-    await expect(page.locator('#confirm-hint')).toBeVisible();
+  test('signup and login pages collect no password', async ({ page }) => {
+    for (const path of ['/signup', '/login']) {
+      await page.goto(path);
+      await expect(page.locator('input')).toHaveCount(0);
+      await expect(page.locator('form')).toHaveCount(0);
+    }
   });
 
-  test('login page renders with form and signup link', async ({ page }) => {
+  test('login page hands off to the portal', async ({ page }) => {
     await page.goto('/login');
     await expect(page.locator('h1')).toContainText('Sign in');
-    await expect(page.locator('#email')).toBeVisible();
-    await expect(page.locator('#password')).toBeVisible();
-    await expect(page.locator('a[href="/signup"]')).toBeVisible();
+    await expect(page.locator('#continue-btn')).toHaveAttribute('href', 'https://portal.shadow-warden-ai.com/login');
+    await expect(page.locator('a[href="https://portal.shadow-warden-ai.com/register"]')).toBeVisible();
   });
 
   test('signup agent-protocol link tag is present', async ({ page }) => {
