@@ -25,6 +25,22 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: SECURITY_HEADERS },
+      // The Listing Preflight simulator is the one document the portal frames,
+      // and only from itself (/preflight/ shows it in a sandboxed iframe). Later
+      // rules override earlier ones for the same key, so this narrows nothing
+      // else. Being static, it can carry a full CSP without a nonce.
+      {
+        source: '/preflight/sim.html',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; " +
+              "font-src https://fonts.gstatic.com; img-src data: blob:; connect-src 'none'; form-action 'none'; " +
+              "base-uri 'none'; frame-ancestors 'self'",
+          },
+        ],
+      },
       // Pages are prerendered, and Next answers them with only
       // `s-maxage=31536000`, which leaves a browser free to reuse its copy
       // heuristically. After a deploy that is the old page. `no-cache` makes
