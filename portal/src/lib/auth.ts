@@ -11,9 +11,30 @@ export interface TotpChallenge {
   totp_session: string
 }
 
-export async function login(email: string, password: string): Promise<LoginResult | TotpChallenge> {
-  const { data } = await api.post<LoginResult | TotpChallenge>('/auth/login', { email, password })
-  if ('requires_totp' in data) return data
+/** No authenticator yet: two-step sign-in is required, so the password opens enrolment only. */
+export interface TotpSetupRequired {
+  requires_totp_setup: true
+  setup_session: string
+}
+
+export type LoginAnswer = LoginResult | TotpChallenge | TotpSetupRequired
+
+export async function login(email: string, password: string): Promise<LoginAnswer> {
+  const { data } = await api.post<LoginAnswer>('/auth/login', { email, password })
+  if ('requires_totp' in data || 'requires_totp_setup' in data) return data
+  setAccessToken(data.access_token)
+  return data
+}
+
+/** Required enrolment, step 1: a fresh key for the authenticator app. */
+export async function enrollStart(setup_session: string): Promise<{ secret: string; otpauth_uri: string }> {
+  const { data } = await api.post('/auth/totp/enroll/start', { setup_session })
+  return data
+}
+
+/** Required enrolment, step 2: the first code turns 2FA on and opens the session. */
+export async function enrollFinish(setup_session: string, code: string): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>('/auth/totp/enroll/finish', { setup_session, code })
   setAccessToken(data.access_token)
   return data
 }

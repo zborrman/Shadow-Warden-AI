@@ -45,6 +45,8 @@
     "POST /portal/auth/register": "Same.",
     "POST /portal/auth/reset-password": "Same.",
     "POST /portal/auth/totp/complete": "Same.",
+    "POST /portal/auth/totp/enroll/finish": "Same - required 2FA enrolment; needs a totp_setup token from login, 401 without it.",
+    "POST /portal/auth/totp/enroll/start": "Same - required 2FA enrolment; needs a totp_setup token from login, 401 without it.",
     "POST /portal/waitlist": "Same.",
     "POST /security/pentest": "Gated in-handler by _require_admin(x_admin_key) - a header check the dependency scan cannot see. Not open.",
     "POST /slack/command": "Fail-CLOSED since this PR: 503 without SLACK_SIGNING_SECRET, 403 on a bad signature."
