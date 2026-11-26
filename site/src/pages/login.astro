@@ -1,72 +1,12 @@
 ---
 import AuthPulse from '../components/auth/AuthPulse.astro';
-const API = '/api';
+// Site accounts were retired on 2026-11-26 (see signup.astro). Sign-in happens
+// in the portal, with two-step verification. This page stays for old links.
+const PORTAL = 'https://portal.shadow-warden-ai.com';
 ---
-<AuthPulse title="Sign In — Shadow Warden AI" step="Sign in" heading="Sign in to your account">
-  <form id="login-form" class="ap-form" novalidate>
-    <p id="error-msg" class="ap-error" role="alert"></p>
-
-    <label class="ap-label" for="email">Email address
-      <input id="email" class="ap-field" type="email" name="email" placeholder="you@company.com" autocomplete="email" required />
-    </label>
-
-    <div class="ap-label">
-      <label for="password">Password</label>
-      <div class="ap-pw">
-        <input id="password" class="ap-field" type="password" name="password" autocomplete="current-password" required />
-        <button type="button" class="ap-show" data-for="password" aria-label="Show password">Show</button>
-      </div>
-    </div>
-
-    <button id="submit-btn" class="ap-primary" type="submit">Sign In</button>
-  </form>
-
-  <p class="ap-row">Don&apos;t have an account? <a href="/signup" class="ap-link">Create one</a></p>
-  <p class="ap-callout">Selling on Amazon? The seller workspace has its own sign-in with two-step verification
-    and password reset: <a class="ap-link" href="https://portal.shadow-warden-ai.com/login">sign in to the portal</a>.</p>
-
-  <script define:vars={{ API }}>
-    const form = document.getElementById('login-form');
-    const submitBtn = document.getElementById('submit-btn');
-    const errorMsg = document.getElementById('error-msg');
-
-    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) window.location.replace('/agentic');
-
-    document.querySelectorAll('.ap-show').forEach(b => b.addEventListener('click', () => {
-      const input = document.getElementById(b.dataset.for);
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      b.textContent = show ? 'Hide' : 'Show';
-      b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    }));
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorMsg.style.display = 'none';
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      if (!email || !password) return showError('Please enter your email and password.');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>';
-      try {
-        const res = await fetch(API + '/auth/login', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        if (res.ok) { window.location.replace('/agentic'); return; }
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 503) showError('Sign-in is not configured yet. Contact the administrator.');
-        else if (res.status === 401) showError('Incorrect email or password.');
-        else if (res.status === 429) showError('Too many attempts. Please wait a few minutes and try again.');
-        else showError(data.detail || 'Something went wrong. Please try again.');
-      } catch {
-        showError('Could not reach the sign-in server. Check your connection.');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
-      }
-    });
-
-    function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
-  </script>
+<AuthPulse title="Sign In — Shadow Warden AI" step="Sign in" heading="Sign in to your account"
+           lead="Sign-in happens in the Shadow Warden portal, with two-step verification.">
+  <a id="continue-btn" class="ap-primary" href={`${PORTAL}/login`}>Continue to sign in</a>
+  <p class="ap-row">Forgot your password? <a href={`${PORTAL}/forgot-password`} class="ap-link">Reset it</a></p>
+  <p class="ap-row">Don&apos;t have an account? <a href={`${PORTAL}/register`} class="ap-link">Create one</a></p>
 </AuthPulse>

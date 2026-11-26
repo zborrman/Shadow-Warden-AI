@@ -54,17 +54,3 @@ def test_the_portal_page_lists_the_same_rules():
     assert f"MIN_LENGTH = {pp.MIN_LENGTH}" in ts
     for word in pp.COMMON:
         assert f"'{word}'" in ts, word
-
-
-def test_the_site_signup_page_lists_the_same_rules():
-    """site/src/pages/signup.astro (the site's own account) shows the same list."""
-    from pathlib import Path
-
-    from warden.auth import router as site_auth
-    page = (Path(__file__).resolve().parents[2] / "site/src/pages/signup.astro").read_text(encoding="utf-8")
-    assert f"v.length >= {pp.MIN_LENGTH}" in page
-    assert f"{pp.MIN_LENGTH}+ characters" in page
-    for word in pp.COMMON:
-        assert f"'{word}'" in page, word
-    import inspect
-    assert "password_policy.problems(" in inspect.getsource(site_auth.signup)

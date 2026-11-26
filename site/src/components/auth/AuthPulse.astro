@@ -2,7 +2,7 @@
 // The sign-in / sign-up frame, the same one the portal uses
 // (portal/src/components/auth/AuthShell.tsx, design canvas variant 5 "Pulse"):
 // the Amazon Sales Detector preview on the left, the form on the right.
-// The preview is sample data and says so. Pages pass the form in the slot.
+// The preview is sample data and says so. Pages pass their content in the slot.
 interface Props { title: string; step: string; heading: string; lead?: string }
 const { title, step, heading, lead } = Astro.props;
 
@@ -102,43 +102,19 @@ const FEED = [
   .ap-lead { margin: 8px 0 0; font-size: 15px; line-height: 22px; color: #8b98a8; }
   .ap-foot { margin: 0; padding-top: 16px; border-top: 1px solid #232c38; font-size: 12px; line-height: 18px; color: #8b98a8; }
 
-  /* Form parts the pages share. */
-  .ap-form { display: flex; flex-direction: column; gap: 16px; }
-  .ap-label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; }
-  .ap-field {
-    width: 100%; min-height: 46px; padding: 0 14px; border-radius: 8px; border: 1px solid #5c6b7e;
-    background: #07090c; color: #e6edf3; font: inherit; font-size: 15px;
-  }
-  .ap-field::placeholder { color: #5c6b7e; }
-  .ap-field:focus { outline: none; border-color: #00c2ff; box-shadow: 0 0 0 3px rgba(0,194,255,.3); }
-  .ap-field.error { border-color: #ff6b6b; }
-  .ap-pw { display: flex; border: 1px solid #5c6b7e; border-radius: 8px; background: #07090c; overflow: hidden; }
-  .ap-pw:focus-within { border-color: #00c2ff; box-shadow: 0 0 0 3px rgba(0,194,255,.3); }
-  .ap-pw .ap-field { border: 0; border-radius: 0; box-shadow: none; flex: 1; min-width: 0; background: transparent; }
-  .ap-show { min-width: 64px; padding: 0 14px; border: 0; border-left: 1px solid #232c38; background: transparent; color: #8b98a8; font: 600 13px inherit; cursor: pointer; }
-  .ap-show:hover { color: #e6edf3; }
+  /* Hand-off parts the pages share. */
   .ap-primary {
     width: 100%; min-height: 48px; border-radius: 8px; border: 1px solid #00c2ff; background: #00c2ff;
-    color: #0b1220; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    color: #0b1220; font-size: 15px; font-weight: 600; text-decoration: none;
     display: flex; align-items: center; justify-content: center; transition: filter .15s ease, transform .1s ease;
   }
   .ap-primary:hover { filter: brightness(1.08); }
   .ap-primary:active { transform: translateY(1px); }
-  .ap-primary:disabled { cursor: not-allowed; background: #232c38; border-color: #232c38; color: #8b98a8; filter: none; }
+  .ap-primary:focus-visible, .ap-link:focus-visible { outline: 2px solid #7fd3ff; outline-offset: 3px; }
   .ap-link { color: #7fd3ff; font-weight: 600; text-decoration: none; }
   .ap-link:hover { text-decoration: underline; }
   .ap-row { margin: 0; font-size: 14px; color: #8b98a8; text-align: center; }
-  .ap-error { display: none; margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid #c8102e; background: #2a1015; color: #ff8a8a; font-size: 14px; line-height: 20px; }
-  .ap-hint { display: none; margin: 0; font-size: 13px; color: #ff8a8a; }
-  .ap-hint.visible { display: block; }
-  .ap-meter { display: flex; gap: 4px; }
-  .ap-meter span { flex: 1; height: 4px; border-radius: 2px; background: #232c38; transition: background-color .2s ease; }
-  .ap-rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; color: #8b98a8; }
-  .ap-rules li::before { content: "○"; display: inline-block; width: 18px; color: #5c6b7e; }
-  .ap-rules li.ok { color: #c6d4e3; }
-  .ap-rules li.ok::before { content: "✓"; color: #3ddc97; }
-  .ap-callout { margin: 0; padding: 12px 14px; border-radius: 8px; border: 1px solid #1e3a52; background: #0b1a26; font-size: 13px; line-height: 19px; color: #c6d4e3; }
-  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(11,18,32,.3); border-top-color: #0b1220; animation: ap-spin .8s linear infinite; }
-  @keyframes ap-spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } .ap-primary, .ap-meter span { transition: none; } }
+  .ap-points { list-style: none; margin: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #232c38; border-radius: 8px; background: #07090c; font-size: 14px; color: #c6d4e3; }
+  .ap-points li::before { content: "✓"; display: inline-block; width: 20px; color: #3ddc97; }
+  @media (prefers-reduced-motion: reduce) { .ap-primary { transition: none; } }
 </style>

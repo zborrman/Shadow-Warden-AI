@@ -1,128 +1,18 @@
 ---
 import AuthPulse from '../components/auth/AuthPulse.astro';
-const API = '/api';
-// The same strong-password rule as the portal; warden/auth/password_policy.py is
-// the authority and test_portal_password_policy.py keeps this list in step.
-const COMMON = ['password', 'passw0rd', 'qwerty', '123456', 'letmein', 'welcome',
-  'iloveyou', 'admin', 'shadowwarden', 'warden', 'amazon'];
+// Site accounts were retired on 2026-11-26: the old form checked passwords
+// against the portal's account table with no second factor. Accounts are
+// created in the portal only. This page stays for old links and never asks
+// for a password.
+const PORTAL = 'https://portal.shadow-warden-ai.com';
 ---
 <AuthPulse title="Create Account — Shadow Warden AI" step="Create account" heading="Create your account"
-           lead="A strong password is required. It takes a minute.">
-  <form id="signup-form" class="ap-form" novalidate>
-    <p id="error-msg" class="ap-error" role="alert"></p>
-
-    <label class="ap-label" for="email">Email address
-      <input id="email" class="ap-field" type="email" name="email" placeholder="you@company.com" autocomplete="email" required />
-    </label>
-
-    <div class="ap-label">
-      <label for="password">Password</label>
-      <div class="ap-pw">
-        <input id="password" class="ap-field" type="password" name="password" autocomplete="new-password" required aria-describedby="pw-rules" />
-        <button type="button" class="ap-show" data-for="password" aria-label="Show password">Show</button>
-      </div>
-      <div class="ap-meter" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-      <ul id="pw-rules" class="ap-rules" aria-live="polite">
-        <li data-r="len">12+ characters</li>
-        <li data-r="up">Upper-case letter</li>
-        <li data-r="lo">Lower-case letter</li>
-        <li data-r="num">A number</li>
-        <li data-r="sym">A symbol</li>
-        <li data-r="own">No email name or common word</li>
-      </ul>
-    </div>
-
-    <label class="ap-label" for="confirm">Confirm password
-      <input id="confirm" class="ap-field" type="password" name="confirm" autocomplete="new-password" required />
-    </label>
-    <p id="confirm-hint" class="ap-hint">Passwords don&apos;t match.</p>
-
-    <button id="submit-btn" class="ap-primary" type="submit">Create Account</button>
-  </form>
-
-  <p class="ap-row">Already have an account? <a href="/login" class="ap-link">Sign in</a></p>
-  <p class="ap-callout">Selling on Amazon? The seller workspace, with two-step verification and password
-    reset, has its own account: <a class="ap-link" href="https://portal.shadow-warden-ai.com/register">create it in the portal</a>.</p>
-
-  <script define:vars={{ API, COMMON }}>
-    const form = document.getElementById('signup-form');
-    const email = document.getElementById('email');
-    const pw = document.getElementById('password');
-    const confirmInput = document.getElementById('confirm');
-    const confirmHint = document.getElementById('confirm-hint');
-    const submitBtn = document.getElementById('submit-btn');
-    const errorMsg = document.getElementById('error-msg');
-    const bars = document.querySelectorAll('.ap-meter span');
-    const COLORS = ['#ff6b6b', '#ffb020', '#7fd3ff', '#3ddc97'];
-
-    if (document.cookie.split(';').some(c => c.trim() === 'sw_logged_in=1')) window.location.replace('/agentic');
-
-    document.querySelectorAll('.ap-show').forEach(b => b.addEventListener('click', () => {
-      const input = document.getElementById(b.dataset.for);
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      b.textContent = show ? 'Hide' : 'Show';
-      b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    }));
-
-    function rules(v) {
-      const low = v.toLowerCase();
-      const local = (email.value.split('@')[0] || '').toLowerCase();
-      const own = (local.length >= 3 && low.includes(local)) || COMMON.some(w => low.includes(w));
-      return {
-        len: v.length >= 12 && new TextEncoder().encode(v).length <= 72,
-        up: /[A-Z]/.test(v), lo: /[a-z]/.test(v), num: /[0-9]/.test(v), sym: /[^A-Za-z0-9]/.test(v),
-        own: v.length > 0 && !own,
-      };
-    }
-    function paint() {
-      const r = rules(pw.value);
-      const passed = Object.values(r).filter(Boolean).length;
-      document.querySelectorAll('#pw-rules li').forEach(li => li.classList.toggle('ok', r[li.dataset.r]));
-      const level = !pw.value ? 0 : passed === 6 ? 4 : passed >= 5 ? 3 : passed >= 3 ? 2 : 1;
-      bars.forEach((b, i) => { b.style.background = i < level ? COLORS[level - 1] : ''; });
-      return passed === 6;
-    }
-    pw.addEventListener('input', paint);
-    email.addEventListener('input', paint);
-
-    confirmInput.addEventListener('input', () => {
-      const mismatch = confirmInput.value && confirmInput.value !== pw.value;
-      confirmInput.classList.toggle('error', !!mismatch);
-      confirmHint.classList.toggle('visible', !!mismatch);
-    });
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorMsg.style.display = 'none';
-      const mail = email.value.trim();
-      if (!mail || !pw.value || !confirmInput.value) return showError('Please fill in all fields.');
-      if (!paint()) return showError('Choose a stronger password: every rule above must be ticked.');
-      if (pw.value !== confirmInput.value) {
-        confirmInput.classList.add('error'); confirmHint.classList.add('visible');
-        return;
-      }
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>';
-      try {
-        const res = await fetch(API + '/auth/signup', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: mail, password: pw.value }),
-        });
-        if (res.ok) { window.location.replace('/agentic'); return; }
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 409) showError('An account with this email already exists. Try signing in.');
-        else if (res.status === 422) showError(data.detail || 'Please check your email and password.');
-        else if (res.status === 429) showError('Too many attempts. Please wait a few minutes and try again.');
-        else showError(data.detail || 'Registration failed. Please try again.');
-      } catch {
-        showError('Could not reach the server. Check your connection.');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Account';
-      }
-    });
-
-    function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
-  </script>
+           lead="Your account lives in the Shadow Warden portal: a strong password, two-step verification and password reset by email.">
+  <a id="continue-btn" class="ap-primary" href={`${PORTAL}/register`}>Continue to the portal</a>
+  <ul class="ap-points">
+    <li>Strong password, checked on the server</li>
+    <li>Two-step verification with an authenticator app</li>
+    <li>Password reset by a link sent to your email</li>
+  </ul>
+  <p class="ap-row">Already have an account? <a href={`${PORTAL}/login`} class="ap-link">Sign in</a></p>
 </AuthPulse>
