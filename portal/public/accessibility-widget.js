@@ -164,7 +164,7 @@
     }
     #${NS}-panel-header small {
       display:block;font-size:9.5px;font-weight:400;
-      color:#5A6880;margin-top:1px;letter-spacing:.06em;
+      color:#8b98a8;margin-top:1px;letter-spacing:.06em;
     }
     #${NS}-close {
       background:transparent;border:1px solid rgba(255,255,255,.12);
@@ -181,7 +181,7 @@
     .${NS}-section:last-of-type{border-bottom:0}
     .${NS}-label{
       font-size:9.5px;font-weight:700;letter-spacing:.12em;
-      text-transform:uppercase;color:#5A6880;margin-bottom:9px;
+      text-transform:uppercase;color:#8b98a8;margin-bottom:9px;
     }
 
     /* group buttons */

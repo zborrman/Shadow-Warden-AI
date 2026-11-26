@@ -3,15 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[9px] text-sm font-semibold transition-[background-color,transform,border-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary:     "bg-brand-600 text-white shadow hover:bg-brand-700 active:scale-[0.98]",
+        // White text is written as #fff: the light theme rewrites `text-white` to ink.
+        primary:     "bg-[#2563eb] text-[#fff] shadow-[0_1px_2px_rgba(15,23,42,.12),inset_0_1px_0_rgba(255,255,255,.14)] hover:bg-[#1d4ed8] active:scale-[0.97]",
         secondary:   "bg-dark-700 text-slate-200 border border-white/10 hover:bg-dark-600",
         outline:     "border border-white/10 bg-transparent hover:bg-white/5 text-slate-200",
         ghost:       "hover:bg-white/5 text-slate-300 hover:text-white",
-        destructive: "bg-red-600 text-white shadow-sm hover:bg-red-700",
+        destructive: "bg-red-600 text-[#fff] shadow-sm hover:bg-red-700",
         link:        "text-brand-400 underline-offset-4 hover:underline",
       },
       size: {

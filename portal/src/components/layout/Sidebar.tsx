@@ -1,151 +1,180 @@
 'use client'
-// Portal shell: an icon rail (sections) beside a collapsible panel (the pages of
-// the current section), the layout of a settings console. One component, used by
-// every signed-in layout, so the whole portal moves together.
+// Portal sidebar — the marketing site's shell (site/src/layouts/BaseLayout.astro +
+// styles/shell.css), so the seller moves between site and portal without the
+// frame changing: brand, quick links with NEW badges, hub sections with coloured
+// square markers and mono uppercase labels, theme + sign-out at the foot.
+// Below 1024px it becomes a top bar with a drawer, as on the site.
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  ClipboardCheck,
-  BarChart2, BookOpen, ChevronsLeft, ChevronsRight, ExternalLink,
-  Key, LogOut, Moon, Settings, Store, Sun,
+  BarChart2, BookOpen, ChevronRight, ClipboardCheck, Code2, ExternalLink, Globe, Key,
+  LogOut, Menu, Moon, Settings, Store, Sun, Tag, X,
 } from 'lucide-react'
-import clsx from 'clsx'
 import { logout } from '@/lib/auth'
 import { useTheme } from '@/components/ui/ThemeProvider'
 
-type Item = { href: string; label: string; external?: boolean }
-type Section = { id: string; label: string; icon: React.ElementType; groups: { label: string; items: Item[] }[] }
+type Item = { href: string; label: string; icon: React.ElementType; badge?: string; external?: boolean }
+type Hub = { label: string; color: string; items: Item[] }
 
-// Only screens whose API a portal session can reach (see 2026-11-19 cut): the
-// portal session is accepted by /portal/* and the store's owner routes.
-const SECTIONS: Section[] = [
-  { id: 'preflight', label: 'Listing Preflight', icon: ClipboardCheck, groups: [
-    { label: 'Before you publish', items: [{ href: '/preflight/', label: 'Listing Preflight' }] },
+const SITE = 'https://www.shadow-warden-ai.com'
+
+// Only screens a portal session can reach (2026-11-19 cut): /portal/* and the
+// store's owner routes. Hub colours are the site's own.
+export const QUICK: Item[] = [
+  { href: '/preflight/', label: 'Listing Preflight', icon: ClipboardCheck, badge: 'New' },
+  { href: '/dashboard/', label: 'Overview', icon: BarChart2 },
+]
+export const HUBS: Hub[] = [
+  { label: 'Sell', color: '#4d9cfc', items: [{ href: '/store/manage/', label: 'Store Builder', icon: Store }] },
+  { label: 'Develop', color: '#fbbf24', items: [
+    { href: '/api-keys/', label: 'API Keys', icon: Key },
+    { href: '/sdk/', label: 'SDK & API', icon: Code2 },
   ] },
-  { id: 'store', label: 'Store', icon: Store, groups: [
-    { label: 'Store', items: [{ href: '/store/manage/', label: 'Store Builder' }] },
-  ] },
-  { id: 'overview', label: 'Overview', icon: BarChart2, groups: [
-    { label: 'Account', items: [{ href: '/dashboard/', label: 'Overview' }] },
-  ] },
-  { id: 'keys', label: 'API Keys', icon: Key, groups: [
-    { label: 'Developer', items: [{ href: '/api-keys/', label: 'API Keys' }, { href: '/sdk/', label: 'SDK & API' }] },
-  ] },
-  { id: 'settings', label: 'Settings', icon: Settings, groups: [
-    { label: 'Account', items: [{ href: '/settings/', label: 'Account settings' }] },
-  ] },
-  { id: 'resources', label: 'Docs', icon: BookOpen, groups: [
-    { label: 'Resources', items: [
-      { href: 'https://www.shadow-warden-ai.com/doc', label: 'Documentation', external: true },
-      { href: 'https://www.shadow-warden-ai.com/price', label: 'Pricing', external: true },
-      { href: 'https://www.shadow-warden-ai.com', label: 'Website', external: true },
-    ] },
+  { label: 'Account', color: '#fb923c', items: [{ href: '/settings/', label: 'Settings', icon: Settings }] },
+  { label: 'Resources', color: '#34d399', items: [
+    { href: `${SITE}/doc`, label: 'Documentation', icon: BookOpen, external: true },
+    { href: `${SITE}/price`, label: 'Pricing', icon: Tag, external: true },
+    { href: SITE, label: 'Website', icon: Globe, external: true },
   ] },
 ]
 
-const trim = (p: string) => p.replace(/\/$/, '')
-const owns = (s: Section, path: string) =>
-  s.groups.some(g => g.items.some(i => !i.external && trim(path).startsWith(trim(i.href))))
+const trim = (p: string) => p.replace(/\/$/, '') || '/'
+export const isOn = (path: string, i: Item) => !i.external && trim(path).startsWith(trim(i.href))
+
+/** The section and page a path belongs to, for the breadcrumb. */
+export function locate(path: string): { hub?: string; page?: string } {
+  const q = QUICK.find(i => isOn(path, i))
+  if (q) return { page: q.label }
+  for (const h of HUBS) {
+    const i = h.items.find(x => isOn(path, x))
+    if (i) return { hub: h.label, page: i.label }
+  }
+  return {}
+}
+
+function Row({ item, path, onNavigate }: { item: Item; path: string; onNavigate?: () => void }) {
+  const Icon = item.icon
+  const on = isOn(path, item)
+  const cls = 'sw-item'
+  const body = (
+    <>
+      <Icon className="sw-item__icon" width={16} height={16} strokeWidth={1.75} aria-hidden />
+      <span className="sw-item__label">{item.label}</span>
+      {item.badge && <span className="sw-badge">{item.badge}</span>}
+      {item.external && <ExternalLink className="sw-item__ext" width={12} height={12} aria-hidden />}
+    </>
+  )
+  return item.external
+    ? <a href={item.href} className={cls} target="_blank" rel="noopener noreferrer">{body}</a>
+    : <Link href={item.href} className={cls} aria-current={on ? 'page' : undefined} onClick={onNavigate}>{body}</Link>
+}
+
+function Nav({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({})
+  const isOpen = (h: Hub) => open[h.label] ?? true
+  return (
+    <>
+      <ul className="sw-quick">
+        {QUICK.map(i => <li key={i.href}><Row item={i} path={path} onNavigate={onNavigate} /></li>)}
+      </ul>
+      {HUBS.map((h, n) => (
+        <div key={h.label} className="sw-hub" data-open={isOpen(h) ? 'true' : 'false'}
+             style={{ ['--hub' as string]: h.color }}>
+          <div className="sw-hub__head">
+            <span className="sw-hub__link"><span className="sw-hub__mark" aria-hidden />
+              <span className="sw-hub__label">{h.label}</span></span>
+            <button type="button" className="sw-hub__toggle" aria-expanded={isOpen(h)} aria-controls={`hub-${n}`}
+                    aria-label={`${h.label} section`} onClick={() => setOpen(o => ({ ...o, [h.label]: !isOpen(h) }))}>
+              <ChevronRight width={14} height={14} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
+          <div className="sw-hub__body" id={`hub-${n}`}>
+            <ul className="sw-hub__list">
+              {h.items.map(i => <li key={i.href}><Row item={i} path={path} onNavigate={onNavigate} /></li>)}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </>
+  )
+}
 
 export function Sidebar() {
-  const pathname = usePathname() || '/'
+  const path = usePathname() || '/'
   const router = useRouter()
   const { theme, toggle } = useTheme()
-  const current = SECTIONS.find(s => owns(s, pathname)) ?? SECTIONS[1]
-  const [picked, setPicked] = useState<string | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
-  const section = SECTIONS.find(s => s.id === picked) ?? current
+  const [drawer, setDrawer] = useState(false)
 
-  // Browser-only preference read after hydration (server render is always expanded).
-  useEffect(() => { setCollapsed(localStorage.getItem('sw_nav_collapsed') === '1') }, [])
-  useEffect(() => { setPicked(null) }, [pathname])
-
-  function setCollapse(v: boolean) {
-    setCollapsed(v)
-    localStorage.setItem('sw_nav_collapsed', v ? '1' : '0')
-  }
+  useEffect(() => { setDrawer(false) }, [path])
+  useEffect(() => {
+    if (!drawer) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawer(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawer])
 
   async function signOut() {
     await logout()
     router.replace('/login/')
   }
 
-  const railBtn = 'flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium transition-colors'
-
+  const ThemeIcon = theme === 'dark' ? Sun : Moon
   return (
-    <div className="flex h-screen shrink-0">
-      {/* Rail */}
-      <nav aria-label="Sections" className="flex w-[72px] flex-col items-center gap-1 border-r border-white/[0.06] bg-dark-950 py-3">
-        <Link href="/dashboard/" aria-label="Shadow Warden home"
-              className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-          SW
-        </Link>
-        {SECTIONS.map(s => {
-          const Icon = s.icon
-          const on = s.id === section.id
-          return (
-            <button key={s.id} type="button" aria-current={on ? 'true' : undefined}
-                    onClick={() => { setPicked(s.id); if (collapsed) setCollapse(false) }}
-                    className={clsx(railBtn, on ? 'text-white' : 'text-slate-400 hover:text-slate-200')}>
-              <span className={clsx('flex h-9 w-9 items-center justify-center rounded-lg',
-                                    on ? 'bg-brand-500/25 ring-1 ring-brand-500/60' : 'hover:bg-white/[0.06]')}>
-                <Icon className="h-[18px] w-[18px]" />
-              </span>
-              {s.label}
-            </button>
-          )
-        })}
-        <div className="mt-auto flex flex-col items-center gap-1">
-          <button type="button" onClick={toggle} aria-label="Toggle theme" className={clsx(railBtn, 'text-slate-400 hover:text-slate-200')}>
-            {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-          </button>
-          <button type="button" onClick={signOut} aria-label="Sign out" className={clsx(railBtn, 'text-slate-400 hover:text-red-400')}>
-            <LogOut className="h-[18px] w-[18px]" />
-          </button>
+    <>
+      <header className="sw-side">
+        <div className="sw-side__brand">
+          <Link href="/dashboard/" className="sw-brand" aria-label="Shadow Warden — workspace home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" width={63} height={34} />
+            <span className="sw-brand__name">Shadow Warden<span className="sw-brand__ai">AI</span></span>
+          </Link>
         </div>
-      </nav>
 
-      {/* Panel */}
-      {collapsed ? (
-        <div className="flex w-6 items-start justify-center border-r border-white/[0.06] bg-dark-900 pt-4">
-          <button type="button" aria-label="Expand navigation" onClick={() => setCollapse(false)}
-                  className="text-slate-400 hover:text-slate-200"><ChevronsRight className="h-4 w-4" /></button>
+        <div className="sw-side__cta">
+          <Link href="/preflight/" className="sw-cta">Check a listing</Link>
+          <button type="button" className="sw-iconbtn sw-only-mobile" aria-label={drawer ? 'Close menu' : 'Open menu'}
+                  aria-controls="portal-drawer" aria-expanded={drawer} onClick={() => setDrawer(d => !d)}>
+            {drawer ? <X width={18} height={18} aria-hidden /> : <Menu width={18} height={18} aria-hidden />}
+          </button>
         </div>
-      ) : (
-        <aside aria-label={`${section.label} pages`} className="flex w-60 flex-col overflow-y-auto border-r border-white/[0.06] bg-dark-900">
-          <div className="flex h-12 items-center justify-between px-4">
-            <span className="text-sm font-semibold text-slate-100">{section.label}</span>
-            <button type="button" aria-label="Collapse navigation" onClick={() => setCollapse(true)}
-                    className="text-slate-400 hover:text-slate-200"><ChevronsLeft className="h-4 w-4" /></button>
+
+        <nav className="sw-side__nav" aria-label="Workspace">
+          <Nav path={path} />
+        </nav>
+
+        <div className="sw-side__foot">
+          <div className="sw-foot__row">
+            <button type="button" className="sw-item sw-theme" onClick={toggle} aria-label="Switch colour theme">
+              <ThemeIcon className="sw-item__icon" width={16} height={16} strokeWidth={1.75} aria-hidden />
+              <span className="sw-item__label">{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
+            </button>
           </div>
-          <div className="space-y-5 px-2 pb-4">
-            {section.groups.map(g => (
-              <div key={g.label}>
-                <p className="px-3 pb-1.5 text-[13px] font-semibold text-slate-200">{g.label}</p>
-                <ul className="space-y-0.5">
-                  {g.items.map(i => {
-                    const on = !i.external && trim(pathname) === trim(i.href)
-                    return (
-                      <li key={i.href}>
-                        <Link href={i.href} target={i.external ? '_blank' : undefined}
-                              rel={i.external ? 'noopener noreferrer' : undefined}
-                              aria-current={on ? 'page' : undefined}
-                              className={clsx('flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
-                                on ? 'border-brand-500/60 bg-brand-500/20 text-white'
-                                   : 'border-transparent text-slate-400 hover:bg-white/[0.04] hover:text-slate-200')}>
-                          <span className="flex-1">{i.label}</span>
-                          {i.external && <ExternalLink className="h-3 w-3 opacity-60" />}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            ))}
+          <button type="button" className="sw-item sw-item--danger" onClick={signOut}>
+            <LogOut className="sw-item__icon" width={16} height={16} strokeWidth={1.75} aria-hidden />
+            <span className="sw-item__label">Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      {drawer && (
+        <div id="portal-drawer" className="sw-drawer" role="dialog" aria-modal="true" aria-label="Workspace menu"
+             onClick={e => { if (e.target === e.currentTarget) setDrawer(false) }}>
+          <div className="sw-drawer__panel">
+            <Nav path={path} onNavigate={() => setDrawer(false)} />
+            <div className="sw-drawer__foot">
+              <button type="button" className="sw-item" onClick={toggle}>
+                <ThemeIcon className="sw-item__icon" width={16} height={16} strokeWidth={1.75} aria-hidden />
+                <span className="sw-item__label">Switch theme</span>
+              </button>
+              <button type="button" className="sw-item sw-item--danger" onClick={signOut}>
+                <LogOut className="sw-item__icon" width={16} height={16} strokeWidth={1.75} aria-hidden />
+                <span className="sw-item__label">Sign out</span>
+              </button>
+            </div>
           </div>
-        </aside>
+        </div>
       )}
-    </div>
+    </>
   )
 }
