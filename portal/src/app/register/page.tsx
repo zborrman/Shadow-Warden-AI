@@ -2,16 +2,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { QRCodeSVG } from 'qrcode.react'
-import { api } from '@/lib/api'
 import { login, register as registerUser } from '@/lib/auth'
 import { passwordRules } from '@/lib/password'
 import { AuthShell, ErrorNote, Spinner, detailOf, field, labelCls, primary, textLink } from '@/components/auth/AuthShell'
 import { PasswordField } from '@/components/auth/PasswordField'
+import { TotpEnroll } from '@/components/auth/TotpEnroll'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-
-type Setup = { secret: string; otpauth_uri: string }
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -20,8 +17,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [terms, setTerms] = useState(false)
-  const [setup, setSetup] = useState<Setup | null>(null)
-  const [code, setCode] = useState('')
+  const [setupSession, setSetupSession] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -41,10 +37,9 @@ export default function RegisterPage() {
     try {
       await registerUser(email.trim(), password, name.trim() || undefined)
       const r = await login(email.trim(), password)
-      if ('requires_totp' in r) { router.replace('/login/'); return }
-      const { data } = await api.post<Setup>('/auth/totp/setup')
       setPassword(''); setConfirm('')
-      setSetup(data)
+      if ('requires_totp_setup' in r) { setSetupSession(r.setup_session); return }
+      router.replace('/login/')
     } catch (err) {
       setError(detailOf(err, 'Registration failed. Please try again.'))
     } finally {
@@ -52,48 +47,10 @@ export default function RegisterPage() {
     }
   }
 
-  async function onEnable(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    if (code.length !== 6) return setError('Enter the 6-digit code your app shows.')
-    setBusy(true)
-    try {
-      await api.post('/auth/totp/confirm', { code })
-      router.replace('/dashboard/')
-    } catch (err) {
-      setError(detailOf(err, 'That code did not work. Try the current one.'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (setup) {
-    return (
-      <AuthShell step="Step 2 of 2" title="Protect your account"
-                 lead="Two-step verification is required. Link an authenticator app, then enter the code it shows.">
-        {error && <ErrorNote>{error}</ErrorNote>}
-        <form onSubmit={onEnable} className="flex flex-col gap-4">
-          <div className="flex gap-4 items-center p-4 rounded-lg border border-[#232c38] bg-[#151b23]">
-            <div className="shrink-0 bg-white p-2 rounded">
-              <QRCodeSVG value={setup.otpauth_uri} size={112} aria-label="QR code for your authenticator app" />
-            </div>
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <span className="text-[14px] font-semibold">Scan with an authenticator app</span>
-              <span className="text-[13px] leading-[18px] text-[#8b98a8]">Or type this key by hand:</span>
-              <code className="font-mono text-[13px] tracking-[0.06em] break-all">{setup.secret.replace(/(.{4})/g, '$1 ').trim()}</code>
-            </div>
-          </div>
-          <label className={labelCls}>6-digit code from the app
-            <input value={code} onChange={e => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-                   inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000"
-                   className={`${field} min-h-[56px] font-mono text-[24px] tracking-[0.4em] text-center`} />
-          </label>
-          <button type="submit" disabled={busy || code.length !== 6} className={primary}>
-            {busy ? <Spinner /> : 'Turn on two-step verification'}
-          </button>
-        </form>
-      </AuthShell>
-    )
+  if (setupSession) {
+    return <TotpEnroll setupSession={setupSession} step="Step 2 of 2"
+                       lead="Two-step verification is required. Link an authenticator app, then enter the code it shows."
+                       onDone={() => router.replace('/dashboard/')} />
   }
 
   return (
