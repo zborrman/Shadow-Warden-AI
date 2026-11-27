@@ -13,7 +13,8 @@
 - **Multilingual programme (owner request 2026-11-27):** the owner asked for the whole
   project in foreign languages. Plan and order: `docs/i18n-plan.md`. Phase 1 (done): the
   Listing Preflight / FraudScore tool (`portal/public/preflight/sim.html`) ships its own
-  10-language engine (en, ru, zh, ja, de, fr, es, pt, it, pl). Further locales follow that
+  11-language engine (en, ru, zh, ja, de, fr, es, pt, it, pl, ar — Arabic right-to-left,
+  with `dir` set and the score scale kept left-to-right). Further locales follow that
   plan; source strings, code and comments stay English, and every translated claim passes
   the Claims Rule.
 
