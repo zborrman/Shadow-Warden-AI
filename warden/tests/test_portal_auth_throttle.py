@@ -131,7 +131,9 @@ def test_the_right_password_still_signs_in(client):
     c, _ = client
     resp = _login(c, _USER["email"], _PW, "10.6.0.1")
     assert resp.status_code == 200, resp.text
-    assert resp.json()["access_token"] == "access"
+    # The password passes; with no authenticator yet it opens enrolment, not a
+    # session (two-step sign-in required, test_portal_require_2fa.py).
+    assert resp.json()["requires_totp_setup"] is True
 
 
 def test_authenticator_codes_lock_after_five_wrong_guesses(client, monkeypatch):

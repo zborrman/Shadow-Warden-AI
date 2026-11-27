@@ -916,6 +916,8 @@
     "POST /portal/auth/register",
     "POST /portal/auth/reset-password",
     "POST /portal/auth/totp/complete",
+    "POST /portal/auth/totp/enroll/finish",
+    "POST /portal/auth/totp/enroll/start",
     "POST /portal/auth/totp/confirm",
     "POST /portal/auth/totp/disable",
     "POST /portal/auth/totp/setup",

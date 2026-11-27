@@ -38,6 +38,7 @@ from typing import Any
 import bcrypt
 import pyotp
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from limits import parse as parse_limit
@@ -142,6 +143,14 @@ def _issue_totp_session(user_id: str) -> str:
     return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
 
 
+def _issue_totp_setup_session(user_id: str) -> str:
+    """Short-lived (15 min) JWT for an account that must enrol an authenticator
+    before it may sign in. It opens /auth/totp/enroll/* and nothing else."""
+    exp = datetime.now(UTC) + timedelta(minutes=15)
+    payload = {"sub": user_id, "type": "totp_setup", "exp": exp}
+    return jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
 def _decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
@@ -163,8 +172,11 @@ async def require_portal_user(
     if not creds:
         raise HTTPException(status_code=401, detail="Authorization header required.")
     claims = _decode_token(creds.credentials)
-    if claims.get("type") == "refresh":
-        raise HTTPException(status_code=401, detail="Use access token, not refresh token.")
+    # Only an access token is a session. Refresh, totp_pending and totp_setup
+    # tokens carry a "type" (and no tenant); before 2026-11-27 only refresh was
+    # refused here, so a password-only totp_pending token reached this check.
+    if claims.get("type") is not None or not claims.get("tid"):
+        raise HTTPException(status_code=401, detail="Use an access token.")
     return _PortalUser(
         user_id=claims["sub"],
         tenant_id=claims["tid"],
@@ -231,6 +243,15 @@ class _ResetPasswordIn(BaseModel):
 class _TotpCompleteIn(BaseModel):
     totp_session: str
     code:         str = Field(..., min_length=6, max_length=6)
+
+
+class _TotpEnrollIn(BaseModel):
+    setup_session: str
+
+
+class _TotpEnrollFinishIn(BaseModel):
+    setup_session: str
+    code:          str = Field(..., min_length=6, max_length=6)
 
 
 class _TotpConfirmIn(BaseModel):
@@ -427,26 +448,14 @@ async def login(
         _record_failure("login", email, _LOGIN_FAILURES)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    # If TOTP is enabled, issue a short-lived totp_session instead of full JWT
+    # Two-step sign-in is required for every account (2026-11-27). With an
+    # authenticator: a short totp_session, the code comes next. Without one:
+    # a setup_session that only opens /auth/totp/enroll/*; no session, no
+    # refresh cookie, until the authenticator is confirmed.
     if user.get("totp_enabled"):
         totp_session = _issue_totp_session(str(user["id"]))
         return {"requires_totp": True, "totp_session": totp_session}
-
-    access  = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
-    refresh = _issue_refresh_token(str(user["id"]))
-
-    await db.execute(
-        text("UPDATE warden_core.portal_users SET last_login_at = NOW() WHERE id = :id"),
-        {"id": str(user["id"])},
-    )
-    await db.commit()
-
-    response.set_cookie(
-        key=_COOKIE_NAME, value=refresh,
-        httponly=True, secure=True, samesite="lax",
-        max_age=_REFRESH_TTL_DAY * 86400,
-    )
-    return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
+    return {"requires_totp_setup": True, "setup_session": _issue_totp_setup_session(str(user["id"]))}
 
 
 @router.post("/auth/totp/complete")
@@ -485,6 +494,69 @@ async def totp_complete(
     )
     await db.commit()
 
+    response.set_cookie(
+        key=_COOKIE_NAME, value=refresh,
+        httponly=True, secure=True, samesite="lax",
+        max_age=_REFRESH_TTL_DAY * 86400,
+    )
+    return _TokenOut(access_token=access, expires_in=_ACCESS_TTL_MIN * 60)
+
+
+async def _setup_user(db: AsyncSession, setup_session: str) -> dict:
+    try:
+        claims = _decode_token(setup_session)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Setup session expired. Sign in again.") from None
+    if claims.get("type") != "totp_setup":
+        raise HTTPException(status_code=401, detail="Invalid session token type.")
+    user = await _get_user_by_id(db, claims["sub"])
+    if not user:
+        raise HTTPException(status_code=401, detail="Setup session expired. Sign in again.")
+    if user.get("totp_enabled"):
+        raise HTTPException(status_code=409, detail="Two-step sign-in is already on. Sign in again.")
+    return user
+
+
+@router.post("/auth/totp/enroll/start")
+@_limiter.limit(_TOTP_IP_LIMIT)
+async def totp_enroll_start(request: Request, body: _TotpEnrollIn, db: AsyncSession = Depends(get_db)):
+    """Required enrolment, step 1: a fresh secret for an account signing in without one."""
+
+    user = await _setup_user(db, body.setup_session)
+    secret = pyotp.random_base32()
+    uri = pyotp.TOTP(secret).provisioning_uri(name=user["email"], issuer_name="Shadow Warden AI")
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET totp_secret=:s, totp_enabled=FALSE WHERE id=:id"),
+        {"s": secret, "id": str(user["id"])},
+    )
+    await db.commit()
+    return {"secret": secret, "otpauth_uri": uri}
+
+
+@router.post("/auth/totp/enroll/finish")
+@_limiter.limit(_TOTP_IP_LIMIT)
+async def totp_enroll_finish(
+    request: Request, body: _TotpEnrollFinishIn, response: Response, db: AsyncSession = Depends(get_db)
+):
+    """Required enrolment, step 2: the first code turns 2FA on and only then opens a session."""
+
+    user = await _setup_user(db, body.setup_session)
+    if not user.get("totp_secret"):
+        raise HTTPException(status_code=400, detail="Start the setup first.")
+    if _account_locked("totp", str(user["id"]), _TOTP_FAILURES):
+        raise _locked_out()
+    if not pyotp.TOTP(user["totp_secret"]).verify(body.code, valid_window=1):
+        _record_failure("totp", str(user["id"]), _TOTP_FAILURES)
+        raise HTTPException(status_code=400, detail="That code did not work. Try the next one.")
+
+    await db.execute(
+        text("UPDATE warden_core.portal_users SET totp_enabled=TRUE, last_login_at = NOW() WHERE id = :id"),
+        {"id": str(user["id"])},
+    )
+    await db.commit()
+    log.info("portal: TOTP enrolled at sign-in for user %s", user["id"])
+    access  = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
+    refresh = _issue_refresh_token(str(user["id"]))
     response.set_cookie(
         key=_COOKIE_NAME, value=refresh,
         httponly=True, secure=True, samesite="lax",
@@ -599,6 +671,13 @@ async def refresh_token(
     user = await _get_user_by_id(db, claims["sub"])
     if not user:
         raise HTTPException(status_code=401, detail="User not found.")
+    # A refresh cookie issued before two-step sign-in was required must not
+    # outlive the rule: without an authenticator the account signs in again,
+    # which takes it through enrolment.
+    if not user.get("totp_enabled"):
+        gone = JSONResponse({"detail": "Two-step sign-in is required. Sign in again."}, status_code=401)
+        gone.delete_cookie(key=_COOKIE_NAME)
+        return gone
 
     access      = _issue_access_token(str(user["id"]), user["tenant_id"], user["role"])
     new_refresh = _issue_refresh_token(str(user["id"]))

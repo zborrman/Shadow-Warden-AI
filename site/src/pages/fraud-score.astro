@@ -1,706 +1,409 @@
 ﻿---
-import { PRODUCT } from '../data/product';
-// The site's compiled Tailwind. This page used cdn.tailwindcss.com, which the
-// site CSP (script-src) has blocked since 2026-07-22: every utility class on
-// the page silently stopped applying. Tailwind v4 scans this file at build time.
-import '../styles/global.css';
-// FraudScore Sovereign v4.0 Elite — Dark Theme
+// FraudScore — a seller's risk planner (owner request 2026-11-26, built from the
+// "FraudScore Sovereign" calculator in the Listing Preflight artifact). Six
+// weighted vectors, a 0–1000 composite and a 7-day velocity multiplier.
+// Everything runs in the browser on numbers the seller types: no Amazon data is
+// read and nothing is sent (SP-01). It is an estimate, never Amazon's decision
+// (SP-06) — the copy says so, and no tier promises an outcome.
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const TIERS = [
+  { from: 0, name: 'Safe', status: 'Baseline marketplace noise', tone: 'ok' },
+  { from: 200, name: 'Low', status: 'Isolated incidents', tone: 'low' },
+  { from: 400, name: 'Elevated', status: 'A pattern, or an early attack', tone: 'warn' },
+  { from: 600, name: 'High', status: 'Money or policy standing at risk now', tone: 'high' },
+  { from: 800, name: 'Critical', status: 'Signals that often come before a suspension', tone: 'crit' },
+];
 ---
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FraudScore Sovereign v4.0 Elite | Shadow Warden AI</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:       var(--sw-bg);
-            --surface:  var(--sw-surf-3);
-            --card:     var(--sw-surf-1);
-            --border:   rgba(var(--ink-rgb),0.07);
-            --border2:  rgba(var(--ink-rgb),0.04);
-            --text:     var(--ink-1);
-            --muted:    var(--ink-4);
-            --dim:      var(--ink-5);
-            --red:      var(--acc-red);
-            --amber:    var(--acc-amber);
-            --green:    var(--acc-green);
-            --blue:     var(--acc-cyan);
-            --purple:   var(--acc-violet);
-            --indigo:   var(--acc-blue-2);
-        }
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-        }
-        .serif { font-family: 'Playfair Display', serif; }
-        .mono  { font-family: 'JetBrains Mono', monospace; }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(var(--ink-rgb),0.1); border-radius: 10px; }
-
-        /* Checkbox */
-        .risk-check {
-            appearance: none; width: 1.15rem; height: 1.15rem;
-            border: 1.5px solid var(--dim); border-radius: 4px; cursor: pointer;
-            position: relative; transition: all 0.2s; background: var(--surface);
-            flex-shrink: 0;
-        }
-        .risk-check:checked { background: var(--red); border-color: var(--red); }
-        .risk-check.mitigation:checked { background: var(--green); border-color: var(--green); }
-        .risk-check:checked::after {
-            content: "✓"; color: white; position: absolute;
-            left: 2px; top: -3px; font-size: 0.85rem; font-weight: bold;
-        }
-
-        /* Market toggle */
-        .market-btn {
-            padding: 6px 20px; border-radius: 8px; font-size: 10px;
-            font-weight: 800; text-transform: uppercase; letter-spacing: 0.25em;
-            color: var(--muted); transition: all 0.2s; cursor: pointer;
-            border: none; background: transparent;
-        }
-        .market-btn.active {
-            background: rgba(var(--ink-rgb),0.08);
-            color: var(--text);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-        }
-
-        /* Section cards */
-        .risk-section {
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 40px;
-            background: var(--card);
-        }
-        .stop-section {
-            background: rgba(255,45,85,0.04);
-            border-color: rgba(255,45,85,0.15);
-        }
-        .hedge-section {
-            background: rgba(48,209,88,0.04);
-            border-color: rgba(48,209,88,0.12);
-        }
-
-        /* Info trigger */
-        .info-trigger {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 16px; height: 16px; border-radius: 50%;
-            border: 1px solid var(--dim); font-size: 9px; font-weight: 700;
-            color: var(--muted); cursor: pointer; margin-left: 6px;
-            transition: all 0.2s; flex-shrink: 0;
-        }
-        .info-trigger:hover {
-            color: var(--text); border-color: var(--blue);
-            background: rgba(90,200,250,0.1);
-        }
-
-        /* Radar */
-        .chart-container { position: relative; width: 100%; height: 280px; }
-
-        /* Verdict bar */
-        .verdict-bar {
-            background: color-mix(in oklab, var(--sw-bg) 96%, transparent);
-            backdrop-filter: blur(24px);
-            border-top: 1px solid var(--border);
-        }
-
-        /* Modal */
-        .modal-overlay {
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(16px);
-            opacity: 0; pointer-events: none; transition: opacity 0.35s ease;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .modal-card {
-            transform: scale(0.94) translateY(24px);
-            transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-        }
-        .modal-overlay.active .modal-card { transform: scale(1) translateY(0); }
-
-        /* Top nav */
-        #sw-nav {
-            height: 44px;
-            background: color-mix(in oklab, var(--sw-bg) 97%, transparent);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; padding: 0 20px; gap: 12px;
-            position: sticky; top: 0; z-index: 200; flex-shrink: 0;
-        }
-        #sw-nav a.logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); }
-        .logo-icon {
-            width: 24px; height: 24px; border-radius: 7px;
-            background: linear-gradient(135deg,var(--acc-red),#FF6B35);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; box-shadow: 0 0 14px rgba(255,45,85,0.4);
-            position: relative; flex-shrink: 0;
-        }
-        .logo-dot {
-            position: absolute; top: -2px; right: -2px;
-            width: 6px; height: 6px; border-radius: 50%;
-            background: var(--green); border: 1.5px solid var(--bg);
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-        .logo-text { font-size: 12px; font-weight: 800; letter-spacing: -0.3px; line-height: 1; }
-        .logo-sub  { font-size: 7px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 1px; }
-        .nav-sep   { width: 1px; height: 20px; background: var(--border); }
-        .nav-label { font-size: 11px; font-weight: 600; color: var(--muted); }
-        .nav-label span { color: var(--text); }
-        #sw-nav .spacer { flex: 1; }
-        #sw-nav a.back {
-            padding: 4px 12px; border-radius: 7px; font-size: 10px; font-weight: 700;
-            color: var(--muted); background: rgba(var(--ink-rgb),0.04);
-            border: 1px solid var(--border); text-decoration: none; transition: all 0.15s;
-        }
-        #sw-nav a.back:hover { color: var(--text); background: rgba(var(--ink-rgb),0.08); }
-
-        /* Elite badge */
-        .elite-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 3px 10px; border-radius: 20px;
-            background: linear-gradient(90deg, rgba(99,111,255,0.15), rgba(191,90,242,0.15));
-            border: 1px solid rgba(191,90,242,0.25);
-            font-size: 9px; font-weight: 800; letter-spacing: 0.25em;
-            text-transform: uppercase; color: var(--purple);
-        }
-
-        /* Glow scan line */
-        @keyframes scanline {
-            0%   { transform: translateY(-100%); }
-            100% { transform: translateY(400%); }
-        }
-        .scan-line {
-            position: absolute; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,45,85,0.3), transparent);
-            animation: scanline 4s linear infinite;
-            pointer-events: none;
-        }
-
-        label { cursor: pointer; }
-
-        /* Factor label */
-        .factor-label {
-            font-size: 10.5px; font-weight: 700; color: var(--muted);
-            text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.2;
-            transition: color 0.15s;
-        }
-        .factor-label:hover { color: var(--text); }
-
-        /* Sidebar stat */
-        .stat-box {
-            background: var(--sw-surf-1);
-            border: 1px solid var(--border2);
-            border-radius: 14px; padding: 16px 20px;
-        }
-        .stat-label {
-            font-size: 9px; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 0.2em; color: var(--muted); margin-bottom: 6px;
-        }
-        .stat-val {
-            font-size: 13px; font-weight: 700; color: var(--text);
-        }
-    </style>
-</head>
-<body class="flex flex-col" style="height:100vh;overflow:hidden">
-
-<!-- ── Top nav ─────────────────────────────────────────────── -->
-<div id="sw-nav">
-    <a href="/" class="logo">
-        <div class="logo-icon">🛡️<span class="logo-dot"></span></div>
-        <div>
-            <div class="logo-text">Shadow Warden</div>
-            <div class="logo-sub">{PRODUCT.display} · Live</div>
-        </div>
-    </a>
-    <div class="nav-sep"></div>
-    <span class="nav-label">FraudScore <span>Sovereign v4.0 Elite</span></span>
-    <div class="spacer"></div>
-    <span class="elite-badge">⬡ Elite Access</span>
-    <a href="/" class="back" style="margin-left:8px">← Main Site</a>
-</div>
-
-<!-- ── Page header ─────────────────────────────────────────── -->
-<header style="background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:20px 40px;display:flex;align-items:center;gap:32px;position:relative;overflow:hidden">
-    <div class="scan-line"></div>
-    <div style="flex:1">
-        <nav aria-label="Breadcrumb" style="font-size:12px;color:var(--ink-3);margin-bottom:6px">
-            <a href="/" style="color:inherit;text-decoration:none">Home</a>
-            <span aria-hidden="true"> › </span>
-            <a href="/cyber-security" style="color:inherit;text-decoration:none">Protect</a>
-            <span aria-hidden="true"> › </span>
-            <span aria-current="page">Fraud Score</span>
-        </nav>
-        <h1 class="serif" style="font-size:28px;font-style:italic;margin:0;letter-spacing:-0.5px">
-            FraudScore <span style="font-style:normal;font-weight:900;color:var(--red)">Sovereign</span>
-            <span style="font-size:9px;vertical-align:top;margin-left:8px;font-family:'Inter',sans-serif;font-style:normal;font-weight:700;color:var(--muted);letter-spacing:0.3em;text-transform:uppercase">v4.0 Elite</span>
-        </h1>
-        <p style="font-size:11px;color:var(--muted);margin:4px 0 0;letter-spacing:0.02em">
-            Multidimensional fraud audit · 44 discrete risk factors · US/EU institutional calibration
+<BaseLayout
+  title="FraudScore — seller risk planner | Shadow Warden AI"
+  description="Score your Amazon seller risk from 0 to 1000 across six vectors — returns, hijacking, reviews, click fraud, supply chain and account health — from your own numbers, in your browser."
+>
+  <section class="fs-hero">
+    <div class="fs-hero__inner">
+      <div>
+        <p class="fs-eyebrow"><span class="fs-dot" aria-hidden="true"></span>Seller risk planner</p>
+        <h1>FraudScore</h1>
+        <p class="fs-lead">
+          A 0–1000 risk score across six vectors: return abuse, hijacking and IP attacks, review manipulation,
+          click fraud, supply-chain leakage and account health. Set each sub-score, or estimate it from your own
+          metrics, then read the tier and what to do next.
         </p>
+      </div>
+      <div class="fs-controls">
+        <label class="fs-field">
+          <span>Start from a scenario</span>
+          <select id="fs-preset">
+            <option value="">Choose a scenario…</option>
+            <option value="healthy">Healthy private-label brand</option>
+            <option value="hijack">Hijacker and IP attack</option>
+            <option value="returns">Return-fraud wave</option>
+            <option value="presusp">Account under pressure</option>
+          </select>
+        </label>
+        <button type="button" class="fs-btn" id="fs-reset">Reset to zero</button>
+      </div>
     </div>
-    <div style="display:flex;align-items:center;gap:8px;background:rgba(var(--ink-rgb),0.04);border:1px solid var(--border);border-radius:12px;padding:4px">
-        <button id="btn-us" class="market-btn active" onclick="switchMarket('US')">🇺🇸 US Market</button>
-        <button id="btn-eu" class="market-btn" onclick="switchMarket('EU')">🇪🇺 EU Market</button>
+    <p class="fs-disclaimer">
+      An estimate from the numbers you enter — not an Amazon metric and not a prediction of Amazon's decisions.
+      Nothing leaves your browser, and we never connect to Seller Central.
+    </p>
+  </section>
+
+  <div class="fs-wrap">
+    <section class="fs-result" aria-labelledby="fs-result-h">
+      <h2 id="fs-result-h" class="sr-only">Result</h2>
+      <div class="fs-head">
+        <div>
+          <p class="fs-k">Composite score</p>
+          <p class="fs-score" id="fs-score" aria-live="polite">0</p>
+          <p class="fs-sub" id="fs-formula"></p>
+        </div>
+        <div class="fs-tierbox">
+          <p class="fs-tier" id="fs-tier"><span class="fs-chip" data-tone="ok"></span><span>Safe</span></p>
+          <p class="fs-sub" id="fs-status"></p>
+        </div>
+      </div>
+
+      <div class="fs-scale" id="fs-scale" role="img" aria-label="Score 0 of 1000, Safe">
+        {TIERS.map(t => <div class="fs-band" data-tone={t.tone}><span>{t.name}</span></div>)}
+        <i id="fs-mark" aria-hidden="true"></i>
+      </div>
+      <div class="fs-ticks" aria-hidden="true"><span>0</span><span>200</span><span>400</span><span>600</span><span>800</span><span>1000</span></div>
+
+      <div class="fs-block">
+        <h3>Where the points come from</h3>
+        <div id="fs-bars" class="fs-bars"></div>
+      </div>
+
+      <div class="fs-block">
+        <label for="fs-wow" class="fs-label">7-day velocity — week-over-week change in anomalies (%)</label>
+        <div class="fs-velrow">
+          <input id="fs-wow" type="number" inputmode="decimal" value="0" class="fs-input" />
+          <span id="fs-vm" class="fs-pill" data-tone="ok">×1.00</span>
+        </div>
+        <p class="fs-sub">×1.00 when stable or under +15%; ×1.10 for a +15–30% spike; ×1.25 above +30%.</p>
+      </div>
+
+      <div class="fs-block">
+        <h3>What to do now</h3>
+        <p id="fs-tieraction" class="fs-action"></p>
+        <ul id="fs-catactions" class="fs-list"></ul>
+        <div class="fs-copyrow">
+          <button type="button" class="fs-btn fs-btn--primary" id="fs-copy">Copy summary</button>
+          <button type="button" class="fs-btn" id="fs-copyjson">Copy as JSON</button>
+          <span class="fs-sub" id="fs-copied" role="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="fs-cats" id="fs-cats" aria-label="Risk vectors"></section>
+  </div>
+
+  <details class="fs-how">
+    <summary>How the score is calculated</summary>
+    <p>
+      FraudScore = min(1000, V<sub>m</sub> × Σ S<sub>i</sub> × W<sub>i</sub> × 10), where S<sub>i</sub> is each
+      vector's 0–100 sub-score, W<sub>i</sub> its weight (the six add up to 1.00) and V<sub>m</sub> the 7-day
+      velocity multiplier (1.00, 1.10 or 1.25). A vector's maximum contribution is its weight × 1000, so the six
+      caps add up to exactly 1000 before velocity, and velocity can only push a score towards the cap.
+    </p>
+    <p>
+      The estimators map your figures onto three bands (0–30, 31–70, 71–100) by linear interpolation inside each
+      band. The thresholds are this model's own: the Account Health Rating and Order Defect Rate bands here are
+      stricter than the ones Seller Central shows, so read your official status there.
+    </p>
+  </details>
+
+  <section class="fs-next">
+    <div>
+      <h2>Check a listing before it goes live</h2>
+      <p>Listing Preflight walks through the add-a-product steps and runs the clock 72 hours forward to see which checks would hide it.</p>
     </div>
-    <div style="text-align:right;padding-left:24px;border-left:1px solid var(--border)">
-        <div class="stat-label">Active Jurisdiction</div>
-        <div id="label-market" style="font-size:11px;font-weight:700;color:var(--blue)">Federal (SEC / OFAC)</div>
-    </div>
-</header>
+    <a href="/sellers" class="fs-btn fs-btn--primary">For Amazon sellers →</a>
+  </section>
 
-<!-- ── Main workspace ──────────────────────────────────────── -->
-<main style="flex:1;display:flex;overflow:hidden">
+  <style is:global>
+    /* Global on purpose: the vector cards and bars are rendered by the script,
+       which scoped (data-astro-cid) selectors would not reach. Every class is fs-. */
+    .fs-hero { border-bottom: 1px solid var(--sw-border); background: radial-gradient(60% 120% at 100% 0%, var(--sw-tint-blue) 0%, transparent 60%), linear-gradient(180deg, var(--sw-surf-1), var(--sw-bg)); }
+    .fs-hero__inner { max-width: 1240px; margin: 0 auto; padding: 44px clamp(16px, 3vw, 40px) 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; }
+    .fs-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px; font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); }
+    .fs-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--acc-red); box-shadow: 0 0 0 3px color-mix(in oklab, var(--acc-red) 16%, transparent); }
+    .fs-hero h1 { margin: 0 0 12px; font-size: clamp(32px, 4vw, 44px); line-height: 1.05; letter-spacing: -.025em; font-weight: 700; color: var(--ink-1); }
+    .fs-lead { margin: 0; max-width: 66ch; font-size: 15.5px; line-height: 1.6; color: var(--ink-3); }
+    .fs-controls { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+    .fs-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
+    .fs-field select, .fs-input, .fs-cat select, .fs-cat input[type="number"] {
+      min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--sw-border-strong);
+      background: var(--sw-surf-1); color: var(--ink-1); font: inherit; font-size: 14px;
+    }
+    .fs-field select { min-width: 230px; }
+    .fs-field select:focus-visible, .fs-input:focus-visible, .fs-cat select:focus-visible, .fs-cat input:focus-visible { outline: 2px solid var(--acc-blue); outline-offset: 1px; }
+    .fs-disclaimer { max-width: 1240px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 40px) 24px; font-size: 13px; color: var(--ink-4); }
 
-    <!-- Left: factor form -->
-    <div style="flex:1;overflow-y:auto;padding:32px 48px 160px" id="factor-scroll">
+    .fs-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--sw-border-strong); background: var(--sw-surf-1); color: var(--ink-1); font: 600 13.5px var(--font-sans); text-decoration: none; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
+    .fs-btn:hover { border-color: var(--sw-border-hover); }
+    .fs-btn:active { transform: scale(.97); }
+    .fs-btn:focus-visible { outline: 2px solid var(--acc-blue); outline-offset: 2px; }
+    .fs-btn--primary { background: var(--acc-blue); border-color: transparent; color: var(--on-acc); }
+    .fs-btn--primary:hover { border-color: transparent; background: color-mix(in oklab, var(--acc-blue) 86%, var(--ink-1)); }
 
-        <!-- Segment tabs -->
-        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:36px">
-            <button onclick="setIndustry('b2b')" id="seg-b2b"
-                style="padding:12px 20px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--red);border-bottom:2px solid var(--red);cursor:pointer">
-                🏢 B2B / Institutional
-            </button>
-            <button onclick="setIndustry('b2c')" id="seg-b2c"
-                style="padding:12px 24px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:all 0.15s">
-                👤 B2C / Subscriptions
-            </button>
-            <button onclick="setIndustry('ecom')" id="seg-ecom"
-                style="padding:12px 24px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;background:transparent;border:none;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;transition:all 0.15s">
-                🛒 E-Commerce / Retail
-            </button>
-        </div>
+    .fs-wrap { max-width: 1240px; margin: 0 auto; padding: 28px clamp(16px, 3vw, 40px) 32px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 28px; align-items: start; }
+    .fs-result { position: sticky; top: calc(var(--bar-h) + 16px); display: flex; flex-direction: column; gap: 18px; padding: 22px; border: 1px solid var(--sw-border-strong); border-radius: 12px; background: var(--sw-surf-1); box-shadow: var(--sw-shadow-lg); }
+    .fs-head { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .fs-k { margin: 0; font: 600 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); }
+    .fs-score { margin: 6px 0 4px; font-size: clamp(56px, 7vw, 84px); line-height: 1; font-weight: 700; letter-spacing: -.03em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+    .fs-sub { margin: 0; font-size: 13px; color: var(--ink-4); }
+    .fs-tierbox { text-align: right; }
+    .fs-tier { margin: 0 0 4px; display: inline-flex; align-items: center; gap: 10px; font-size: clamp(22px, 2.2vw, 28px); font-weight: 700; color: var(--ink-1); }
+    .fs-chip { width: 14px; height: 14px; border-radius: 4px; background: var(--tone); }
 
-        <div style="max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:28px">
+    /* Status tones: reserved for the tier, always beside a written label. */
+    [data-tone="ok"]   { --tone: var(--acc-green); }
+    [data-tone="low"]  { --tone: var(--acc-blue); }
+    [data-tone="warn"] { --tone: var(--acc-amber); }
+    [data-tone="high"] { --tone: var(--acc-red); }
+    [data-tone="crit"] { --tone: #7f1d1d; }
+    html.dark [data-tone="crit"] { --tone: #fca5a5; }
 
-            <!-- Hard stops -->
-            <div class="risk-section stop-section" style="position:relative;overflow:hidden">
-                <div style="position:absolute;top:16px;right:24px;font-size:48px;font-weight:900;color:rgba(255,45,85,0.04);pointer-events:none;letter-spacing:-2px">STOP</div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
-                    <h3 class="serif" style="font-size:18px;font-style:italic;margin:0;color:var(--text)">
-                        01. Critical Barriers <span style="color:var(--red)">— Hard Stops</span>
-                    </h3>
-                    <span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:var(--red);background:rgba(255,45,85,0.1);border:1px solid rgba(255,45,85,0.2);padding:4px 12px;border-radius:20px">Automatic Lockdown</span>
-                </div>
-                <div id="grid-hardstops" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px"></div>
-            </div>
+    .fs-scale { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; height: 34px; }
+    .fs-band { display: flex; align-items: center; justify-content: center; overflow: hidden; border-top: 4px solid var(--tone); background: color-mix(in oklab, var(--tone) 14%, transparent); border-radius: 0 0 4px 4px; font-size: 11px; font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+    #fs-mark { position: absolute; top: -6px; bottom: -6px; width: 4px; border-radius: 2px; background: var(--ink-1); box-shadow: 0 0 0 2px var(--sw-surf-1); left: -2px; }
+    .fs-ticks { display: flex; justify-content: space-between; margin-top: -10px; font: 11px var(--font-mono); color: var(--ink-4); font-variant-numeric: tabular-nums; }
 
-            <!-- Regulatory -->
-            <div class="risk-section">
-                <h3 class="serif" style="font-size:18px;font-style:italic;margin:0 0 24px;color:var(--text)">
-                    02. Regulatory Transparency
-                </h3>
-                <div id="grid-market" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px"></div>
-            </div>
+    .fs-block { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--sw-border); }
+    .fs-block h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink-1); }
+    .fs-bars { display: flex; flex-direction: column; gap: 10px; }
+    .fs-bl { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; color: var(--ink-2); }
+    .fs-num { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink-3); }
+    .fs-track { height: 10px; border-radius: 99px; background: var(--sw-surf-3); overflow: hidden; }
+    .fs-track i { display: block; height: 100%; border-radius: 99px; background: var(--tone); }
+    .fs-label { font-size: 14px; font-weight: 600; color: var(--ink-1); }
+    .fs-velrow { display: flex; gap: 12px; align-items: center; }
+    .fs-input { max-width: 140px; }
+    .fs-pill { flex: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 99px; font: 600 12.5px var(--font-mono); color: var(--ink-1); background: color-mix(in oklab, var(--tone) 14%, transparent); border: 1px solid color-mix(in oklab, var(--tone) 40%, transparent); }
+    .fs-pill::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--tone); }
+    .fs-action { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+    .fs-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+    .fs-list b { color: var(--ink-1); }
+    .fs-copyrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 4px; }
 
-            <!-- Sectoral -->
-            <div class="risk-section">
-                <h3 class="serif" style="font-size:18px;font-style:italic;margin:0 0 24px;color:var(--text)">
-                    03. Sectoral Intelligence
-                </h3>
-                <div id="grid-industry" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px"></div>
-            </div>
+    .fs-cats { display: flex; flex-direction: column; gap: 14px; }
+    .fs-cat { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--sw-border-strong); border-radius: 12px; background: var(--sw-surf-1); }
+    .fs-ch { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+    .fs-ch h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink-1); }
+    .fs-ch .fs-n { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 6px; background: var(--sw-surf-3); font: 600 12px var(--font-mono); color: var(--ink-3); }
+    .fs-sig { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-3); }
+    .fs-sl { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+    .fs-sl label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+    .fs-sl input[type="range"] { width: 100%; min-height: 32px; accent-color: var(--acc-blue); }
+    .fs-out { font: 600 13px var(--font-mono); color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .fs-bandtxt { margin: 0; display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+    .fs-est summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: 13.5px; font-weight: 600; color: var(--acc-blue); }
+    .fs-est summary:focus-visible { outline: 2px solid var(--acc-blue); outline-offset: 2px; border-radius: 4px; }
+    .fs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; margin: 8px 0 12px; }
+    .fs-grid .fs-f { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--ink-3); }
+    .fs-chk { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink-2); }
+    .fs-chk input { margin-top: 3px; accent-color: var(--acc-blue); width: 16px; height: 16px; }
+    .fs-estrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-            <!-- Mitigations -->
-            <div class="risk-section hedge-section" style="position:relative;overflow:hidden">
-                <div style="position:absolute;top:16px;right:24px;font-size:48px;font-weight:900;color:rgba(48,209,88,0.04);pointer-events:none;letter-spacing:-2px">HEDGE</div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
-                    <h3 class="serif" style="font-size:18px;font-style:italic;margin:0;color:var(--text)">
-                        04. Risk Mitigating Instruments
-                    </h3>
-                    <span style="font-size:9px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:var(--green);background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.15);padding:4px 12px;border-radius:20px">Offset Controls</span>
-                </div>
-                <div id="grid-mitigations" style="display:grid;grid-template-columns:1fr 1fr;gap:16px 40px"></div>
-            </div>
+    .fs-how { max-width: 1240px; margin: 0 auto 24px; padding: 0 clamp(16px, 3vw, 40px); }
+    .fs-how summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-weight: 600; color: var(--ink-1); }
+    .fs-how p { max-width: 74ch; font-size: 14px; line-height: 1.65; color: var(--ink-3); }
 
-        </div>
-    </div>
+    .fs-next { max-width: 1240px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px); display: flex; gap: 24px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--sw-border); }
+    .fs-next h2 { margin: 0 0 6px; font-size: 20px; font-weight: 700; color: var(--ink-1); }
+    .fs-next p { margin: 0; max-width: 62ch; font-size: 14.5px; color: var(--ink-3); }
 
-    <!-- Right: analytics sidebar -->
-    <aside style="width:480px;border-left:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;padding:28px">
-        <div style="display:flex;flex-direction:column;gap:24px">
+    @media (prefers-reduced-motion: no-preference) {
+      #fs-mark { transition: left .25s cubic-bezier(.23, 1, .32, 1); }
+      .fs-track i { transition: width .25s cubic-bezier(.23, 1, .32, 1); }
+    }
+    @media (max-width: 1000px) {
+      .fs-hero__inner { grid-template-columns: 1fr; }
+      .fs-wrap { grid-template-columns: minmax(0, 1fr); }
+      .fs-result { position: static; }
+      .fs-tierbox { text-align: left; }
+    }
+    @media (max-width: 520px) {
+      .fs-band span { display: none; }
+      .fs-sl { grid-template-columns: minmax(0, 1fr) auto; }
+      .fs-sl label { grid-column: 1 / -1; }
+    }
+  </style>
 
-            <!-- Radar -->
-            <div>
-                <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;color:var(--muted);margin-bottom:16px">Risk Vector Dispersion</div>
-                <div class="chart-container"><canvas id="riskRadar"></canvas></div>
-            </div>
+  <script>
+    // Model: six weighted vectors, 0–1000. Data and arithmetic from the
+    // FraudScore calculator in the Listing Preflight artifact; wording follows
+    // SP-06 (an estimate, never Amazon's decision).
+    type Input = [string, string, 'number' | 'check' | 'select', string | boolean | [string, string][]];
+    type Cat = { id: string; name: string; w: number; sig: string; bands: [string, string, string];
+      inputs: Input[]; est: (v: Record<string, string | boolean>) => number; act: [string, string] };
 
-            <!-- Audit log -->
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px">
-                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
-                    <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.25em;color:var(--muted)">Live Audit Trail</span>
-                    <span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.2);padding:2px 8px;border-radius:6px">SECURED</span>
-                </div>
-                <div id="audit-log" style="font-size:11px;display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding-right:4px">
-                    <span style="color:var(--muted);font-style:italic">No triggers active. Awaiting assessment input...</span>
-                </div>
-            </div>
+    const $ = (id: string) => document.getElementById(id)!;
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]);
+    const lerp = (x: number, x0: number, x1: number, y0: number, y1: number) => y0 + (Math.min(Math.max(x, x0), x1) - x0) / (x1 - x0) * (y1 - y0);
+    const pw = (x: number, pts: [number, number][]) => { for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) return lerp(x, pts[i - 1][0], pts[i][0], pts[i - 1][1], pts[i][1]); return pts[pts.length - 1][1]; };
+    const num = (v: unknown) => { const n = parseFloat(String(v)); return isNaN(n) ? 0 : n; };
 
-            <!-- Meta stats -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div class="stat-box">
-                    <div class="stat-label">Entity Integrity</div>
-                    <div class="stat-val" id="meta-integrity">Unverified</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Analysis Engine</div>
-                    <div class="stat-val" style="color:var(--purple)">Sovereign 4.0</div>
-                </div>
-                <div class="stat-box" style="grid-column:span 2">
-                    <div class="stat-label">Risk Factors Active</div>
-                    <div class="stat-val mono" id="meta-count" style="color:var(--amber)">0 / 44</div>
-                </div>
-            </div>
+    const TIERS: [number, string, string, string, string][] = [
+      [0, 'Safe', 'Baseline marketplace noise', 'Keep standard monitoring and a monthly FBA reimbursement audit.', 'ok'],
+      [200, 'Low', 'Isolated incidents', 'Review return reason codes; confirm Brand Registry and Transparency coverage.', 'low'],
+      [400, 'Elevated', 'A pattern, or an early attack', 'File SAFE-T claims; audit PPC search-term reports; reconcile every FBA shipment.', 'warn'],
+      [600, 'High', 'Money or policy standing at risk now', 'Send cease-and-desist letters and use Report a Violation; pause compromised ad groups; escalate with Seller Support.', 'high'],
+      [800, 'Critical', 'Signals that often come before a suspension', 'Contact Account Health Assurance if you are eligible; involve legal and IP counsel; draft a Plan of Action now.', 'crit'],
+    ];
+    const tierOf = (s: number) => TIERS.filter(t => s >= t[0]).pop()!;
+    const BAND_LABEL = ['0–30', '31–70', '71–100'];
+    const BAND_TONE = ['ok', 'warn', 'high'];
+    const band = (s: number) => (s <= 30 ? 0 : s <= 70 ? 1 : 2);
 
-        </div>
-    </aside>
-</main>
+    const CATS: Cat[] = [
+      { id: 'returns', name: 'Return & refund abuse', w: 0.25,
+        sig: 'Switcheroo and empty-box returns, Item Not Received on FBM, wardrobing, unreimbursed FBA return gaps.',
+        bands: ['Return rate at or below the category median; switcheroo or damaged-by-customer under 0.5% of orders.', 'Return rate 1.5–2× the median; repeat-offender buyers; unreimbursed FBA return discrepancies.', 'Return rate above 2× the median; coordinated refund-agency activity; a "Very Poor" customer-experience status suppressing the listing.'],
+        inputs: [['ratio', 'Return rate ÷ category median (×)', 'number', '1'], ['switch', 'Switcheroo / damaged-by-customer (% of orders)', 'number', '0.2'], ['repeat', 'Repeat-offender buyer IDs', 'check', false], ['unreimb', 'Unreimbursed FBA return discrepancies', 'check', false], ['agency', 'Coordinated refund-agency activity', 'check', false], ['ncx', 'Customer-experience status "Very Poor"', 'check', false]],
+        est: v => { let s = pw(num(v.ratio), [[0, 0], [1, 20], [1.5, 35], [2, 70], [3, 95], [4, 100]]); const sw = num(v.switch); if (sw >= 0.5) s = Math.max(s, lerp(sw, 0.5, 2, 35, 70)); if (v.repeat) s = Math.max(s, 45); if (v.unreimb) s = Math.max(s + 10, 40); if (v.agency) s = Math.max(s, 80); if (v.ncx) s = Math.max(s, 88); return s; },
+        act: ['Review return reason codes, flag repeat offenders to Seller Support, claim reimbursement for FBA returns never credited.', 'File SAFE-T claims with weight and photo evidence; check the Voice of the Customer dashboard for suppressed listings; turn on return inspection.'] },
+      { id: 'hijack', name: 'Hijacking, counterfeit & IP', w: 0.20,
+        sig: 'Unauthorized offers on private-label ASINs, Buy Box share below 95%, weaponized IP complaints, no Transparency codes.',
+        bands: ['98–100% Buy Box; Brand Registry active; no open IP complaints.', 'Intermittent hijackers (nights, weekends); 1–2 unresolved IP or authenticity complaints.', 'A counterfeit seller holding the Buy Box; coordinated IP complaints taking ASINs down; authenticity review risk.'],
+        inputs: [['bb', 'Buy Box share on brand-owned listings (%)', 'number', '99'], ['ip', 'Open IP or authenticity complaints', 'number', '0'], ['hj', 'Unauthorized sellers', 'select', [['none', 'None seen'], ['inter', 'Intermittent (nights, weekends)'], ['active', 'Active counterfeit takeover']]], ['br', 'Brand Registry active', 'check', true], ['tr', 'Transparency serialization', 'check', false]],
+        est: v => { let s = pw(100 - num(v.bb), [[0, 5], [2, 25], [5, 35], [20, 70], [40, 95], [100, 100]]); const ip = num(v.ip); if (ip >= 1) s = Math.max(s, ip <= 2 ? 50 : 78); if (v.hj === 'inter') s = Math.max(s, 45); if (v.hj === 'active') s = Math.max(s, 88); if (!v.br) s += 10; if (v.hj !== 'none' && !v.tr) s += 5; return s; },
+        act: ['Test-buy the hijacker’s offer and file Report a Violation; enroll key ASINs in Transparency.', 'Send cease-and-desist letters, report counterfeits with test-buy evidence, and have invoices and letters of authorization ready for an authenticity review.'] },
+      { id: 'reviews', name: 'Review & rating manipulation', w: 0.15,
+        sig: 'Clusters of unverified 1-star reviews, rating drops above 0.3★ in 7 days, merged dead ASINs, abnormal review-to-order ratios.',
+        bands: ['Review velocity tracks sales; stable rating distribution.', 'Isolated unverified 1-star spikes; suspicious "Helpful" votes on negative reviews.', 'Sustained review bombing; an Amazon warning about review manipulation; reviews removed from the listing.'],
+        inputs: [['drop', 'Star-rating drop in the last 7 days (★)', 'number', '0'], ['unv', 'Unverified 1-star share of new reviews (%)', 'number', '0'], ['helpful', 'Suspicious "Helpful" votes on negative reviews', 'check', false], ['merge', 'Unrelated ASINs merged into your variation family', 'check', false], ['warn', 'Amazon warning about review manipulation', 'check', false]],
+        est: v => { let s = pw(num(v.drop), [[0, 5], [0.1, 15], [0.3, 45], [0.6, 82], [1, 100]]); const u = num(v.unv); if (u >= 10) s = Math.max(s, u >= 30 ? 72 : 40); if (v.helpful) s = Math.max(s, 45); if (v.merge) s = Math.max(s, 60); if (v.warn) s = Math.max(s, 90); return s; },
+        act: ['Report suspicious reviews through Brand Registry; check the variation family for ASINs merged in by others.', 'Escalate review bombing with evidence; audit every review or creator programme; draft a Plan of Action if you were warned.'] },
+      { id: 'ppc', name: 'PPC & click fraud', w: 0.15,
+        sig: 'CTR spikes with collapsing conversion, budgets gone by morning, non-converting ASIN targets, ACOS rising without a price or Buy Box change.',
+        bands: ['CTR and conversion move together; invalid traffic filtered normally.', 'A 20–40% unexplained conversion drop on core exact-match keywords; budgets repeatedly gone early in the day.', 'A click-farm pattern: conversion down more than 50% with clicks at 2× or more; ACOS eating the margin.'],
+        inputs: [['cvr', 'Conversion-rate drop on core exact keywords (%)', 'number', '0'], ['clicks', 'Click volume vs normal (×)', 'number', '1'], ['budget', 'Days this week the budget ran out before noon', 'number', '0'], ['acos', 'ACOS change with no price or Buy Box change (%)', 'number', '0']],
+        est: v => { const c = num(v.cvr), k = num(v.clicks); let s = pw(c, [[0, 5], [20, 32], [40, 70], [50, 75], [80, 95]]); if (c > 50 && k >= 2) s = Math.max(s, 88); if (num(v.budget) >= 3) s = Math.max(s, 45); if (num(v.acos) >= 50) s += 10; return s; },
+        act: ['Add negative targets, set dayparting, and compare search-term reports with conversions daily.', 'Pause the affected ad groups and ask Amazon Ads to investigate invalid traffic, attaching your click data.'] },
+      { id: 'supply', name: 'Inventory & supply chain', w: 0.15,
+        sig: 'FBA inbound shortages, commingled manufacturer-barcode stock, unfulfillable or warehouse-damaged units, unauthorized distributor leakage.',
+        bands: ['Inbound discrepancy under 1%; FNSKU labels on every unit; little warehouse shrinkage.', 'Inbound discrepancies of 1–3%; recurring lost-inventory events; minor gray-market leaks.', 'Inbound shortages above 3%; authenticity complaints traced to commingled units; systemic 3PL or forwarder theft.'],
+        inputs: [['disc', 'Inbound discrepancy (units shipped vs received, %)', 'number', '0.5'], ['lost', 'Lost or damaged inventory events per month', 'number', '0'], ['comm', 'Branded stock sent with manufacturer barcodes (commingled)', 'check', false], ['commc', 'Authenticity complaints traced to commingled units', 'check', false], ['theft', 'Suspected 3PL or freight-forwarder theft', 'check', false]],
+        est: v => { let s = pw(num(v.disc), [[0, 0], [1, 30], [3, 70], [6, 100]]); if (num(v.lost) >= 3) s = Math.max(s, 45); if (v.comm) s = Math.max(s, 40); if (v.commc) s = Math.max(s, 88); if (v.theft) s = Math.max(s, 80); return s; },
+        act: ['Reconcile every inbound shipment inside the claim window; switch branded stock to FNSKU labels.', 'Stop commingling, claim lost inventory, and audit the chain of custody at the 3PL and the forwarder.'] },
+      { id: 'account', name: 'Account health & payment / identity', w: 0.10,
+        sig: 'Order Defect Rate near 1%, A-to-Z claims, chargebacks, unrecognized sign-ins, INFORM Act or bank verification flags.',
+        bands: ['ODR under 0.3%; Account Health Rating above 250; chargebacks and security alerts: none.', 'ODR 0.3–0.8%; Account Health Rating 150–250; isolated A-to-Z claims or minor warnings.', 'ODR above 0.8%; Account Health Rating below 150; linked-account flags or a reserve on disbursements.'],
+        inputs: [['odr', 'Order Defect Rate (%)', 'number', '0.1'], ['ahr', 'Account Health Rating (0–1000)', 'number', '300'], ['cb', 'Chargebacks in the last 30 days', 'number', '0'], ['login', 'Unrecognized sign-ins or IP anomalies', 'check', false], ['verify', 'INFORM Act or bank-verification flag', 'check', false], ['hold', 'Reserve on disbursements or linked-account flag', 'check', false]],
+        est: v => { let s = pw(num(v.odr), [[0, 0], [0.3, 30], [0.8, 70], [1.2, 100]]); const a = num(v.ahr); if (a < 250) s = Math.max(s, a >= 150 ? lerp(250 - a, 0, 100, 31, 70) : lerp(150 - a, 0, 150, 71, 100)); if (num(v.cb) >= 2) s = Math.max(s, 40); if (v.login) s = Math.max(s, 50); if (v.verify) s = Math.max(s, 75); if (v.hold) s = Math.max(s, 88); return s; },
+        act: ['Answer every A-to-Z claim inside the window, turn on two-step sign-in for every user, and read Account Health weekly.', 'Contact Account Health Assurance if you are eligible, verify bank and INFORM details, and draft a Plan of Action.'] },
+    ];
 
-<!-- ── Verdict bar ──────────────────────────────────────────── -->
-<footer id="verdict-bar" class="verdict-bar" style="height:88px;display:flex;align-items:center;padding:0 40px;gap:40px;flex-shrink:0;transition:all 0.6s">
-    <div style="display:flex;align-items:baseline;gap:20px;flex:1">
-        <div style="display:flex;flex-direction:column">
-            <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:0.2em;margin-bottom:4px">Fraud Score</span>
-            <span id="score-val" class="mono" style="font-size:52px;font-weight:700;line-height:1;color:var(--text)">00</span>
-        </div>
-        <div style="display:flex;flex-direction:column">
-            <span style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--muted);letter-spacing:0.2em;margin-bottom:4px">Strategic Verdict</span>
-            <span id="tier-val" class="serif" style="font-size:22px;font-weight:700;font-style:italic;color:var(--text)">Awaiting Documentation...</span>
-        </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:16px">
-        <div id="verdict-badge" style="padding:10px 28px;border-radius:100px;font-size:10px;font-weight:800;letter-spacing:0.3em;text-transform:uppercase;background:rgba(var(--ink-rgb),0.06);color:var(--muted);border:1px solid var(--border);transition:all 0.4s">
-            INITIALIZING
-        </div>
-        <button onclick="window.print()" style="background:var(--red);color:white;padding:10px 24px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(255,45,85,0.35);transition:all 0.2s"
-            onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
-            Print Report
-        </button>
-    </div>
-</footer>
-
-<!-- ── Intelligence modal ───────────────────────────────────── -->
-<div id="modal-overlay" class="fixed inset-0 modal-overlay" style="z-index:300;display:flex;align-items:center;justify-content:center;padding:32px">
-    <div class="modal-card" style="width:100%;max-width:600px;overflow:hidden">
-        <div style="padding:40px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
-                <div>
-                    <p id="modal-cat" style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.3em;color:var(--purple);margin:0 0 8px"></p>
-                    <h3 id="modal-title" class="serif" style="font-size:28px;font-style:italic;font-weight:700;margin:0;line-height:1.2;color:var(--text)">Factor Intelligence</h3>
-                </div>
-                <button onclick="closeModal()" style="font-size:24px;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px 8px;transition:color 0.15s"
-                    onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">✕</button>
-            </div>
-            <p id="modal-body" style="font-size:13px;color:var(--muted);line-height:1.7;margin:0 0 32px"></p>
-            <div style="border-top:1px solid var(--border);padding-top:24px;display:flex;justify-content:flex-end">
-                <button onclick="closeModal()" style="background:var(--indigo);color:white;padding:10px 28px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer">
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script is:inline>
-    const state = { market: 'US', industry: 'b2b', score: 0, fatal: false, activeCount: 0 };
-
-    const DATA = {
-        hard_stops: {
-            hs1:  { t: "OFAC/SDN Match",           c: "Compliance (US)", d: "Direct match on the US Treasury Sanctions list. Mandatory transaction block under IEEPA regulations." },
-            hs2:  { t: "EU Consolidated List",      c: "Compliance (EU)", d: "Entity found in the European Union's asset freezing database. Prohibits all economic resources from reaching the target." },
-            hs3:  { t: "FATF Blacklist Match",      c: "AML / Geo",       d: "Jurisdiction identified by FATF as 'High-Risk'. Extremely high money laundering and terrorist financing nexus." },
-            hs4:  { t: "Active Insolvency",         c: "Financial",       d: "Current Chapter 11 (US) or Insolvency Reg (EU) proceedings. Risk of 'Preferential Transfer' clawbacks." },
-            hs5:  { t: "SAM.gov Debarment",         c: "Compliance (US)", d: "Exclusion from Federal contracts due to fraud, antitrust, or embezzlement history." },
-            hs6:  { t: "Fraud Conviction (Entity)", c: "Legal",           d: "The entity or its directors have a verified criminal record of financial misrepresentation or fraud." },
-            hs7:  { t: "AML Direct Violation",      c: "Compliance",      d: "History of proven money laundering or structured financial movements identified by FinCEN or EBA." },
-            hs8:  { t: "Terrorist Nexus",           c: "Security",        d: "Links to organizations monitored for financing extremist activities. Critical security risk." },
-            hs9:  { t: "High-Risk Embargo",         c: "Geo-Politics",    d: "Trade restrictions on specific goods or technologies involving the counterparty's primary jurisdiction." },
-            hs10: { t: "Shell Bank Connection",     c: "Compliance",      d: "Transaction routing through a 'Shell Bank' with no physical presence, often used for obfuscation." }
-        },
-        market: {
-            US: {
-                m1: { t: "SEC 10-K Discrepancy",    c: "Reg (US)", d: "Material contradictions between public annual filings and provided financial disclosures." },
-                m2: { t: "SOX 404 Control Failure", c: "Reg (US)", d: "Internal control weaknesses documented by auditors under Sarbanes-Oxley. Elevated fraud window." },
-                m3: { t: "CCPA/CPRA Breach",        c: "Reg (US)", d: "History of data privacy violations in California, leading to significant statutory liability exposure." },
-                m4: { t: "Delaware Legal Suit",     c: "Legal (US)", d: "Material ongoing litigation in the Delaware Court of Chancery regarding corporate control or shareholder rights." },
-                m5: { t: "CFIUS Review Risk",       c: "Reg (US)", d: "National security review potential on foreign investment, risking deal termination or asset divestment." },
-                m6: { t: "HSR Antitrust Trigger",   c: "Reg (US)", d: "Notification thresholds reached for Hart-Scott-Rodino, requiring pre-merger review by FTC/DOJ." }
-            },
-            EU: {
-                m1: { t: "GDPR Art. 32 Failure",   c: "Reg (EU)", d: "Failure to provide adequate technical and organizational data security measures. Penalty risk up to 4% of turnover." },
-                m2: { t: "BaFin/FCA Enforcement",  c: "Reg (EU)", d: "History of disciplinary measures from DE (BaFin) or UK (FCA) regarding market abuse or reporting." },
-                m3: { t: "Competition DG Probe",   c: "Reg (EU)", d: "Antitrust investigation by the European Commission's DG Competition. Potential for massive behavioral fines." },
-                m4: { t: "AMLD6 Gap Analysis",     c: "Reg (EU)", d: "Failure to comply with the 6th Anti-Money Laundering Directive. High risk of criminal liability for entities." },
-                m5: { t: "DAC7 Reporting Gap",     c: "Reg (EU)", d: "Non-compliance with digital platform tax reporting rules. Risk of platform suspension in EU territories." },
-                m6: { t: "CSRD ESG Deficit",       c: "Reg (EU)", d: "Failure to meet Sustainable Finance Disclosure requirements. Reputational and investment barrier for EU institutions." }
-            }
-        },
-        industry: {
-            b2b: {
-                i1: { t: "UBO Opacity",           c: "B2B / Gov",  d: "Complex multi-layered ownership structure preventing clear identification of the Ultimate Beneficial Owner." },
-                i2: { t: "Offshore Headquarters", c: "B2B / Geo",  d: "Entity is headquartered in a 'Secrecy Jurisdiction' with zero economic substance (no staff or office)." },
-                i3: { t: "Related Party Trans.",  c: "B2B / Fin",  d: "High volume of sales/purchases with affiliated entities, potentially masking revenue inflation or cash siphoning." },
-                i4: { t: "Asset-Light Substance", c: "B2B / Ops",  d: "Stated operational scale is inconsistent with physical asset register (No warehouses, servers, or hubs)." },
-                i5: { t: "PEP Overlap",           c: "B2B / Gov",  d: "Board members or major shareholders match Politically Exposed Person databases. Elevated corruption risk." },
-                i6: { t: "Sudden Board Exit",     c: "B2B / Ops",  d: "Departure of >30% of directors or the CFO within the last 6 months. Signals internal governance crisis." },
-                i7: { t: "Multi-layered Mesh",    c: "B2B / Gov",  d: "Use of intermediate companies across >3 jurisdictions to obscure cash flow or tax liabilities." },
-                i8: { t: "Regulatory Record",     c: "B2B / Legal", d: "Verified history of administrative penalties or license suspensions in the primary industry of operation." }
-            },
-            b2c: {
-                i1: { t: "Bot Acquisition Pulse", c: "B2C / Ops",      d: "User growth patterns show 'Burst' signatures consistent with bot-driven account generation." },
-                i2: { t: "Dark Pattern UX",       c: "B2C / Legal",    d: "Interface uses manipulative 'Deceptive Patterns' to trap subscribers. High regulatory risk (FTC/CPC)." },
-                i3: { t: "Breach Vulnerability",  c: "B2C / Ops",      d: "History of >2 data breaches. Critical lack of identity protection for the customer base." },
-                i4: { t: "Account Sharing Surge", c: "B2C / Fin",      d: "High percentage of single accounts used across distant IP ranges. Indicates credential harvesting/selling." },
-                i5: { t: "High-Risk Signups",     c: "B2C / Identity", d: "Large volume of registrations using disposable email domains or temporary VOIP numbers." },
-                i6: { t: "Subscription Trap",     c: "B2C / Fin",      d: "Revenue model relies on difficult-to-cancel billing cycles. High dispute (chargeback) liability." },
-                i7: { t: "Referral Abuse",        c: "B2C / Ops",      d: "Manipulation of affiliate/referral programs to generate artificial GMV or incentive payouts." },
-                i8: { t: "IP/Carrier Mismatch",   c: "B2C / Identity", d: "User mobile carrier data frequently contradicts the detected IP geolocation. Proxy/Emulator signal." }
-            },
-            ecom: {
-                i1: { t: "Card Testing Wave",       c: "Ecom / Ops",      d: "Micro-transaction bursts on the platform, used by hackers to validate stolen credit card numbers." },
-                i2: { t: "VPN/Proxy Saturation",    c: "Ecom / Geo",      d: "Excessive volume of high-value orders coming from known data-center IPs or TOR exit nodes." },
-                i3: { t: "Multi-Device Link",       c: "Ecom / Identity", d: "Hundreds of distinct orders associated with a single hardware fingerprint. Systematic automation abuse." },
-                i4: { t: "High-Value SKU Fencing",  c: "Ecom / Fin",      d: "Inventory skewed towards highly-liquid items (Apple, Gold, Gift Cards) that are easily converted to cash." },
-                i5: { t: "AVS Failures >15%",       c: "Ecom / Geo",      d: "Widespread Address Verification Service errors. Suggests usage of compromised 'CVV' data sets." },
-                i6: { t: "Velocity Spike",          c: "Ecom / Ops",      d: "Sudden orders from a single IP address inconsistent with human browsing speeds." },
-                i7: { t: "Parcel Locker Bias",      c: "Ecom / Geo",      d: "Orders primarily destined for temporary storage/lockers rather than residential addresses." },
-                i8: { t: "3DS Bypass Attempt",      c: "Ecom / Fin",      d: "Systematic routing of payments through regions/acquirers with weaker 3D-Secure enforcement." }
-            }
-        },
-        mitigations: {
-            mit1:  { t: "R&W Insurance",          c: "Offset", d: "Representations and Warranties insurance covers losses from false entity statements. Major risk transfer." },
-            mit2:  { t: "MAC Clause In-Place",    c: "Offset", d: "Material Adverse Change clause allows exit if the asset health deteriorates significantly before closing." },
-            mit3:  { t: "D&O Coverage",           c: "Offset", d: "Comprehensive insurance for Directors and Officers against personal liability for management decisions." },
-            mit4:  { t: "Escrow Holdback",        c: "Offset", d: "Retention of >15% of funds in neutral custody to cover future indemnity claims." },
-            mit5:  { t: "Big-4 Audit Clean",      c: "Offset", d: "Recent (last 24m) unqualified audit opinion from PwC/Deloitte/EY/KPMG. High transparency." },
-            mit6:  { t: "Parent Guarantee",       c: "Offset", d: "Legally enforceable backing from a Tier-1 capitalized parent structure." },
-            mit7:  { t: "Active Monitoring",      c: "Offset", d: "Real-time AML/Sanctions monitoring system integrated into the transaction flow." },
-            mit8:  { t: "UBO Verified (KYB)",     c: "Offset", d: "Independent 3rd-party verification of corporate ownership hierarchy." },
-            mit9:  { t: "SOC2 Compliance",        c: "Offset", d: "Independently audited data security controls for technical operations." },
-            mit10: { t: "Favorable Legal Opinion",c: "Offset", d: "Formal 'Clean' opinion from reputable external counsel on entity standing." }
-        }
+    const PRESETS: Record<string, Record<string, number>> = {
+      healthy: { returns: 18, hijack: 10, reviews: 12, ppc: 20, supply: 14, account: 8, wow: 5 },
+      hijack: { returns: 25, hijack: 86, reviews: 55, ppc: 30, supply: 62, account: 40, wow: 22 },
+      returns: { returns: 84, hijack: 20, reviews: 35, ppc: 25, supply: 48, account: 52, wow: 18 },
+      presusp: { returns: 72, hijack: 90, reviews: 80, ppc: 66, supply: 78, account: 92, wow: 40 },
     };
+    const S: Record<string, number> = Object.fromEntries(CATS.map(c => [c.id, 0]));
+    const EST: Record<string, number> = {};
+    let wow = 0;
+    const vm = () => (wow > 30 ? 1.25 : wow >= 15 ? 1.1 : 1);
+    const score = () => { const base = CATS.reduce((a, c) => a + S[c.id] * c.w * 10, 0); return { base, total: Math.min(1000, Math.round(vm() * base)) }; };
 
-    let radarChart;
-
-    function initRadar() {
-        const ctx = document.getElementById('riskRadar').getContext('2d');
-        radarChart = new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: ['Governance', 'Geo-Risk', 'Operations', 'Financial', 'Compliance'],
-                datasets: [{
-                    label: 'Weighted Exposure',
-                    data: [0, 0, 0, 0, 0],
-                    backgroundColor: 'rgba(255,45,85,0.06)',
-                    borderColor: 'rgba(255,45,85,0.6)',
-                    borderWidth: 1.5,
-                    pointRadius: 3,
-                    pointBackgroundColor: '#be123c',
-                    pointBorderColor: '#03050F',
-                    pointBorderWidth: 1.5,
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    r: {
-                        beginAtZero: true, max: 100,
-                        ticks: { display: false },
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        angleLines: { color: 'rgba(255,255,255,0.05)' },
-                        pointLabels: {
-                            font: { size: 9, weight: '700', family: "'Inter'" },
-                            color: '#6E6E80'
-                        }
-                    }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
+    function field([k, label, type, d]: Input, id: string) {
+      if (type === 'check') return `<label class="fs-chk"><input type="checkbox" data-est="${id}" data-ek="${k}" ${d ? 'checked' : ''}>${esc(label)}</label>`;
+      if (type === 'select') return `<label class="fs-f">${esc(label)}<select data-est="${id}" data-ek="${k}">${(d as [string, string][]).map(([v, x]) => `<option value="${v}">${esc(x)}</option>`).join('')}</select></label>`;
+      return `<label class="fs-f">${esc(label)}<input type="number" inputmode="decimal" step="any" data-est="${id}" data-ek="${k}" value="${esc(d)}"></label>`;
     }
 
-    function switchMarket(m) {
-        state.market = m;
-        document.querySelectorAll('.market-btn').forEach(btn => btn.classList.remove('active'));
-        document.getElementById(`btn-${m.toLowerCase()}`).classList.add('active');
-        document.getElementById('label-market').innerText =
-            m === 'US' ? 'Federal (SEC / OFAC)' : 'EBA (FCA / BaFin)';
-        renderGrids();
-        calculate();
+    function renderCats() {
+      $('fs-cats').innerHTML = CATS.map((c, i) => `<article class="fs-cat" aria-labelledby="h-${c.id}">
+        <div class="fs-ch"><h3 id="h-${c.id}"><span class="fs-n">${i + 1}</span>${esc(c.name)}</h3><span class="fs-sub">Weight ${Math.round(c.w * 100)}% · up to ${c.w * 1000} pts</span></div>
+        <p class="fs-sig">${esc(c.sig)}</p>
+        <div class="fs-sl"><label for="s-${c.id}">Sub-score</label><input type="range" id="s-${c.id}" data-cat="${c.id}" min="0" max="100" value="${S[c.id]}"><output id="o-${c.id}" for="s-${c.id}" class="fs-out"></output></div>
+        <p class="fs-bandtxt" id="b-${c.id}"></p>
+        <details class="fs-est"><summary>Estimate from your metrics</summary>
+          <div class="fs-grid">${c.inputs.map(inp => field(inp, c.id)).join('')}</div>
+          <div class="fs-estrow"><span id="est-${c.id}" class="fs-sub"></span><button type="button" class="fs-btn" data-apply="${c.id}">Use this estimate</button></div>
+        </details></article>`).join('');
+      CATS.forEach(c => readEst(c.id));
     }
 
-    function setIndustry(ind) {
-        state.industry = ind;
-        ['b2b','b2c','ecom'].forEach(i => {
-            const el = document.getElementById(`seg-${i}`);
-            const active = i === ind;
-            el.style.color = active ? 'var(--red)' : 'var(--muted)';
-            el.style.borderBottomColor = active ? 'var(--red)' : 'transparent';
-        });
-        renderGrids();
-        calculate();
+    function readEst(id: string) {
+      const c = CATS.find(x => x.id === id)!;
+      const v: Record<string, string | boolean> = {};
+      document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(`[data-est="${id}"]`).forEach(el => {
+        v[el.dataset.ek!] = el instanceof HTMLInputElement && el.type === 'checkbox' ? el.checked : el.value;
+      });
+      EST[id] = Math.round(Math.min(100, Math.max(0, c.est(v))));
+      $('est-' + id).textContent = `Estimated sub-score: ${EST[id]} (${BAND_LABEL[band(EST[id])]} band)`;
     }
 
-    function renderGrids() {
-        document.getElementById('grid-hardstops').innerHTML   = Object.entries(DATA.hard_stops).map(([id,f]) => renderItem(id,f,'fatal')).join('');
-        document.getElementById('grid-market').innerHTML      = Object.entries(DATA.market[state.market]).map(([id,f]) => renderItem(id,f)).join('');
-        document.getElementById('grid-industry').innerHTML    = Object.entries(DATA.industry[state.industry]).map(([id,f]) => renderItem(id,f)).join('');
-        document.getElementById('grid-mitigations').innerHTML = Object.entries(DATA.mitigations).map(([id,f]) => renderItem(id,f,'mitigation')).join('');
+    function update() {
+      const { base, total } = score();
+      const t = tierOf(total);
+      const m = vm();
+      $('fs-score').textContent = String(total);
+      $('fs-formula').textContent = `${Math.round(base)} × ${m.toFixed(2)} velocity${m * base > 1000 ? ' (capped at 1000)' : ''}`;
+      $('fs-tier').innerHTML = `<span class="fs-chip" data-tone="${t[4]}"></span><span>${esc(t[1])}</span>`;
+      $('fs-status').textContent = t[2];
+      $('fs-mark').style.left = `calc(${total / 10}% - 2px)`;
+      $('fs-scale').setAttribute('aria-label', `Score ${total} of 1000, ${t[1]}`);
+      const vmEl = $('fs-vm');
+      vmEl.textContent = `×${m.toFixed(2)}`;
+      vmEl.dataset.tone = m === 1 ? 'ok' : m < 1.2 ? 'warn' : 'high';
+      $('fs-tieraction').innerHTML = `<b>${esc(t[1])}:</b> ${esc(t[3])}`;
+      $('fs-bars').innerHTML = CATS.map(c => {
+        const pts = S[c.id] * c.w * 10, max = c.w * 1000, b = band(S[c.id]);
+        return `<div title="${esc(c.name)}: ${Math.round(pts)} of ${max} points (${BAND_LABEL[b]} band)"><div class="fs-bl"><span>${esc(c.name)}</span><span class="fs-num">${Math.round(pts)} / ${max}</span></div><div class="fs-track" aria-hidden="true"><i data-tone="${BAND_TONE[b]}" style="width:${(pts / max) * 100}%"></i></div></div>`;
+      }).join('');
+      CATS.forEach(c => {
+        const s = S[c.id], b = band(s);
+        $('o-' + c.id).textContent = `${s} → ${Math.round(s * c.w * 10)} pts`;
+        $('b-' + c.id).innerHTML = `<span class="fs-pill" data-tone="${BAND_TONE[b]}">${BAND_LABEL[b]}</span><span>${esc(c.bands[b])}</span>`;
+      });
+      const acts = CATS.filter(c => S[c.id] > 30)
+        .sort((a, b) => S[b.id] * b.w - S[a.id] * a.w)
+        .map(c => `<li><b>${esc(c.name)}</b> (${S[c.id]}): ${esc(c.act[band(S[c.id]) - 1])}</li>`);
+      $('fs-catactions').innerHTML = acts.join('') || '<li>No vector above the 0–30 band. Keep the monthly audits.</li>';
     }
 
-    function renderItem(id, f, type = '') {
-        const isMit = type === 'mitigation';
-        const isFatal = type === 'fatal';
-        return `
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:8px;border-radius:10px;transition:background 0.15s"
-                 onmouseover="this.style.background='rgba(255,255,255,0.03)'"
-                 onmouseout="this.style.background='transparent'">
-                <input type="checkbox" id="cb-${id}" data-id="${id}" data-type="${type}"
-                    class="risk-check ${type}" onchange="calculate()" style="margin-top:1px">
-                <div style="display:flex;flex-direction:column;flex:1">
-                    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-                        <label for="cb-${id}" class="factor-label">${f.t}</label>
-                        <span class="info-trigger" onclick="openModal('${id}')">i</span>
-                    </div>
-                </div>
-            </div>`;
+    function setAll(values: Record<string, number>, w: number) {
+      CATS.forEach(c => { S[c.id] = values[c.id] ?? 0; ($('s-' + c.id) as HTMLInputElement).value = String(S[c.id]); });
+      wow = w; ($('fs-wow') as HTMLInputElement).value = String(w);
+      update();
     }
 
-    function openModal(id) {
-        let f;
-        if (DATA.hard_stops[id])                                            f = DATA.hard_stops[id];
-        else if (DATA.market.US[id] || DATA.market.EU[id])                  f = DATA.market[state.market][id] || DATA.market.US[id] || DATA.market.EU[id];
-        else if (DATA.industry.b2b[id]||DATA.industry.b2c[id]||DATA.industry.ecom[id]) f = DATA.industry[state.industry][id];
-        else                                                                 f = DATA.mitigations[id];
-        document.getElementById('modal-title').innerText = f.t;
-        document.getElementById('modal-cat').innerText   = f.c;
-        document.getElementById('modal-body').innerText  = f.d;
-        document.getElementById('modal-overlay').classList.add('active');
-    }
-    function closeModal() {
-        document.getElementById('modal-overlay').classList.remove('active');
-    }
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    renderCats();
+    update();
 
-    function calculate() {
-        let total = 0, fatal = false, activeCount = 0;
-        const audit = [];
-        const rMap = { Governance: 0, Geo: 0, Operations: 0, Financial: 0, Compliance: 0 };
-
-        document.querySelectorAll('.risk-check').forEach(cb => {
-            if (!cb.checked) return;
-            const id = cb.dataset.id, type = cb.dataset.type;
-            let f;
-            if (DATA.hard_stops[id])                    f = DATA.hard_stops[id];
-            else if (DATA.market[state.market][id])     f = DATA.market[state.market][id];
-            else if (DATA.industry[state.industry][id]) f = DATA.industry[state.industry][id];
-            else                                        f = DATA.mitigations[id];
-
-            if (type === 'fatal') {
-                fatal = true; activeCount++;
-                audit.push({ l: `BARRIER: ${f.t}`, p: '∞', fatal: true });
-            } else if (type === 'mitigation') {
-                total -= 12;
-                audit.push({ l: f.t, p: '−12', mit: true });
-            } else {
-                total += 18; activeCount++;
-                audit.push({ l: f.t, p: '+18' });
-                const c = f.c;
-                if (c.includes('Gov'))  rMap.Governance += 25;
-                if (c.includes('Geo'))  rMap.Geo        += 25;
-                if (c.includes('Ops'))  rMap.Operations += 25;
-                if (c.includes('Fin'))  rMap.Financial  += 25;
-                if (c.includes('Reg') || c.includes('Compliance')) rMap.Compliance += 25;
-            }
-        });
-
-        state.score = Math.max(0, Math.min(100, total));
-        state.fatal = fatal;
-        state.activeCount = activeCount;
-        updateUI(audit, rMap);
-    }
-
-    function updateUI(audit, rMap) {
-        const sVal    = document.getElementById('score-val');
-        const tVal    = document.getElementById('tier-val');
-        const bBadge  = document.getElementById('verdict-badge');
-        const logEl   = document.getElementById('audit-log');
-        const vBar    = document.getElementById('verdict-bar');
-        const mInt    = document.getElementById('meta-integrity');
-        const mCount  = document.getElementById('meta-count');
-
-        const s = state.score;
-        sVal.innerText = state.fatal ? '!!' : (s < 10 ? '0' + s : s);
-
-        let tier, badge, badgeBg, badgeColor, scoreColor;
-
-        if (state.fatal) {
-            tier = "Regulatory Barrier Encountered"; badge = "HARD STOP";
-            badgeBg = 'rgba(255,45,85,0.15)'; badgeColor = '#be123c';
-            scoreColor = '#be123c'; mInt.innerText = "COMPROMISED";
-            vBar.style.borderTopColor = 'rgba(255,45,85,0.3)';
-        } else if (s > 75) {
-            tier = "Extreme Structural Exposure"; badge = "DECLINE";
-            badgeBg = 'rgba(255,45,85,0.12)'; badgeColor = '#be123c';
-            scoreColor = '#be123c'; mInt.innerText = "HIGH RISK";
-            vBar.style.borderTopColor = 'rgba(255,45,85,0.2)';
-        } else if (s > 55) {
-            tier = "Escalate to Board / Underwriting"; badge = "ESCALATE";
-            badgeBg = 'rgba(255,159,10,0.12)'; badgeColor = '#c2410c';
-            scoreColor = '#c2410c'; mInt.innerText = "QUESTIONABLE";
-            vBar.style.borderTopColor = 'rgba(255,159,10,0.2)';
-        } else if (s > 35) {
-            tier = "Negotiation & Covenant Hold"; badge = "NEGOTIATE";
-            badgeBg = 'rgba(99,111,255,0.12)'; badgeColor = '#636FFF';
-            scoreColor = '#636FFF'; mInt.innerText = "MODERATE";
-            vBar.style.borderTopColor = 'rgba(99,111,255,0.2)';
-        } else if (s > 15) {
-            tier = "Standard Asset Classification"; badge = "APPROVE ✓";
-            badgeBg = 'rgba(48,209,88,0.1)'; badgeColor = '#15803d';
-            scoreColor = '#15803d'; mInt.innerText = "VALIDATED";
-            vBar.style.borderTopColor = 'rgba(48,209,88,0.15)';
-        } else {
-            tier = "Prime Sovereign Classification"; badge = "APPROVE ★";
-            badgeBg = 'rgba(191,90,242,0.1)'; badgeColor = '#9333ea';
-            scoreColor = '#9333ea'; mInt.innerText = "EXEMPLARY";
-            vBar.style.borderTopColor = 'rgba(191,90,242,0.15)';
-        }
-
-        tVal.innerText = tier;
-        sVal.style.color = scoreColor;
-        bBadge.innerText = badge;
-        bBadge.style.background = badgeBg;
-        bBadge.style.color = badgeColor;
-        bBadge.style.borderColor = badgeColor + '44';
-        mCount.innerText = `${state.activeCount} / 44`;
-
-        logEl.innerHTML = audit.length
-            ? audit.map(a => `
-                <div style="display:flex;justify-content:space-between;align-items:center;color:${a.fatal ? '#be123c' : a.mit ? '#15803d' : '#6E6E80'}">
-                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:12px">${a.l}</span>
-                    <span class="mono" style="flex-shrink:0;font-weight:700">${a.p}</span>
-                </div>`).join('')
-            : '<span style="color:var(--muted);font-style:italic">No triggers active. Awaiting assessment input...</span>';
-
-        if (radarChart) {
-            radarChart.data.datasets[0].data = [rMap.Governance, rMap.Geo, rMap.Operations, rMap.Financial, rMap.Compliance];
-            radarChart.update();
-        }
-    }
-
-    window.onload = () => { initRadar(); switchMarket('US'); setIndustry('b2b'); };
-</script>
-</body>
-</html>
+    document.addEventListener('input', e => {
+      const t = e.target as HTMLInputElement;
+      if (t.dataset.cat) { S[t.dataset.cat] = +t.value; update(); }
+      else if (t.dataset.est) readEst(t.dataset.est);
+      else if (t.id === 'fs-wow') { wow = num(t.value); update(); }
+    });
+    document.addEventListener('change', e => {
+      const t = e.target as HTMLSelectElement;
+      if (t.dataset.est) readEst(t.dataset.est);
+      if (t.id === 'fs-preset' && t.value) { const p = PRESETS[t.value]; setAll(p, p.wow); }
+    });
+    document.addEventListener('click', async e => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b) return;
+      if (b.dataset.apply) { const id = b.dataset.apply; S[id] = EST[id]; ($('s-' + id) as HTMLInputElement).value = String(EST[id]); update(); }
+      else if (b.id === 'fs-reset') { setAll({}, 0); ($('fs-preset') as HTMLSelectElement).value = ''; }
+      else if (b.id === 'fs-copy' || b.id === 'fs-copyjson') {
+        const { base, total } = score(), t = tierOf(total);
+        const txt = b.id === 'fs-copy'
+          ? [`FraudScore: ${total} / 1000 — ${t[1]} (${t[2]})`, `Velocity ×${vm().toFixed(2)} (week-over-week anomalies ${wow}%)`,
+             ...CATS.map(c => `${c.name}: sub-score ${S[c.id]} → ${Math.round(S[c.id] * c.w * 10)} / ${c.w * 1000} pts`),
+             `Action: ${t[3]}`, 'An estimate from my own numbers, not an Amazon metric.'].join('\n')
+          : JSON.stringify({ score: total, base: Math.round(base), velocity_multiplier: vm(), tier: t[1],
+              vectors: CATS.map(c => ({ id: c.id, name: c.name, weight: c.w, sub_score: S[c.id], points: Math.round(S[c.id] * c.w * 10), max_points: c.w * 1000 })) }, null, 2);
+        try { await navigator.clipboard.writeText(txt); $('fs-copied').textContent = 'Copied.'; }
+        catch { $('fs-copied').textContent = 'The browser blocked the copy.'; }
+      }
+    });
+  </script>
+</BaseLayout>
