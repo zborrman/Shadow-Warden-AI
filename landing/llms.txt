@@ -42,11 +42,7 @@ and Ed25519/DID identity.
 ## Core Capabilities
 
 - [Security Gateway](https://shadow-warden-ai.com/doc) — nine-stage pipeline, obfuscation decoder, 15-pattern plus entropy secret scan
-- [M2M Marketplace](https://shadow-warden-ai.com/agentic) — x402 USDC nanopayments (testnet), Flex Credits, KYA compliance, L1/L2/L3 autonomy policies
 - [Agent Card](https://shadow-warden-ai.com/.well-known/agent.json) — A2A / ADP capability manifest
-- [SOVA Agent](https://shadow-warden-ai.com/agentic) — 30-tool autonomous SOC operator with scheduled threat briefs
-- [MasterAgent](https://shadow-warden-ai.com/agentic) — multi-agent SOC coordinator, four specialist sub-agents, human-in-the-loop approval gate
-- [Community Hub](https://shadow-warden-ai.com/community) — STIX 2.1 audit chains, provenance, post-quantum signatures (ML-DSA-65)
 
 ## Developer resources
 
@@ -83,7 +79,7 @@ directly: [/index.md](https://shadow-warden-ai.com/index.md),
 [/pricing.md](https://shadow-warden-ai.com/pricing.md),
 [/doc.md](https://shadow-warden-ai.com/doc.md),
 [/sdk.md](https://shadow-warden-ai.com/sdk.md),
-[/agentic.md](https://shadow-warden-ai.com/agentic.md),
+
 [/trust.md](https://shadow-warden-ai.com/trust.md),
 [/developers.md](https://shadow-warden-ai.com/developers.md),
 [/mcp.md](https://shadow-warden-ai.com/mcp.md),

@@ -11,7 +11,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 
       <!-- Breadcrumb -->
       <div class="flex items-center gap-2 mb-8 text-[13px]" style="color:var(--ink-5)">
-        <a href="/community" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Community</a>
+        <a href="/" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Community</a>
         <span>›</span>
         <a href="/account" style="color:var(--ink-4);text-decoration:none" onmouseover="this.style.color='var(--acc-cyan)'" onmouseout="this.style.color='var(--ink-4)'">Account</a>
         <span>›</span>
@@ -183,7 +183,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       });
       ['sw_communities', 'sw_account', 'sw_privacy', 'sw_user_id'].forEach(k => localStorage.removeItem(k));
       showMsg('✓ All data cleared. Redirecting…');
-      setTimeout(() => { window.location.href = '/community'; }, 1500);
+      setTimeout(() => { window.location.href = '/'; }, 1500);
     });
 
     render();

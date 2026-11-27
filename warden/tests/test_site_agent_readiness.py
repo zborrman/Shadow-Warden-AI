@@ -443,7 +443,6 @@ class TestPublishedLanding:
             "pricing.md",
             "doc.md",
             "sdk.md",
-            "agentic.md",
             "trust.md",
             "developers.md",
             "mcp.md",
@@ -804,9 +803,10 @@ class TestOneLayout:
     """
 
     # Full-screen screens that deliberately draw their own chrome: the auth
-    # forms and the two pages that only redirect. (The FraudScore console moved
-    # into the site layout on 2026-11-26.)
-    STANDALONE = {"login.astro", "signup.astro", "community.astro", "enterprise.astro"}
+    # forms and the pages that only redirect (/agentic and /community were
+    # retired to /sellers on 2026-11-27). The FraudScore console moved into the
+    # site layout on 2026-11-26.
+    STANDALONE = {"login.astro", "signup.astro", "community.astro", "enterprise.astro", "agentic.astro"}
 
     def test_the_site_has_one_layout(self):
         assert sorted(p.name for p in _LAYOUTS.glob("*.astro")) == list(_SITE_LAYOUTS)

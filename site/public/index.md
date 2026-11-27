@@ -62,7 +62,6 @@ The workspace runs on a text-screening gateway that also has a public API.
 - [API versioning policy](https://shadow-warden-ai.com/versioning.md)
 - [About](https://shadow-warden-ai.com/about.md)
 - [Pricing](https://shadow-warden-ai.com/pricing.md)
-- [Agentic marketplace](https://shadow-warden-ai.com/agentic.md)
 - [Trust centre](https://shadow-warden-ai.com/trust.md)
 - [Sitemap](https://shadow-warden-ai.com/sitemap-index.xml)
 

@@ -83,7 +83,7 @@ test.describe('Global Navigation', () => {
   });
 
   // ── Trade hub ────────────────────────────────────────────────────────────────
-  test('Trade dropdown shows marketplace, community and tunnel', async ({ page }, testInfo) => {
+  test('Trade dropdown shows business community, store and tunnel', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile', 'desktop-only CSS hover dropdown; mobile uses hamburger nav');
     const { dropdown } = await hoverNavItem(page, 'Trade');
     await expect(dropdown).toBeVisible();
@@ -91,7 +91,8 @@ test.describe('Global Navigation', () => {
     // renamed to "Agentic Marketplace" when the M2M Commerce Store got its own
     // entry (M0, #666) and this expectation was left behind — it has failed
     // against production every night since.
-    await expect(dropdown.locator('a', { hasText: 'Agentic Marketplace' })).toBeVisible();
+    // /agentic and /community were retired on 2026-11-27.
+    await expect(dropdown.locator('a', { hasText: 'Agentic Marketplace' })).toHaveCount(0);
     await expect(dropdown.locator('a', { hasText: 'M2M Commerce Store' })).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'Business Community' })).toBeVisible();
     await expect(dropdown.locator('a', { hasText: 'MASQUE Tunnels' })).toBeVisible();
@@ -110,7 +111,7 @@ test.describe('Global Navigation', () => {
     const checks: [string, string][] = [
       ['Protect', '/cyber-security'],
       ['Govern',  '/trust'],
-      ['Trade',   '/agentic'],
+      ['Trade',   '/business-community'],
       ['Build',   '/doc'],
       ['Account', '/price'],
     ];
@@ -155,229 +156,72 @@ test.describe('Global Navigation', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. 6-Step Community Wizard — /community/new
+// 2. Retired pages — /agentic and /community/* (2026-11-27)
+// The agentic marketplace dashboard and the Community & Tunnel pages showed
+// gateway features that are not the product and broke on load. Their 15 tests
+// were replaced by these and the seller-page block below, keeping the floor.
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Community Creation Wizard', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/community/new');
-    await expect(page.locator('#wizard-card')).toBeVisible();
+test.describe('Retired pages', () => {
+  test('/agentic lands on the seller page', async ({ page }) => {
+    await page.goto('/agentic');
+    await page.waitForURL(/\/sellers\/?$/);
+    await expect(page.locator('h1')).toBeVisible();
   });
 
-  test('wizard renders 6 step indicators', async ({ page }) => {
-    for (let i = 0; i <= 5; i++) {
-      await expect(page.locator(`#sc-${i}`)).toBeVisible();
-    }
-    // Step 1 starts active
-    await expect(page.locator('#sc-0')).toHaveClass(/active/);
-  });
-
-  // ── Full happy-path walkthrough ────────────────────────────────────────────
-  test('completes all 6 steps and launches community', { timeout: 60_000 }, async ({ page }) => {
-    // ── Step 1: Name & Description ──────────────────────────────────────────
-    await expect(page.locator('#panel-0')).toBeVisible();
-    await page.fill('#f-name', 'E2E Security Research Hub');
-    await page.fill('#f-desc', 'Automated E2E test community — safe to delete');
-    await page.click('#next-0');
-
-    // ── Step 2: Visibility & Type ───────────────────────────────────────────
-    await expect(page.locator('#panel-1')).toBeVisible();
-    // PUBLIC is selected by default; explicitly click to ensure state
-    await page.click('#rc-public');
-    // Select MARKETPLACE type
-    await page.click('#rc-marketplace');
-    await expect(page.locator('#rc-marketplace')).toHaveClass(/selected/);
-    await page.click('#next-1');
-
-    // ── Step 3: Security ────────────────────────────────────────────────────
-    await expect(page.locator('#panel-2')).toBeVisible();
-    // E2E encryption is checked by default — verify it
-    await expect(page.locator('#t-e2e')).toBeChecked();
-    // PQC toggle is Enterprise-locked — must remain disabled
-    await expect(page.locator('#t-pqc')).toBeDisabled();
-    // Toggle disappearing messages — checkbox is visually hidden behind a CSS slider;
-    // use evaluate to toggle it programmatically (scrollIntoViewIfNeeded can't reach it
-    // when the navbar pushes content below viewport in headless mode)
-    await page.evaluate(() => {
-      const el = document.getElementById('t-disappear') as HTMLInputElement;
-      if (el && !el.checked) {
-        el.checked = true;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-    await expect(page.locator('#t-disappear')).toBeChecked();
-    await page.click('#next-2');
-
-    // ── Step 4: Governance ──────────────────────────────────────────────────
-    await expect(page.locator('#panel-3')).toBeVisible();
-    // Change max members
-    await page.selectOption('#f-maxmembers', '50');
-    await page.click('#next-3');
-
-    // ── Step 5: Integrations & Tags ─────────────────────────────────────────
-    await expect(page.locator('#panel-4')).toBeVisible();
-    // Enable SOVA Agent — use evaluate; visually hidden checkbox (same slider pattern as t-disappear)
-    await page.evaluate(() => {
-      const el = document.getElementById('t-sova') as HTMLInputElement;
-      if (el && !el.checked) {
-        el.checked = true;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-    await expect(page.locator('#t-sova')).toBeChecked();
-    // Add a tag
-    await page.fill('#tag-input', 'threat-intel');
-    await page.keyboard.press('Enter');
-    // Verify tag chip rendered
-    await expect(page.locator('#tags-wrap')).toContainText('threat-intel');
-    await page.click('#next-4');
-
-    // ── Step 6: Review & Launch ─────────────────────────────────────────────
-    await expect(page.locator('#panel-5')).toBeVisible();
-    // Review table must show the community name
-    await expect(page.locator('#rv-name')).toHaveText('E2E Security Research Hub');
-    // Visibility row
-    await expect(page.locator('#rv-vis')).not.toHaveText('—');
-    // Encryption must show as enabled
-    await expect(page.locator('#rv-enc')).not.toHaveText('—');
-
-    // Clear any stale community data so btn-create always generates a fresh entry
-    await page.evaluate(() => localStorage.removeItem('sw_communities'));
-
-    // Launch — wizard writes to localStorage and redirects
-    await page.click('#btn-create');
-
-    // The view page may strip created=1 via history.replaceState; just verify /community/view
-    await expect(page).toHaveURL(/\/community\/view/, { timeout: 10_000 });
-  });
-
-  // ── Back navigation ─────────────────────────────────────────────────────
-  test('back button returns to previous step', async ({ page }) => {
-    await page.fill('#f-name', 'Back-Test Community');
-    await page.click('#next-0');
-    await expect(page.locator('#panel-1')).toBeVisible();
-    await page.click('#back-1');
-    await expect(page.locator('#panel-0')).toBeVisible();
-  });
-
-  // ── Name required validation ───────────────────────────────────────────────
-  test('Launch without name returns to step 1', { timeout: 60_000 }, async ({ page }) => {
-    // next-0 validates name — fill it so we can advance, then clear it before launching
-    await page.fill('#f-name', 'Temp Name');
-    await page.click('#next-0');
-    await expect(page.locator('#panel-1')).toBeVisible();
-    await page.click('#next-1');
-    await expect(page.locator('#panel-2')).toBeVisible();
-    await page.click('#next-2');
-    await expect(page.locator('#panel-3')).toBeVisible();
-    await page.click('#next-3');
-    await expect(page.locator('#panel-4')).toBeVisible();
-    await page.click('#next-4');
-    await expect(page.locator('#panel-5')).toBeVisible();
-    // Clear the name at runtime so btn-create sees empty string
-    await page.evaluate(() => {
-      const el = document.getElementById('f-name') as HTMLInputElement;
-      if (el) el.value = '';
-    });
-    await page.click('#btn-create');
-    // Wizard calls goTo(0) and stays on same URL
-    await expect(page).toHaveURL(/\/community\/new/);
-    await expect(page.locator('#panel-0')).toBeVisible();
-  });
-
-  // ── Radio card selection ───────────────────────────────────────────────────
-  test('radio cards toggle selected class correctly', async ({ page }) => {
-    await page.fill('#f-name', 'Radio Test');
-    await page.click('#next-0');
-    await expect(page.locator('#panel-1')).toBeVisible();
-    // Click PRIVATE
-    await page.click('#rc-private');
-    await expect(page.locator('#rc-private')).toHaveClass(/selected/);
-    await expect(page.locator('#rc-public')).not.toHaveClass(/selected/);
-    // Click back to PUBLIC
-    await page.click('#rc-public');
-    await expect(page.locator('#rc-public')).toHaveClass(/selected/);
-    await expect(page.locator('#rc-private')).not.toHaveClass(/selected/);
-  });
-
-  // ── PQC locked badge ──────────────────────────────────────────────────────
-  test('PQC badge shows Enterprise label', async ({ page }) => {
-    await page.fill('#f-name', 'PQC Test');
-    await page.click('#next-0');
-    await page.click('#next-1');
-    await expect(page.locator('#panel-2')).toBeVisible();
-    await expect(page.locator('#pqc-badge')).toHaveText('Enterprise');
-    await expect(page.locator('#t-pqc')).toBeDisabled();
+  test('no navigation link points at a retired page', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#navbar a[href="/agentic"], #navbar a[href="/community"]')).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. /agentic — Marketplace Dashboard & Chart.js Canvases
+// 3. /sellers — the product page
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Agentic Marketplace Dashboard', () => {
-  test.beforeEach(async ({ page }) => {
-    // /agentic is the dashboard; /marketplace is the storefront (section 4)
-    await page.goto('/agentic');
-    // mk-hero is the first/only hero section on the redesigned marketplace page
-    await expect(page.locator('section.mk-hero')).toBeVisible({ timeout: 10_000 });
+test.describe('Seller page', () => {
+  const PORTAL_REGISTER = /^https:\/\/portal\.shadow-warden-ai\.com\/register\/?$/;
+  test.beforeEach(async ({ page }) => { await page.goto('/sellers'); });
+
+  test('hero headline is visible', async ({ page }) => {
+    await expect(page.locator('h1')).toContainText('Label every unit');
   });
 
-  // ── Hero stat counters ─────────────────────────────────────────────────────
-  test('hero stat bar has 5 stat elements', async ({ page }) => {
-    // 4 SSE-updatable counters + 1 static "Platform Take Rate" card
-    const stats = page.locator('.stats-bar .stat-n');
-    await expect(stats).toHaveCount(5);
+  test('primary call to action opens portal sign-up', async ({ page }) => {
+    await expect(page.locator('.sl-hero a', { hasText: 'Start free' })).toHaveAttribute('href', PORTAL_REGISTER);
   });
 
-  test('stat IDs are present for SSE updates', async ({ page }) => {
-    for (const id of ['st-agents', 'st-listings', 'st-trades', 'st-vol']) {
-      await expect(page.locator(`#${id}`)).toBeVisible();
+  test('catalog-check link targets its section', async ({ page }) => {
+    await expect(page.locator('.sl-hero a[href="#catalog-check"]')).toBeVisible();
+    await expect(page.locator('#catalog-check')).toBeAttached();
+  });
+
+  for (const heading of ['What changed for sellers', 'Everything in one seller workspace',
+    'Two channels, kept apart on purpose', 'Up and running in an afternoon', 'Free catalog check', 'Questions']) {
+    test(`section "${heading}" is present`, async ({ page }) => {
+      await expect(page.locator('h2', { hasText: heading })).toBeVisible();
+    });
+  }
+
+  test('manual review goes to the contact form', async ({ page }) => {
+    await expect(page.locator('a[href="/contact?topic=catalog-check"]')).toBeVisible();
+  });
+
+  test('a question expands on click', async ({ page }) => {
+    const first = page.locator('details.sl-faq').first();
+    await first.locator('summary').click();
+    await expect(first).toHaveAttribute('open', '');
+  });
+
+  test('every sign-up link goes to the portal', async ({ page }) => {
+    const links = page.locator('a', { hasText: /Start free|free account/ });
+    expect(await links.count()).toBeGreaterThanOrEqual(3);
+    for (const href of await links.evaluateAll(els => els.map(e => e.getAttribute('href')))) {
+      expect(href).toMatch(PORTAL_REGISTER);
     }
   });
 
-  // ── Chart.js canvases ─────────────────────────────────────────────────────
-  test('chart canvas elements exist in the DOM', async ({ page }) => {
-    // Chart.js canvases must be present regardless of CDN load
-    for (const id of ['chart-volume', 'chart-payments', 'chart-agents']) {
-      await expect(page.locator(`canvas#${id}`)).toBeAttached();
-    }
-  });
-
-  test('chart canvases are visible in the analytics section', async ({ page }) => {
-    // Scroll to the analytics section first
-    await page.locator('#analytics').scrollIntoViewIfNeeded();
-    for (const id of ['chart-volume', 'chart-payments']) {
-      await expect(page.locator(`canvas#${id}`)).toBeVisible();
-    }
-  });
-
-  test('live market ticker element is present', async ({ page }) => {
-    // The ticker is fed live trade data via SSE; it must render regardless of feed state
-    await expect(page.locator('#ticker')).toBeAttached();
-  });
-
-  // ── Marketplace data tables ─────────────────────────────────────────────────
-  test('marketplace tables render (agents, tools, auctions, trades)', async ({ page }) => {
-    for (const id of ['agents-table', 'tools-table', 'auctions-grid', 'trades-body']) {
-      await expect(page.locator(`#${id}`)).toBeAttached();
-    }
-  });
-
-  // ── Core sections ───────────────────────────────────────────────────────────
-  test('core marketplace sections are present', async ({ page }) => {
-    for (const id of ['analytics', 'agents', 'tools', 'auctions', 'payments']) {
-      await expect(page.locator(`section#${id}`)).toBeAttached();
-    }
-  });
-
-  test('agent-protocol link tag is present on /agentic', async ({ page }) => {
+  test('page carries structured data and the agent-protocol link', async ({ page }) => {
+    await expect(page.locator('script[type="application/ld+json"]').first()).toBeAttached();
     await expect(page.locator('link[rel="agent-protocol"]')).toHaveCount(1);
-  });
-
-  // ── Settlement / protocol sections ──────────────────────────────────────────
-  test('payments and protocol sections render', async ({ page }) => {
-    await page.locator('#payments').scrollIntoViewIfNeeded();
-    await expect(page.locator('section#payments')).toBeVisible();
-    await expect(page.locator('section#protocol')).toBeAttached();
   });
 });
 
@@ -396,9 +240,10 @@ test.describe('Routes', () => {
     await expect(page.locator('#listings-body')).toBeAttached();
   });
 
-  test('/community redirects or loads community page', async ({ page }) => {
+  test('/community lands on the seller page', async ({ page }) => {
     const resp = await page.goto('/community');
     expect(resp?.status()).toBeLessThan(400);
+    await page.waitForURL(/\/sellers\/?$/);
   });
 });
 

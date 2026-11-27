@@ -45,89 +45,20 @@ _SITE = Path(__file__).resolve().parents[2] / "site" / "src" / "pages"
 _AGENTIC = _SITE / "agentic.astro"
 
 
-@pytest.fixture(scope="module")
-def agentic() -> str:
+def test_the_retired_marketplace_page_publishes_nothing() -> None:
+    """
+    /agentic was retired on 2026-11-27 (#829): the dashboard broke on load and
+    presented SIMULATED gateway features. The guards that pinned its numbers —
+    totals starting at zero, an empty trade log, SEED_* sections labelled as
+    samples, no build-time fetch — have nothing left to pin. The page is a
+    redirect; if a dashboard comes back here, those guards come back with it.
+    """
     if not _AGENTIC.exists():
         pytest.skip("site/ not present in this checkout")
-    return _AGENTIC.read_text(encoding="utf-8")
-
-
-@pytest.fixture(scope="module")
-def frontmatter(agentic: str) -> str:
-    """Everything between the opening and closing `---` — runs at build time."""
-    parts = agentic.split("---", 2)
-    assert len(parts) >= 3, "agentic.astro has no frontmatter fence"
-    return parts[1]
-
-
-def test_marketplace_totals_start_at_zero(frontmatter: str) -> None:
-    """The four numbers that were published as fact during an outage."""
-    match = re.search(r"summaryStats\s*=\s*\{([^}]*)\}", frontmatter)
-    assert match, "summaryStats is gone or reshaped — re-check this guard"
-
-    invented = [
-        (key, value)
-        for key, value in re.findall(r"(\w+)\s*:\s*([0-9_.]+)", match.group(1))
-        if float(value.replace("_", "")) != 0
-    ]
-    assert not invented, (
-        "The marketplace stat bar starts at a non-zero number, which is what "
-        "the page publishes whenever the API cannot be reached: "
-        + ", ".join(f"{k}={v}" for k, v in invented)
-        + ". There are zero registered users and zero settled trades; a number "
-        "nobody measures reads zero."
-    )
-
-
-def test_the_page_does_not_fetch_at_build_time(frontmatter: str) -> None:
-    """
-    A committed `landing/` plus a freshness check plus a build-time fetch of
-    live data cannot all three hold. The client fetch after load can.
-    """
-    assert "fetch(" not in frontmatter, (
-        "agentic.astro fetches at build time again. `landing/` is committed and "
-        "ci.yml requires it to equal a fresh build, so this makes the published "
-        "artefact depend on what the API returned during that build — red on an "
-        "outage today, permanently red once the marketplace has real activity. "
-        "Fetch from the client instead (see refreshStats / refreshTrades)."
-    )
-
-
-def test_the_trade_log_starts_empty(frontmatter: str) -> None:
-    assert re.search(r"recentTrades[^=]*=\s*\[\s*\]", frontmatter), (
-        "The recent-trades table must start empty and render its empty state. "
-        "Seeding it with invented trades publishes settled transactions that "
-        "never happened."
-    )
-
-
-def test_invented_sections_are_labelled_as_samples(agentic: str) -> None:
-    """
-    The agent directory, tool catalog, auction cards and analytics charts all
-    render invented data. That is allowed — showing the shape of an empty
-    product is legitimate — but only while it says so on the page.
-    """
-    seeded_sections = {
-        "SEED_AGENTS": "Agent Directory",
-        "SEED_TOOLS": "L402-Priced MCP Tools",
-        "SEED_AUCTIONS": "Active Sealed-Bid Auctions",
-    }
-    missing = [
-        f"{const} ({heading!r})"
-        for const, heading in seeded_sections.items()
-        if const in agentic
-        and not re.search(re.escape(heading) + r'[^\n]*sample-badge', agentic)
-    ]
-    assert not missing, (
-        "These sections render invented data without a 'Sample data' badge on "
-        "their heading: " + ", ".join(missing)
-    )
-
-    assert agentic.count("sample-note") >= 4, (
-        "Each section built from SEED_* data needs its note explaining what is "
-        "invented — a badge alone is easy to scroll past once the table under "
-        "it looks authoritative."
-    )
+    src = _AGENTIC.read_text(encoding="utf-8")
+    assert "Astro.redirect(" in src, "agentic.astro is a page again: restore the fabricated-metrics guards"
+    for marker in ("summaryStats", "recentTrades", "SEED_", "fetch(", "<BaseLayout"):
+        assert marker not in src, f"agentic.astro carries {marker!r} again"
 
 
 # ── status page ───────────────────────────────────────────────────────────────
