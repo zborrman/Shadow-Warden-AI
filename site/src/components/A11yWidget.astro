@@ -101,7 +101,13 @@
   }
   @font-face {
     font-family: 'OpenDyslexic';
-    src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.woff') format('woff');
+    src: url('/fonts/OpenDyslexic-Regular.otf') format('opentype');
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'OpenDyslexic';
+    src: url('/fonts/OpenDyslexic-Bold.otf') format('opentype');
+    font-weight: 700;
     font-display: swap;
   }
   body.a11y-dyslexia { font-family: 'OpenDyslexic', sans-serif !important; }

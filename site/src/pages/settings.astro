@@ -1702,7 +1702,8 @@ import { BILLING_PORTAL } from '../config/lemonsqueezy';
 
   // ── Security PQC panel ────────────────────────────────────────
   // Probe health endpoint to check liboqs status
-  fetch('/health', { signal: AbortSignal.timeout(3000) })
+  // /health is not served on www; vercel.json proxies /api/health to the gateway.
+  fetch('/api/health', { signal: AbortSignal.timeout(3000) })
     .then(r => r.json())
     .catch(() => null)
     .then((data: any) => {
