@@ -10,7 +10,10 @@ that engine is, where it fits, and the order of work.
 A client-side runtime translator, ~240 KB of dictionaries for one tool:
 
 - `EN` — every UI string, numbered; `{0}`-style placeholders for dynamic text.
-- `T[lang]` — the same ids in 9 languages: ru, zh, ja, de, fr, es, pt, it, pl.
+- `T[lang]` — the same ids in 10 languages: ru, zh, ja, de, fr, es, pt, it, pl, ar.
+  Arabic (added 2026-11-27) is right-to-left: `setLang` sets `html[dir]`, the score
+  scale and numeric inputs stay left-to-right, letter-spacing and monospace are
+  switched off for `:lang(ar)` (they break Arabic letter joining), lists join with `،`.
 - A DOM walker + `MutationObserver` replaces text nodes and the `placeholder`,
   `aria-label`, `title`, `data-l` attributes by exact match or pattern; it skips
   `script/style/textarea/code` and anything under `translate="no"`.
@@ -44,7 +47,7 @@ A client-side runtime translator, ~240 KB of dictionaries for one tool:
 ## Phases
 
 1. **Portal tools (this PR)** — `sim.html` replaced by the artifact's
-   multilingual build: 10 languages, picker in the tools bar. Verified in a
+   multilingual build: 10 languages (11 with Arabic), picker in the tools bar. Verified in a
    browser (de/ru/ja/fr switch the UI; brand names stay).
 2. **Public site, seller pages** — Astro i18n routing for `/sellers`,
    `/fraud-score`, `/price`, home in the storefront's approved set
@@ -52,7 +55,7 @@ A client-side runtime translator, ~240 KB of dictionaries for one tool:
    claims test per locale.
 3. **Portal screens** — typed catalog per screen (login/register first: the
    only screens every seller sees), same five languages.
-4. **Remaining site pages and the other five languages** (ru, zh, ja, pt, pl) —
+4. **Remaining site pages and the other languages** (ru, zh, ja, pt, pl, ar — ar needs RTL layouts on the site) —
    after phase 2 proves the review loop; legal pages last.
 
 ## Open owner decisions
