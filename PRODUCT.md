@@ -6,7 +6,7 @@
 
 web
 
-The React Native app at `mobile/` (`ShadowWardenSOC` — RN 0.73, push notifications via Firebase Messaging, `@react-navigation` stack) is an existing companion alert client, not a surface this design system governs. It must not be restyled without a separate brief. `[inferred]`
+The React Native SOC alert app (`mobile/`) was removed on 2026-11-27: it was never built in CI or published, served the gateway rather than sellers, and was a fifth frontend under the feature freeze.
 
 ## Users
 

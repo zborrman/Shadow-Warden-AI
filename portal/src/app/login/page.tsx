@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { completeTotp, login } from '@/lib/auth'
 import { AuthShell, ErrorNote, Spinner, detailOf, field, labelCls, primary, secondary, textLink } from '@/components/auth/AuthShell'
 import { PasswordField } from '@/components/auth/PasswordField'
+import { TotpEnroll } from '@/components/auth/TotpEnroll'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totpSession, setTotpSession] = useState('')
+  const [setupSession, setSetupSession] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -26,6 +28,7 @@ export default function LoginPage() {
     try {
       const r = await login(email.trim(), password)
       if ('requires_totp' in r) { setTotpSession(r.totp_session); setPassword(''); return }
+      if ('requires_totp_setup' in r) { setSetupSession(r.setup_session); setPassword(''); return }
       router.replace('/dashboard/')
     } catch (err) {
       setError(detailOf(err, 'Sign-in failed. Please try again.'))
@@ -50,6 +53,12 @@ export default function LoginPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  if (setupSession) {
+    return <TotpEnroll setupSession={setupSession} step="Before you continue"
+                       lead="Two-step verification is now required for every account. Link an authenticator app once; after that you sign in with a code."
+                       onDone={() => router.replace('/dashboard/')} />
   }
 
   if (totpSession) {
