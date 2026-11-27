@@ -804,10 +804,9 @@ class TestOneLayout:
     """
 
     # Full-screen screens that deliberately draw their own chrome: the auth
-    # forms, the FraudScore console (it loads its own Tailwind build), and the
-    # two pages that only redirect.
-    STANDALONE = {"login.astro", "signup.astro", "fraud-score.astro",
-                  "community.astro", "enterprise.astro"}
+    # forms and the two pages that only redirect. (The FraudScore console moved
+    # into the site layout on 2026-11-26.)
+    STANDALONE = {"login.astro", "signup.astro", "community.astro", "enterprise.astro"}
 
     def test_the_site_has_one_layout(self):
         assert sorted(p.name for p in _LAYOUTS.glob("*.astro")) == list(_SITE_LAYOUTS)
