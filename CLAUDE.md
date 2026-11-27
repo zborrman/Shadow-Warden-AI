@@ -10,6 +10,12 @@
   UI (plan stage M4) ships in English, French, German, Spanish and Italian — EN is the
   source, FR/DE/ES/IT are translation catalogs of it. Nothing else on `site/`, `portal/`
   or `dashboard/` is in scope, and no other language may be added without the owner.
+- **Multilingual programme (owner request 2026-11-27):** the owner asked for the whole
+  project in foreign languages. Plan and order: `docs/i18n-plan.md`. Phase 1 (done): the
+  Listing Preflight / FraudScore tool (`portal/public/preflight/sim.html`) ships its own
+  10-language engine (en, ru, zh, ja, de, fr, es, pt, it, pl). Further locales follow that
+  plan; source strings, code and comments stay English, and every translated claim passes
+  the Claims Rule.
 
 ## Feature Freeze — active since 2026-08-18 (P0)
 The launch programme (`docs/launch-program.md`, phase P0) froze the growth of
