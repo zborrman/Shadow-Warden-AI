@@ -76,6 +76,7 @@ data/*.db-wal
 .claude/*
 !.claude/skills/
 !.claude/agents/
+!.claude/commands/
 
 # Test / build artifacts
 coverage.json
